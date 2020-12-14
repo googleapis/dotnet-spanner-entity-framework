@@ -21,7 +21,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using System;
 using System.Data.Common;
 
-namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
+namespace Microsoft.EntityFrameworkCore
 {
     /// <summary>
     /// Spanner specific extension methods for <see cref="DbContextOptionsBuilder" />.
