@@ -1,0 +1,131 @@
+﻿using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
+using Google.Cloud.Spanner.Data;
+using System;
+using System.Collections.Generic;
+using System.Data;
+
+namespace Microsoft.EntityFrameworkCore.Storage.Internal
+{
+    public class SpannerTypeMappingSource : RelationalTypeMappingSource
+    {
+        private static readonly BoolTypeMapping s_bool
+            = new SpannerBoolTypeMapping(SpannerDbType.Bool.ToString());
+
+        private static readonly DateTimeTypeMapping s_date
+            = new DateTimeTypeMapping(SpannerDbType.Date.ToString(), DbType.DateTime);
+
+        private static readonly DateTimeTypeMapping s_datetime
+            = new DateTimeTypeMapping(SpannerDbType.Timestamp.ToString(), DbType.DateTime);
+
+        private static readonly StringTypeMapping s_defaultString
+            = new SpannerStringTypeMapping(SpannerDbType.String.ToString(), unicode: true, fixedLength: true, sqlDbType: SpannerDbType.String);
+
+        private static readonly DoubleTypeMapping s_double
+            = new SpannerDoubleTypeMapping();
+
+        private static readonly IntTypeMapping s_int = new IntTypeMapping(SpannerDbType.Int64.ToString(), DbType.Int32);
+
+        private static readonly LongTypeMapping s_long
+            = new LongTypeMapping(SpannerDbType.Int64.ToString(), DbType.Int64);
+
+        private static readonly DecimalTypeMapping s_decimal
+            = new DecimalTypeMapping(SpannerDbType.Float64.ToString());
+
+        private static readonly GuidTypeMapping s_guid
+            = new GuidTypeMapping(SpannerDbType.String.ToString(), DbType.String);
+
+        private static readonly SpannerComplexTypeMapping s_byteArray
+            = new SpannerComplexTypeMapping(SpannerDbType.Bytes);
+
+        private static readonly SpannerComplexTypeMapping s_stringArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String));
+
+        private static readonly SpannerComplexTypeMapping s_boolArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bool));
+
+        private static readonly SpannerComplexTypeMapping s_doubleArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Float64));
+
+        private static readonly SpannerComplexTypeMapping s_longArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64));
+
+        private static readonly SpannerComplexTypeMapping s_dateArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Timestamp));
+
+        private readonly Dictionary<Type, RelationalTypeMapping> s_clrTypeMappings;
+
+        private readonly Dictionary<string, RelationalTypeMapping> s_storeTypeMappings;
+
+
+        public SpannerTypeMappingSource(
+            TypeMappingSourceDependencies dependencies,
+            RelationalTypeMappingSourceDependencies relationalDependencies)
+            : base(dependencies, relationalDependencies)
+        {
+            s_clrTypeMappings
+                = new Dictionary<Type, RelationalTypeMapping>
+                {
+                {typeof(short), s_long},
+                {typeof(int), s_int},
+                {typeof(long), s_long},
+                {typeof(decimal), s_decimal},
+                {typeof(uint), s_long},
+                {typeof(bool), s_bool},
+                {typeof(DateTime), s_datetime},
+                {typeof(float), s_double},
+                {typeof(double), s_double},
+                {typeof(string), s_defaultString},
+                {typeof(string[]), s_stringArray},
+                {typeof(bool[]), s_boolArray},
+                {typeof(double[]), s_doubleArray},
+                {typeof(long[]), s_longArray},
+                {typeof(DateTime[]), s_dateArray},
+                {typeof(Guid), s_guid},
+                {typeof(byte[]), s_byteArray}
+                };
+
+            s_storeTypeMappings = new Dictionary<string, RelationalTypeMapping>
+            {
+                {SpannerDbType.Bool.ToString(), s_bool},
+                {SpannerDbType.Bytes.ToString(), s_byteArray},
+                {SpannerDbType.Date.ToString(), s_date},
+                {SpannerDbType.Float64.ToString(), s_double},
+                {SpannerDbType.Int64.ToString(), s_long},
+                {SpannerDbType.Timestamp.ToString(), s_datetime},
+                {SpannerDbType.String.ToString(), s_defaultString},
+                {SpannerDbType.Unspecified.ToString(), null}
+            };
+        }
+
+
+        protected override RelationalTypeMapping FindMapping(in RelationalTypeMappingInfo mappingInfo)
+            => FindRawMapping(mappingInfo)?.Clone(mappingInfo)
+                ?? base.FindMapping(mappingInfo);
+
+        private RelationalTypeMapping FindRawMapping(RelationalTypeMappingInfo mappingInfo)
+        {
+            var clrType = mappingInfo.ClrType;
+            var storeTypeName = mappingInfo.StoreTypeName;
+            var storeTypeNameBase = mappingInfo.StoreTypeNameBase;
+
+            if (storeTypeName != null)
+            {
+                if (s_storeTypeMappings.TryGetValue(storeTypeName, out var mapping)
+                    || s_storeTypeMappings.TryGetValue(storeTypeNameBase, out mapping))
+                {
+                    return clrType == null || mapping.ClrType == clrType ? mapping : null;
+                }
+            }
+
+            if (clrType != null)
+            {
+                if (s_clrTypeMappings.TryGetValue(clrType, out var mapping))
+                {
+                    return mapping;
+                }
+            }
+
+            return null;
+        }
+    }
+}
