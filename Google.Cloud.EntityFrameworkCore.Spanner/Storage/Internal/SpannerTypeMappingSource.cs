@@ -32,7 +32,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             = new DateTimeTypeMapping(SpannerDbType.Timestamp.ToString(), DbType.DateTime);
 
         private static readonly StringTypeMapping s_defaultString
-            = new SpannerStringTypeMapping(SpannerDbType.String.ToString(), unicode: true, fixedLength: true, sqlDbType: SpannerDbType.String);
+            = new SpannerStringTypeMapping(SpannerDbType.String.ToString(), unicode: true, sqlDbType: SpannerDbType.String);
 
         private static readonly DoubleTypeMapping s_double
             = new SpannerDoubleTypeMapping();
@@ -110,7 +110,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {SpannerDbType.Unspecified.ToString(), null}
             };
         }
-
 
         protected override RelationalTypeMapping FindMapping(in RelationalTypeMappingInfo mappingInfo)
             => FindRawMapping(mappingInfo)?.Clone(mappingInfo)
