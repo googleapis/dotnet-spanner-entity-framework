@@ -258,7 +258,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
 
                 using (var reader = command.ExecuteReader())
                 {
-                    Console.WriteLine("Getting foreign keys");
                     var tableFkGroups = reader.Cast<DbDataRecord>()
                         .GroupBy(ddr => (
                             FkTable: ddr.GetValueOrDefault<string>("FK_TABLE"),
@@ -268,7 +267,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
 
                     foreach (var tableFkGroup in tableFkGroups)
                     {
-                        Console.WriteLine($"Found foreign key {tableFkGroup.Key}");
                         var fkTableName = tableFkGroup.Key.FkTable;
                         var fkTable = tables.Single(t => t.Name == fkTableName);
                         var pkTableName = tableFkGroup.Key.PkTable;
@@ -277,7 +275,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
 
                         foreach (var col in tableFkGroup)
                         {
-                            Console.WriteLine($"Creating foreign key column {col}");
                             var fkCol = fkTable.Columns.FirstOrDefault(c => c.Name == col.GetValueOrDefault<string>("FK_COL_NAME"));
                             fk.Columns.Add(fkCol);
                             var pkCol = pkTable.Columns.FirstOrDefault(c => c.Name == col.GetValueOrDefault<string>("PK_COL_NAME"));
