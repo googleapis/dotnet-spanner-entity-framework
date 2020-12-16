@@ -26,7 +26,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             = new SpannerBoolTypeMapping(SpannerDbType.Bool.ToString());
 
         private static readonly DateTimeTypeMapping s_date
-            = new DateTimeTypeMapping(SpannerDbType.Date.ToString(), DbType.DateTime);
+            = new DateTimeTypeMapping(SpannerDbType.Date.ToString(), DbType.Date);
 
         private static readonly DateTimeTypeMapping s_datetime
             = new DateTimeTypeMapping(SpannerDbType.Timestamp.ToString(), DbType.DateTime);
@@ -34,22 +34,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly StringTypeMapping s_defaultString
             = new SpannerStringTypeMapping(SpannerDbType.String.ToString(), unicode: true, sqlDbType: SpannerDbType.String);
 
-        private static readonly DoubleTypeMapping s_double
-            = new SpannerDoubleTypeMapping();
+        private static readonly DoubleTypeMapping s_double = new SpannerDoubleTypeMapping();
 
         private static readonly IntTypeMapping s_int = new IntTypeMapping(SpannerDbType.Int64.ToString(), DbType.Int32);
 
         private static readonly LongTypeMapping s_long
             = new LongTypeMapping(SpannerDbType.Int64.ToString(), DbType.Int64);
 
-        private static readonly DecimalTypeMapping s_decimal
-            = new DecimalTypeMapping(SpannerDbType.Float64.ToString());
+        private static readonly SpannerNumericTypeMapping s_decimal
+            = new SpannerNumericTypeMapping(SpannerDbType.Numeric.ToString(), 29, 9, StoreTypePostfix.PrecisionAndScale);
 
         private static readonly GuidTypeMapping s_guid
             = new GuidTypeMapping(SpannerDbType.String.ToString(), DbType.String);
 
-        private static readonly SpannerComplexTypeMapping s_byteArray
+        private static readonly SpannerComplexTypeMapping s_byte
             = new SpannerComplexTypeMapping(SpannerDbType.Bytes);
+
+        private static readonly SpannerComplexTypeMapping s_byteArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bytes));
 
         private static readonly SpannerComplexTypeMapping s_stringArray
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String));
@@ -64,6 +66,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64));
 
         private static readonly SpannerComplexTypeMapping s_dateArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Date));
+
+        private static readonly SpannerComplexTypeMapping s_timestampArray
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Timestamp));
 
         private readonly Dictionary<System.Type, RelationalTypeMapping> s_clrTypeMappings;
@@ -95,19 +100,27 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {typeof(long[]), s_longArray},
                 {typeof(DateTime[]), s_dateArray},
                 {typeof(Guid), s_guid},
-                {typeof(byte[]), s_byteArray}
+                {typeof(byte[]), s_byte}
                 };
 
             s_storeTypeMappings = new Dictionary<string, RelationalTypeMapping>
             {
                 {SpannerDbType.Bool.ToString(), s_bool},
-                {SpannerDbType.Bytes.ToString(), s_byteArray},
+                {SpannerDbType.Bytes.ToString(), s_byte},
                 {SpannerDbType.Date.ToString(), s_date},
                 {SpannerDbType.Float64.ToString(), s_double},
                 {SpannerDbType.Int64.ToString(), s_long},
                 {SpannerDbType.Timestamp.ToString(), s_datetime},
                 {SpannerDbType.String.ToString(), s_defaultString},
-                {SpannerDbType.Unspecified.ToString(), null}
+                {SpannerDbType.Numeric.ToString(), s_decimal},
+                {SpannerDbType.Unspecified.ToString(), null},
+                {"ARRAY<BOOL>", s_boolArray},
+                {"ARRAY<BYTES", s_byteArray},
+                {"ARRAY<DATE>", s_dateArray},
+                {"ARRAY<FLOAT64>", s_doubleArray},
+                {"ARRAY<INT64>", s_longArray},
+                {"ARRAY<STRING", s_stringArray},
+                {"ARRAY<TIMESTAMP>", s_timestampArray}
             };
         }
 
