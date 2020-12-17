@@ -25,8 +25,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly BoolTypeMapping s_bool
             = new SpannerBoolTypeMapping(SpannerDbType.Bool.ToString());
 
-        private static readonly DateTimeTypeMapping s_date
-            = new DateTimeTypeMapping(SpannerDbType.Date.ToString(), DbType.Date);
+        private static readonly SpannerDateTypeMapping s_date = new SpannerDateTypeMapping();
 
         private static readonly DateTimeTypeMapping s_datetime
             = new DateTimeTypeMapping(SpannerDbType.Timestamp.ToString(), DbType.DateTime);
@@ -71,6 +70,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly SpannerComplexTypeMapping s_timestampArray
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Timestamp));
 
+        private static readonly SpannerComplexTypeMapping s_numericArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric));
+
         private readonly Dictionary<System.Type, RelationalTypeMapping> s_clrTypeMappings;
 
         private readonly Dictionary<string, RelationalTypeMapping> s_storeTypeMappings;
@@ -98,7 +100,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {typeof(bool[]), s_boolArray},
                 {typeof(double[]), s_doubleArray},
                 {typeof(long[]), s_longArray},
-                {typeof(DateTime[]), s_dateArray},
+                // TODO: Figure out how to register this {typeof(DateTime[]), s_dateArray},
+                {typeof(DateTime[]), s_timestampArray},
+                {typeof(decimal[]), s_numericArray},
                 {typeof(Guid), s_guid},
                 {typeof(byte[]), s_byte}
                 };
@@ -120,7 +124,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {"ARRAY<FLOAT64>", s_doubleArray},
                 {"ARRAY<INT64>", s_longArray},
                 {"ARRAY<STRING", s_stringArray},
-                {"ARRAY<TIMESTAMP>", s_timestampArray}
+                {"ARRAY<TIMESTAMP>", s_timestampArray},
+                {"ARRAY<NUMERIC>", s_numericArray}
             };
         }
 
