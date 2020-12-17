@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Google.Cloud.Spanner.Data;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Scaffolding;
 using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
 using System;
@@ -91,7 +92,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
 
                 GetColumns(connection, tables);
                 GetIndexes(connection, tables);
-                //GetForeignKeys(connection, tables);
+                GetForeignKeys(connection, tables);
 
                 return tables;
             }
@@ -224,6 +225,63 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
                             table.Indexes.Add(index);
                         }
 
+                    }
+                }
+            }
+        }
+
+        private void GetForeignKeys(DbConnection connection, IReadOnlyList<DatabaseTable> tables)
+        {
+            using (var command = connection.CreateCommand())
+            {
+                var commandText =
+                     @"select FK.TABLE_NAME AS FK_TABLE, FK.CONSTRAINT_NAME, FK_COLS.COLUMN_NAME AS FK_COL_NAME, PK_COLS.TABLE_NAME AS PK_TABLE, PK_COLS.COLUMN_NAME AS PK_COL_NAME "
+                    + "from INFORMATION_SCHEMA.TABLE_CONSTRAINTS FK "
+                    + "inner join INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS RC ON "
+                    + "    FK.CONSTRAINT_CATALOG = RC.CONSTRAINT_CATALOG AND "
+                    + "    FK.CONSTRAINT_SCHEMA = RC.CONSTRAINT_SCHEMA AND "
+                    + "    FK.CONSTRAINT_NAME = RC.CONSTRAINT_NAME AND "
+                    + "    FK.CONSTRAINT_TYPE = 'FOREIGN KEY' "
+                    + "inner join INFORMATION_SCHEMA.KEY_COLUMN_USAGE FK_COLS ON "
+                    + "    FK.CONSTRAINT_CATALOG = FK_COLS.CONSTRAINT_CATALOG AND "
+                    + "    FK.CONSTRAINT_SCHEMA = FK_COLS.CONSTRAINT_SCHEMA AND "
+                    + "    FK.CONSTRAINT_NAME = FK_COLS.CONSTRAINT_NAME "
+                    + "inner join INFORMATION_SCHEMA.KEY_COLUMN_USAGE PK_COLS ON "
+                    + "    RC.UNIQUE_CONSTRAINT_CATALOG = PK_COLS.CONSTRAINT_CATALOG AND "
+                    + "    RC.UNIQUE_CONSTRAINT_SCHEMA = PK_COLS.CONSTRAINT_SCHEMA AND "
+                    + "    RC.UNIQUE_CONSTRAINT_NAME = PK_COLS.CONSTRAINT_NAME AND "
+                    + "    FK_COLS.POSITION_IN_UNIQUE_CONSTRAINT = PK_COLS.ORDINAL_POSITION "
+                    + "where FK.CONSTRAINT_CATALOG = '' AND FK.CONSTRAINT_SCHEMA = '' "
+                    + "order by FK.CONSTRAINT_CATALOG, FK.CONSTRAINT_SCHEMA, FK.TABLE_NAME, FK.CONSTRAINT_NAME, FK_COLS.POSITION_IN_UNIQUE_CONSTRAINT";
+
+                command.CommandText = commandText;
+
+                using (var reader = command.ExecuteReader())
+                {
+                    var tableFkGroups = reader.Cast<DbDataRecord>()
+                        .GroupBy(ddr => (
+                            FkTable: ddr.GetValueOrDefault<string>("FK_TABLE"),
+                            PkTable: ddr.GetValueOrDefault<string>("PK_TABLE"),
+                            Name: ddr.GetValueOrDefault<string>("CONSTRAINT_NAME")
+                        ));
+
+                    foreach (var tableFkGroup in tableFkGroups)
+                    {
+                        var fkTableName = tableFkGroup.Key.FkTable;
+                        var fkTable = tables.Single(t => t.Name == fkTableName);
+                        var pkTableName = tableFkGroup.Key.PkTable;
+                        var pkTable = tables.Single(t => t.Name == pkTableName);
+                        var fk = new DatabaseForeignKey { Name = tableFkGroup.Key.Name, Table = fkTable, PrincipalTable = pkTable, OnDelete = ReferentialAction.Restrict };
+
+                        foreach (var col in tableFkGroup)
+                        {
+                            var fkCol = fkTable.Columns.FirstOrDefault(c => c.Name == col.GetValueOrDefault<string>("FK_COL_NAME"));
+                            fk.Columns.Add(fkCol);
+                            var pkCol = pkTable.Columns.FirstOrDefault(c => c.Name == col.GetValueOrDefault<string>("PK_COL_NAME"));
+                            fk.PrincipalColumns.Add(pkCol);
+                        }
+
+                        fkTable.ForeignKeys.Add(fk);
                     }
                 }
             }
