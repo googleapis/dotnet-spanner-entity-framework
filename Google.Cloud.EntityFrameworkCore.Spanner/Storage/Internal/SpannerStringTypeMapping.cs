@@ -22,8 +22,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     public class SpannerStringTypeMapping : StringTypeMapping
     {
-        private const int StringMax = 10485760;
-
         private readonly SpannerDbType _sqlDbType;
         private readonly int _maxSpecificSize;
 
@@ -54,7 +52,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         protected SpannerStringTypeMapping(RelationalTypeMappingParameters parameters, SpannerDbType sqlDbType)
             : base(parameters)
         {
-            _maxSpecificSize = parameters.Size ?? StringMax;
+            _maxSpecificSize = parameters.Size ?? SpannerTypeMappingSource.StringMax;
             _sqlDbType = sqlDbType;
         }
 

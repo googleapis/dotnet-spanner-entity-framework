@@ -46,6 +46,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
 
         public override DbContextOptionsExtensionInfo Info => _info ??= new ExtensionInfo(this);
 
+        public override int? MinBatchSize => 2;
+
         /// <summary>
         /// This is internal functionality and not intended for public use.
         /// </summary>

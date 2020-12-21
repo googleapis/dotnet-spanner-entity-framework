@@ -5,7 +5,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 {
     public partial class Performances
     {
-        public string Venue { get; set; }
+        public string VenueCode { get; set; }
         public DateTime ConcertStartTime { get; set; }
         public long SingerId { get; set; }
         public long AlbumId { get; set; }

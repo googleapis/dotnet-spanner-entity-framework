@@ -10,13 +10,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
             Performances = new HashSet<Performances>();
         }
 
-        public string Venue { get; set; }
+        public string VenueCode { get; set; }
         public DateTime StartTime { get; set; }
         public long SingerId { get; set; }
         public string Title { get; set; }
 
         public virtual Singers Singer { get; set; }
-        public virtual Venues VenueNavigation { get; set; }
+        public virtual Venues VenueCodeNavigation { get; set; }
         public virtual ICollection<Performances> Performances { get; set; }
     }
 }

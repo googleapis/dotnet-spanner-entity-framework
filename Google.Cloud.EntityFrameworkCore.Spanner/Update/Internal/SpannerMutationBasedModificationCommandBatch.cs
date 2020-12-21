@@ -29,7 +29,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
     /// <summary>
     /// This is internal functionality and not intended for public use.
     /// </summary>
-    public class SpannerModificationCommandBatch : ModificationCommandBatch
+    public class SpannerMutationBasedModificationCommandBatch : ModificationCommandBatch
     {
         //Note: This class hooks into updates before any DML is generated. It handles the updates by converting
         // each row update into the appropriate SpannerCommand (mutation).  Note the use of the type mapper.
@@ -41,7 +41,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// <summary>
         /// This is internal functionality and not intended for public use.
         /// </summary>
-        public SpannerModificationCommandBatch(IRelationalTypeMappingSource typeMapper,
+        public SpannerMutationBasedModificationCommandBatch(IRelationalTypeMappingSource typeMapper,
             IDiagnosticsLogger<DbLoggerCategory.Database.Command> logger)
         {
             _typeMapper = typeMapper;
@@ -114,12 +114,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             // TODO: Integrate with Spanner logging
             cmd.Transaction = transaction;
             foreach (var columnModification in modificationCommand.ColumnModifications)
-                cmd.Parameters.Add(
-                    _typeMapper.GetMapping(columnModification.Property).CreateParameter(cmd,
-                        columnModification.ColumnName,
-                        columnModification.UseOriginalValueParameter
-                            ? columnModification.OriginalValue
-                            : columnModification.Value, columnModification.Property.IsNullable));
+            {
+                if (String.IsNullOrEmpty(columnModification.Property.GetComputedColumnSql()))
+                {
+                    cmd.Parameters.Add(
+                        _typeMapper.GetMapping(columnModification.Property).CreateParameter(cmd,
+                            columnModification.ColumnName,
+                            columnModification.UseOriginalValueParameter
+                                ? columnModification.OriginalValue
+                                : columnModification.Value, columnModification.Property.IsNullable));
+                }
+            }
             return cmd;
         }
     }

@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Scaffolding;
 using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
@@ -104,14 +106,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
         {
             using (var command = connection.CreateCommand())
             {
-                var commandText = @"SELECT  * FROM  INFORMATION_SCHEMA.COLUMNS WHERE  table_catalog = '' and table_schema = ''  order by table_name,ORDINAL_POSITION";
+                var commandText = @"SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE  TABLE_CATALOG = '' AND TABLE_SCHEMA = '' ORDER BY TABLE_NAME, ORDINAL_POSITION";
 
                 command.CommandText = commandText;
 
                 using (var reader = command.ExecuteReader())
                 {
                     var tableColumnGroups = reader.Cast<DbDataRecord>()
-                        .GroupBy(ddr => ddr.GetValueOrDefault<string>("table_name"));
+                        .GroupBy(ddr => ddr.GetValueOrDefault<string>("TABLE_NAME"));
 
                     foreach (var tableColumnGroup in tableColumnGroups)
                     {
@@ -123,8 +125,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
                         {
                             var columnName = dataRecord.GetValueOrDefault<string>("COLUMN_NAME");
                             var dataTypeName = dataRecord.GetValueOrDefault<string>("SPANNER_TYPE");
+                            dataTypeName = dataTypeName.Replace("STRING(MAX)", $"STRING({SpannerTypeMappingSource.StringMax})");
+                            dataTypeName = dataTypeName.Replace("BYTES(MAX)", $"BYTES({SpannerTypeMappingSource.BytesMax})");
                             var nullable = dataRecord.GetValueOrDefault<string>("IS_NULLABLE") == "YES" ? true : false;
                             var defaultValue = dataRecord.GetValueOrDefault<string>("COLUMN_DEFAULT");
+                            var generated = dataRecord.GetValueOrDefault<string>("IS_GENERATED") == "NEVER" ? false : true;
+                            var generationExpression = dataRecord.GetValueOrDefault<string>("GENERATION_EXPRESSION");
+                            var valueGenerated = generated ? ValueGenerated.OnAddOrUpdate : (ValueGenerated?)null;
 
                             var column = new DatabaseColumn
                             {
@@ -133,6 +140,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
                                 StoreType = dataTypeName,
                                 IsNullable = nullable,
                                 DefaultValueSql = defaultValue,
+                                // TODO: The combination of ComputedColumnSql and ValueGenerated leads to the computed SQL
+                                //       taking precedence, and the ValueGenerated property not to be generated. That again
+                                //       causes INSERT statements to be generated with the computed column in the columns list.
+                                // ComputedColumnSql = generationExpression,
+                                ValueGenerated = valueGenerated,
                             };
                             table.Columns.Add(column);
                         }
@@ -235,7 +247,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
             using (var command = connection.CreateCommand())
             {
                 var commandText =
-                     @"select FK.TABLE_NAME AS FK_TABLE, FK.CONSTRAINT_NAME, FK_COLS.COLUMN_NAME AS FK_COL_NAME, PK_COLS.TABLE_NAME AS PK_TABLE, PK_COLS.COLUMN_NAME AS PK_COL_NAME "
+                    "SELECT * FROM ("
+                    + "SELECT FK.TABLE_CATALOG AS FK_CATALOG, FK.TABLE_SCHEMA AS FK_SCHEMA, FK.TABLE_NAME AS FK_TABLE, FK.CONSTRAINT_NAME, FK_COLS.COLUMN_NAME AS FK_COL_NAME, PK_COLS.TABLE_NAME AS PK_TABLE, PK_COLS.COLUMN_NAME AS PK_COL_NAME, FK_COLS.POSITION_IN_UNIQUE_CONSTRAINT AS ORDINAL_POSITION "
                     + "from INFORMATION_SCHEMA.TABLE_CONSTRAINTS FK "
                     + "inner join INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS RC ON "
                     + "    FK.CONSTRAINT_CATALOG = RC.CONSTRAINT_CATALOG AND "
@@ -252,7 +265,33 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
                     + "    RC.UNIQUE_CONSTRAINT_NAME = PK_COLS.CONSTRAINT_NAME AND "
                     + "    FK_COLS.POSITION_IN_UNIQUE_CONSTRAINT = PK_COLS.ORDINAL_POSITION "
                     + "where FK.CONSTRAINT_CATALOG = '' AND FK.CONSTRAINT_SCHEMA = '' "
-                    + "order by FK.CONSTRAINT_CATALOG, FK.CONSTRAINT_SCHEMA, FK.TABLE_NAME, FK.CONSTRAINT_NAME, FK_COLS.POSITION_IN_UNIQUE_CONSTRAINT";
+
+                    + "UNION ALL "
+
+                    + "SELECT CHILD.TABLE_CATALOG AS FK_CATALOG, CHILD.TABLE_SCHEMA AS FK_SCHEMA, CHILD.TABLE_NAME AS FK_TABLE, PK_PARENT.CONSTRAINT_NAME AS CONSTRAINT_NAME, FK_COLS.COLUMN_NAME AS FK_COL_NAME, PARENT.TABLE_NAME AS PK_TABLE, FK_COLS.COLUMN_NAME AS PK_COL_NAME, FK_COLS.ORDINAL_POSITION "
+                    + "FROM INFORMATION_SCHEMA.TABLES CHILD "
+                    + "INNER JOIN INFORMATION_SCHEMA.TABLES PARENT ON "
+                    + "    CHILD.TABLE_CATALOG = PARENT.TABLE_CATALOG AND "
+                    + "    CHILD.TABLE_SCHEMA = PARENT.TABLE_SCHEMA AND "
+                    + "    CHILD.PARENT_TABLE_NAME = PARENT.TABLE_NAME "
+                    + "INNER JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS PK_CHILD ON "
+                    + "    CHILD.TABLE_CATALOG = PK_CHILD.TABLE_CATALOG AND "
+                    + "    CHILD.TABLE_SCHEMA = PK_CHILD.TABLE_SCHEMA AND "
+                    + "    CHILD.TABLE_NAME = PK_CHILD.TABLE_NAME AND "
+                    + "    PK_CHILD.CONSTRAINT_TYPE = 'PRIMARY KEY' "
+                    + "INNER JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS PK_PARENT ON "
+                    + "    PARENT.TABLE_CATALOG = PK_PARENT.TABLE_CATALOG AND "
+                    + "    PARENT.TABLE_SCHEMA = PK_PARENT.TABLE_SCHEMA AND "
+                    + "    PARENT.TABLE_NAME = PK_PARENT.TABLE_NAME AND "
+                    + "    PK_PARENT.CONSTRAINT_TYPE = 'PRIMARY KEY' "
+                    + "INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE FK_COLS ON "
+                    + "    PK_PARENT.CONSTRAINT_CATALOG = FK_COLS.CONSTRAINT_CATALOG AND "
+                    + "    PK_PARENT.CONSTRAINT_SCHEMA = FK_COLS.CONSTRAINT_SCHEMA AND "
+                    + "    PK_PARENT.CONSTRAINT_NAME = FK_COLS.CONSTRAINT_NAME "
+                    + "WHERE CHILD.TABLE_CATALOG = '' AND CHILD.TABLE_SCHEMA = '' "
+
+                    + ") FK "
+                    + "ORDER BY FK_CATALOG, FK_SCHEMA, FK_TABLE, CONSTRAINT_NAME, ORDINAL_POSITION ";
 
                 command.CommandText = commandText;
 

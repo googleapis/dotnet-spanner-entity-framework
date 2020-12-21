@@ -25,8 +25,9 @@ method extension to configure your DbContext with Spanner support.
 
 4. `Install-Package Google.Cloud.EntityFrameworkCore.Spanner`
 
-5. `Scaffold-DbContext "Data Source=projects/project-id/instances/instance-id/databases/database-name" Google.Cloud.EntityFrameworkCore.Spanner -o Model`
+5. Select `Google.Cloud.EntityFrameworkCore.Spanner` as the Default project in the Package Manager Console.
 
+6. `Scaffold-DbContext "Data Source=projects/project-id/instances/instance-id/databases/database-name" Google.Cloud.EntityFrameworkCore.Spanner -o Model -Force -Context SpannerSampleDbContext`
 
 [projects]: https://console.cloud.google.com/project
 [billing]: https://support.google.com/cloud/answer/6293499#enable-billing

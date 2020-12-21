@@ -22,6 +22,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     public class SpannerTypeMappingSource : RelationalTypeMappingSource
     {
+        internal const int StringMax = 2621440;
+        internal const int BytesMax = 10485760;
+
         private static readonly BoolTypeMapping s_bool
             = new SpannerBoolTypeMapping(SpannerDbType.Bool.ToString());
 
@@ -46,8 +49,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly GuidTypeMapping s_guid
             = new GuidTypeMapping(SpannerDbType.String.ToString(), DbType.String);
 
-        private static readonly SpannerComplexTypeMapping s_byte
-            = new SpannerComplexTypeMapping(SpannerDbType.Bytes);
+        private static readonly ByteArrayTypeMapping s_byte
+            = new ByteArrayTypeMapping(SpannerDbType.Bytes.ToString(), DbType.Binary);
 
         private static readonly SpannerComplexTypeMapping s_byteArray
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bytes));

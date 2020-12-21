@@ -17,6 +17,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         public List<string> LyricsLanguages { get; set; }
         public List<string> Lyrics { get; set; }
 
+        public virtual Albums Album { get; set; }
         public virtual ICollection<Performances> Performances { get; set; }
     }
 }

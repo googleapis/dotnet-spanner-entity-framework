@@ -13,8 +13,8 @@ CREATE TABLE Albums (
   AlbumId     INT64 NOT NULL,
   Title       STRING(100) NOT NULL,
   ReleaseDate DATE,
-  Singer      INT64 NOT NULL,
-  CONSTRAINT FK_Albums_Singers FOREIGN KEY (Singer) REFERENCES Singers (SingerId),
+  SingerId    INT64 NOT NULL,
+  CONSTRAINT FK_Albums_Singers FOREIGN KEY (SingerId) REFERENCES Singers (SingerId),
 ) PRIMARY KEY (AlbumId);
 
 CREATE TABLE Tracks (
@@ -38,26 +38,26 @@ CREATE TABLE Venues (
 ) PRIMARY KEY (Code);
 
 CREATE TABLE Concerts (
-  Venue     STRING(10) NOT NULL,
+  VenueCode STRING(10) NOT NULL,
   StartTime TIMESTAMP NOT NULL,
   SingerId  INT64 NOT NULL,
   Title     STRING(200),
-  CONSTRAINT FK_Concerts_Venues FOREIGN KEY (Venue) REFERENCES Venues (Code),
+  CONSTRAINT FK_Concerts_Venues FOREIGN KEY (VenueCode) REFERENCES Venues (Code),
   CONSTRAINT FK_Concerts_Singers FOREIGN KEY (SingerId) REFERENCES Singers (SingerId),
-) PRIMARY KEY (Venue, StartTime, SingerId);
+) PRIMARY KEY (VenueCode, StartTime, SingerId);
 
 CREATE TABLE Performances (
-  Venue            STRING(10) NOT NULL,
+  VenueCode        STRING(10) NOT NULL,
   ConcertStartTime TIMESTAMP NOT NULL,
   SingerId         INT64 NOT NULL,
   AlbumId          INT64 NOT NULL,
   TrackId          INT64 NOT NULL,
   StartTime        TIMESTAMP,
   Rating           FLOAT64,
-  CONSTRAINT FK_Performances_Concerts FOREIGN KEY (Venue, ConcertStartTime, SingerId) REFERENCES Concerts (Venue, StartTime, SingerId),
+  CONSTRAINT FK_Performances_Concerts FOREIGN KEY (VenueCode, ConcertStartTime, SingerId) REFERENCES Concerts (VenueCode, StartTime, SingerId),
   CONSTRAINT FK_Performances_Singers FOREIGN KEY (SingerId) REFERENCES Singers (SingerId),
   CONSTRAINT FK_Performances_Tracks FOREIGN KEY (AlbumId, TrackId) REFERENCES Tracks (AlbumId, TrackId),
-) PRIMARY KEY (Venue, SingerId, StartTime);
+) PRIMARY KEY (VenueCode, SingerId, StartTime);
 
 CREATE TABLE TableWithAllColumnTypes (
 	ColInt64 INT64 NOT NULL,

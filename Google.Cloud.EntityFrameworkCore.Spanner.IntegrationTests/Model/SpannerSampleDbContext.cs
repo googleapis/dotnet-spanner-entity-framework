@@ -1,20 +1,6 @@
-﻿// Copyright 2020 Google LLC
-// 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-// 
-//     https://www.apache.org/licenses/LICENSE-2.0
-// 
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-// Generated from SampleDataModel.sql
-
+﻿using System;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 {
@@ -55,8 +41,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                 entity.HasKey(e => e.AlbumId)
                     .HasName("PRIMARY_KEY");
 
-                entity.HasIndex(e => e.Singer)
-                    .HasName("IDX_Albums_Singer_F23D326B3F7F072E");
+                entity.HasIndex(e => e.SingerId)
+                    .HasName("IDX_Albums_SingerId_A873389737762742");
 
                 entity.Property(e => e.AlbumId).ValueGeneratedNever();
 
@@ -66,22 +52,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                     .IsRequired()
                     .HasMaxLength(100);
 
-                entity.HasOne(d => d.SingerNavigation)
+                entity.HasOne(d => d.Singer)
                     .WithMany(p => p.Albums)
-                    .HasForeignKey(d => d.Singer)
+                    .HasForeignKey(d => d.SingerId)
                     .OnDelete(DeleteBehavior.ClientSetNull)
                     .HasConstraintName("FK_Albums_Singers");
             });
 
             modelBuilder.Entity<Concerts>(entity =>
             {
-                entity.HasKey(e => new { e.Venue, e.StartTime, e.SingerId })
+                entity.HasKey(e => new { e.VenueCode, e.StartTime, e.SingerId })
                     .HasName("PRIMARY_KEY");
 
                 entity.HasIndex(e => e.SingerId)
                     .HasName("IDX_Concerts_SingerId_B428E23F69F5F316");
 
-                entity.Property(e => e.Venue).HasMaxLength(10);
+                entity.Property(e => e.VenueCode).HasMaxLength(10);
 
                 entity.Property(e => e.Title).HasMaxLength(200);
 
@@ -91,16 +77,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                     .OnDelete(DeleteBehavior.ClientSetNull)
                     .HasConstraintName("FK_Concerts_Singers");
 
-                entity.HasOne(d => d.VenueNavigation)
+                entity.HasOne(d => d.VenueCodeNavigation)
                     .WithMany(p => p.Concerts)
-                    .HasForeignKey(d => d.Venue)
+                    .HasForeignKey(d => d.VenueCode)
                     .OnDelete(DeleteBehavior.ClientSetNull)
                     .HasConstraintName("FK_Concerts_Venues");
             });
 
             modelBuilder.Entity<Performances>(entity =>
             {
-                entity.HasKey(e => new { e.Venue, e.SingerId, e.StartTime })
+                entity.HasKey(e => new { e.VenueCode, e.SingerId, e.StartTime })
                     .HasName("PRIMARY_KEY");
 
                 entity.HasIndex(e => e.SingerId)
@@ -109,10 +95,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                 entity.HasIndex(e => new { e.AlbumId, e.TrackId })
                     .HasName("IDX_Performances_AlbumId_TrackId_E337390ADF11835E");
 
-                entity.HasIndex(e => new { e.Venue, e.ConcertStartTime, e.SingerId })
-                    .HasName("IDX_Performances_Venue_ConcertStartTime_SingerId_984D85F4C1A39212");
+                entity.HasIndex(e => new { e.VenueCode, e.ConcertStartTime, e.SingerId })
+                    .HasName("IDX_Performances_VenueCode_ConcertStartTime_SingerId_4E1AF1497E5409C1");
 
-                entity.Property(e => e.Venue).HasMaxLength(10);
+                entity.Property(e => e.VenueCode).HasMaxLength(10);
 
                 entity.HasOne(d => d.Singer)
                     .WithMany(p => p.Performances)
@@ -128,7 +114,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 
                 entity.HasOne(d => d.Concerts)
                     .WithMany(p => p.Performances)
-                    .HasForeignKey(d => new { d.Venue, d.ConcertStartTime, d.SingerId })
+                    .HasForeignKey(d => new { d.VenueCode, d.ConcertStartTime, d.SingerId })
                     .OnDelete(DeleteBehavior.ClientSetNull)
                     .HasConstraintName("FK_Performances_Concerts");
             });
@@ -148,14 +134,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                 entity.Property(e => e.FirstName).HasMaxLength(200);
 
                 entity.Property(e => e.FullName)
+                    .IsRequired()
                     .HasMaxLength(400)
-                    .IsRequired();
+                    .ValueGeneratedOnAddOrUpdate();
 
                 entity.Property(e => e.LastName)
                     .IsRequired()
                     .HasMaxLength(200);
 
-                entity.Property(e => e.Picture).HasColumnType("BYTES(MAX)");
+                entity.Property(e => e.Picture).HasColumnType("BYTES(10485760)");
             });
 
             modelBuilder.Entity<TableWithAllColumnTypes>(entity =>
@@ -175,13 +162,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 
                 entity.Property(e => e.ColBytesMax)
                     .IsRequired()
-                    .HasColumnType("BYTES(MAX)");
+                    .HasColumnType("BYTES(10485760)");
 
-                entity.Property(e => e.ColBytesMaxArray).HasColumnType("ARRAY<BYTES(MAX)>");
+                entity.Property(e => e.ColBytesMaxArray).HasColumnType("ARRAY<BYTES(10485760)>");
 
                 entity.Property(e => e.ColCommitTs).HasColumnName("ColCommitTS");
 
-                entity.Property(e => e.ColComputed).HasColumnType("STRING(MAX)");
+                entity.Property(e => e.ColComputed)
+                    .HasMaxLength(2621440)
+                    .ValueGeneratedOnAddOrUpdate();
 
                 entity.Property(e => e.ColDate).HasColumnType("DATE");
 
@@ -199,9 +188,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 
                 entity.Property(e => e.ColStringMax)
                     .IsRequired()
-                    .HasColumnType("STRING(MAX)");
+                    .HasMaxLength(2621440);
 
-                entity.Property(e => e.ColStringMaxArray).HasColumnType("ARRAY<STRING(MAX)>");
+                entity.Property(e => e.ColStringMaxArray).HasColumnType("ARRAY<STRING(2621440)>");
 
                 entity.Property(e => e.ColTimestampArray).HasColumnType("ARRAY<TIMESTAMP>");
             });
@@ -216,13 +205,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 
                 entity.Property(e => e.Duration).HasColumnType("NUMERIC");
 
-                entity.Property(e => e.Lyrics).HasColumnType("ARRAY<STRING(MAX)>");
+                entity.Property(e => e.Lyrics).HasColumnType("ARRAY<STRING(2621440)>");
 
                 entity.Property(e => e.LyricsLanguages).HasColumnType("ARRAY<STRING(2)>");
 
                 entity.Property(e => e.Title)
                     .IsRequired()
                     .HasMaxLength(200);
+
+                entity.HasOne(d => d.Album)
+                    .WithMany(p => p.Tracks)
+                    .HasForeignKey(d => d.AlbumId)
+                    .OnDelete(DeleteBehavior.ClientSetNull)
+                    .HasConstraintName("PK_Albums");
             });
 
             modelBuilder.Entity<Venues>(entity =>

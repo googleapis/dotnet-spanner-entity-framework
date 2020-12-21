@@ -45,9 +45,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
     /// <summary>
     /// Base classes for test fixtures using the sample data model.
     /// If TEST_SPANNER_DATABASE is set to an existing database, that database will be used and the
-    /// fixture assumes that the database already contains the sample data model. Otherwise a new
-    /// database with the sample data model is automatically created and used. The generated
-    /// database is dropped when the fixture is disposed.
+    /// fixture assumes that the database already contains the sample data model. Any data in the
+    /// existing database will be deleted.
+    /// 
+    /// Otherwise a new database with the sample data model is automatically created and used. The
+    /// generated database is dropped when the fixture is disposed.
     /// </summary>
     [CollectionDefinition(nameof(SpannerSampleFixture))]
     public class SpannerSampleFixture : SpannerFixtureBase, ICollectionFixture<SpannerSampleFixture>
@@ -59,7 +61,37 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Logger.DefaultLogger.Debug($"Creating database {Database.DatabaseName}");
                 CreateTables();
             }
+            else
+            {
+                Logger.DefaultLogger.Debug($"Deleting data in {Database.DatabaseName}");
+                ClearTables();
+            }
             Logger.DefaultLogger.Debug($"Ready to run tests");
+        }
+
+        private void ClearTables()
+        {
+            using (var con = GetConnection())
+            {
+                con.RunWithRetriableTransaction(tx =>
+                {
+                    var cmd = tx.CreateBatchDmlCommand();
+                    foreach (var table in new string[]
+                    {
+                        "TableWithAllColumnTypes",
+                        "Performances",
+                        "Concerts",
+                        "Venues",
+                        "Tracks",
+                        "Albums",
+                        "Singers",
+                    })
+                    {
+                        cmd.Add($"DELETE FROM {table} WHERE TRUE");
+                    }
+                    cmd.ExecuteNonQuery();
+                });
+            }
         }
 
         /// <summary>
