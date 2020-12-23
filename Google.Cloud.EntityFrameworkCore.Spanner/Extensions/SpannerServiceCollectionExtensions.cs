@@ -15,11 +15,13 @@
 using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.Diagnostics.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal;
+using Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Update;
@@ -44,14 +46,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                 .TryAdd<IDatabaseProvider, DatabaseProvider<SpannerOptionsExtension>>()
                 .TryAdd<IRelationalTypeMappingSource, SpannerTypeMappingSource>()
                 .TryAdd<ISqlGenerationHelper, SpannerSqlGenerationHelper>()
+                .TryAdd<IMigrationsAnnotationProvider, SpannerMigrationsAnnotationProvider>()
+                .TryAdd<IUpdateSqlGenerator, SpannerUpdateSqlGenerator>()
                 .TryAdd<IModificationCommandBatchFactory, SpannerModificationCommandBatchFactory>()
                 .TryAdd<IUpdateSqlGenerator, SpannerUpdateSqlGenerator>()
                 .TryAdd<IModelValidator, RelationalModelValidator>()
                 .TryAdd<IQuerySqlGeneratorFactory, SpannerQuerySqlGeneratorFactory>()
                 .TryAdd<IRelationalConnection>(p => p.GetService<ISpannerRelationalConnection>())
+                .TryAdd<IMigrationsSqlGenerator, SpannerMigrationsSqlGenerator>()
+                .TryAdd<IRelationalDatabaseCreator, SpannerDatabaseCreator>()
+                .TryAdd<IHistoryRepository, SpannerHistoryRepository>()
                 .TryAdd<IExecutionStrategyFactory, RelationalExecutionStrategyFactory>()
                   .TryAddProviderSpecificServices(b => b
-                    .TryAddScoped<ISpannerRelationalConnection, SpannerRelationalConnection>());
+                  .TryAddScoped<ISpannerRelationalConnection, SpannerRelationalConnection>());
             builder.TryAddCoreServices();
             return serviceCollection;
         }
