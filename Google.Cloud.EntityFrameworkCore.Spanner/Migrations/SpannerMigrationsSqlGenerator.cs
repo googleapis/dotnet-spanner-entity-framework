@@ -80,6 +80,25 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         }
 
         protected override void Generate(
+            DropIndexOperation operation,
+            IModel model,
+            MigrationCommandListBuilder builder,
+            bool terminate)
+        {
+            GaxPreconditions.CheckNotNull(operation, nameof(operation));
+            GaxPreconditions.CheckNotNull(builder, nameof(builder));
+
+            builder
+                .Append(" DROP INDEX ")
+                .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Name));
+
+            if (terminate)
+            {
+                builder.EndCommand();
+            }
+        }
+
+        protected override void Generate(
             [NotNull] DropTableOperation operation,
             [CanBeNull] IModel model,
             [NotNull] MigrationCommandListBuilder builder,
