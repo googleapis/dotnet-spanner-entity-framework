@@ -166,7 +166,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 
                 entity.Property(e => e.ColBytesMaxArray).HasColumnType("ARRAY<BYTES(10485760)>");
 
-                entity.Property(e => e.ColCommitTs).HasColumnName("ColCommitTS");
+                entity.Property(e => e.ColCommitTs)
+                    .HasColumnName("ColCommitTS")
+                    .HasAnnotation("UpdateCommitTimestamp", SpannerUpdateCommitTimestamp.OnInsertAndUpdate);
 
                 entity.Property(e => e.ColComputed)
                     .HasMaxLength(2621440)

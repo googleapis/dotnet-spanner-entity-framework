@@ -30,8 +30,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         private static readonly SpannerDateTypeMapping s_date = new SpannerDateTypeMapping();
 
-        private static readonly DateTimeTypeMapping s_datetime
-            = new DateTimeTypeMapping(SpannerDbType.Timestamp.ToString(), DbType.DateTime);
+        private static readonly SpannerTimestampTypeMapping s_datetime = new SpannerTimestampTypeMapping();
 
         private static readonly StringTypeMapping s_defaultString
             = new SpannerStringTypeMapping(SpannerDbType.String.ToString(), unicode: true, sqlDbType: SpannerDbType.String);

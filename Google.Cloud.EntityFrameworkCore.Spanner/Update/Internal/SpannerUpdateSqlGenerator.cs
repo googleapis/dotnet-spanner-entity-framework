@@ -12,18 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using JetBrains.Annotations;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Update;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 {
     public class SpannerUpdateSqlGenerator : UpdateSqlGenerator
     {
+        private readonly ISqlGenerationHelper _sqlGenerationHelper;
+
         public SpannerUpdateSqlGenerator(UpdateSqlGeneratorDependencies dependencies)
             : base(dependencies)
         {
+            if (dependencies.SqlGenerationHelper is SpannerSqlGenerationHelper spannerSqlGenerationHelper)
+            {
+                _sqlGenerationHelper = new SpannerSqlGenerationHelper(spannerSqlGenerationHelper.Dependencies, ";");
+            }
+            else
+            {
+                _sqlGenerationHelper = dependencies.SqlGenerationHelper;
+            }
         }
+
+        protected override ISqlGenerationHelper SqlGenerationHelper { get => _sqlGenerationHelper; }
+
         protected override void AppendIdentityWhereCondition([NotNull] StringBuilder commandStringBuilder, ColumnModification columnModification)
         {
             commandStringBuilder.Append(" TRUE ");

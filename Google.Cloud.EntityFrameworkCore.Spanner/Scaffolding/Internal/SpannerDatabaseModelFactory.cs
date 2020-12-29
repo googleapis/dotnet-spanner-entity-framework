@@ -93,6 +93,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
                 }
 
                 GetColumns(connection, tables);
+                GetColumnOptions(connection, tables);
                 GetIndexes(connection, tables);
                 GetForeignKeys(connection, tables);
 
@@ -147,6 +148,48 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
                                 ValueGenerated = valueGenerated,
                             };
                             table.Columns.Add(column);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void GetColumnOptions(
+            DbConnection connection,
+            IReadOnlyList<DatabaseTable> tables)
+        {
+            using (var command = connection.CreateCommand())
+            {
+                var commandText = @"SELECT * 
+                                    FROM INFORMATION_SCHEMA.COLUMN_OPTIONS
+                                    WHERE TABLE_CATALOG = '' AND TABLE_SCHEMA = ''
+                                    ORDER BY TABLE_NAME, COLUMN_NAME";
+
+                command.CommandText = commandText;
+
+                using (var reader = command.ExecuteReader())
+                {
+                    var tableColumnGroups = reader.Cast<DbDataRecord>()
+                        .GroupBy(ddr => ddr.GetValueOrDefault<string>("TABLE_NAME"));
+
+                    foreach (var tableColumnGroup in tableColumnGroups)
+                    {
+                        var tableName = tableColumnGroup.Key;
+
+                        var table = tables.Single(t => t.Name == tableName);
+
+                        foreach (var dataRecord in tableColumnGroup)
+                        {
+                            var columnName = dataRecord.GetValueOrDefault<string>("COLUMN_NAME");
+                            var optionName = dataRecord.GetValueOrDefault<string>("OPTION_NAME");
+                            var optionValue = dataRecord.GetValueOrDefault<string>("OPTION_VALUE");
+
+                            var column = table.Columns.Single(c => c.Name == columnName);
+
+                            if (optionName == "allow_commit_timestamp" && Boolean.TryParse(optionValue, out _))
+                            {
+                                column.AddAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp, SpannerUpdateCommitTimestamp.OnInsertAndUpdate);
+                            }
                         }
                     }
                 }

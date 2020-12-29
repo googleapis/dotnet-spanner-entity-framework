@@ -46,7 +46,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         {
             Dependencies = dependencies;
             _typeMapper = typeMapper;
-            _statementTerminator = new string[] { dependencies.SqlGenerationHelper.StatementTerminator };
+            // This class needs a statement terminator because the EFCore built-in SQL generator helper
+            // will generate multiple statements as one string.
+            _statementTerminator = new string[] { ";" };
         }
 
         /// <summary>
@@ -82,7 +84,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// </summary>
         public override bool AddCommand(ModificationCommand modificationCommand)
         {
-            _modificationCommands.Add(modificationCommand);
+            if (SpannerPendingCommitTimestampModificationCommand.HasCommitTimestampColumn(modificationCommand))
+            {
+                _modificationCommands.Add(new SpannerPendingCommitTimestampModificationCommand(modificationCommand, Dependencies.Logger.ShouldLogSensitiveData()));
+            }
+            else
+            {
+                _modificationCommands.Add(modificationCommand);
+            }
             return true;
         }
 
