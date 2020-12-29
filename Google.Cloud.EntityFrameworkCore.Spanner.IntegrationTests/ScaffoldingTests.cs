@@ -15,11 +15,9 @@
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.Spanner.Data;
 using System;
-using Google.Cloud.Spanner.Common.V1;
-using Google.Cloud.Spanner.Data;
-using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using Xunit;
+using System.Text;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -185,6 +183,49 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 // Reget the track from the database.
                 var track = await db.Tracks.FindAsync(2L, 1L);
                 Assert.Equal("Track 1", track.Title);
+            }
+        }
+
+        [Fact]
+        public async void CanInsertRowWithAllDataTypes()
+        {
+            using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
+            {
+                var row = new TableWithAllColumnTypes
+                {
+                    ColBool = true,
+                    ColBoolArray = new List<bool> { true, false, true },
+                    ColBytes = new byte[] { 1, 2, 3 },
+                    ColBytesMax = Encoding.UTF8.GetBytes("This is a long string"),
+                    ColBytesArray = new List<byte[]> { new byte[] { 3, 2, 1 }, new byte[] { }, new byte[] { 4, 5, 6 } },
+                    ColBytesMaxArray = new List<byte[]> { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2"), Encoding.UTF8.GetBytes("string 3") },
+                    ColDate = new DateTime(2020, 12, 28),
+                    ColDateArray = new List<DateTime> { new DateTime(2020, 12, 28), new DateTime(2010, 1, 1), DateTime.Today },
+                    ColFloat64 = 3.14D,
+                    ColFloat64Array = new List<double> { 3.14D, 6.626D },
+                    ColInt64 = 100,
+                    ColInt64Array = new List<long> { 1L, 2L, 4L, 8L },
+                    ColString = "some string",
+                    ColStringArray = new List<string> { "string1", "string2", "string3" },
+                    ColStringMax = "some longer string",
+                    ColStringMaxArray = new List<string> { "longer string1", "longer string2", "longer string3" },
+                    ColTimestamp = new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288),
+                    ColTimestampArray = new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), DateTime.Now },
+                };
+                db.TableWithAllColumnTypes.Add(row);
+                await db.SaveChangesAsync();
+            }
+
+            using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
+            {
+                // Reget the row from the database.
+                var row = await db.TableWithAllColumnTypes.FindAsync(100L);
+                Assert.True(row.ColBool);
+                Assert.Equal(new List<bool> { true, false, true }, row.ColBoolArray);
+                // The commit timestamp was automatically set by Cloud Spanner.
+                Assert.NotEqual(new DateTime(), row.ColCommitTs);
+                // This assumes that the local time does not differ more than 10 minutes with TrueTime.
+                Assert.True(Math.Abs(DateTime.UtcNow.Subtract(row.ColCommitTs).TotalMinutes) < 10, $"Commit timestamp {row.ColCommitTs} differs with more than 10 minutes from now ({DateTime.UtcNow})");
             }
         }
     }
