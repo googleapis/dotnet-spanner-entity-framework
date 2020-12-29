@@ -36,7 +36,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         {
             if (!optionsBuilder.IsConfigured)
             {
-                optionsBuilder.UseSpanner($"Data Source={_databaseName}");
+                optionsBuilder
+                    .UseSpanner($"Data Source={_databaseName}")
+                    .UseLazyLoadingProxies();
             }
         }
 

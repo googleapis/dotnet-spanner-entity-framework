@@ -41,20 +41,6 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         }
 
         protected override void Generate(
-                    AddColumnOperation operation,
-                    IModel model,
-                    MigrationCommandListBuilder builder,
-                    bool terminate)
-        {
-            base.Generate(operation, model, builder, terminate: false);
-
-            if (terminate)
-            {
-                builder.EndCommand();
-            }
-        }
-
-        protected override void Generate(
             [NotNull] CreateIndexOperation operation,
             [CanBeNull] IModel model,
             [NotNull] MigrationCommandListBuilder builder,
@@ -91,20 +77,6 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             builder
                 .Append(" DROP INDEX ")
                 .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Name));
-
-            if (terminate)
-            {
-                builder.EndCommand();
-            }
-        }
-
-        protected override void Generate(
-            [NotNull] DropTableOperation operation,
-            [CanBeNull] IModel model,
-            [NotNull] MigrationCommandListBuilder builder,
-            bool terminate = true)
-        {
-            base.Generate(operation, model, builder, terminate: false);
 
             if (terminate)
             {
