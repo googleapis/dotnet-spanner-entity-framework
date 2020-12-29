@@ -28,7 +28,6 @@ using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 {
-
     /// <summary>
     /// This is internal functionality and not intended for public use.
     /// </summary>
