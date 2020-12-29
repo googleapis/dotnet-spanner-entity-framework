@@ -28,75 +28,6 @@ using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 {
-    internal class SpannerPendingCommitTimestampColumnModification : ColumnModification
-    {
-        internal const string PendingCommitTimestamp = "PENDING_COMMIT_TIMESTAMP()";
-
-        internal SpannerPendingCommitTimestampColumnModification(ColumnModification modification, bool sensitiveLoggingEnabled)
-            : base(modification.Entry, modification.Property, () => "", modification.IsRead, modification.IsWrite, modification.IsKey, modification.IsCondition, modification.IsConcurrencyToken, sensitiveLoggingEnabled)
-        {
-        }
-
-        public override bool IsWrite => true;
-
-        public override bool UseCurrentValueParameter => false;
-
-        public override bool UseOriginalValueParameter => false;
-
-        public override object Value { get => PendingCommitTimestamp; set => base.Value = value; }
-    }
-
-
-    internal class SpannerModificationCommand : ModificationCommand
-    {
-        private readonly ModificationCommand _delegate;
-        private readonly IReadOnlyList<ColumnModification> _columnModifications;
-
-        internal SpannerModificationCommand(ModificationCommand cmd, bool sensitiveLoggingEnabled) : base(cmd.TableName, cmd.Schema, cmd.ColumnModifications, sensitiveLoggingEnabled)
-        {
-            _delegate = cmd;
-            List<ColumnModification> columnModifications = new List<ColumnModification>(cmd.ColumnModifications.Count);
-            foreach (ColumnModification columnModification in cmd.ColumnModifications)
-            {
-                if (IsCommitTimestampModification(columnModification))
-                {
-                    columnModifications.Add(new SpannerPendingCommitTimestampColumnModification(columnModification, sensitiveLoggingEnabled));
-                }
-                else
-                {
-                    columnModifications.Add(columnModification);
-                }
-            }
-            _columnModifications = columnModifications.AsReadOnly();
-        }
-
-        private bool IsCommitTimestampModification(ColumnModification columnModification)
-        {
-            if (columnModification.Property.FindAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp) != null)
-            {
-                if (columnModification.Property.FindAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp).Value is SpannerUpdateCommitTimestamp updateCommitTimestamp)
-                {
-                    switch (updateCommitTimestamp)
-                    {
-                        case SpannerUpdateCommitTimestamp.OnInsert:
-                            return columnModification.Entry.EntityState == EntityState.Added;
-                        case SpannerUpdateCommitTimestamp.OnUpdate:
-                            return columnModification.Entry.EntityState == EntityState.Modified;
-                        case SpannerUpdateCommitTimestamp.OnInsertAndUpdate:
-                            return columnModification.Entry.EntityState == EntityState.Added || columnModification.Entry.EntityState == EntityState.Modified;
-                        case SpannerUpdateCommitTimestamp.Never:
-                        default:
-                            return false;
-                    }
-                }
-            }
-            return false;
-        }
-
-        public override IReadOnlyList<ColumnModification> ColumnModifications { get => _columnModifications; }
-
-        public override EntityState EntityState => _delegate.EntityState;
-    }
 
     /// <summary>
     /// This is internal functionality and not intended for public use.
@@ -116,7 +47,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         {
             Dependencies = dependencies;
             _typeMapper = typeMapper;
-            _statementTerminator = new string[] { dependencies.SqlGenerationHelper.StatementTerminator };
+            // This class needs a statement terminator because the EFCore built-in SQL generator helper
+            // will generate multiple statements as one string.
+            _statementTerminator = new string[] { ";" };
         }
 
         /// <summary>
@@ -152,20 +85,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// </summary>
         public override bool AddCommand(ModificationCommand modificationCommand)
         {
-            if (HasCommitTimestampColumn(modificationCommand))
+            if (SpannerPendingCommitTimestampModificationCommand.HasCommitTimestampColumn(modificationCommand))
             {
-                // _modificationCommands.Add(modificationCommand);
-                _modificationCommands.Add(new SpannerModificationCommand(modificationCommand, Dependencies.Logger.ShouldLogSensitiveData()));
+                _modificationCommands.Add(new SpannerPendingCommitTimestampModificationCommand(modificationCommand, Dependencies.Logger.ShouldLogSensitiveData()));
             }
             else
             {
                 _modificationCommands.Add(modificationCommand);
             }
-            return true;
-        }
-
-        private bool HasCommitTimestampColumn(ModificationCommand modificationCommand)
-        {
             return true;
         }
 

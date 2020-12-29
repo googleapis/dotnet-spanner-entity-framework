@@ -37,7 +37,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
             if (value is string stringVal)
             {
-                if (stringVal == SpannerPendingCommitTimestampColumnModification.PendingCommitTimestamp)
+                if (stringVal == SpannerPendingCommitTimestampColumnModification.PendingCommitTimestampValue)
                 {
                     return stringVal;
                 }

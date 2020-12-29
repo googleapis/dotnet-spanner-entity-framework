@@ -29,16 +29,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <summary>
         /// This is internal functionality and not intended for public use.
         /// </summary>
-        public SpannerSqlGenerationHelper(RelationalSqlGenerationHelperDependencies dependencies)
+        public SpannerSqlGenerationHelper(RelationalSqlGenerationHelperDependencies dependencies, string statementTerminator = "")
             : base(dependencies)
         {
+            Dependencies = dependencies;
+            StatementTerminator = statementTerminator;
         }
+
+        public RelationalSqlGenerationHelperDependencies Dependencies { get; }
 
         // Spanner does not support multiple statements per query or in DDL. So in all cases, adding a
         // terminating semicolon just causes issues -- so we return an empty string for the statement
         // terminator.
         /// <inheritdoc />
-        public override string StatementTerminator { get; } = "";
+        public override string StatementTerminator { get; }
 
         /// <inheritdoc />
         public override void GenerateParameterName(StringBuilder builder, string name)
