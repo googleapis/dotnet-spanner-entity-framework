@@ -152,8 +152,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 
                 entity.Property(e => e.ColInt64).ValueGeneratedNever();
 
-                entity.Property(e => e.ColBoolArray).HasColumnType("ARRAY<BOOL>");
-
                 entity.Property(e => e.ColBytes)
                     .IsRequired()
                     .HasColumnType("BYTES(100)");
@@ -178,10 +176,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 
                 entity.Property(e => e.ColDateArray).HasColumnType("ARRAY<DATE>");
 
-                entity.Property(e => e.ColFloat64Array).HasColumnType("ARRAY<FLOAT64>");
-
-                entity.Property(e => e.ColInt64Array).HasColumnType("ARRAY<INT64>");
-
                 entity.Property(e => e.ColString)
                     .IsRequired()
                     .HasMaxLength(100);
@@ -193,8 +187,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                     .HasMaxLength(2621440);
 
                 entity.Property(e => e.ColStringMaxArray).HasColumnType("ARRAY<STRING(2621440)>");
-
-                entity.Property(e => e.ColTimestampArray).HasColumnType("ARRAY<TIMESTAMP>");
             });
 
             modelBuilder.Entity<Tracks>(entity =>
@@ -230,8 +222,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                 entity.Property(e => e.Code).HasMaxLength(10);
 
                 entity.Property(e => e.Name).HasMaxLength(100);
-
-                entity.Property(e => e.Ratings).HasColumnType("ARRAY<FLOAT64>");
             });
 
             OnModelCreatingPartial(modelBuilder);

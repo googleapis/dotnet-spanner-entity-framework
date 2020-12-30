@@ -35,15 +35,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly StringTypeMapping s_defaultString
             = new SpannerStringTypeMapping(SpannerDbType.String.ToString(), unicode: true, sqlDbType: SpannerDbType.String);
 
+        private static readonly SpannerComplexTypeMapping s_float =
+            new SpannerComplexTypeMapping(SpannerDbType.Float64, typeof(float));
+
         private static readonly DoubleTypeMapping s_double = new SpannerDoubleTypeMapping();
 
-        private static readonly IntTypeMapping s_int = new IntTypeMapping(SpannerDbType.Int64.ToString(), DbType.Int32);
+        private static readonly SpannerComplexTypeMapping s_int =
+            new SpannerComplexTypeMapping(SpannerDbType.Int64, typeof(int));
 
         private static readonly LongTypeMapping s_long
             = new LongTypeMapping(SpannerDbType.Int64.ToString(), DbType.Int64);
 
-        private static readonly SpannerNumericTypeMapping s_decimal
-            = new SpannerNumericTypeMapping(SpannerDbType.Numeric.ToString(), 29, 9, StoreTypePostfix.PrecisionAndScale);
+        private static readonly SpannerComplexTypeMapping s_uint
+            = new SpannerComplexTypeMapping(SpannerDbType.Int64, typeof(uint));
+
+        private static readonly SpannerComplexTypeMapping s_short
+            = new SpannerComplexTypeMapping(SpannerDbType.Int64, typeof(short));
+
+        private static readonly SpannerNumericTypeMapping s_decimal = new SpannerNumericTypeMapping();
 
         private static readonly GuidTypeMapping s_guid
             = new GuidTypeMapping(SpannerDbType.String.ToString(), DbType.String);
@@ -52,61 +61,90 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             = new ByteArrayTypeMapping(SpannerDbType.Bytes.ToString(), DbType.Binary);
 
         private static readonly SpannerComplexTypeMapping s_byteArray
-            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bytes));
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bytes), typeof(byte[][]));
+
+        private static readonly SpannerComplexTypeMapping s_byteList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bytes), typeof(List<byte[]>));
 
         private static readonly SpannerComplexTypeMapping s_stringArray
-            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String));
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String), typeof(string[]));
+
+        private static readonly SpannerComplexTypeMapping s_stringList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String), typeof(List<string>));
 
         private static readonly SpannerComplexTypeMapping s_boolArray
-            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bool));
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bool), typeof(bool[]));
+
+        private static readonly SpannerComplexTypeMapping s_boolList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bool), typeof(List<bool>));
 
         private static readonly SpannerComplexTypeMapping s_doubleArray
-            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Float64));
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Float64), typeof(double[]));
+
+        private static readonly SpannerComplexTypeMapping s_doubleList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Float64), typeof(List<double>));
 
         private static readonly SpannerComplexTypeMapping s_longArray
-            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64));
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(long[]));
 
-        private static readonly SpannerComplexTypeMapping s_dateArray
-            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Date));
+        private static readonly SpannerComplexTypeMapping s_longList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<long>));
 
         private static readonly SpannerComplexTypeMapping s_timestampArray
-            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Timestamp));
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Timestamp), typeof(DateTime[]));
+
+        private static readonly SpannerComplexTypeMapping s_timestampList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Timestamp), typeof(List<DateTime>));
 
         private static readonly SpannerComplexTypeMapping s_numericArray
-            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric));
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric), typeof(decimal[]));
+
+        private static readonly SpannerComplexTypeMapping s_numericList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric), typeof(List<decimal>));
 
         private readonly Dictionary<System.Type, RelationalTypeMapping> s_clrTypeMappings;
 
         private readonly Dictionary<string, RelationalTypeMapping> s_storeTypeMappings;
 
+        private readonly Dictionary<string, RelationalTypeMapping> s_listTypeMappings;
 
         public SpannerTypeMappingSource(
             TypeMappingSourceDependencies dependencies,
             RelationalTypeMappingSourceDependencies relationalDependencies)
             : base(dependencies, relationalDependencies)
         {
+
             s_clrTypeMappings
                 = new Dictionary<System.Type, RelationalTypeMapping>
                 {
-                {typeof(short), s_long},
-                {typeof(int), s_int},
-                {typeof(long), s_long},
-                {typeof(decimal), s_decimal},
-                {typeof(uint), s_long},
-                {typeof(bool), s_bool},
-                {typeof(DateTime), s_datetime},
-                {typeof(float), s_double},
-                {typeof(double), s_double},
-                {typeof(string), s_defaultString},
-                {typeof(string[]), s_stringArray},
-                {typeof(bool[]), s_boolArray},
-                {typeof(double[]), s_doubleArray},
-                {typeof(long[]), s_longArray},
-                // TODO: Figure out how to register this {typeof(DateTime[]), s_dateArray},
-                {typeof(DateTime[]), s_timestampArray},
-                {typeof(decimal[]), s_numericArray},
-                {typeof(Guid), s_guid},
-                {typeof(byte[]), s_byte}
+                    {typeof(short), s_short},
+                    {typeof(int), s_int},
+                    {typeof(long), s_long},
+                    {typeof(decimal), s_decimal},
+                    {typeof(uint), s_uint},
+                    {typeof(bool), s_bool},
+                    {typeof(DateTime), s_datetime},
+                    {typeof(float), s_float},
+                    {typeof(double), s_double},
+                    {typeof(string), s_defaultString},
+                    {typeof(Guid), s_guid},
+                    {typeof(byte[]), s_byte},
+                    {typeof(decimal[]), s_numericArray},
+                    {typeof(List<decimal>), s_numericList},
+                    {typeof(string[]), s_stringArray},
+                    {typeof(List<string>), s_stringList},
+                    {typeof(bool[]), s_boolArray},
+                    {typeof(List<bool>), s_boolList},
+                    {typeof(double[]), s_doubleArray},
+                    {typeof(List<double>), s_doubleList},
+                    {typeof(long[]), s_longArray},
+                    {typeof(List<long>), s_longList},
+                    // TODO: Figure out how to register this {typeof(DateTime[]), s_dateArray},
+                    {typeof(DateTime[]), s_timestampArray},
+                    // TODO: Figure out how to register this {typeof(List<DateTime>), s_dateList},
+                    {typeof(List<DateTime>), s_timestampList},
+                    {typeof(byte[][]), s_byteArray},
+                    {typeof(List<byte[]>), s_byteList}
                 };
 
             s_storeTypeMappings = new Dictionary<string, RelationalTypeMapping>
@@ -120,9 +158,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {SpannerDbType.String.ToString(), s_defaultString},
                 {SpannerDbType.Numeric.ToString(), s_decimal},
                 {SpannerDbType.Unspecified.ToString(), null},
+                {"ARRAY<BOOL>", s_boolList},
+                {"ARRAY<BYTES", s_byteList},
+                {"ARRAY<DATE>", s_timestampList},
+                {"ARRAY<FLOAT64>", s_doubleList},
+                {"ARRAY<INT64>", s_longList},
+                {"ARRAY<STRING", s_stringList},
+                {"ARRAY<TIMESTAMP>", s_timestampList},
+                {"ARRAY<NUMERIC>", s_numericList}
+
+            };
+
+            s_listTypeMappings = new Dictionary<string, RelationalTypeMapping>
+            {
                 {"ARRAY<BOOL>", s_boolArray},
                 {"ARRAY<BYTES", s_byteArray},
-                {"ARRAY<DATE>", s_dateArray},
+                {"ARRAY<DATE>", s_timestampArray},
                 {"ARRAY<FLOAT64>", s_doubleArray},
                 {"ARRAY<INT64>", s_longArray},
                 {"ARRAY<STRING", s_stringArray},
@@ -146,7 +197,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 if (s_storeTypeMappings.TryGetValue(storeTypeName, out var mapping)
                     || s_storeTypeMappings.TryGetValue(storeTypeNameBase, out mapping))
                 {
-                    return clrType == null || mapping.ClrType == clrType ? mapping : null;
+                    if (clrType == null || mapping.ClrType == clrType)
+                    {
+                        return mapping;
+                    };
+
+                    if (s_listTypeMappings.TryGetValue(storeTypeName, out mapping)
+                    || s_listTypeMappings.TryGetValue(storeTypeNameBase, out mapping))
+                    {
+                        if (clrType == null || mapping.ClrType == clrType)
+                        {
+                            return mapping;
+                        };
+                    }
                 }
             }
 

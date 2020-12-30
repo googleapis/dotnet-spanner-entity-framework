@@ -20,37 +20,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     public class SpannerNumericTypeMapping : DecimalTypeMapping
     {
-        public SpannerNumericTypeMapping(
-            string storeType,
-            int? precision = null,
-            int? scale = null,
-            StoreTypePostfix storeTypePostfix = StoreTypePostfix.None)
-            : base(
-                new RelationalTypeMappingParameters(new CoreTypeMappingParameters(typeof(decimal)),
-                        storeType,
-                        storeTypePostfix)
-                    .WithPrecisionAndScale(precision, scale))
-        {
-        }
+        public SpannerNumericTypeMapping()
+            : base(SpannerDbType.Numeric.ToString()) { }
 
-        protected SpannerNumericTypeMapping(RelationalTypeMappingParameters parameters)
-            : base(parameters)
-        {
-        }
+        public override RelationalTypeMapping Clone(string storeType, int? size) =>
+            new SpannerNumericTypeMapping();
 
         protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters)
-            => new SpannerNumericTypeMapping(parameters);
+        {
+            return new SpannerNumericTypeMapping();
+        }
 
         protected override void ConfigureParameter(DbParameter parameter)
         {
             ((SpannerParameter)parameter).SpannerDbType = SpannerDbType.Numeric;
             base.ConfigureParameter(parameter);
-
-            if (Size.HasValue
-                && Size.Value != -1)
-            {
-                parameter.Size = Size.Value;
-            }
         }
     }
 }

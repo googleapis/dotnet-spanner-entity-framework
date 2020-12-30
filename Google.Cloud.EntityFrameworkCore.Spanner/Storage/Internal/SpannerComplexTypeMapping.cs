@@ -14,6 +14,8 @@
 
 using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore.Storage;
+using System;
+using System.Collections.Generic;
 using System.Data.Common;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
@@ -24,26 +26,49 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     /// </summary>
     internal class SpannerComplexTypeMapping : RelationalTypeMapping
     {
+        private static readonly List<SpannerDbType> _arrayTypes = new List<SpannerDbType>
+        {
+            SpannerDbType.ArrayOf(SpannerDbType.Bool),
+            SpannerDbType.ArrayOf(SpannerDbType.Bytes),
+            SpannerDbType.ArrayOf(SpannerDbType.Date),
+            SpannerDbType.ArrayOf(SpannerDbType.Float64),
+            SpannerDbType.ArrayOf(SpannerDbType.Int64),
+            SpannerDbType.ArrayOf(SpannerDbType.Numeric),
+            SpannerDbType.ArrayOf(SpannerDbType.String),
+            SpannerDbType.ArrayOf(SpannerDbType.Timestamp),
+        };
+
         private readonly SpannerDbType _complexType;
+        private readonly System.Type _clrType;
+        private readonly bool _isArrayType;
 
-        public SpannerComplexTypeMapping(SpannerDbType complexType)
-            : base(complexType.ToString(), complexType.DefaultClrType, complexType.DbType) =>
+        public SpannerComplexTypeMapping(SpannerDbType complexType, System.Type clrType, bool unicode = false, int? size = null)
+            : base(complexType.ToString(), clrType, unicode: unicode, size: size)
+        {
             _complexType = complexType;
-
-        public override RelationalTypeMapping Clone(string storeType, int? size) =>
-            new SpannerComplexTypeMapping(_complexType);
+            _clrType = clrType;
+            _isArrayType = SpannerComplexTypeMapping._arrayTypes.Contains(complexType);
+        }
 
         protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters)
         {
-            return new SpannerComplexTypeMapping(_complexType);
+            return new SpannerComplexTypeMapping(_complexType, _clrType, parameters.Unicode, parameters.Size);
         }
 
         protected override void ConfigureParameter(DbParameter parameter)
         {
             // This key step will configure our SpannerParameter with this complex type, which will result in
             // the proper type conversions when the requests go out.
-            ((SpannerParameter)parameter).SpannerDbType = _complexType;
+
+            if (!(parameter is SpannerParameter spannerParameter))
+                throw new ArgumentException($"Spanner-specific type mapping {GetType().Name} being used with non-Spanner parameter type {parameter.GetType().Name}");
+
             base.ConfigureParameter(parameter);
+            if (!_isArrayType && Size.HasValue && Size.Value > 0)
+            {
+                parameter.Size = Size.Value;
+            }
+            spannerParameter.SpannerDbType = _complexType;
         }
     }
 }

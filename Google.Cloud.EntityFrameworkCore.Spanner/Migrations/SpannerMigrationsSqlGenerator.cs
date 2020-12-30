@@ -32,7 +32,9 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         private static readonly Dictionary<string, string> s_columnTypeMap = new Dictionary<string, string>
         {
             {"STRING", "STRING(MAX)"},
-            {"BYTES", "BYTES(MAX)"}
+            {"BYTES", "BYTES(MAX)"},
+            {"ARRAY<STRING>", "ARRAY<STRING(MAX)>"},
+            {"ARRAY<BYTES>", "ARRAY<BYTES(MAX)>"}
         };
 
         public SpannerMigrationsSqlGenerator(MigrationsSqlGeneratorDependencies dependencies)

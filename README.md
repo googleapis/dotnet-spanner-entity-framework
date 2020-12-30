@@ -15,7 +15,7 @@ method extension to configure your DbContext with Spanner support.
 1.  [Set up authentication with a service account][auth] so you can access the
     API from your local workstation.
 
-## Create Model for an Existing Database
+# Create Model for an Existing Database
 
 1. Create Instance using [Create Instance Sample](https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/master/spanner/api/Spanner.Samples/CreateInstance.cs).
 
@@ -29,7 +29,7 @@ method extension to configure your DbContext with Spanner support.
 
 6. `Scaffold-DbContext "Data Source=projects/project-id/instances/instance-id/databases/database-name" Google.Cloud.EntityFrameworkCore.Spanner -o Model -Force -Context SpannerSampleDbContext`
 
-## Migrations Overview
+# Migrations Overview
 ### 1. Create Models
 ```cs
 public partial class Singer
@@ -86,6 +86,14 @@ public partial class ArtistDbContext : DbContext
 ### 3. Migration Command:
 1. Add-Migration "migration name"
 2. Update-Database
+
+# Query Limitations
+* Operation on `ARRAY` types performs in memory.
+* Data Annotation Validation on `ARRAY` types might not work. 
+
+# Update Limitations
+* Cloud Spanner does not have database value generators or constraints.
+Instead, you may use a client side Guid generator for a primary key.
 
 [projects]: https://console.cloud.google.com/project
 [billing]: https://support.google.com/cloud/answer/6293499#enable-billing
