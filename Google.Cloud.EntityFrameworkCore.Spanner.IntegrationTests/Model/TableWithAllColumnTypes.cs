@@ -5,7 +5,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 {
     public partial class TableWithAllColumnTypes
     {
-        public long? ColInt64 { get; set; }
+        public long ColInt64 { get; set; }
         public double? ColFloat64 { get; set; }
         public decimal? ColNumeric { get; set; }
         public bool? ColBool { get; set; }
