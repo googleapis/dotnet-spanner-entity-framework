@@ -90,6 +90,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly SpannerComplexTypeMapping s_longList
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<long>));
 
+        private static readonly SpannerComplexTypeMapping s_dateArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Date), typeof(DateTime[]));
+
+        private static readonly SpannerComplexTypeMapping s_dateList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Date), typeof(List<DateTime>));
+
         private static readonly SpannerComplexTypeMapping s_timestampArray
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Timestamp), typeof(DateTime[]));
 
@@ -160,7 +166,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {SpannerDbType.Unspecified.ToString(), null},
                 {"ARRAY<BOOL>", s_boolList},
                 {"ARRAY<BYTES", s_byteList},
-                {"ARRAY<DATE>", s_timestampList},
+                {"ARRAY<DATE>", s_dateList},
                 {"ARRAY<FLOAT64>", s_doubleList},
                 {"ARRAY<INT64>", s_longList},
                 {"ARRAY<STRING", s_stringList},
@@ -173,7 +179,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             {
                 {"ARRAY<BOOL>", s_boolArray},
                 {"ARRAY<BYTES", s_byteArray},
-                {"ARRAY<DATE>", s_timestampArray},
+                {"ARRAY<DATE>", s_dateArray},
                 {"ARRAY<FLOAT64>", s_doubleArray},
                 {"ARRAY<INT64>", s_longArray},
                 {"ARRAY<STRING", s_stringArray},

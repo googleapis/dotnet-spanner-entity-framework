@@ -195,18 +195,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 {
                     selectCommand = connection.CreateSelectCommand(commandTexts[1]);
                     selectCommand.Transaction = transaction;
-                    var selectParamIndex = 0;
                     foreach (var columnModification in modificationCommand.ColumnModifications)
                     {
                         if (columnModification.IsKey && (columnModification.UseOriginalValueParameter || columnModification.UseCurrentValueParameter))
                         {
-                            selectCommand.Parameters.Add(
-                                _typeMapper.GetMapping(columnModification.Property).CreateParameter(selectCommand,
-                                    $"@p{selectParamIndex}",
+                            var param = _typeMapper.GetMapping(columnModification.Property).CreateParameter(selectCommand,
+                                    columnModification.UseOriginalValueParameter
+                                        ? columnModification.OriginalParameterName
+                                        : columnModification.ParameterName,
                                     columnModification.UseOriginalValueParameter
                                         ? columnModification.OriginalValue
-                                        : columnModification.Value, columnModification.Property.IsNullable));
-                            selectParamIndex++;
+                                        : columnModification.Value, columnModification.Property.IsNullable);
+                            if (param is SpannerParameter spannerParameter && spannerParameter.SpannerDbType == SpannerDbType.Unspecified)
+                            {
+                                spannerParameter.SpannerDbType = SpannerDbType.FromClrType(GetUnderlyingTypeOrSelf(columnModification.Property.ClrType));
+                            }
+                            selectCommand.Parameters.Add(param);
                         }
                     }
                 }
@@ -216,20 +220,28 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 dml = builder.ToString();
             }
             var cmd = connection.CreateDmlCommand(dml);
-            var paramIndex = 0;
             foreach (var columnModification in modificationCommand.ColumnModifications.Where(o => o.UseOriginalValueParameter || o.UseCurrentValueParameter))
             {
-                cmd.Parameters.Add(
-                    _typeMapper.GetMapping(columnModification.Property).CreateParameter(cmd,
+                var param = _typeMapper.GetMapping(columnModification.Property).CreateParameter(cmd,
                         columnModification.UseOriginalValueParameter
                             ? columnModification.OriginalParameterName
                             : columnModification.ParameterName,
                         columnModification.UseOriginalValueParameter
                             ? columnModification.OriginalValue
-                            : columnModification.Value, columnModification.Property.IsNullable));
-                paramIndex++;
+                            : columnModification.Value, columnModification.Property.IsNullable);
+                if (param is SpannerParameter spannerParameter && spannerParameter.SpannerDbType == SpannerDbType.Unspecified)
+                {
+                    spannerParameter.SpannerDbType = SpannerDbType.FromClrType(GetUnderlyingTypeOrSelf(columnModification.Property.ClrType));
+                }
+                cmd.Parameters.Add(param);
             }
             return Tuple.Create(cmd, selectCommand);
+        }
+
+        private System.Type GetUnderlyingTypeOrSelf(System.Type type)
+        {
+            var underlying = Nullable.GetUnderlyingType(type);
+            return underlying == null ? type : underlying;
         }
     }
 }

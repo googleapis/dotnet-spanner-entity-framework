@@ -15,7 +15,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         {
         }
 
-        public virtual DbSet<Addresses> Addresses { get; set; }
         public virtual DbSet<Albums> Albums { get; set; }
         public virtual DbSet<Concerts> Concerts { get; set; }
         public virtual DbSet<Performances> Performances { get; set; }
@@ -26,16 +25,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Addresses>(entity =>
-            {
-                entity.HasKey(e => new { e.Address, e.Country })
-                    .HasName("PRIMARY_KEY");
-
-                entity.Property(e => e.Address).HasMaxLength(100);
-
-                entity.Property(e => e.Country).HasMaxLength(100);
-            });
-
             modelBuilder.Entity<Albums>(entity =>
             {
                 entity.HasKey(e => e.AlbumId)
@@ -152,15 +141,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 
                 entity.Property(e => e.ColInt64).ValueGeneratedNever();
 
-                entity.Property(e => e.ColBytes)
-                    .IsRequired()
-                    .HasColumnType("BYTES(100)");
+                entity.Property(e => e.ColBytes).HasColumnType("BYTES(100)");
 
                 entity.Property(e => e.ColBytesArray).HasColumnType("ARRAY<BYTES(100)>");
 
-                entity.Property(e => e.ColBytesMax)
-                    .IsRequired()
-                    .HasColumnType("BYTES(10485760)");
+                entity.Property(e => e.ColBytesMax).HasColumnType("BYTES(10485760)");
 
                 entity.Property(e => e.ColBytesMaxArray).HasColumnType("ARRAY<BYTES(10485760)>");
 
@@ -176,15 +161,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 
                 entity.Property(e => e.ColDateArray).HasColumnType("ARRAY<DATE>");
 
-                entity.Property(e => e.ColString)
-                    .IsRequired()
-                    .HasMaxLength(100);
+                entity.Property(e => e.ColNumeric).HasColumnType("NUMERIC");
+
+                entity.Property(e => e.ColString).HasMaxLength(100);
 
                 entity.Property(e => e.ColStringArray).HasColumnType("ARRAY<STRING(100)>");
 
-                entity.Property(e => e.ColStringMax)
-                    .IsRequired()
-                    .HasMaxLength(2621440);
+                entity.Property(e => e.ColStringMax).HasMaxLength(2621440);
 
                 entity.Property(e => e.ColStringMaxArray).HasColumnType("ARRAY<STRING(2621440)>");
             });

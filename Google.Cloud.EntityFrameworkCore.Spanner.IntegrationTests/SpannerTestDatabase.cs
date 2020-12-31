@@ -13,9 +13,11 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using Google.Cloud.Spanner.Admin.Instance.V1;
 using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1.Internal.Logging;
+using Grpc.Core;
 using System;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
@@ -87,6 +89,46 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             if (SpannerPort != null)
             {
                 builder.Port = int.Parse(SpannerPort);
+            }
+            if (Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST") != null)
+            {
+                // Switch to emulator config.
+                // Check if the instance exists and if not create it on the emulator.
+                var adminClientBuilder = new InstanceAdminClientBuilder();
+                adminClientBuilder.EmulatorDetection = EmulatorDetection.EmulatorOnly;
+                var instanceAdminClient = adminClientBuilder.Build();
+
+                InstanceName instanceName = InstanceName.FromProjectInstance(projectId, SpannerInstance);
+                Instance existing = null;
+                try
+                {
+                    existing = instanceAdminClient.GetInstance(new GetInstanceRequest
+                    {
+                        InstanceName = instanceName,
+                    });
+                }
+                catch (RpcException e)
+                {
+                    if (e.StatusCode != StatusCode.NotFound)
+                    {
+                        throw e;
+                    }
+                }
+                if (existing == null)
+                {
+                    instanceAdminClient.CreateInstance(new CreateInstanceRequest
+                    {
+                        InstanceId = instanceName.InstanceId,
+                        Parent = $"projects/{instanceName.ProjectId}",
+                        Instance = new Instance
+                        {
+                            InstanceName = instanceName,
+                            ConfigAsInstanceConfigName = new InstanceConfigName(projectId, "emulator-config"),
+                            DisplayName = "Test Instance",
+                            NodeCount = 1,
+                        },
+                    });
+                }
             }
             NoDbConnectionString = builder.ConnectionString;
             var databaseBuilder = builder.WithDatabase(SpannerDatabase);
