@@ -60,7 +60,7 @@ CREATE TABLE Performances (
 ) PRIMARY KEY (VenueCode, SingerId, StartTime);
 
 CREATE TABLE TableWithAllColumnTypes (
-	ColInt64 INT64,
+	ColInt64 INT64 NOT NULL,
 	ColFloat64 FLOAT64,
 	ColNumeric NUMERIC,
 	ColBool BOOL,
