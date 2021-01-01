@@ -16,7 +16,6 @@ using Google.Api.Gax;
 using Google.Cloud.Spanner.Data;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Update;
 using System;

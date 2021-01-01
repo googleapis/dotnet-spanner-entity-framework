@@ -1,11 +1,11 @@
 ﻿// Copyright 2020 Google LLC
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     https://www.apache.org/licenses/LICENSE-2.0
-// 
+//
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -45,6 +45,26 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
     }
 
     /// <summary>
+    /// DbContext for Migration tables.
+    /// </summary>
+    internal class TestMigrationDbContext : MigrationDbContext
+    {
+        private readonly DatabaseName _databaseName;
+
+        internal TestMigrationDbContext(DatabaseName databaseName) => _databaseName = databaseName;
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured)
+            {
+                optionsBuilder
+                    .UseSpanner($"Data Source={_databaseName}");
+            }
+        }
+
+    }
+
+    /// <summary>
     /// Base classes for test fixtures using the sample data model.
     /// If TEST_SPANNER_DATABASE is set to an existing database, that database will be used and the
     /// fixture assumes that the database already contains the sample data model. Any data in the
@@ -62,6 +82,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             {
                 Logger.DefaultLogger.Debug($"Creating database {Database.DatabaseName}");
                 CreateTables();
+                Logger.DefaultLogger.Debug($"Generating Tables for database {Database.DatabaseName} using migration.");
+                GenerateTables();
             }
             else
             {
@@ -87,6 +109,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                         "Tracks",
                         "Albums",
                         "Singers",
+                        "OrderDetails",
+                        "Orders",
+                        "Products",
+                        "Categories",
+                        "AllColTypes"
                     })
                     {
                         cmd.Add($"DELETE FROM {table} WHERE TRUE");
@@ -109,7 +136,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Console.WriteLine(fileName);
             var script = File.ReadAllText(fileName);
             var statements = script.Split(";");
-            for (var i=0; i<statements.Length; i++)
+            for (var i = 0; i < statements.Length; i++)
             {
                 statements[i] = statements[i].Trim(new char[] { '\r', '\n' });
             }
@@ -129,6 +156,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             {
                 connection.CreateDdlCommand(ddl[0].Trim(), extraStatements).ExecuteNonQuery();
             }
+        }
+
+        /// <summary>
+        /// Generate Tables using migration.
+        /// </summary>
+        private void GenerateTables()
+        {
+            using var context = new TestMigrationDbContext(Database.DatabaseName);
+            context.Database.Migrate();
         }
     }
 }

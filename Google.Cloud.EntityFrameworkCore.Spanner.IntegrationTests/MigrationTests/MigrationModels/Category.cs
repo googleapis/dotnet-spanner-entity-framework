@@ -1,10 +1,10 @@
-﻿// Copyright 2020, Google Inc. All rights reserved.
+﻿// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,10 +16,11 @@ using System.Collections.Generic;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
-    public class Brand
+    public class Category
     {
-        public long BrandId { get; set; }
-        public string BrandDescription { get; set; }
+        public long CategoryId { get; set; }
+        public string CategoryName { get; set; }
+        public string CategoryDescription { get; set; }
         public ICollection<Product> Products { get; set; }
     }
 }

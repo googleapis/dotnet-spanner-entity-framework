@@ -16,8 +16,6 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Update;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
