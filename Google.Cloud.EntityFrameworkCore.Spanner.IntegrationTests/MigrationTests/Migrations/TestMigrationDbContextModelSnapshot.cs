@@ -42,13 +42,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                         .HasColumnType("ARRAY<BYTES>");
 
                     b.Property<DateTime?>("ColDate")
-                        .HasColumnType("TIMESTAMP");
+                        .HasColumnType("DATE");
 
                     b.Property<DateTime[]>("ColDateArray")
-                        .HasColumnType("ARRAY<TIMESTAMP>");
+                        .HasColumnType("ARRAY<DATE>");
 
                     b.Property<List<DateTime>>("ColDateList")
-                        .HasColumnType("ARRAY<TIMESTAMP>");
+                        .HasColumnType("ARRAY<DATE>");
 
                     b.Property<decimal?>("ColDecimal")
                         .HasColumnType("NUMERIC");

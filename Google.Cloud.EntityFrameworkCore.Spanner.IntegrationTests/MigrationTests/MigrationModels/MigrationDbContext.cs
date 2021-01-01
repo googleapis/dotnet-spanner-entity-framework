@@ -35,6 +35,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<AllColType>(entity =>
+            {
+                entity.Property(e => e.ColDate).HasColumnType("DATE");
+                entity.Property(e => e.ColDateArray).HasColumnType("ARRAY<DATE>");
+                entity.Property(e => e.ColDateList).HasColumnType("ARRAY<DATE>");
+            });
+
             modelBuilder.Entity<OrderDetail>()
                 .HasKey(c => new { c.OrderId, c.ProductId });
 

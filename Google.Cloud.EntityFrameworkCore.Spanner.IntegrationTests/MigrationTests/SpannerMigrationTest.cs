@@ -386,5 +386,41 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Null(await context.OrderDetails.FindAsync(orderDetail.OrderId, orderDetail.ProductId));
             Assert.Null(await context.AllColTypes.FindAsync(allColType.Id));
         }
+
+        [Fact]
+        public void ShouldThrowLengthValidationException()
+        {
+            using var context = new TestMigrationDbContext(_fixture.DatabaseName);
+            context.Products.Add(new Product
+            {
+                ProductId = 9,
+                Category = new Category
+                {
+                    CategoryId = 9,
+                    CategoryName = "Soft Drink",
+                },
+                ProductName = "this is too long string should throw length validation error " +
+                "this is too long string should throw length validation error"
+            });
+
+            Assert.Throws<ArgumentOutOfRangeException>(() => context.SaveChanges());
+        }
+
+        [Fact]
+        public void ShouldThrowRequiredFieldValidationException()
+        {
+            using var context = new TestMigrationDbContext(_fixture.DatabaseName);
+            context.Products.Add(new Product
+            {
+                ProductId = 9,
+                Category = new Category
+                {
+                    CategoryId = 9,
+                    CategoryName = "Soft Drink",
+                }
+            });
+
+            Assert.Throws<SpannerBatchNonQueryException>(() => context.SaveChanges());
+        }
     }
 }
