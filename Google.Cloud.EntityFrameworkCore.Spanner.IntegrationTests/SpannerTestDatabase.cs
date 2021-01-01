@@ -1,4 +1,4 @@
-﻿// Copyright 2020 Google LLC
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -155,7 +155,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             string value = Environment.GetEnvironmentVariable(name);
             return string.IsNullOrEmpty(value) ? defaultValue : value;
         }
-        
+
         public SpannerConnection GetConnection() => new SpannerConnection(ConnectionString);
 
         // Creates a SpannerConnection with a specific logger.

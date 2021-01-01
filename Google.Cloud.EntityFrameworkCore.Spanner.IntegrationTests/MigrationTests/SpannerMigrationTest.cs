@@ -1,4 +1,4 @@
-﻿// Copyright 2020 Google LLC
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -273,7 +273,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Equal(new DateTime(2021, 1, 2), row.ColDate);
             Assert.Equal(new DateTime[] { new DateTime(2021, 1, 3), new DateTime(2021, 1, 4) }, row.ColDateArray);
             Assert.Equal(new List<DateTime> { new DateTime(2021, 1, 5), new DateTime(2021, 1, 6) }, row.ColDateList);
-
         }
 
         [Fact]

@@ -1,4 +1,4 @@
-﻿// Copyright 2020 Google LLC
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,13 +20,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
     {
         public MigrationDbContext()
         {
-
         }
 
         public MigrationDbContext(DbContextOptions<MigrationDbContext> options)
             : base(options)
         {
-
         }
 
         public DbSet<Product> Products { get; set; }

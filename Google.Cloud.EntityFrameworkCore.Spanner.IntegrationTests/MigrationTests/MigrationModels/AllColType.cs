@@ -1,4 +1,4 @@
-﻿// Copyright 2020 Google LLC
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public double? ColDouble { get; set; }
         public string ColString { get; set; }
         public Guid? ColGuid { get; set; }
-        public byte[]? ColBytes { get; set; }
+        public byte[] ColBytes { get; set; }
         public decimal[] ColDecimalArray { get; set; }
         public List<decimal> ColDecimalList { get; set; }
         public string[] ColStringArray { get; set; }
