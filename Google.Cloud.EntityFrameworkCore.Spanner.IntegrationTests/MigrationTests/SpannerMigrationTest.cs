@@ -21,12 +21,12 @@ using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
-    [Collection(nameof(SpannerSampleFixture))]
+    [Collection(nameof(MigrationTestFixture))]
     public class SpannerMigrationTest
     {
-        private readonly SpannerSampleFixture _fixture;
+        private readonly MigrationTestFixture _fixture;
 
-        public SpannerMigrationTest(SpannerSampleFixture fixture) => _fixture = fixture;
+        public SpannerMigrationTest(MigrationTestFixture fixture) => _fixture = fixture;
 
         [Fact]
         public async Task AllTablesAreGenerated()
