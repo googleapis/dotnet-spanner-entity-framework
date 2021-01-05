@@ -14,6 +14,7 @@
 
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.Spanner.Common.V1;
+using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1.Internal.Logging;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -23,6 +24,8 @@ using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
+
+
     /// <summary>
     /// DbContext for the generated sample database.
     /// </summary>
@@ -31,6 +34,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         private readonly DatabaseName _databaseName;
 
         internal TestSpannerSampleDbContext(DatabaseName databaseName) => _databaseName = databaseName;
+
+        internal TestSpannerSampleDbContext(DbContextOptions<SpannerSampleDbContext> options)
+            : base(options)
+        {
+        }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
