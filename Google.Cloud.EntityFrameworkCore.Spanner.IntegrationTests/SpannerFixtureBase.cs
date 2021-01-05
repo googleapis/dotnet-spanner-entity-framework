@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using Google.Cloud.Spanner.Admin.Database.V1;
 using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1.Internal.Logging;
-using System;
-using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -41,53 +38,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Database = SpannerTestDatabase.GetInstance(ProjectId);
         }
 
-        public async Task InitializeAsync()
-        {
-            await DeleteStaleDatabasesAsync();
-        }
-
-        public Task DisposeAsync()
+        public Task InitializeAsync()
         {
             return Task.CompletedTask;
+        }
+
+        public async Task DisposeAsync()
+        {
+            if (Database.Fresh)
+            {
+                using var connection = new SpannerConnection(Database.NoDbConnectionString);
+                var dropCommand = connection.CreateDdlCommand($"DROP DATABASE {DatabaseName.DatabaseId}");
+                await dropCommand.ExecuteNonQueryAsync();
+            }
         }
 
         public DatabaseName DatabaseName => Database.DatabaseName;
         public SpannerConnection GetConnection() => Database.GetConnection();
         public string ConnectionString => Database.ConnectionString;
         public SpannerConnection GetConnection(Logger logger) => Database.GetConnection(logger);
-
-        /// <summary>
-        /// Deletes 10 oldest databases if the number of databases is more than 89.
-        /// This is to avoid resource exhausted errors.
-        /// </summary>
-        private async Task DeleteStaleDatabasesAsync()
-        {
-            DatabaseAdminClient databaseAdminClient = DatabaseAdminClient.Create();
-            var instanceName = InstanceName.FromProjectInstance(ProjectId, Database.SpannerInstance);
-            var databases = databaseAdminClient.ListDatabases(instanceName);
-
-            if (databases.Count() < 90)
-            {
-                return;
-            }
-
-            var databasesToDelete = databases
-                .OrderBy(db => long.TryParse(db.DatabaseName.DatabaseId.Replace("testdb_", ""),
-                    out long creationDate) ? creationDate : long.MaxValue)
-                .Take(10);
-
-            Logger.DefaultLogger.Debug($"Deleting Stale Databases.");
-            // Delete the databases.
-            foreach (var database in databasesToDelete)
-            {
-                try
-                {
-                    using var connection = new SpannerConnection(Database.NoDbConnectionString);
-                    var dropCommand = connection.CreateDdlCommand($"DROP DATABASE {DatabaseName.DatabaseId}");
-                    await dropCommand.ExecuteNonQueryAsync();
-                }
-                catch (Exception) { }
-            }
-        }
     }
 }
