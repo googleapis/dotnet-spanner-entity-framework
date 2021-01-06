@@ -17,8 +17,7 @@ using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
-    // [CollectionDefinition(nameof(SingleTableFixture))]
-    public class SingleTableFixture : SpannerFixtureBase //, ICollectionFixture<SingleTableFixture>
+    public class SingleTableFixture : SpannerFixtureBase
     {
         public SingleTableFixture()
         {

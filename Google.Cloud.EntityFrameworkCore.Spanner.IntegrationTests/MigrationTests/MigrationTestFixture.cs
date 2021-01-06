@@ -37,8 +37,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
     }
 
-    // [CollectionDefinition(nameof(MigrationTestFixture))]
-    public class MigrationTestFixture : SpannerFixtureBase //, ICollectionFixture<MigrationTestFixture>
+    public class MigrationTestFixture : SpannerFixtureBase
     {
         public MigrationTestFixture()
         {
