@@ -1,11 +1,11 @@
 ﻿// Copyright 2020 Google LLC
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     https://www.apache.org/licenses/LICENSE-2.0
-// 
+//
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,6 +17,8 @@ using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1.Internal.Logging;
 using System;
+using System.Threading.Tasks;
+using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -29,7 +31,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
     /// If a value is set for TEST_SPANNER_DATABASE then that database is used. The database
     /// is not dropped after the test finishes.
     /// </summary>
-    public abstract class SpannerFixtureBase : CloudProjectFixtureBase
+    public abstract class SpannerFixtureBase : CloudProjectFixtureBase, IAsyncLifetime
     {
         private Random _random = new Random();
 
@@ -40,15 +42,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Database = SpannerTestDatabase.GetInstance(ProjectId);
         }
 
-        public async override void Dispose()
+        public Task InitializeAsync()
+        {
+            return Task.CompletedTask;
+        }
+
+        public async Task DisposeAsync()
         {
             if (Database.Fresh)
             {
-                using (var connection = new SpannerConnection(Database.NoDbConnectionString))
-                {
-                    var dropCommand = connection.CreateDdlCommand($"DROP DATABASE {DatabaseName.DatabaseId}");
-                    await dropCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                using var connection = new SpannerConnection(Database.NoDbConnectionString);
+                var dropCommand = connection.CreateDdlCommand($"DROP DATABASE {DatabaseName.DatabaseId}");
+                await dropCommand.ExecuteNonQueryAsync();
             }
         }
 

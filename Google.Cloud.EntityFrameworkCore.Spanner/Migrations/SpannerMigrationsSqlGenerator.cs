@@ -150,10 +150,10 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             {
                 builder.Append(",");
                 builder.AppendLine();
-                operation.ForeignKeys.ForEach(key =>
+                foreach (var key in operation.ForeignKeys)
                 {
                     ForeignKeyConstraint(key, model, builder);
-                });
+                }
             }
             else
             {
@@ -189,7 +189,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             IModel model,
             MigrationCommandListBuilder builder)
         {
-            builder.Append("CONSTRAINT ")
+            builder.Append(" CONSTRAINT ")
                 .Append(operation.Name)
                 .Append(" FOREIGN KEY (")
                 .Append(ColumnList(operation.Columns))
@@ -197,7 +197,8 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 .Append(operation.PrincipalTable)
                 .Append(" (")
                 .Append(ColumnList(operation.PrincipalColumns))
-                .Append(")");
+                .Append("),");
+            builder.AppendLine();
         }
 
         private static string GetCorrectedColumnType(string columnType)
