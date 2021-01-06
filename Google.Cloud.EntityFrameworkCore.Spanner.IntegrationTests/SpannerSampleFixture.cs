@@ -24,8 +24,6 @@ using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
-
-
     /// <summary>
     /// DbContext for the generated sample database.
     /// </summary>
@@ -60,8 +58,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
     /// Otherwise a new database with the sample data model is automatically created and used. The
     /// generated database is dropped when the fixture is disposed.
     /// </summary>
-    [CollectionDefinition(nameof(SpannerSampleFixture))]
-    public class SpannerSampleFixture : SpannerFixtureBase, ICollectionFixture<SpannerSampleFixture>
+    public class SpannerSampleFixture : SpannerFixtureBase
     {
         public SpannerSampleFixture()
         {

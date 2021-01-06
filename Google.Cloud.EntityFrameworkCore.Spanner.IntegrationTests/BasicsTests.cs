@@ -17,8 +17,7 @@ using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
-    [Collection(nameof(SingleTableFixture))]
-    public class BasicsTests
+    public class BasicsTests : IClassFixture<SingleTableFixture>
     {
         private readonly SingleTableFixture _fixture;
 

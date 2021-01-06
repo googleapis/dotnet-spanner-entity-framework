@@ -17,18 +17,15 @@ using Google.Cloud.Spanner.Data;
 using System;
 using System.Collections.Generic;
 using Xunit;
-using System.Text;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Threading.Tasks;
-using System.Threading;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
-    [Collection(nameof(SpannerSampleFixture))]
-    public class TransactionTests
+    public class TransactionTests : IClassFixture<SpannerSampleFixture>
     {
         private readonly SpannerSampleFixture _fixture;
 

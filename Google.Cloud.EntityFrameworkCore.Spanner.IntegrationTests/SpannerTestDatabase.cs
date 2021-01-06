@@ -28,9 +28,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
     /// </summary>
     public class SpannerTestDatabase
     {
-        private static readonly object s_lock = new object();
-        private static SpannerTestDatabase s_instance = null;
-
         /// <summary>
         /// Fetches the database, creating it if necessary. Uses the following environment
         /// variables to determine the name of the instance and database to create/use:
@@ -39,28 +36,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         ///                        generated and the database will be created.
         /// </summary>
         /// <param name="projectId">The project ID to use, typically from a fixture.</param>
-        public static SpannerTestDatabase GetInstance(string projectId)
+        public static SpannerTestDatabase CreateInstance(string projectId)
         {
-            lock (s_lock)
-            {
-                if (s_instance == null)
-                {
-                    s_instance = new SpannerTestDatabase(projectId);
-                }
-                else if (s_instance.ProjectId != projectId)
-                {
-                    throw new ArgumentException($"A database for project ID {s_instance.ProjectId} has already been created; this test requested {projectId}");
-                }
-                return s_instance;
-            }
+            return new SpannerTestDatabase(projectId);
         }
 
-        private static readonly string s_generatedDatabaseName = $"testdb_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
+        private readonly string env_databaseName = GetEnvironmentVariableOrDefault("TEST_SPANNER_DATABASE", "");
+        private readonly string s_generatedDatabaseName = $"testdb_{Guid.NewGuid().ToString().Substring(0, 23).Replace('-', '_')}";
 
         public string SpannerHost { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_HOST", null);
         public string SpannerPort { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_PORT", null);
         public string SpannerInstance { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_INSTANCE", "spannerintegration");
-        public string SpannerDatabase { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_DATABASE", s_generatedDatabaseName);
+        public string SpannerDatabase
+        {
+            get => env_databaseName == "" ? s_generatedDatabaseName : env_databaseName;
+        }
 
         // This is the simplest way of checking whether the environment variable was specified or not.
         // It's a little ugly, but simpler than the alternatives.

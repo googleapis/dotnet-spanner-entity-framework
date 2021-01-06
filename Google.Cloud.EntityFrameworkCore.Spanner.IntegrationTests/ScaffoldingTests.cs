@@ -22,8 +22,7 @@ using System.Linq;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
-    [Collection(nameof(SpannerSampleFixture))]
-    public class ScaffoldingTests
+    public class ScaffoldingTests : IClassFixture<SpannerSampleFixture>
     {
         private readonly SpannerSampleFixture _fixture;
 

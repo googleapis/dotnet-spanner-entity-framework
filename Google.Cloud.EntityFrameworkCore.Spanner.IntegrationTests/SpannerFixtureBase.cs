@@ -39,7 +39,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         public SpannerFixtureBase()
         {
-            Database = SpannerTestDatabase.GetInstance(ProjectId);
+            Database = SpannerTestDatabase.CreateInstance(ProjectId);
         }
 
         public Task InitializeAsync()
