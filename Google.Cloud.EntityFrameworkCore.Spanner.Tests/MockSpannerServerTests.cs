@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using Google.Cloud.Spanner.V1;
+using Google.Cloud.Spanner.Data;
+using V1 = Google.Cloud.Spanner.V1;
 using Google.Protobuf;
 using Grpc.Core;
 using System.Collections.Generic;
 using System.Linq;
 using Xunit;
+using Google.Cloud.Spanner.V1;
 
-namespace Google.Cloud.Spanner.Data.Tests
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 {
     public class MockSpannerServerTests : IClassFixture<SpannerMockServerFixture>
     {
@@ -112,10 +114,10 @@ namespace Google.Cloud.Spanner.Data.Tests
             decimal initialBudget2 = 2250198.28m;
             _fixture.SpannerMock.AddOrUpdateStatementResult(
                 "SELECT MarketingBudget FROM Albums WHERE SingerId = 1 AND AlbumId = 1",
-                StatementResult.CreateSingleColumnResultSet(V1.TypeCode.Numeric, "MarketingBudget", initialBudget1));
+                StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = TypeCode.Numeric}, "MarketingBudget", initialBudget1));
             _fixture.SpannerMock.AddOrUpdateStatementResult(
                 "SELECT MarketingBudget FROM Albums WHERE SingerId = 2 AND AlbumId = 2",
-                StatementResult.CreateSingleColumnResultSet(V1.TypeCode.Numeric, "MarketingBudget", initialBudget2));
+                StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = TypeCode.Numeric }, "MarketingBudget", initialBudget2));
             string connectionString = $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
 
             decimal transferAmount = 200000;

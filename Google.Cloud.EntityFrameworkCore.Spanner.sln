@@ -9,8 +9,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Google.Cloud.EntityFramewor
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Google.Cloud.EntityFrameworkCore.Spanner.Tests", "Google.Cloud.EntityFrameworkCore.Spanner.Tests\Google.Cloud.EntityFrameworkCore.Spanner.Tests.csproj", "{D95F20F2-94D4-45E9-9AB8-95D7179B48AD}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Google.Cloud.Spanner.Data", "..\google-cloud-dotnet-loite\apis\Google.Cloud.Spanner.Data\Google.Cloud.Spanner.Data\Google.Cloud.Spanner.Data.csproj", "{B817942F-3C3B-4343-9D7B-F96FD47A731D}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,10 +27,6 @@ Global
 		{D95F20F2-94D4-45E9-9AB8-95D7179B48AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D95F20F2-94D4-45E9-9AB8-95D7179B48AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D95F20F2-94D4-45E9-9AB8-95D7179B48AD}.Release|Any CPU.Build.0 = Release|Any CPU
-		{B817942F-3C3B-4343-9D7B-F96FD47A731D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{B817942F-3C3B-4343-9D7B-F96FD47A731D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{B817942F-3C3B-4343-9D7B-F96FD47A731D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{B817942F-3C3B-4343-9D7B-F96FD47A731D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

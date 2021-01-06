@@ -44,24 +44,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
 
         public override InterceptionResult<DbTransaction> TransactionStarting(DbConnection connection, TransactionStartingEventData eventData, InterceptionResult<DbTransaction> result)
         {
-            if (connection is SpannerConnection spannerConnection)
-            {
-                var task = spannerConnection.BeginRetriableTransactionAsync();
-                task.Wait();
-                return InterceptionResult<DbTransaction>.SuppressWithResult(task.Result);
-            }
             // TODO: Return retryable transaction instead of a normal transaction.
             return base.TransactionStarting(connection, eventData, result);
         }
 
         public override Task<InterceptionResult<DbTransaction>> TransactionStartingAsync(DbConnection connection, TransactionStartingEventData eventData, InterceptionResult<DbTransaction> result, CancellationToken cancellationToken = default)
         {
-            if (connection is SpannerConnection spannerConnection)
-            {
-                var task = spannerConnection.BeginRetriableTransactionAsync(cancellationToken);
-                task.Wait();
-                return Task.FromResult(InterceptionResult<DbTransaction>.SuppressWithResult(task.Result));
-            }
             // TODO: Return retryable transaction instead of a normal transaction.
             return base.TransactionStartingAsync(connection, eventData, result);
         }

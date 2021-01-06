@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.Admin.Instance.V1;
 using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
@@ -156,10 +157,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             return string.IsNullOrEmpty(value) ? defaultValue : value;
         }
         
-        public SpannerConnection GetConnection() => new SpannerConnection(ConnectionString);
+        public SpannerRetriableConnection GetConnection() => new SpannerRetriableConnection(new SpannerConnection(ConnectionString));
 
-        // Creates a SpannerConnection with a specific logger.
-        public SpannerConnection GetConnection(Logger logger) =>
-            new SpannerConnection(new SpannerConnectionStringBuilder(ConnectionString) { SessionPoolManager = SessionPoolManager.Create(new Cloud.Spanner.V1.SessionPoolOptions(), logger) });
+        // Creates a SpannerRetriableConnection with a specific logger.
+        public SpannerRetriableConnection GetConnection(Logger logger) =>
+            new SpannerRetriableConnection(new SpannerConnection(new SpannerConnectionStringBuilder(ConnectionString) { SessionPoolManager = SessionPoolManager.Create(new Cloud.Spanner.V1.SessionPoolOptions(), logger) }));
     }
 }

@@ -36,7 +36,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <inheritdoc />
         public override bool IsMultipleActiveResultSetsEnabled => true;
 
-        protected override DbConnection CreateDbConnection() => new SpannerConnection(ConnectionString);
+        protected override DbConnection CreateDbConnection() => new SpannerRetriableConnection(new SpannerConnection(ConnectionString));
 
         /// <summary>
         /// </summary>
@@ -45,7 +45,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             var builder = new SpannerConnectionStringBuilder(ConnectionString);
             //Spanner actually has no master or admin db, so we just use a normal connection.
             var masterConn =
-                new SpannerConnection($"Data Source=projects/{builder.Project}/instances/{builder.SpannerInstance}");
+                new SpannerRetriableConnection(
+                    new SpannerConnection($"Data Source=projects/{builder.Project}/instances/{builder.SpannerInstance}"));
             var optionsBuilder = new DbContextOptionsBuilder();
             optionsBuilder.UseSpanner(masterConn);
 

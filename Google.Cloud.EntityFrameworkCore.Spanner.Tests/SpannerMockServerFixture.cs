@@ -16,10 +16,12 @@ using Grpc.Core;
 using System;
 using System.Linq;
 
-namespace Google.Cloud.Spanner.Data.Tests
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 {
     public class SpannerMockServerFixture : IDisposable
     {
+        private Random _random = new Random();
+
         private readonly Server _server;
         public MockSpannerService SpannerMock { get; }
         public string Endpoint
@@ -46,6 +48,20 @@ namespace Google.Cloud.Spanner.Data.Tests
         public void Dispose()
         {
             _server.ShutdownAsync().Wait();
+        }
+
+        public long RandomLong()
+        {
+            return RandomLong(0, long.MaxValue);
+        }
+
+        public long RandomLong(long min, long max)
+        {
+            byte[] buf = new byte[8];
+            _random.NextBytes(buf);
+            long longRand = BitConverter.ToInt64(buf, 0);
+
+            return (Math.Abs(longRand % (max - min)) + min);
         }
     }
 }

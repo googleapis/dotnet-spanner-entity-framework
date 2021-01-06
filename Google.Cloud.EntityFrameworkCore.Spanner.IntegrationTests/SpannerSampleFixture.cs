@@ -83,9 +83,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         {
             using (var con = GetConnection())
             {
-                con.RunWithRetriableTransaction(tx =>
+                using (var tx = con.BeginTransaction())
                 {
-                    var cmd = tx.CreateBatchDmlCommand();
+                    var cmd = con.CreateBatchDmlCommand();
+                    cmd.Transaction = tx;
                     foreach (var table in new string[]
                     {
                         "TableWithAllColumnTypes",
@@ -100,7 +101,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                         cmd.Add($"DELETE FROM {table} WHERE TRUE");
                     }
                     cmd.ExecuteNonQuery();
-                });
+                }
             }
         }
 

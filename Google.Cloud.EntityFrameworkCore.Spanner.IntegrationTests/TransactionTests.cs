@@ -23,6 +23,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Threading.Tasks;
 using System.Threading;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -36,6 +37,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         [Fact]
         public async void SaveChangesIsAtomic()
         {
+            var singerId = _fixture.RandomLong();
+            var invalidSingerId = _fixture.RandomLong();
+            var albumId = _fixture.RandomLong();
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Try to add a singer and an album in one transaction.
@@ -43,14 +47,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 // should not be inserted.
                 db.Singers.Add(new Singers
                 {
-                    SingerId = 1,
+                    SingerId = singerId,
                     FirstName = "Joe",
                     LastName = "Elliot",
                 });
                 db.Albums.Add(new Albums
                 {
-                    AlbumId = 1,
-                    SingerId = 2, // Invalid, does not reference an actual Singer
+                    AlbumId = albumId,
+                    SingerId = invalidSingerId, // Invalid, does not reference an actual Singer
                     Title = "Some title",
                 });
                 await Assert.ThrowsAsync<SpannerBatchNonQueryException>(() => db.SaveChangesAsync());
@@ -59,20 +63,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Verify that the singer was not inserted in the database.
-                Assert.Null(await db.Singers.FindAsync(1L));
+                Assert.Null(await db.Singers.FindAsync(singerId));
             }
         }
 
         [Fact]
         public async void EndOfTransactionScopeCausesRollback()
         {
+            var venueCode = _fixture.RandomString(4);
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 using (var transaction = await db.Database.BeginTransactionAsync())
                 {
                     db.Venues.AddRange(new Venues
                     {
-                        Code = "VEN3",
+                        Code = venueCode,
                         Name = "Venue 3",
                     });
                     await db.SaveChangesAsync();
@@ -80,7 +85,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 }
                 // Verify that the venue was not inserted.
                 var venuesAfterRollback = db.Venues
-                    .Where(v => v.Code == "VEN3")
+                    .Where(v => v.Code == venueCode)
                     .ToList();
                 Assert.Empty(venuesAfterRollback);
             }
@@ -89,6 +94,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         [Fact]
         public async void TransactionCanReadYourWrites()
         {
+            var venueCode1 = _fixture.RandomString(4);
+            var venueCode2 = _fixture.RandomString(4);
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 using (var transaction = await db.Database.BeginTransactionAsync())
@@ -96,17 +103,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     // Add two venues in the transaction.
                     db.Venues.AddRange(new Venues
                     {
-                        Code = "VEN1",
+                        Code = venueCode1,
                         Name = "Venue 1",
                     }, new Venues
                     {
-                        Code = "VEN2",
+                        Code = venueCode2,
                         Name = "Venue 2",
                     });
                     await db.SaveChangesAsync();
 
                     // Verify that we can read the venue while inside the transaction.
                     var venues = db.Venues
+                        .Where(v => v.Code == venueCode1 || v.Code == venueCode2)
                         .OrderBy(v => v.Name)
                         .ToList();
                     Assert.Equal(2, venues.Count);
@@ -117,7 +125,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 }
                 // Verify that the venues can no longer be read.
                 var venuesAfterRollback = db.Venues
-                    .Where(v => v.Code == "VEN1" || v.Name == "VEN2")
+                    .Where(v => v.Code == venueCode1 || v.Name == venueCode2)
                     .ToList();
                 Assert.Empty(venuesAfterRollback);
             }
@@ -126,6 +134,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         [Fact]
         public async void CanUseSharedContextAndTransaction()
         {
+            var venueCode = _fixture.RandomString(4);
             using var connection = _fixture.GetConnection();
             var options = new DbContextOptionsBuilder<SpannerSampleDbContext>()
                 .UseSpanner(connection)
@@ -137,54 +146,74 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 await context2.Database.UseTransactionAsync(DbContextTransactionExtensions.GetDbTransaction(transaction));
                 context2.Venues.Add(new Venues
                 {
-                    Code = "VEN3",
+                    Code = venueCode,
                     Name = "Venue 3",
                 });
                 await context2.SaveChangesAsync();
             }
             // Check that the venue is readable from the other context.
-            Assert.Equal("Venue 3", (await context1.Venues.FindAsync("VEN3")).Name);
+            Assert.Equal("Venue 3", (await context1.Venues.FindAsync(venueCode)).Name);
             await transaction.CommitAsync();
             // Verify that it is also readable from a new unrelated context.
             using (var context3 = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
-                Assert.Equal("Venue 3", (await context1.Venues.FindAsync("VEN3")).Name);
+                Assert.Equal("Venue 3", (await context1.Venues.FindAsync(venueCode)).Name);
             }
         }
 
-        [Fact]
-        public void TransactionRetry()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void TransactionRetry(bool enableInternalRetries)
         {
-            const int transactions = 10;
+            const int transactions = 8;
             var aborted = new List<Exception>();
-            var res = Parallel.For(0, transactions, i =>
+            var res = Parallel.For(0, transactions, (i, state) =>
             {
                 try
                 {
-                    InsertRandomSinger().Wait();
+                    // The internal retry mechanism should be able to catch and retry
+                    // all aborted transactions. If internal retries are disabled, multiple
+                    // transactions will abort.
+                    InsertRandomSinger(enableInternalRetries).Wait();
                 }
                 catch (AggregateException e) when (e.InnerException is SpannerException se && se.ErrorCode == ErrorCode.Aborted)
                 {
-                    aborted.Add(se);
+                    lock (aborted)
+                    {
+                        aborted.Add(se);
+                    }
+                    // We don't care exactly how many transactions were aborted, only whether
+                    // at least one or none was aborted.
+                    state.Stop();
                 }
             });
-            Assert.True(res.IsCompleted);
-            Assert.NotEmpty(aborted);
+            // If a transaction is aborted, the parallel operations will not run to completion.
+            Assert.Equal(enableInternalRetries, res.IsCompleted);
+            Assert.Equal(enableInternalRetries, aborted.Count == 0);
         }
 
-        private async Task InsertRandomSinger()
+        private async Task InsertRandomSinger(bool enableInternalRetries)
         {
             var rnd = new Random();
             using (var context = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 using (var transaction = await context.Database.BeginTransactionAsync())
                 {
+                    var retriableTransaction = (SpannerRetriableTransaction)transaction.GetDbTransaction();
+                    retriableTransaction.EnableInternalRetries = enableInternalRetries;
                     var rows = rnd.Next(1, 10);
                     for (var row = 0; row < rows; row++)
                     {
-                        var id = LongRandom(0L, long.MaxValue, rnd);
+                        // This test assumes that this is random enough and that the id's
+                        // will never overlap during a test run.
+                        var id = _fixture.RandomLong();
                         var prefix = id.ToString("D20");
+                        // First name is required, so we just assign a meaningless random value.
                         var firstName = "FirstName" + "-" + rnd.Next(10000).ToString("D4");
+                        // Last name contains the same value as the primary key with a random suffix.
+                        // This makes it possible to search for a singer using the last name and knowing
+                        // that the search will at most deliver one row (and it will be the same row each time).
                         var lastName = prefix + "-" + rnd.Next(10000).ToString("D4");
 
                         // Yes, this is highly inefficient, but that is intentional. This
@@ -213,59 +242,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     await transaction.CommitAsync();
                 }
             }
-        }
-
-        private async Task InsertRandomVenue()
-        {
-            var rnd = new Random();
-            using (var context = new TestSpannerSampleDbContext(_fixture.DatabaseName))
-            {
-                using (var transaction = await context.Database.BeginTransactionAsync())
-                {
-                    var rows = rnd.Next(1, 10);
-                    for (var row = 0; row < rows; row++)
-                    {
-                        var codeLength = 4;
-                        var num = rnd.Next(10 ^ codeLength);
-                        var code = num.ToString("D" + codeLength);
-                        var name = code + "-" + rnd.Next(10000).ToString("D4");
-
-                        // Yes, this is highly inefficient, but that is intentional. This
-                        // will cause a large number of the transactions to be aborted.
-                        var existing = await context
-                            .Venues
-                            .Where(v => EF.Functions.Like(v.Name, code + "%"))
-                            .OrderBy(v => v.Name)
-                            .FirstOrDefaultAsync();
-
-                        if (existing == null)
-                        {
-                            context.Venues.Add(new Venues
-                            {
-                                Code = code,
-                                Name = name,
-                                Active = true,
-                                Ratings = new List<double> { rnd.NextDouble(), rnd.NextDouble(), rnd.NextDouble() },
-                            });
-                        }
-                        else
-                        {
-                            existing.Ratings = new List<double> { rnd.NextDouble(), rnd.NextDouble(), rnd.NextDouble() };
-                        }
-                        await context.SaveChangesAsync();
-                    }
-                    await transaction.CommitAsync();
-                }
-            }
-        }
-
-        private long LongRandom(long min, long max, Random rand)
-        {
-            byte[] buf = new byte[8];
-            rand.NextBytes(buf);
-            long longRand = BitConverter.ToInt64(buf, 0);
-
-            return (Math.Abs(longRand % (max - min)) + min);
         }
     }
 }

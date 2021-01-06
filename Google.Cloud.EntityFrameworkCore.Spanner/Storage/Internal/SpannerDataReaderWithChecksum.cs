@@ -1,4 +1,4 @@
-﻿// Copyright 2020 Google Inc. All Rights Reserved.
+﻿// Copyright 2021 Google Inc. All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,68 +13,73 @@
 // limitations under the License.
 
 using Google.Api.Gax;
-using Google.Cloud.Spanner.V1;
-using Google.Cloud.Spanner.V1.Internal.Logging;
+using Google.Cloud.Spanner.Data;
 using Google.Protobuf;
 using System;
-using System.Collections.Generic;
+using System.Collections;
+using System.Data.Common;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Google.Cloud.Spanner.Data
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     /// <summary>
     /// Reads a forward-only stream of rows from a data source and keeps track of a running
     /// checksum for all data that have been seen.
     /// </summary>
-    public sealed class SpannerDataReaderWithChecksum : SpannerDataReader, IRetriableStatement
+    public sealed class SpannerDataReaderWithChecksum : DbDataReader, IRetriableStatement
     {
-        private readonly RetriableSpannerTransaction _transaction;
-        private readonly ExecuteSqlRequest _request;
+        private readonly SpannerCommand _spannerCommand;
         private int _numberOfReadCalls;
         private byte[] _currentChecksum = new byte[0];
         private SpannerException _firstException;
 
         internal SpannerDataReaderWithChecksum(
-            RetriableSpannerTransaction transaction,
-            ExecuteSqlRequest request,
-            Logger logger,
-            ReliableStreamReader resultSet,
-            IDisposable resourceToClose,
-            SpannerConversionOptions conversionOptions,
-            bool provideSchemaTable,
-            int readTimeoutSeconds) : base(
-                logger,
-                resultSet,
-                resourceToClose,
-                conversionOptions,
-                provideSchemaTable,
-                readTimeoutSeconds
-            )
+            SpannerRetriableTransaction transaction,
+            SpannerDataReader spannerDataReader,
+            SpannerCommand command)
         {
-            _transaction = transaction;
-            _request = request;
+            Transaction = transaction;
+            SpannerDataReader = spannerDataReader;
+            _spannerCommand = (SpannerCommand)command.Clone();
         }
+
+        internal SpannerRetriableTransaction Transaction { get; private set; }
+
+        public override int Depth => SpannerDataReader.Depth;
+
+        public override int FieldCount => SpannerDataReader.FieldCount;
+
+        public override bool HasRows => SpannerDataReader.HasRows;
+
+        public override bool IsClosed => SpannerDataReader.IsClosed;
+
+        public override int RecordsAffected => SpannerDataReader.RecordsAffected;
+
+        public override object this[string name] => SpannerDataReader[name];
+
+        public override object this[int ordinal] => SpannerDataReader[ordinal];
+
+        private SpannerDataReader SpannerDataReader;
 
         /// <inheritdoc />
         public override bool Read() => Task.Run(() => ReadAsync(CancellationToken.None)).ResultWithUnwrappedExceptions();
 
         /// <inheritdoc />
         public override Task<bool> ReadAsync(CancellationToken cancellationToken) =>
-            ExecuteHelper.WithErrorTranslationAndProfiling(async () =>
+            Execute(async () =>
             {
                 while (true)
                 {
                     try
                     {
-                        bool res = await base.ReadAsync(cancellationToken).ConfigureAwait(false);
+                        bool res = await SpannerDataReader.ReadAsync(cancellationToken).ConfigureAwait(false);
                         if (res)
                         {
-                            _currentChecksum = CalculateNextChecksum(this, _currentChecksum);
+                            _currentChecksum = CalculateNextChecksum(SpannerDataReader, _currentChecksum);
                         }
                         _numberOfReadCalls++;
                         return res;
@@ -82,7 +87,7 @@ namespace Google.Cloud.Spanner.Data
                     catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
                     {
                         // Retry the transaction and then retry the ReadAsync call.
-                        await _transaction.RetryAsync(cancellationToken).ConfigureAwait(false);
+                        await Transaction.RetryAsync(e, cancellationToken).ConfigureAwait(false);
                     }
                     catch (SpannerException e)
                     {
@@ -94,7 +99,13 @@ namespace Google.Cloud.Spanner.Data
                         throw e;
                     }
                 }
-            }, "SpannerDataReaderWithChecksum.Read", Logger);
+            });
+
+        internal static async Task<T> Execute<T>(Func<Task<T>> t)
+        {
+            var result = await t().ConfigureAwait(false);
+            return result;
+        }
 
         internal static byte[] CalculateNextChecksum(SpannerDataReader reader, byte[] currentChecksum)
         {
@@ -122,10 +133,10 @@ namespace Google.Cloud.Spanner.Data
             }
         }
 
-        async Task IRetriableStatement.Retry(RetriableSpannerTransaction transaction, CancellationToken cancellationToken, int timeoutSeconds)
+        async Task IRetriableStatement.Retry(SpannerRetriableTransaction transaction, CancellationToken cancellationToken, int timeoutSeconds)
         {
-            ReliableStreamReader streamReader = await transaction.DoExecuteQueryAsync(_request, cancellationToken, timeoutSeconds).ConfigureAwait(false);
-            SpannerDataReader reader = new SpannerDataReader(Logger, streamReader, null, ConversionOptions, false, timeoutSeconds);
+            _spannerCommand.Transaction = transaction.SpannerTransaction;
+            var reader = await _spannerCommand.ExecuteReaderAsync();
             int counter = 0;
             bool read = true;
             byte[] newChecksum = new byte[0];
@@ -155,7 +166,7 @@ namespace Google.Cloud.Spanner.Data
             }
             if (counter == _numberOfReadCalls
                 && newChecksum.SequenceEqual(_currentChecksum)
-                && RetriableSpannerTransaction.SpannerExceptionsEqualForRetry(newException, _firstException))
+                && SpannerRetriableTransaction.SpannerExceptionsEqualForRetry(newException, _firstException))
             {
                 // Checksum is ok, we only need to replace the delegate result set if it's still open.
                 if (IsClosed)
@@ -164,7 +175,7 @@ namespace Google.Cloud.Spanner.Data
                 }
                 else
                 {
-                    ResultSet = streamReader;
+                    SpannerDataReader = reader;
                 }
             }
             else
@@ -173,6 +184,121 @@ namespace Google.Cloud.Spanner.Data
                 // continue the transaction.
                 throw new SpannerAbortedDueToConcurrentModificationException();
             }
+        }
+
+        public override bool GetBoolean(int ordinal)
+        {
+            return SpannerDataReader.GetBoolean(ordinal);
+        }
+
+        public override byte GetByte(int ordinal)
+        {
+            return SpannerDataReader.GetByte(ordinal);
+        }
+
+        public override long GetBytes(int ordinal, long dataOffset, byte[] buffer, int bufferOffset, int length)
+        {
+            return SpannerDataReader.GetBytes(ordinal, dataOffset, buffer, bufferOffset, length);
+        }
+
+        public override char GetChar(int ordinal)
+        {
+            return SpannerDataReader.GetChar(ordinal);
+        }
+
+        public override long GetChars(int ordinal, long dataOffset, char[] buffer, int bufferOffset, int length)
+        {
+            return SpannerDataReader.GetChars(ordinal, dataOffset, buffer, bufferOffset, length);
+        }
+
+        public override string GetDataTypeName(int ordinal)
+        {
+            return SpannerDataReader.GetDataTypeName(ordinal);
+        }
+
+        public override DateTime GetDateTime(int ordinal)
+        {
+            return SpannerDataReader.GetDateTime(ordinal);
+        }
+
+        public override decimal GetDecimal(int ordinal)
+        {
+            return SpannerDataReader.GetDecimal(ordinal);
+        }
+
+        public override double GetDouble(int ordinal)
+        {
+            return SpannerDataReader.GetDouble(ordinal);
+        }
+
+        public override IEnumerator GetEnumerator()
+        {
+            return SpannerDataReader.GetEnumerator();
+        }
+
+        public override System.Type GetFieldType(int ordinal)
+        {
+            return SpannerDataReader.GetFieldType(ordinal);
+        }
+
+        public override float GetFloat(int ordinal)
+        {
+            return SpannerDataReader.GetFloat(ordinal);
+        }
+
+        public override Guid GetGuid(int ordinal)
+        {
+            return SpannerDataReader.GetGuid(ordinal);
+        }
+
+        public override short GetInt16(int ordinal)
+        {
+            return SpannerDataReader.GetInt16(ordinal);
+        }
+
+        public override int GetInt32(int ordinal)
+        {
+            return SpannerDataReader.GetInt32(ordinal);
+        }
+
+        public override long GetInt64(int ordinal)
+        {
+            return SpannerDataReader.GetInt64(ordinal);
+        }
+
+        public override string GetName(int ordinal)
+        {
+            return SpannerDataReader.GetName(ordinal);
+        }
+
+        public override int GetOrdinal(string name)
+        {
+            return SpannerDataReader.GetOrdinal(name);
+        }
+
+        public override string GetString(int ordinal)
+        {
+            return SpannerDataReader.GetString(ordinal);
+        }
+
+        public override object GetValue(int ordinal)
+        {
+            return SpannerDataReader.GetValue(ordinal);
+        }
+
+        public override int GetValues(object[] values)
+        {
+            return SpannerDataReader.GetValues(values);
+        }
+
+        public override bool IsDBNull(int ordinal)
+        {
+            return SpannerDataReader.IsDBNull(ordinal);
+        }
+
+        public override bool NextResult()
+        {
+            return SpannerDataReader.NextResult();
         }
     }
 }

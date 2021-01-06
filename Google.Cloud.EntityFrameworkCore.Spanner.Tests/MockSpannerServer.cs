@@ -13,7 +13,7 @@
 // limitations under the License.
 
 using Google.Cloud.Spanner.Common.V1;
-using Google.Cloud.Spanner.V1;
+using V1 = Google.Cloud.Spanner.V1;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
@@ -25,8 +25,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Status = Google.Rpc.Status;
+using Google.Cloud.Spanner.V1;
+using Google.Cloud.Spanner.Data;
+using System.Reflection;
 
-namespace Google.Cloud.Spanner.Data.Tests
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 {
     public class StatementResult
     {
@@ -59,10 +62,10 @@ namespace Google.Cloud.Spanner.Data.Tests
 
         internal static StatementResult CreateSelect1ResultSet()
         {
-            return CreateSingleColumnResultSet(V1.TypeCode.Int64, "COL1", 1);
+            return CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "COL1", 1);
         }
 
-        internal static StatementResult CreateSingleColumnResultSet(V1.TypeCode type, String col, params object[] values)
+        internal static StatementResult CreateSingleColumnResultSet(V1.Type type, String col, params object[] values)
         {
             ResultSet rs = new ResultSet();
             rs.Metadata = new ResultSetMetadata
@@ -72,30 +75,15 @@ namespace Google.Cloud.Spanner.Data.Tests
             rs.Metadata.RowType.Fields.Add(new StructType.Types.Field
             {
                 Name = col,
-                Type = new V1.Type
-                {
-                    Code = type,
-                }
+                Type = type,
             });
             foreach (object val in values)
             {
                 ListValue row = new ListValue();
-                row.Values.Add(ToProtobufValue(type, val));
+                row.Values.Add(SpannerConverter.ToProtobufValue(type, val));
                 rs.Rows.Add(row);
             }
             return CreateQuery(rs);
-        }
-
-        private static Value ToProtobufValue(V1.TypeCode type, object val)
-        {
-            switch (type)
-            {
-                // TODO: Further types.
-                case V1.TypeCode.Int64:
-                case V1.TypeCode.String:
-                    return Value.ForString(val.ToString());
-            }
-            return null;
         }
 
         private StatementResult(ResultSet resultSet)
@@ -254,9 +242,11 @@ namespace Google.Cloud.Spanner.Data.Tests
             );
         }
 
-        internal void AbortTransaction(ByteString id)
+        internal void AbortTransaction(TransactionId transactionId)
         {
-            _abortedTransactions.TryAdd(id, true);
+            var prop = transactionId.GetType().GetProperty("Id", BindingFlags.Instance | BindingFlags.NonPublic);
+            var id = (string) prop.GetValue(transactionId);
+            _abortedTransactions.TryAdd(ByteString.FromBase64(id), true);
         }
 
         public List<IMessage> Requests()

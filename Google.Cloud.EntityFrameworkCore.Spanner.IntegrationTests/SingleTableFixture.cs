@@ -39,12 +39,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         {
             using (var con = GetConnection())
             {
-                con.RunWithRetriableTransaction(tx =>
+                using (var tx = con.BeginTransaction())
                 {
                     var cmd = con.CreateDmlCommand("DELETE FROM TestTable WHERE TRUE");
                     cmd.Transaction = tx;
                     cmd.ExecuteNonQuery();
-                });
+                    tx.Commit();
+                }
             }
         }
 

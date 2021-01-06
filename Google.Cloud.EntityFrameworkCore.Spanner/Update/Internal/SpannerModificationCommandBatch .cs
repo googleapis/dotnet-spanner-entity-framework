@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.Data;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore;
@@ -109,8 +110,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         public override async Task ExecuteAsync(IRelationalConnection connection,
             CancellationToken cancellationToken = new CancellationToken())
         {
-            var spannerConnection = (SpannerConnection)connection.DbConnection;
-            var transaction = connection.CurrentTransaction?.GetDbTransaction() as SpannerTransaction;
+            var spannerConnection = (SpannerRetriableConnection)connection.DbConnection;
+            var transaction = connection.CurrentTransaction?.GetDbTransaction() as SpannerRetriableTransaction;
             if (transaction == null)
             {
                 throw new InvalidOperationException("There is no active transaction");
@@ -123,7 +124,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             }
         }
 
-        private async Task PropagateResults(List<SpannerCommand> selectCommands, CancellationToken cancellationToken)
+        private async Task PropagateResults(List<SpannerRetriableCommand> selectCommands, CancellationToken cancellationToken)
         {
             int index = 0;
             foreach (var modificationCommand in _modificationCommands)
@@ -143,12 +144,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             }
         }
 
-        private Tuple<SpannerBatchCommand, List<SpannerCommand>> CreateSpannerBatchDmlCommand(SpannerConnection connection, SpannerTransaction transaction)
+        private Tuple<SpannerRetriableBatchCommand, List<SpannerRetriableCommand>> CreateSpannerBatchDmlCommand(SpannerRetriableConnection connection, SpannerRetriableTransaction transaction)
         {
-            var selectCommands = new List<SpannerCommand>();
+            var selectCommands = new List<SpannerRetriableCommand>();
             var commandPosition = 0;
-            var cmd = transaction.CreateBatchDmlCommand();
-            cmd.CommandType = SpannerBatchCommandType.BatchDml;
+            var cmd = connection.CreateBatchDmlCommand();
+            cmd.Transaction = transaction;
             foreach (var modificationCommand in _modificationCommands)
             {
                 var commands = CreateSpannerCommand(connection, transaction, modificationCommand, commandPosition);
@@ -162,7 +163,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             return Tuple.Create(cmd, selectCommands);
         }
 
-        private Tuple<SpannerCommand, SpannerCommand> CreateSpannerCommand(SpannerConnection connection, SpannerTransaction transaction, ModificationCommand modificationCommand, int commandPosition)
+        private Tuple<SpannerCommand, SpannerRetriableCommand> CreateSpannerCommand(SpannerRetriableConnection connection, SpannerRetriableTransaction transaction, ModificationCommand modificationCommand, int commandPosition)
         {
             var builder = new StringBuilder();
             ResultSetMapping res;
@@ -186,7 +187,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                         $"Modification type {modificationCommand.EntityState} is not supported.");
             }
             string dml;
-            SpannerCommand selectCommand = null;
+            SpannerRetriableCommand selectCommand = null;
             if (res != ResultSetMapping.NoResultSet)
             {
                 var commandTexts = builder.ToString().Split(_statementTerminator, StringSplitOptions.RemoveEmptyEntries);
@@ -219,7 +220,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             {
                 dml = builder.ToString();
             }
-            var cmd = connection.CreateDmlCommand(dml);
+            var cmd = connection.SpannerConnection.CreateDmlCommand(dml);
             foreach (var columnModification in modificationCommand.ColumnModifications.Where(o => o.UseOriginalValueParameter || o.UseCurrentValueParameter))
             {
                 var param = _typeMapper.GetMapping(columnModification.Property).CreateParameter(cmd,
