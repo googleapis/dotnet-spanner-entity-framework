@@ -14,6 +14,7 @@
 
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.Spanner.Common.V1;
+using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1.Internal.Logging;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -31,6 +32,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         private readonly DatabaseName _databaseName;
 
         internal TestSpannerSampleDbContext(DatabaseName databaseName) => _databaseName = databaseName;
+
+        internal TestSpannerSampleDbContext(DbContextOptions<SpannerSampleDbContext> options)
+            : base(options)
+        {
+        }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -52,8 +58,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
     /// Otherwise a new database with the sample data model is automatically created and used. The
     /// generated database is dropped when the fixture is disposed.
     /// </summary>
-    [CollectionDefinition(nameof(SpannerSampleFixture))]
-    public class SpannerSampleFixture : SpannerFixtureBase, ICollectionFixture<SpannerSampleFixture>
+    public class SpannerSampleFixture : SpannerFixtureBase
     {
         public SpannerSampleFixture()
         {
@@ -72,27 +77,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         private void ClearTables()
         {
-            using (var con = GetConnection())
+            using var con = GetConnection();
+            using var tx = con.BeginTransaction();
+            var cmd = con.CreateBatchDmlCommand();
+            cmd.Transaction = tx;
+            foreach (var table in new string[]
             {
-                con.RunWithRetriableTransaction(tx =>
-                {
-                    var cmd = tx.CreateBatchDmlCommand();
-                    foreach (var table in new string[]
-                    {
-                        "TableWithAllColumnTypes",
-                        "Performances",
-                        "Concerts",
-                        "Venues",
-                        "Tracks",
-                        "Albums",
-                        "Singers",
-                    })
-                    {
-                        cmd.Add($"DELETE FROM {table} WHERE TRUE");
-                    }
-                    cmd.ExecuteNonQuery();
-                });
+                "TableWithAllColumnTypes",
+                "Performances",
+                "Concerts",
+                "Venues",
+                "Tracks",
+                "Albums",
+                "Singers",
+            })
+            {
+                cmd.Add($"DELETE FROM {table} WHERE TRUE");
             }
+            cmd.ExecuteNonQuery();
         }
 
         /// <summary>
@@ -124,10 +126,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         {
             string[] extraStatements = new string[length - 1];
             Array.Copy(ddl, 1, extraStatements, 0, extraStatements.Length);
-            using (var connection = GetConnection())
-            {
-                connection.CreateDdlCommand(ddl[0].Trim(), extraStatements).ExecuteNonQuery();
-            }
+            using var connection = GetConnection();
+            connection.CreateDdlCommand(ddl[0].Trim(), extraStatements).ExecuteNonQuery();
         }
     }
 }

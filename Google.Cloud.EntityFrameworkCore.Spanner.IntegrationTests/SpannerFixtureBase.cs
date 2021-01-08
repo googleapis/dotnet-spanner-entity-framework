@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1.Internal.Logging;
+using System;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -31,11 +33,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
     /// </summary>
     public abstract class SpannerFixtureBase : CloudProjectFixtureBase, IAsyncLifetime
     {
+        private Random _random = new Random();
+
         public SpannerTestDatabase Database { get; }
 
         public SpannerFixtureBase()
         {
-            Database = SpannerTestDatabase.GetInstance(ProjectId);
+            Database = SpannerTestDatabase.CreateInstance(ProjectId);
         }
 
         public Task InitializeAsync()
@@ -54,8 +58,29 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         public DatabaseName DatabaseName => Database.DatabaseName;
-        public SpannerConnection GetConnection() => Database.GetConnection();
+        public SpannerRetriableConnection GetConnection() => Database.GetConnection();
         public string ConnectionString => Database.ConnectionString;
-        public SpannerConnection GetConnection(Logger logger) => Database.GetConnection(logger);
+        public SpannerRetriableConnection GetConnection(Logger logger) => Database.GetConnection(logger);
+
+        public long RandomLong()
+        {
+            return RandomLong(0, long.MaxValue);
+        }
+
+        public long RandomLong(long min, long max)
+        {
+            byte[] buf = new byte[8];
+            _random.NextBytes(buf);
+            long longRand = BitConverter.ToInt64(buf, 0);
+
+            return (Math.Abs(longRand % (max - min)) + min);
+        }
+
+        public string RandomString(int length)
+        {
+            byte[] buf = new byte[length];
+            _random.NextBytes(buf);
+            return System.Text.Encoding.ASCII.GetString(buf);
+        }
     }
 }

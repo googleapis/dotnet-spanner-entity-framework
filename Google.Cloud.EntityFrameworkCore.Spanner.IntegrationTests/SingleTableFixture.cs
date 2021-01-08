@@ -17,8 +17,7 @@ using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
-    [CollectionDefinition(nameof(SingleTableFixture))]
-    public class SingleTableFixture : SpannerFixtureBase, ICollectionFixture<SingleTableFixture>
+    public class SingleTableFixture : SpannerFixtureBase
     {
         public SingleTableFixture()
         {
@@ -37,24 +36,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         private void ClearTables()
         {
-            using (var con = GetConnection())
-            {
-                con.RunWithRetriableTransaction(tx =>
-                {
-                    var cmd = con.CreateDmlCommand("DELETE FROM TestTable WHERE TRUE");
-                    cmd.Transaction = tx;
-                    cmd.ExecuteNonQuery();
-                });
-            }
+            using var con = GetConnection();
+            using var tx = con.BeginTransaction();
+            var cmd = con.CreateDmlCommand("DELETE FROM TestTable WHERE TRUE");
+            cmd.Transaction = tx;
+            cmd.ExecuteNonQuery();
+            tx.Commit();
         }
 
         private void CreateTable()
         {
-            using (var con = GetConnection())
-            {
-                var cmd = con.CreateDdlCommand("CREATE TABLE TestTable (Key STRING(MAX), Value STRING(MAX)) PRIMARY KEY (Key)");
-                cmd.ExecuteNonQuery();
-            }
+            using var con = GetConnection();
+            var cmd = con.CreateDdlCommand("CREATE TABLE TestTable (Key STRING(MAX), Value STRING(MAX)) PRIMARY KEY (Key)");
+            cmd.ExecuteNonQuery();
         }
     }
 }

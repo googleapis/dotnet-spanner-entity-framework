@@ -22,8 +22,7 @@ using System.Linq;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
-    [Collection(nameof(SpannerSampleFixture))]
-    public class ScaffoldingTests
+    public class ScaffoldingTests : IClassFixture<SpannerSampleFixture>
     {
         private readonly SpannerSampleFixture _fixture;
 
@@ -32,34 +31,31 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         [Fact]
         public async void AllTablesAreGenerated()
         {
-            using (var connection = _fixture.GetConnection())
-            {
-                var tableNames = new string[] {
-                    "Singers", "Albums", "Tracks", "Venues", "Concerts", "Performances", "TableWithAllColumnTypes"
-                };
-                var tables = new SpannerParameterCollection();
-                tables.Add("tables", SpannerDbType.ArrayOf(SpannerDbType.String), tableNames);
-                var cmd = connection.CreateSelectCommand(
-                    "SELECT COUNT(*) " +
-                    "FROM INFORMATION_SCHEMA.TABLES " +
-                    "WHERE TABLE_CATALOG='' AND TABLE_SCHEMA='' AND TABLE_NAME IN UNNEST (@tables)", tables);
-                using (var reader = await cmd.ExecuteReaderAsync())
-                {
-                    Assert.True(await reader.ReadAsync());
-                    Assert.Equal(tableNames.Length, reader.GetInt64(0));
-                    Assert.False(await reader.ReadAsync());
-                }
-            }
+            using var connection = _fixture.GetConnection();
+            var tableNames = new string[] {
+                "Singers", "Albums", "Tracks", "Venues", "Concerts", "Performances", "TableWithAllColumnTypes"
+            };
+            var tables = new SpannerParameterCollection();
+            tables.Add("tables", SpannerDbType.ArrayOf(SpannerDbType.String), tableNames);
+            var cmd = connection.CreateSelectCommand(
+                "SELECT COUNT(*) " +
+                "FROM INFORMATION_SCHEMA.TABLES " +
+                "WHERE TABLE_CATALOG='' AND TABLE_SCHEMA='' AND TABLE_NAME IN UNNEST (@tables)", tables);
+            using var reader = await cmd.ExecuteReaderAsync();
+            Assert.True(await reader.ReadAsync());
+            Assert.Equal(tableNames.Length, reader.GetInt64(0));
+            Assert.False(await reader.ReadAsync());
         }
 
         [Fact]
         public async void CanInsertAndUpdateVenue()
         {
+            var code = _fixture.RandomString(4);
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 var venue = new Venues
                 {
-                    Code = "CON",
+                    Code = code,
                     Name = "Concert Hall",
                     Active = true,
                     Capacity = 2000,
@@ -72,7 +68,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Reget the venue from the database.
-                var venue = await db.Venues.FindAsync("CON");
+                var venue = await db.Venues.FindAsync(code);
                 Assert.Equal("Concert Hall", venue.Name);
                 Assert.Equal(2000, venue.Capacity);
                 Assert.Equal(new List<double> { 8.9, 6.5, 8.0 }, venue.Ratings);
@@ -89,7 +85,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Reget the venue from the database.
-                var venue = await db.Venues.FindAsync("CON");
+                var venue = await db.Venues.FindAsync(code);
                 Assert.Equal("Concert Hall - Refurbished", venue.Name);
                 Assert.Equal(3000, venue.Capacity);
                 Assert.Equal(new List<double> { 8.9, 6.5, 8.0, 9.5, 9.8, 10.0 }, venue.Ratings);
@@ -99,11 +95,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         [Fact]
         public async void CanInsertAndUpdateSinger()
         {
+            var singerId = _fixture.RandomLong();
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 var singer = new Singers
                 {
-                    SingerId = 1,
+                    SingerId = singerId,
                     FirstName = "Rob",
                     LastName = "Morrison",
                     BirthDate = new DateTime(2002, 10, 1),
@@ -119,7 +116,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Reget the singer from the database.
-                var singer = await db.Singers.FindAsync(1L);
+                var singer = await db.Singers.FindAsync(singerId);
                 Assert.Equal("Rob", singer.FirstName);
                 Assert.Equal("Morrison", singer.LastName);
                 Assert.Equal(new DateTime(2002, 10, 1), singer.BirthDate);
@@ -137,7 +134,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Reget the singer from the database.
-                var singer = await db.Singers.FindAsync(1L);
+                var singer = await db.Singers.FindAsync(singerId);
                 Assert.Equal("Alice", singer.FirstName);
                 Assert.Equal("Morrison - Chine", singer.LastName);
                 Assert.Equal(new DateTime(2002, 10, 15), singer.BirthDate);
@@ -149,11 +146,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         [Fact]
         public async void CanInsertAndUpdateAlbum()
         {
+            var singerId = _fixture.RandomLong();
+            var albumId = _fixture.RandomLong();
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 var singer = new Singers
                 {
-                    SingerId = 2,
+                    SingerId = singerId,
                     FirstName = "Pete",
                     LastName = "Henderson",
                     BirthDate = new DateTime(1997, 2, 20),
@@ -162,7 +161,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 var album = new Albums
                 {
                     SingerId = singer.SingerId,
-                    AlbumId = 1,
+                    AlbumId = albumId,
                     Title = "Pete Henderson's first album",
                     ReleaseDate = new DateTime(2019, 04, 19),
                 };
@@ -176,10 +175,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Reget the album from the database.
-                var album = await db.Albums.FindAsync(1L);
+                var album = await db.Albums.FindAsync(albumId);
                 Assert.Equal("Pete Henderson's first album", album.Title);
                 Assert.Equal(new DateTime(2019, 4, 19), album.ReleaseDate);
-                Assert.Equal(2, album.SingerId);
+                Assert.Equal(singerId, album.SingerId);
                 Assert.NotNull(album.Singer);
 
                 // Update the album.
@@ -188,17 +187,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 await db.SaveChangesAsync();
             }
 
+            var newSingerId = _fixture.RandomLong();
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Reget the album from the database.
-                var album = await db.Albums.FindAsync(1L);
+                var album = await db.Albums.FindAsync(albumId);
                 Assert.Equal("Pete Henderson's first album - Refurbished", album.Title);
                 Assert.Equal(new DateTime(2020, 2, 29), album.ReleaseDate);
 
                 // Insert another singer and update the album to that singer.
                 var singer = new Singers
                 {
-                    SingerId = 100,
+                    SingerId = newSingerId,
                     FirstName = "Alice",
                     LastName = "Robertson",
                 };
@@ -210,8 +210,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Reget the album from the database and check that the singer was updated.
-                var album = await db.Albums.FindAsync(1L);
-                Assert.Equal(100, album.SingerId);
+                var album = await db.Albums.FindAsync(albumId);
+                Assert.Equal(newSingerId, album.SingerId);
                 Assert.Equal("Alice Robertson", album.Singer.FullName);
             }
         }
@@ -219,11 +219,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         [Fact]
         public async void CanInsertAndUpdateTrack()
         {
+            var singerId = _fixture.RandomLong();
+            var albumId = _fixture.RandomLong();
+            var trackId = _fixture.RandomLong();
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 var singer = new Singers
                 {
-                    SingerId = 3,
+                    SingerId = singerId,
                     FirstName = "Allis",
                     LastName = "Morrison",
                     BirthDate = new DateTime(1968, 5, 4),
@@ -233,7 +236,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 var album = new Albums
                 {
                     SingerId = singer.SingerId,
-                    AlbumId = 2,
+                    AlbumId = albumId,
                     Title = "Allis Morrison's second album",
                     ReleaseDate = new DateTime(1987, 12, 24),
                 };
@@ -241,8 +244,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
                 var track = new Tracks
                 {
-                    AlbumId = 2,
-                    TrackId = 1,
+                    AlbumId = albumId,
+                    TrackId = trackId,
                     Title = "Track 1",
                     Duration = 4.32m,
                     Lyrics = new List<string> { "Song lyrics", "Liedtext" },
@@ -258,7 +261,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Reget the track from the database.
-                var track = await db.Tracks.FindAsync(2L, 1L);
+                var track = await db.Tracks.FindAsync(albumId, trackId);
                 Assert.Equal("Track 1", track.Title);
                 Assert.Equal(4.32m, track.Duration);
                 Assert.Equal(new List<string> { "Song lyrics", "Liedtext" }, track.Lyrics);
@@ -278,7 +281,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Reget the track from the database.
-                var track = await db.Tracks.FindAsync(2L, 1L);
+                var track = await db.Tracks.FindAsync(albumId, trackId);
                 Assert.Equal("Track 1 - Refurbished", track.Title);
                 Assert.Equal(4.35m, track.Duration);
                 Assert.Equal(new List<string> { "Song lyrics", "Liedtext", "Sangtekst" }, track.Lyrics);
@@ -289,11 +292,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         [Fact]
         public async void CanInsertAndUpdateConcertsAndPerformances()
         {
+            var singerId = _fixture.RandomLong();
+            var albumId = _fixture.RandomLong();
+            var trackId = _fixture.RandomLong();
+            var venueCode = _fixture.RandomString(4);
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 var singer = new Singers
                 {
-                    SingerId = 4,
+                    SingerId = singerId,
                     FirstName = "Rob",
                     LastName = "Morrison",
                 };
@@ -302,7 +309,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 var album = new Albums
                 {
                     SingerId = singer.SingerId,
-                    AlbumId = 4,
+                    AlbumId = albumId,
                     Title = "Rob Morrison's first album",
                 };
                 db.Albums.Add(album);
@@ -310,23 +317,23 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 var track = new Tracks
                 {
                     AlbumId = album.AlbumId,
-                    TrackId = 1,
+                    TrackId = trackId,
                     Title = "Rob Morrison's first track",
                 };
                 db.Tracks.Add(track);
 
                 var venue = new Venues
                 {
-                    Code = "PARK",
+                    Code = venueCode,
                     Name = "Central Park",
                 };
                 db.Venues.Add(venue);
 
                 var concert = new Concerts
                 {
-                    VenueCode = "PARK",
+                    VenueCode = venueCode,
                     StartTime = new DateTime(2020, 12, 28, 10, 0, 0),
-                    SingerId = 4,
+                    SingerId = singerId,
                     Title = "End of year concert",
                 };
                 db.Concerts.Add(concert);
@@ -348,19 +355,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Reget the concert from the database.
-                var concert = await db.Concerts.FindAsync("PARK", new DateTime(2020, 12, 28, 10, 0, 0), 4L);
+                var concert = await db.Concerts.FindAsync(venueCode, new DateTime(2020, 12, 28, 10, 0, 0), singerId);
                 Assert.Equal("End of year concert", concert.Title);
-                Assert.Equal(4L, concert.SingerId);
+                Assert.Equal(singerId, concert.SingerId);
                 // Check that the concert turns up in the collections of other entities.
-                var singer = await db.Singers.FindAsync(4L);
+                var singer = await db.Singers.FindAsync(singerId);
                 Assert.Collection(singer.Concerts, c => c.Equals(concert));
                 Assert.Equal(1, singer.Concerts.Count);
-                var venue = await db.Venues.FindAsync("PARK");
+                var venue = await db.Venues.FindAsync(venueCode);
                 Assert.Collection(venue.Concerts, c => c.Equals(concert));
                 Assert.Equal(1, venue.Concerts.Count);
 
                 // Check the track
-                var track = await db.Tracks.FindAsync(4L, 1L);
+                var track = await db.Tracks.FindAsync(albumId, trackId);
                 Assert.Equal("Rob Morrison's first track", track.Title);
 
                 // Reget the performance from the database.
@@ -379,7 +386,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
-                var concert = await db.Concerts.FindAsync("PARK", new DateTime(2020, 12, 28, 10, 0, 0), 4L);
+                var concert = await db.Concerts.FindAsync(venueCode, new DateTime(2020, 12, 28, 10, 0, 0), singerId);
                 Assert.Equal("End of year concert - Postponed until next year", concert.Title);
                 var performance = await db.Performances.FindAsync(concert.VenueCode, concert.SingerId, concert.StartTime.AddHours(1));
                 Assert.Equal(8.9D, performance.Rating);
@@ -389,6 +396,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         [Fact]
         public async void CanInsertAndUpdateRowWithAllDataTypes()
         {
+            var id = _fixture.RandomLong();
             var today = DateTime.SpecifyKind(DateTime.Today, DateTimeKind.Unspecified);
             var now = DateTime.UtcNow;
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
@@ -405,7 +413,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     ColDateArray = new List<DateTime> { new DateTime(2020, 12, 28), new DateTime(2010, 1, 1), today },
                     ColFloat64 = 3.14D,
                     ColFloat64Array = new List<double> { 3.14D, 6.626D },
-                    ColInt64 = 100,
+                    ColInt64 = id,
                     ColInt64Array = new List<long> { 1L, 2L, 4L, 8L },
                     ColNumeric = 3.14m,
                     ColNumericArray = new List<decimal> { 3.14m, 6.626m },
@@ -423,7 +431,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Reget the row from the database.
-                var row = await db.TableWithAllColumnTypes.FindAsync(100L);
+                var row = await db.TableWithAllColumnTypes.FindAsync(id);
                 Assert.True(row.ColBool);
                 Assert.Equal(new List<bool> { true, false, true }, row.ColBoolArray);
                 Assert.Equal(new byte[] { 1, 2, 3 }, row.ColBytes);
@@ -436,7 +444,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<double> { 3.14D, 6.626D }, row.ColFloat64Array);
                 Assert.Equal(3.14m, row.ColNumeric);
                 Assert.Equal(new List<decimal> { 3.14m, 6.626m }, row.ColNumericArray);
-                Assert.Equal(100L, row.ColInt64);
+                Assert.Equal(id, row.ColInt64);
                 Assert.Equal(new List<long> { 1L, 2L, 4L, 8L }, row.ColInt64Array);
                 Assert.Equal("some string", row.ColString);
                 Assert.Equal(new List<string> { "string1", "string2", "string3" }, row.ColStringArray);
@@ -476,7 +484,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Reget the row from the database.
-                var row = await db.TableWithAllColumnTypes.FindAsync(100L);
+                var row = await db.TableWithAllColumnTypes.FindAsync(id);
                 Assert.False(row.ColBool);
                 Assert.Equal(new List<bool> { false, true, false }, row.ColBoolArray);
                 Assert.Equal(new byte[] { 3, 2, 1 }, row.ColBytes);
@@ -502,19 +510,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         [Fact]
         public async void CanInsertAndUpdateNullValues()
         {
+            var id = _fixture.RandomLong();
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Create a row with all null values except for the primary key.
                 // Cloud Spanner does support rows with a null value for the PK,
                 // but EFCore does not support that.
-                var row = new TableWithAllColumnTypes { ColInt64 = 1 };
+                var row = new TableWithAllColumnTypes { ColInt64 = id };
                 db.TableWithAllColumnTypes.Add(row);
                 await db.SaveChangesAsync();
             }
 
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
-                var row = await db.TableWithAllColumnTypes.FindAsync(1L);
+                var row = await db.TableWithAllColumnTypes.FindAsync(id);
                 Assert.Null(row.ColBool);
                 Assert.Null(row.ColBoolArray);
                 Assert.Null(row.ColBytes);
@@ -562,7 +571,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
-                var row = await db.TableWithAllColumnTypes.FindAsync(1L);
+                var row = await db.TableWithAllColumnTypes.FindAsync(id);
                 Assert.NotNull(row.ColBool);
                 Assert.NotNull(row.ColBoolArray);
                 Assert.NotNull(row.ColBytes);
@@ -610,7 +619,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
-                var row = await db.TableWithAllColumnTypes.FindAsync(1L);
+                var row = await db.TableWithAllColumnTypes.FindAsync(id);
                 Assert.Null(row.ColBool);
                 Assert.Null(row.ColBoolArray);
                 Assert.Null(row.ColBytes);
@@ -638,18 +647,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         [Fact]
         public async void CanDeleteData()
         {
+            var singerId = _fixture.RandomLong();
+            var albumId = _fixture.RandomLong();
+            var trackId = _fixture.RandomLong();
+            var venueCode = _fixture.RandomString(4);
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 var singer = new Singers
                 {
-                    SingerId = 9999L,
+                    SingerId = singerId,
                     LastName = "To be deleted",
                 };
                 db.Singers.Add(singer);
 
                 var album = new Albums
                 {
-                    AlbumId = 9999L,
+                    AlbumId = albumId,
                     Title = "To be deleted",
                     SingerId = singer.SingerId,
                 };
@@ -658,14 +671,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 var track = new Tracks
                 {
                     AlbumId = album.AlbumId,
-                    TrackId = 9999L,
+                    TrackId = trackId,
                     Title = "To be deleted",
                 };
                 db.Tracks.Add(track);
 
                 var venue = new Venues
                 {
-                    Code = "9999",
+                    Code = venueCode,
                     Name = "To be deleted",
                 };
                 db.Venues.Add(venue);
@@ -689,7 +702,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 };
                 db.Performances.Add(performance);
 
-                var row = new TableWithAllColumnTypes { ColInt64 = 9999 };
+                var id = _fixture.RandomLong();
+                var row = new TableWithAllColumnTypes { ColInt64 = id };
                 db.TableWithAllColumnTypes.Add(row);
 
                 await db.SaveChangesAsync();

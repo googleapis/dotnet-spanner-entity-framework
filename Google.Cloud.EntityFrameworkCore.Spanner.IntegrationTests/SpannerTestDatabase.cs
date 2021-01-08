@@ -13,6 +13,8 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
+using Google.Cloud.Spanner.Admin.Database.V1;
 using Google.Cloud.Spanner.Admin.Instance.V1;
 using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
@@ -27,9 +29,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
     /// </summary>
     public class SpannerTestDatabase
     {
-        private static readonly object s_lock = new object();
-        private static SpannerTestDatabase s_instance = null;
-
         /// <summary>
         /// Fetches the database, creating it if necessary. Uses the following environment
         /// variables to determine the name of the instance and database to create/use:
@@ -38,28 +37,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         ///                        generated and the database will be created.
         /// </summary>
         /// <param name="projectId">The project ID to use, typically from a fixture.</param>
-        public static SpannerTestDatabase GetInstance(string projectId)
+        public static SpannerTestDatabase CreateInstance(string projectId)
         {
-            lock (s_lock)
-            {
-                if (s_instance == null)
-                {
-                    s_instance = new SpannerTestDatabase(projectId);
-                }
-                else if (s_instance.ProjectId != projectId)
-                {
-                    throw new ArgumentException($"A database for project ID {s_instance.ProjectId} has already been created; this test requested {projectId}");
-                }
-                return s_instance;
-            }
+            return new SpannerTestDatabase(projectId);
         }
 
-        private static readonly string s_generatedDatabaseName = $"testdb_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
+        private readonly string env_databaseName = GetEnvironmentVariableOrDefault("TEST_SPANNER_DATABASE", "");
+        private readonly string s_generatedDatabaseName = $"testdb_{Guid.NewGuid().ToString().Substring(0, 23).Replace('-', '_')}";
 
         public string SpannerHost { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_HOST", null);
         public string SpannerPort { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_PORT", null);
         public string SpannerInstance { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_INSTANCE", "spannerintegration");
-        public string SpannerDatabase { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_DATABASE", s_generatedDatabaseName);
+        public string SpannerDatabase
+        {
+            get => env_databaseName == "" ? s_generatedDatabaseName : env_databaseName;
+        }
 
         // This is the simplest way of checking whether the environment variable was specified or not.
         // It's a little ugly, but simpler than the alternatives.
@@ -137,16 +129,28 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             if (Fresh)
             {
-                using (var connection = new SpannerConnection(NoDbConnectionString))
-                {
-                    var createCmd = connection.CreateDdlCommand($"CREATE DATABASE {SpannerDatabase}");
-                    createCmd.ExecuteNonQuery();
-                    Logger.DefaultLogger.Debug($"Created database {SpannerDatabase}");
-                }
+                using var connection = new SpannerConnection(NoDbConnectionString);
+                var createCmd = connection.CreateDdlCommand($"CREATE DATABASE {SpannerDatabase}");
+                createCmd.ExecuteNonQuery();
+                Logger.DefaultLogger.Debug($"Created database {SpannerDatabase}");
             }
             else
             {
                 Logger.DefaultLogger.Debug($"Using existing database {SpannerDatabase}");
+            }
+        }
+
+        private void DropOldDatabases(string projectId)
+        {
+            InstanceName instanceName = InstanceName.FromProjectInstance(projectId, SpannerInstance);
+            var databaseAdminClient = new DatabaseAdminClientBuilder().Build();
+            var databases = databaseAdminClient.ListDatabases(instanceName);
+            foreach (var db in databases)
+            {
+                if (db.DatabaseName.DatabaseId.StartsWith("testdb_202010") || db.DatabaseName.DatabaseId.StartsWith("testdb_202011") || db.DatabaseName.DatabaseId.StartsWith("testdb_202012"))
+                {
+                    databaseAdminClient.DropDatabase(db.DatabaseName);
+                }
             }
         }
 
@@ -155,11 +159,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             string value = Environment.GetEnvironmentVariable(name);
             return string.IsNullOrEmpty(value) ? defaultValue : value;
         }
+        
+        public SpannerRetriableConnection GetConnection() => new SpannerRetriableConnection(new SpannerConnection(ConnectionString));
 
-        public SpannerConnection GetConnection() => new SpannerConnection(ConnectionString);
-
-        // Creates a SpannerConnection with a specific logger.
-        public SpannerConnection GetConnection(Logger logger) =>
-            new SpannerConnection(new SpannerConnectionStringBuilder(ConnectionString) { SessionPoolManager = SessionPoolManager.Create(new Cloud.Spanner.V1.SessionPoolOptions(), logger) });
+        // Creates a SpannerRetriableConnection with a specific logger.
+        public SpannerRetriableConnection GetConnection(Logger logger) =>
+            new SpannerRetriableConnection(new SpannerConnection(new SpannerConnectionStringBuilder(ConnectionString) { SessionPoolManager = SessionPoolManager.Create(new Cloud.Spanner.V1.SessionPoolOptions(), logger) }));
     }
 }

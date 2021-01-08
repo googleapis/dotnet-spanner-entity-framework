@@ -21,8 +21,7 @@ using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
-    [Collection(nameof(MigrationTestFixture))]
-    public class SpannerMigrationTest
+    public class SpannerMigrationTest : IClassFixture<MigrationTestFixture>
     {
         private readonly MigrationTestFixture _fixture;
 

@@ -57,7 +57,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                 .TryAdd<IHistoryRepository, SpannerHistoryRepository>()
                 .TryAdd<IExecutionStrategyFactory, RelationalExecutionStrategyFactory>()
                   .TryAddProviderSpecificServices(b => b
-                  .TryAddScoped<ISpannerRelationalConnection, SpannerRelationalConnection>());
+                  .TryAddScoped<ISpannerRelationalConnection, SpannerRelationalConnection>()
+                );
             builder.TryAddCoreServices();
             return serviceCollection;
         }

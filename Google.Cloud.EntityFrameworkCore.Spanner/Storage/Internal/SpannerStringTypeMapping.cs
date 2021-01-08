@@ -73,7 +73,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
             parameter.Size = value == null || value == DBNull.Value || length != null && length <= _maxSpecificSize
                 ? _maxSpecificSize
-                : -1;
+                : 0;
         }
     }
 }
