@@ -67,10 +67,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
         internal static StatementResult CreateSingleColumnResultSet(V1.Type type, String col, params object[] values)
         {
-            ResultSet rs = new ResultSet();
-            rs.Metadata = new ResultSetMetadata
+            ResultSet rs = new ResultSet
             {
-                RowType = new StructType()
+                Metadata = new ResultSetMetadata
+                {
+                    RowType = new StructType()
+                },
             };
             rs.Metadata.RowType.Fields.Add(new StructType.Types.Field
             {
@@ -140,9 +142,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
     }
 
-    public class MockSpannerService : Google.Cloud.Spanner.V1.Spanner.SpannerBase
+    public class MockSpannerService : V1.Spanner.SpannerBase
     {
-        class PartialResultSetsEnumerable : IEnumerable<PartialResultSet>
+        private class PartialResultSetsEnumerable : IEnumerable<PartialResultSet>
         {
             private readonly ResultSet _resultSet;
             public PartialResultSetsEnumerable(ResultSet resultSet)
@@ -161,7 +163,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             }
         }
 
-        class PartialResultSetsEnumerator : IEnumerator<PartialResultSet>
+        private class PartialResultSetsEnumerator : IEnumerator<PartialResultSet>
         {
             private static readonly int MAX_ROWS_IN_CHUNK = 1;
 
@@ -172,7 +174,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             public PartialResultSetsEnumerator(ResultSet resultSet)
             {
-                this._resultSet = resultSet;
+                _resultSet = resultSet;
             }
 
             PartialResultSet IEnumerator<PartialResultSet>.Current => _current;
@@ -181,8 +183,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             public bool MoveNext()
             {
-                _current = new PartialResultSet();
-                _current.ResumeToken = ByteString.CopyFromUtf8($"{_currentRow}");
+                _current = new PartialResultSet
+                {
+                    ResumeToken = ByteString.CopyFromUtf8($"{_currentRow}")
+                };
                 if (_first)
                 {
                     _current.Metadata = _resultSet.Metadata;
@@ -211,7 +215,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
             }
         }
-
 
         private static readonly Empty EMPTY = new Empty();
         private static readonly TransactionOptions SINGLE_USE = new TransactionOptions { ReadOnly = new TransactionOptions.Types.ReadOnly { Strong = true, ReturnReadTimestamp = false } };

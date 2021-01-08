@@ -14,6 +14,7 @@
 
 using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
+using Google.Cloud.Spanner.Admin.Database.V1;
 using Google.Cloud.Spanner.Admin.Instance.V1;
 using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
@@ -128,16 +129,28 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             if (Fresh)
             {
-                using (var connection = new SpannerConnection(NoDbConnectionString))
-                {
-                    var createCmd = connection.CreateDdlCommand($"CREATE DATABASE {SpannerDatabase}");
-                    createCmd.ExecuteNonQuery();
-                    Logger.DefaultLogger.Debug($"Created database {SpannerDatabase}");
-                }
+                using var connection = new SpannerConnection(NoDbConnectionString);
+                var createCmd = connection.CreateDdlCommand($"CREATE DATABASE {SpannerDatabase}");
+                createCmd.ExecuteNonQuery();
+                Logger.DefaultLogger.Debug($"Created database {SpannerDatabase}");
             }
             else
             {
                 Logger.DefaultLogger.Debug($"Using existing database {SpannerDatabase}");
+            }
+        }
+
+        private void DropOldDatabases(string projectId)
+        {
+            InstanceName instanceName = InstanceName.FromProjectInstance(projectId, SpannerInstance);
+            var databaseAdminClient = new DatabaseAdminClientBuilder().Build();
+            var databases = databaseAdminClient.ListDatabases(instanceName);
+            foreach (var db in databases)
+            {
+                if (db.DatabaseName.DatabaseId.StartsWith("testdb_202010") || db.DatabaseName.DatabaseId.StartsWith("testdb_202011") || db.DatabaseName.DatabaseId.StartsWith("testdb_202012"))
+                {
+                    databaseAdminClient.DropDatabase(db.DatabaseName);
+                }
             }
         }
 

@@ -18,8 +18,4 @@
     </PackageReference>
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Update="Storage\Internal\SpannerRetriableBatchCommand.cs" />
-  </ItemGroup>
-
 </Project>

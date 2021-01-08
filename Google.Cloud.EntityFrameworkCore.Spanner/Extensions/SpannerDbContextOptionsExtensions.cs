@@ -45,7 +45,7 @@ namespace Microsoft.EntityFrameworkCore
             ((IDbContextOptionsBuilderInfrastructure)optionsBuilder).AddOrUpdateExtension(extension);
 
             ConfigureWarnings(optionsBuilder);
-            optionsBuilder.AddInterceptors(new SpannerTransactionInterceptor());
+            // optionsBuilder.AddInterceptors(new SpannerTransactionInterceptor());
             spannerOptionsAction?.Invoke(new SpannerDbContextOptionsBuilder(optionsBuilder));
 
             return optionsBuilder;

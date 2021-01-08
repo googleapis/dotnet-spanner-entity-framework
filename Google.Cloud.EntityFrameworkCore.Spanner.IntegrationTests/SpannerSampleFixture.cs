@@ -77,28 +77,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         private void ClearTables()
         {
-            using (var con = GetConnection())
+            using var con = GetConnection();
+            using var tx = con.BeginTransaction();
+            var cmd = con.CreateBatchDmlCommand();
+            cmd.Transaction = tx;
+            foreach (var table in new string[]
             {
-                using (var tx = con.BeginTransaction())
-                {
-                    var cmd = con.CreateBatchDmlCommand();
-                    cmd.Transaction = tx;
-                    foreach (var table in new string[]
-                    {
-                        "TableWithAllColumnTypes",
-                        "Performances",
-                        "Concerts",
-                        "Venues",
-                        "Tracks",
-                        "Albums",
-                        "Singers",
-                    })
-                    {
-                        cmd.Add($"DELETE FROM {table} WHERE TRUE");
-                    }
-                    cmd.ExecuteNonQuery();
-                }
+                "TableWithAllColumnTypes",
+                "Performances",
+                "Concerts",
+                "Venues",
+                "Tracks",
+                "Albums",
+                "Singers",
+            })
+            {
+                cmd.Add($"DELETE FROM {table} WHERE TRUE");
             }
+            cmd.ExecuteNonQuery();
         }
 
         /// <summary>
@@ -130,10 +126,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         {
             string[] extraStatements = new string[length - 1];
             Array.Copy(ddl, 1, extraStatements, 0, extraStatements.Length);
-            using (var connection = GetConnection())
-            {
-                connection.CreateDdlCommand(ddl[0].Trim(), extraStatements).ExecuteNonQuery();
-            }
+            using var connection = GetConnection();
+            connection.CreateDdlCommand(ddl[0].Trim(), extraStatements).ExecuteNonQuery();
         }
     }
 }

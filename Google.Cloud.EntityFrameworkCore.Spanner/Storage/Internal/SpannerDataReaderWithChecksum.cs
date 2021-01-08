@@ -114,23 +114,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             {
                 size += reader.GetJsonValue(i).CalculateSize();
             }
-            using (MemoryStream ms = new MemoryStream(size))
+            using var ms = new MemoryStream(size);
+            ms.Write(currentChecksum, 0, currentChecksum.Length);
+            using var cos = new CodedOutputStream(ms);
+            for (int i = 0; i < reader.FieldCount; i++)
             {
-                ms.Write(currentChecksum, 0, currentChecksum.Length);
-                using (CodedOutputStream cos = new CodedOutputStream(ms))
-                {
-                    for (int i = 0; i < reader.FieldCount; i++)
-                    {
-                        reader.GetJsonValue(i).WriteTo(cos);
-                    }
-                    // Flush the protobuf stream so everything is written to the memory stream.
-                    cos.Flush();
-                    // Then reset the memory stream to the start so the hash is calculated over all the bytes in the buffer.
-                    ms.Position = 0;
-                    SHA256 checksum = SHA256.Create();
-                    return checksum.ComputeHash(ms);
-                }
+                reader.GetJsonValue(i).WriteTo(cos);
             }
+            // Flush the protobuf stream so everything is written to the memory stream.
+            cos.Flush();
+            // Then reset the memory stream to the start so the hash is calculated over all the bytes in the buffer.
+            ms.Position = 0;
+            SHA256 checksum = SHA256.Create();
+            return checksum.ComputeHash(ms);
         }
 
         async Task IRetriableStatement.Retry(SpannerRetriableTransaction transaction, CancellationToken cancellationToken, int timeoutSeconds)
@@ -141,7 +137,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             bool read = true;
             byte[] newChecksum = new byte[0];
             SpannerException newException = null;
-            while (counter < _numberOfReadCalls && read)
+            while (read && counter < _numberOfReadCalls)
             {
                 try
                 {
@@ -155,7 +151,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
                 {
                     // Propagate Aborted errors to trigger a new retry.
-                    throw e;
+                    throw;
                 }
                 catch (SpannerException e)
                 {

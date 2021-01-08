@@ -31,24 +31,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         [Fact]
         public async void AllTablesAreGenerated()
         {
-            using (var connection = _fixture.GetConnection())
-            {
-                var tableNames = new string[] {
-                    "Singers", "Albums", "Tracks", "Venues", "Concerts", "Performances", "TableWithAllColumnTypes"
-                };
-                var tables = new SpannerParameterCollection();
-                tables.Add("tables", SpannerDbType.ArrayOf(SpannerDbType.String), tableNames);
-                var cmd = connection.CreateSelectCommand(
-                    "SELECT COUNT(*) " +
-                    "FROM INFORMATION_SCHEMA.TABLES " +
-                    "WHERE TABLE_CATALOG='' AND TABLE_SCHEMA='' AND TABLE_NAME IN UNNEST (@tables)", tables);
-                using (var reader = await cmd.ExecuteReaderAsync())
-                {
-                    Assert.True(await reader.ReadAsync());
-                    Assert.Equal(tableNames.Length, reader.GetInt64(0));
-                    Assert.False(await reader.ReadAsync());
-                }
-            }
+            using var connection = _fixture.GetConnection();
+            var tableNames = new string[] {
+                "Singers", "Albums", "Tracks", "Venues", "Concerts", "Performances", "TableWithAllColumnTypes"
+            };
+            var tables = new SpannerParameterCollection();
+            tables.Add("tables", SpannerDbType.ArrayOf(SpannerDbType.String), tableNames);
+            var cmd = connection.CreateSelectCommand(
+                "SELECT COUNT(*) " +
+                "FROM INFORMATION_SCHEMA.TABLES " +
+                "WHERE TABLE_CATALOG='' AND TABLE_SCHEMA='' AND TABLE_NAME IN UNNEST (@tables)", tables);
+            using var reader = await cmd.ExecuteReaderAsync();
+            Assert.True(await reader.ReadAsync());
+            Assert.Equal(tableNames.Length, reader.GetInt64(0));
+            Assert.False(await reader.ReadAsync());
         }
 
         [Fact]

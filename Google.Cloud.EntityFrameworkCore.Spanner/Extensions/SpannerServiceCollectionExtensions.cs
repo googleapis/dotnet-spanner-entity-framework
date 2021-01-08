@@ -19,7 +19,6 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal;
-using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -27,34 +26,9 @@ using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.Extensions.DependencyInjection;
-using System.Data.Common;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
 {
-    /// <summary>
-    /// Interceptor that can be used to create retryable transactions.
-    /// </summary>
-    internal class SpannerTransactionInterceptor : DbTransactionInterceptor
-    {
-        internal SpannerTransactionInterceptor() : base()
-        {
-        }
-
-        public override InterceptionResult<DbTransaction> TransactionStarting(DbConnection connection, TransactionStartingEventData eventData, InterceptionResult<DbTransaction> result)
-        {
-            // TODO: Return retryable transaction instead of a normal transaction.
-            return base.TransactionStarting(connection, eventData, result);
-        }
-
-        public override Task<InterceptionResult<DbTransaction>> TransactionStartingAsync(DbConnection connection, TransactionStartingEventData eventData, InterceptionResult<DbTransaction> result, CancellationToken cancellationToken = default)
-        {
-            // TODO: Return retryable transaction instead of a normal transaction.
-            return base.TransactionStartingAsync(connection, eventData, result);
-        }
-    }
-
     /// <summary>
     /// Spanner specific extension methods for <see cref="IServiceCollection" />.
     /// </summary>

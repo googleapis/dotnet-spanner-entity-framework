@@ -20,16 +20,17 @@ using System.Collections.Generic;
 using System.Linq;
 using Xunit;
 using Google.Cloud.Spanner.V1;
+using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 {
     public class MockSpannerServerTests : IClassFixture<SpannerMockServerFixture>
     {
-        SpannerMockServerFixture _fixture;
+        private readonly SpannerMockServerFixture _fixture;
 
         public MockSpannerServerTests(SpannerMockServerFixture service)
         {
-            this._fixture = service;
+            _fixture = service;
             // Add a simple SELECT 1 result to the mock server to be available for all test cases.
             _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSelect1ResultSet());
         }
@@ -50,7 +51,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
-        public async void SingleUseSelect()
+        public async Task SingleUseSelect()
         {
             string connectionString = $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
             // Create connection to Cloud Spanner.
@@ -68,7 +69,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
-        public async void ReadOnlyTxSelect()
+        public async Task ReadOnlyTxSelect()
         {
             string connectionString = $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
             using (var connection = new SpannerConnection(connectionString, ChannelCredentials.Insecure))
@@ -89,7 +90,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
-        public async void WriteMutations()
+        public async Task WriteMutations()
         {
             string connectionString = $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
             using (var connection = new SpannerConnection(connectionString, ChannelCredentials.Insecure))
@@ -108,13 +109,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
-        public async void ReadWriteTransaction()
+        public async Task ReadWriteTransaction()
         {
             decimal initialBudget1 = 1225250.00m;
             decimal initialBudget2 = 2250198.28m;
             _fixture.SpannerMock.AddOrUpdateStatementResult(
                 "SELECT MarketingBudget FROM Albums WHERE SingerId = 1 AND AlbumId = 1",
-                StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = TypeCode.Numeric}, "MarketingBudget", initialBudget1));
+                StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = TypeCode.Numeric }, "MarketingBudget", initialBudget1));
             _fixture.SpannerMock.AddOrUpdateStatementResult(
                 "SELECT MarketingBudget FROM Albums WHERE SingerId = 2 AND AlbumId = 2",
                 StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = TypeCode.Numeric }, "MarketingBudget", initialBudget2));

@@ -32,7 +32,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public TransactionTests(SpannerSampleFixture fixture) => _fixture = fixture;
 
         [Fact]
-        public async void SaveChangesIsAtomic()
+        public async Task SaveChangesIsAtomic()
         {
             var singerId = _fixture.RandomLong();
             var invalidSingerId = _fixture.RandomLong();
@@ -65,71 +65,67 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
-        public async void EndOfTransactionScopeCausesRollback()
+        public async Task EndOfTransactionScopeCausesRollback()
         {
             var venueCode = _fixture.RandomString(4);
-            using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            using (var transaction = await db.Database.BeginTransactionAsync())
             {
-                using (var transaction = await db.Database.BeginTransactionAsync())
+                db.Venues.AddRange(new Venues
                 {
-                    db.Venues.AddRange(new Venues
-                    {
-                        Code = venueCode,
-                        Name = "Venue 3",
-                    });
-                    await db.SaveChangesAsync();
-                    // End the transaction scope without any explicit rollback.
-                }
-                // Verify that the venue was not inserted.
-                var venuesAfterRollback = db.Venues
-                    .Where(v => v.Code == venueCode)
-                    .ToList();
-                Assert.Empty(venuesAfterRollback);
+                    Code = venueCode,
+                    Name = "Venue 3",
+                });
+                await db.SaveChangesAsync();
+                // End the transaction scope without any explicit rollback.
             }
+            // Verify that the venue was not inserted.
+            var venuesAfterRollback = db.Venues
+                .Where(v => v.Code == venueCode)
+                .ToList();
+            Assert.Empty(venuesAfterRollback);
         }
 
         [Fact]
-        public async void TransactionCanReadYourWrites()
+        public async Task TransactionCanReadYourWrites()
         {
             var venueCode1 = _fixture.RandomString(4);
             var venueCode2 = _fixture.RandomString(4);
-            using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
-            {
-                using (var transaction = await db.Database.BeginTransactionAsync())
-                {
-                    // Add two venues in the transaction.
-                    db.Venues.AddRange(new Venues
-                    {
-                        Code = venueCode1,
-                        Name = "Venue 1",
-                    }, new Venues
-                    {
-                        Code = venueCode2,
-                        Name = "Venue 2",
-                    });
-                    await db.SaveChangesAsync();
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
 
-                    // Verify that we can read the venue while inside the transaction.
-                    var venues = db.Venues
-                        .Where(v => v.Code == venueCode1 || v.Code == venueCode2)
-                        .OrderBy(v => v.Name)
-                        .ToList();
-                    Assert.Equal(2, venues.Count);
-                    Assert.Equal("Venue 1", venues[0].Name);
-                    Assert.Equal("Venue 2", venues[1].Name);
-                    // Rollback and then verify that we should not be able to see the venues.
-                    await transaction.RollbackAsync();
-                }
-                // Verify that the venues can no longer be read.
-                var venuesAfterRollback = db.Venues
-                    .Where(v => v.Code == venueCode1 || v.Name == venueCode2)
-                    .ToList();
-                Assert.Empty(venuesAfterRollback);
-            }
+            using var transaction = await db.Database.BeginTransactionAsync();
+            // Add two venues in the transaction.
+            db.Venues.AddRange(new Venues
+            {
+                Code = venueCode1,
+                Name = "Venue 1",
+            }, new Venues
+            {
+                Code = venueCode2,
+                Name = "Venue 2",
+            });
+            await db.SaveChangesAsync();
+
+            // Verify that we can read the venue while inside the transaction.
+            var venues = db.Venues
+                .Where(v => v.Code == venueCode1 || v.Code == venueCode2)
+                .OrderBy(v => v.Name)
+                .ToList();
+            Assert.Equal(2, venues.Count);
+            Assert.Equal("Venue 1", venues[0].Name);
+            Assert.Equal("Venue 2", venues[1].Name);
+            // Rollback and then verify that we should not be able to see the venues.
+            await transaction.RollbackAsync();
+
+            // Verify that the venues can no longer be read.
+            var venuesAfterRollback = db.Venues
+                .Where(v => v.Code == venueCode1 || v.Name == venueCode2)
+                .ToList();
+            Assert.Empty(venuesAfterRollback);
         }
 
         [Fact]
-        public async void CanUseSharedContextAndTransaction()
+        public async Task CanUseSharedContextAndTransaction()
         {
             var venueCode = _fixture.RandomString(4);
             using var connection = _fixture.GetConnection();
@@ -152,10 +148,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Equal("Venue 3", (await context1.Venues.FindAsync(venueCode)).Name);
             await transaction.CommitAsync();
             // Verify that it is also readable from a new unrelated context.
-            using (var context3 = new TestSpannerSampleDbContext(_fixture.DatabaseName))
-            {
-                Assert.Equal("Venue 3", (await context1.Venues.FindAsync(venueCode)).Name);
-            }
+            using var context3 = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            Assert.Equal("Venue 3", (await context1.Venues.FindAsync(venueCode)).Name);
         }
 
         [Theory]
@@ -193,52 +187,49 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         private async Task InsertRandomSinger(bool enableInternalRetries)
         {
             var rnd = new Random();
-            using (var context = new TestSpannerSampleDbContext(_fixture.DatabaseName))
+            using var context = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            using var transaction = await context.Database.BeginTransactionAsync();
+            var retriableTransaction = (SpannerRetriableTransaction)transaction.GetDbTransaction();
+            retriableTransaction.EnableInternalRetries = enableInternalRetries;
+
+            var rows = rnd.Next(1, 10);
+            for (var row = 0; row < rows; row++)
             {
-                using (var transaction = await context.Database.BeginTransactionAsync())
+                // This test assumes that this is random enough and that the id's
+                // will never overlap during a test run.
+                var id = _fixture.RandomLong();
+                var prefix = id.ToString("D20");
+                // First name is required, so we just assign a meaningless random value.
+                var firstName = "FirstName" + "-" + rnd.Next(10000).ToString("D4");
+                // Last name contains the same value as the primary key with a random suffix.
+                // This makes it possible to search for a singer using the last name and knowing
+                // that the search will at most deliver one row (and it will be the same row each time).
+                var lastName = prefix + "-" + rnd.Next(10000).ToString("D4");
+
+                // Yes, this is highly inefficient, but that is intentional. This
+                // will cause a large number of the transactions to be aborted.
+                var existing = await context
+                    .Singers
+                    .Where(v => EF.Functions.Like(v.LastName, prefix + "%"))
+                    .OrderBy(v => v.LastName)
+                    .FirstOrDefaultAsync();
+
+                if (existing == null)
                 {
-                    var retriableTransaction = (SpannerRetriableTransaction)transaction.GetDbTransaction();
-                    retriableTransaction.EnableInternalRetries = enableInternalRetries;
-                    var rows = rnd.Next(1, 10);
-                    for (var row = 0; row < rows; row++)
+                    context.Singers.Add(new Singers
                     {
-                        // This test assumes that this is random enough and that the id's
-                        // will never overlap during a test run.
-                        var id = _fixture.RandomLong();
-                        var prefix = id.ToString("D20");
-                        // First name is required, so we just assign a meaningless random value.
-                        var firstName = "FirstName" + "-" + rnd.Next(10000).ToString("D4");
-                        // Last name contains the same value as the primary key with a random suffix.
-                        // This makes it possible to search for a singer using the last name and knowing
-                        // that the search will at most deliver one row (and it will be the same row each time).
-                        var lastName = prefix + "-" + rnd.Next(10000).ToString("D4");
-
-                        // Yes, this is highly inefficient, but that is intentional. This
-                        // will cause a large number of the transactions to be aborted.
-                        var existing = await context
-                            .Singers
-                            .Where(v => EF.Functions.Like(v.LastName, prefix + "%"))
-                            .OrderBy(v => v.LastName)
-                            .FirstOrDefaultAsync();
-
-                        if (existing == null)
-                        {
-                            context.Singers.Add(new Singers
-                            {
-                                SingerId = id,
-                                FirstName = firstName,
-                                LastName = lastName,
-                            });
-                        }
-                        else
-                        {
-                            existing.FirstName = firstName;
-                        }
-                        await context.SaveChangesAsync();
-                    }
-                    await transaction.CommitAsync();
+                        SingerId = id,
+                        FirstName = firstName,
+                        LastName = lastName,
+                    });
                 }
+                else
+                {
+                    existing.FirstName = firstName;
+                }
+                await context.SaveChangesAsync();
             }
+            await transaction.CommitAsync();
         }
     }
 }
