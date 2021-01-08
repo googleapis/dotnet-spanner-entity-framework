@@ -102,7 +102,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     });
                 await cmd.ExecuteNonQueryAsync();
             }
-            List<IMessage> requests = _fixture.SpannerMock.Requests();
+            IEnumerable<IMessage> requests = _fixture.SpannerMock.Requests;
             CommitRequest commit = (CommitRequest)requests.Last();
             Assert.Equal(Mutation.OperationOneofCase.InsertOrUpdate, commit.Mutations.First().OperationCase);
             Assert.Equal("Singers", commit.Mutations.First().InsertOrUpdate.Table);
@@ -178,7 +178,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     await transaction.CommitAsync();
                 }
                 // Assert that the correct updates were sent.
-                Stack<IMessage> requests = new Stack<IMessage>(_fixture.SpannerMock.Requests());
+                Stack<IMessage> requests = new Stack<IMessage>(_fixture.SpannerMock.Requests);
                 Assert.Equal(typeof(CommitRequest), requests.Peek().GetType());
                 CommitRequest commit = (CommitRequest)requests.Pop();
                 Assert.Equal(2, commit.Mutations.Count);

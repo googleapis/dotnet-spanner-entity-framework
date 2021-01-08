@@ -179,9 +179,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     state.Stop();
                 }
             });
-            // If a transaction is aborted, the parallel operations will not run to completion.
-            Assert.Equal(enableInternalRetries, res.IsCompleted);
-            Assert.Equal(enableInternalRetries, aborted.Count == 0);
+            Assert.True(
+                enableInternalRetries == (aborted.Count == 0),
+                $"Unexpected aborted count {aborted.Count} for enableInternalRetries={enableInternalRetries}. First aborted error: {aborted.FirstOrDefault()?.Message ?? "<none>"}"
+            );
         }
 
         private async Task InsertRandomSinger(bool enableInternalRetries)

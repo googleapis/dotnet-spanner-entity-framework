@@ -16,6 +16,8 @@ using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data.Common;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
@@ -33,10 +35,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
         }
 
+        private SpannerRetriableConnection Connection => DbConnection as SpannerRetriableConnection;
+
         /// <inheritdoc />
         public override bool IsMultipleActiveResultSetsEnabled => true;
 
         protected override DbConnection CreateDbConnection() => new SpannerRetriableConnection(new SpannerConnection(ConnectionString));
+
+        public IDbContextTransaction BeginReadOnlyTransaction() => BeginReadOnlyTransaction(TimestampBound.Strong);
+
+        public IDbContextTransaction BeginReadOnlyTransaction(TimestampBound timestampBound) =>
+            UseTransaction(Connection.BeginReadOnlyTransaction(timestampBound));
+
+        public Task<IDbContextTransaction> BeginReadOnlyTransactionAsync() => BeginReadOnlyTransactionAsync(TimestampBound.Strong);
+
+        public async Task<IDbContextTransaction> BeginReadOnlyTransactionAsync(TimestampBound timestampBound, CancellationToken cancellationToken = default) =>
+            await UseTransactionAsync(await Connection.BeginReadOnlyTransactionAsync(timestampBound, cancellationToken));
 
         /// <summary>
         /// </summary>
@@ -45,8 +59,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             var builder = new SpannerConnectionStringBuilder(ConnectionString);
             //Spanner actually has no master or admin db, so we just use a normal connection.
             var masterConn =
-                new SpannerRetriableConnection(
-                    new SpannerConnection($"Data Source=projects/{builder.Project}/instances/{builder.SpannerInstance}"));
+                new SpannerRetriableConnection(new SpannerConnection($"Data Source=projects/{builder.Project}/instances/{builder.SpannerInstance}"));
             var optionsBuilder = new DbContextOptionsBuilder();
             optionsBuilder.UseSpanner(masterConn);
 

@@ -45,7 +45,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
     ///    these results are equal to the original results, the retry is deemed successful and the transaction
     ///    may proceed using the fresh underlying transaction.
     /// </summary>
-    public sealed class SpannerRetriableTransaction : DbTransaction
+    public sealed class SpannerRetriableTransaction : SpannerTransactionBase
     {
         internal static bool SpannerExceptionsEqualForRetry(SpannerException e1, SpannerException e2)
         {
@@ -130,7 +130,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
         /// <inheritdoc/>
         public override IsolationLevel IsolationLevel => SpannerTransaction.IsolationLevel;
 
-        internal int ExecuteNonQueryWithRetry(SpannerCommand command)
+        protected internal override int ExecuteNonQueryWithRetry(SpannerCommand command)
             => Task.Run(() => ExecuteNonQueryWithRetryAsync(command, CancellationToken.None)).ResultWithUnwrappedExceptions();
 
         internal async Task<int> ExecuteNonQueryWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken = default)
@@ -156,7 +156,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
             }
         }
 
-        internal IEnumerable<long> ExecuteNonQueryWithRetry(SpannerRetriableBatchCommand command)
+        protected internal override IEnumerable<long> ExecuteNonQueryWithRetry(SpannerRetriableBatchCommand command)
             => Task.Run(() => ExecuteNonQueryWithRetryAsync(command, CancellationToken.None)).ResultWithUnwrappedExceptions();
 
         internal async Task<IEnumerable<long>> ExecuteNonQueryWithRetryAsync(SpannerRetriableBatchCommand command, CancellationToken cancellationToken = default)
@@ -182,7 +182,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
             }
         }
 
-        internal object ExecuteScalarWithRetry(SpannerCommand command)
+        protected internal override object ExecuteScalarWithRetry(SpannerCommand command)
             => Task.Run(() => ExecuteScalarWithRetryAsync(command, CancellationToken.None)).ResultWithUnwrappedExceptions();
 
         internal async Task<object> ExecuteScalarWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken)
@@ -197,7 +197,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
             return null;
         }
 
-        internal SpannerDataReaderWithChecksum ExecuteDbDataReaderWithRetry(SpannerCommand command)
+        protected internal override DbDataReader ExecuteDbDataReaderWithRetry(SpannerCommand command)
             => Task.Run(() => ExecuteDbDataReaderWithRetryAsync(command, CancellationToken.None)).ResultWithUnwrappedExceptions();
 
         internal async Task<SpannerDataReaderWithChecksum> ExecuteDbDataReaderWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken)

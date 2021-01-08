@@ -49,6 +49,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
 
         public override ConnectionState State => SpannerConnection.State;
 
+        public SpannerReadOnlyTransaction BeginReadOnlyTransaction() => BeginReadOnlyTransaction(TimestampBound.Strong);
+
+        public SpannerReadOnlyTransaction BeginReadOnlyTransaction(TimestampBound timestampBound) =>
+            new SpannerReadOnlyTransaction(this, SpannerConnection.BeginReadOnlyTransaction(timestampBound));
+
+        public Task<SpannerReadOnlyTransaction> BeginReadOnlyTransactionAsync(CancellationToken cancellationToken = default) =>
+            BeginReadOnlyTransactionAsync(TimestampBound.Strong, cancellationToken);
+
+        public async Task<SpannerReadOnlyTransaction> BeginReadOnlyTransactionAsync(TimestampBound timestampBound, CancellationToken cancellationToken = default) =>
+            new SpannerReadOnlyTransaction(this, await SpannerConnection.BeginReadOnlyTransactionAsync(timestampBound, cancellationToken));
+
         public new SpannerRetriableTransaction BeginTransaction()
             => BeginTransaction(IsolationLevel.Unspecified);
 

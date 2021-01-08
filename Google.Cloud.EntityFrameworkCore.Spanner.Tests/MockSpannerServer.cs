@@ -65,7 +65,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             return CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "COL1", 1);
         }
 
-        internal static StatementResult CreateSingleColumnResultSet(V1.Type type, String col, params object[] values)
+        internal static StatementResult CreateSingleColumnResultSet(V1.Type type, string col, params object[] values)
         {
             ResultSet rs = new ResultSet
             {
@@ -83,6 +83,40 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 ListValue row = new ListValue();
                 row.Values.Add(SpannerConverter.ToProtobufValue(type, val));
+                rs.Rows.Add(row);
+            }
+            return CreateQuery(rs);
+        }
+
+        internal static StatementResult CreateResultSet(IEnumerable<Tuple<V1.TypeCode, string>> columns, IEnumerable<object[]> rows) =>
+            CreateResultSet(columns.Select(x => Tuple.Create(new V1.Type { Code = x.Item1 }, x.Item2)).ToList(), rows);
+
+        internal static StatementResult CreateResultSet(IEnumerable<Tuple<V1.Type, string>> columns, IEnumerable<object[]> rows)
+        {
+            var rs = new ResultSet
+            {
+                Metadata = new ResultSetMetadata
+                {
+                    RowType = new StructType()
+                },
+            };
+            foreach (var col in columns)
+            {
+                rs.Metadata.RowType.Fields.Add(new StructType.Types.Field
+                {
+                    Type = col.Item1,
+                    Name = col.Item2,
+                });
+            }
+            foreach (var rowValue in rows)
+            {
+                    var row = new ListValue();
+                var colIndex = 0;
+                foreach (var value in rowValue)
+                {
+                    row.Values.Add(SpannerConverter.ToProtobufValue(rs.Metadata.RowType.Fields[colIndex].Type, value));
+                    colIndex++;
+                }
                 rs.Rows.Add(row);
             }
             return CreateQuery(rs);
@@ -252,10 +286,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _abortedTransactions.TryAdd(ByteString.FromBase64(id), true);
         }
 
-        public List<IMessage> Requests()
-        {
-            return new List<IMessage>(_requests);
-        }
+        public IEnumerable<IMessage> Requests => new List<IMessage>(_requests).AsReadOnly();
 
         public void Reset()
         {

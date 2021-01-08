@@ -35,7 +35,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
     {
         private readonly IRelationalTypeMappingSource _typeMapper;
         private readonly List<ModificationCommand> _modificationCommands = new List<ModificationCommand>();
-        private readonly string[] _statementTerminator;
+        private readonly char _statementTerminator;
 
         /// <summary>
         /// This is internal functionality and not intended for public use.
@@ -48,7 +48,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             _typeMapper = typeMapper;
             // This class needs a statement terminator because the EFCore built-in SQL generator helper
             // will generate multiple statements as one string.
-            _statementTerminator = new string[] { ";" };
+            _statementTerminator = ';';
         }
 
         /// <summary>
@@ -189,7 +189,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             SpannerRetriableCommand selectCommand = null;
             if (res != ResultSetMapping.NoResultSet)
             {
-                var commandTexts = builder.ToString().Split(_statementTerminator, StringSplitOptions.RemoveEmptyEntries);
+                var commandTexts = builder.ToString().Split(_statementTerminator);
                 dml = commandTexts[0];
                 if (commandTexts.Length > 1)
                 {
@@ -218,6 +218,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             else
             {
                 dml = builder.ToString();
+                dml = dml.TrimEnd('\r', '\n', _statementTerminator);
             }
             var cmd = connection.SpannerConnection.CreateDmlCommand(dml);
             foreach (var columnModification in modificationCommand.ColumnModifications.Where(o => o.UseOriginalValueParameter || o.UseCurrentValueParameter))

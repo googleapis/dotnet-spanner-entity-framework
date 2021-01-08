@@ -23,7 +23,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
     {
         private SpannerRetriableConnection _connection;
         private readonly SpannerCommand _spannerCommand;
-        private SpannerRetriableTransaction _transaction;
+        private SpannerTransactionBase _transaction;
 
         internal SpannerRetriableCommand(SpannerRetriableConnection connection, SpannerCommand spannerCommand)
         {
@@ -45,7 +45,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
         protected override DbTransaction DbTransaction
         {
             get => _transaction;
-            set => _transaction = (SpannerRetriableTransaction)value;
+            set => _transaction = (SpannerTransactionBase)value;
         }
 
         protected override DbParameterCollection DbParameterCollection => _spannerCommand.Parameters;
