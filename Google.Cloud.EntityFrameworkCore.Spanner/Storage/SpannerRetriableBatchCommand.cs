@@ -38,7 +38,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
 
         internal SpannerBatchCommand CreateSpannerBatchCommand()
         {
-            var batch = Transaction.SpannerTransaction.CreateBatchDmlCommand();
+            var batch = Transaction == null
+                ? Connection.SpannerConnection.CreateBatchDmlCommand()
+                : Transaction.SpannerTransaction.CreateBatchDmlCommand();
             foreach (var cmd in _commands)
             {
                 batch.Add(cmd);
@@ -46,9 +48,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
             return batch;
         }
 
-        public IEnumerable<long> ExecuteNonQuery() => Transaction.ExecuteNonQueryWithRetry(this);
+        public IReadOnlyList<long> ExecuteNonQuery() => Transaction.ExecuteNonQueryWithRetry(this);
 
-        public Task<IEnumerable<long>> ExecuteNonQueryAsync(CancellationToken cancellationToken = default) =>
-            Transaction.ExecuteNonQueryWithRetryAsync(this, cancellationToken);
+        public Task<IReadOnlyList<long>> ExecuteNonQueryAsync(CancellationToken cancellationToken = default) =>
+            Transaction == null
+            ? CreateSpannerBatchCommand().ExecuteNonQueryAsync(cancellationToken)
+            : Transaction.ExecuteNonQueryWithRetryAsync(this, cancellationToken);
     }
 }

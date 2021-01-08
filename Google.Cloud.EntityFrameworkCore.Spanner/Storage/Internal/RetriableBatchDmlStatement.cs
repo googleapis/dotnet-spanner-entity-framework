@@ -14,9 +14,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     internal sealed class RetriableBatchDmlStatement : IRetriableStatement
     {
         private readonly SpannerRetriableBatchCommand _command;
-        private readonly IEnumerable<long> _updateCounts;
+        private readonly IReadOnlyList<long> _updateCounts;
 
-        internal RetriableBatchDmlStatement(SpannerRetriableBatchCommand command, IEnumerable<long> updateCounts)
+        internal RetriableBatchDmlStatement(SpannerRetriableBatchCommand command, IReadOnlyList<long> updateCounts)
         {
             // TODO: Do we need to make this a clone?
             _command = command;

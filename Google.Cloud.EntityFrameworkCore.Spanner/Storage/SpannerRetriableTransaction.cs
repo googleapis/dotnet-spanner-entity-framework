@@ -156,17 +156,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
             }
         }
 
-        internal IEnumerable<long> ExecuteNonQueryWithRetry(SpannerRetriableBatchCommand command)
+        internal IReadOnlyList<long> ExecuteNonQueryWithRetry(SpannerRetriableBatchCommand command)
             => Task.Run(() => ExecuteNonQueryWithRetryAsync(command, CancellationToken.None)).ResultWithUnwrappedExceptions();
 
-        internal async Task<IEnumerable<long>> ExecuteNonQueryWithRetryAsync(SpannerRetriableBatchCommand command, CancellationToken cancellationToken = default)
+        internal async Task<IReadOnlyList<long>> ExecuteNonQueryWithRetryAsync(SpannerRetriableBatchCommand command, CancellationToken cancellationToken = default)
         {
             while (true)
             {
                 var spannerCommand = command.CreateSpannerBatchCommand();
                 try
                 {
-                    IEnumerable<long> res = await spannerCommand.ExecuteNonQueryAsync();
+                    IReadOnlyList<long> res = await spannerCommand.ExecuteNonQueryAsync();
                     _retriableStatements.Add(new RetriableBatchDmlStatement(command, res));
                     return res;
                 }
