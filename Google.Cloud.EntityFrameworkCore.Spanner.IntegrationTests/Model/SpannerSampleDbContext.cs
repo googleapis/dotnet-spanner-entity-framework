@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
@@ -175,6 +176,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
             {
                 entity.HasKey(e => new { e.AlbumId, e.TrackId })
                     .HasName("PRIMARY_KEY");
+
+                entity.HasAnnotation("CONSTRAINT `Chk_Languages_Lyrics_Length_Equal`", "CHECK ARRAY_LENGTH(LyricsLanguages) = ARRAY_LENGTH(Lyrics)");
 
                 entity.HasIndex(e => new { e.TrackId, e.Title })
                     .HasName("Idx_Tracks_AlbumId_Title");
