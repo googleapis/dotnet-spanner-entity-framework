@@ -1,4 +1,18 @@
-﻿using Google.Api.Gax;
+﻿// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using JetBrains.Annotations;
@@ -10,17 +24,45 @@ using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
 {
+    /// <summary>
+    /// Extensions to <see cref="DatabaseFacade"/> for Cloud Spanner databases.
+    /// </summary>
     public static class SpannerDatabaseFacadeExtensions
     {
+        /// <summary>
+        /// Begins a read-only transaction for a Cloud Spanner database.
+        /// </summary>
+        /// <param name="databaseFacade">The Cloud Spanner database to begin the transaction on</param>
+        /// <returns>A read-only transaction using <see cref="TimestampBoundMode.Strong"/></returns>
         public static IDbContextTransaction BeginReadOnlyTransaction([NotNull] this DatabaseFacade databaseFacade) =>
             BeginReadOnlyTransaction(databaseFacade, TimestampBound.Strong);
 
+        /// <summary>
+        /// Begins a read-only transaction for a Cloud Spanner database using the specified <see cref="TimestampBound"/>
+        /// </summary>
+        /// <param name="databaseFacade">The Cloud Spanner database to begin the transaction on</param>
+        /// <param name="timestampBound">The timestamp to use for the read-only transaction</param>
+        /// <returns>A read-only transaction using the specified <see cref="TimestampBound"/></returns>
+        /// <exception cref="InvalidOperationException">If the database is not a Cloud Spanner database.</exception>
         public static IDbContextTransaction BeginReadOnlyTransaction([NotNull] this DatabaseFacade databaseFacade, [NotNull] TimestampBound timestampBound)
             => BeginReadOnlyTransactionAsync(databaseFacade, timestampBound).ResultWithUnwrappedExceptions();
 
+        /// <summary>
+        /// Begins a read-only transaction for a Cloud Spanner database.
+        /// </summary>
+        /// <param name="databaseFacade">The Cloud Spanner database to begin the transaction on</param>
+        /// <returns>A read-only transaction using <see cref="TimestampBoundMode.Strong"/></returns>
+        /// <exception cref="InvalidOperationException">If the database is not a Cloud Spanner database.</exception>
         public static Task<IDbContextTransaction> BeginReadOnlyTransactionAsync([NotNull] this DatabaseFacade databaseFacade, CancellationToken cancellationToken = default) =>
             BeginReadOnlyTransactionAsync(databaseFacade, TimestampBound.Strong, cancellationToken);
 
+        /// <summary>
+        /// Begins a read-only transaction for a Cloud Spanner database using the specified <see cref="TimestampBound"/>
+        /// </summary>
+        /// <param name="databaseFacade">The Cloud Spanner database to begin the transaction on</param>
+        /// <param name="timestampBound">The timestamp to use for the read-only transaction</param>
+        /// <returns>A read-only transaction using the specified <see cref="TimestampBound"/></returns>
+        /// <exception cref="InvalidOperationException">If the database is not a Cloud Spanner database.</exception>
         public static Task<IDbContextTransaction> BeginReadOnlyTransactionAsync([NotNull] this DatabaseFacade databaseFacade, [NotNull] TimestampBound timestampBound, CancellationToken cancellationToken = default)
         {
             var transactionManager = databaseFacade.GetService<IDbContextTransactionManager>();

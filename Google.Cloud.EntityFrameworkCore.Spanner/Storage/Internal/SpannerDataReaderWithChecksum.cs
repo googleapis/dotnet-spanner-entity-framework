@@ -178,7 +178,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             {
                 // The results are not equal, there is an actual concurrent modification, so we cannot
                 // continue the transaction.
-                throw new SpannerAbortedDueToConcurrentModificationException($"Query {_spannerCommand.CommandText} results differed during retry");
+                throw new SpannerAbortedDueToConcurrentModificationException();
             }
         }
 
