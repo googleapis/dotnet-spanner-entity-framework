@@ -13,12 +13,11 @@
 // limitations under the License.
 
 using Google.Api.Gax;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using System.Data;
 using System.Data.Common;
 
-namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     /// <summary>
     /// <see cref="DbCommand"/> implementation for Cloud Spanner that can be retried if the underlying

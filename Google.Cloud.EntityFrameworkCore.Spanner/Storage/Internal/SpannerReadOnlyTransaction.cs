@@ -17,7 +17,6 @@ using Google.Cloud.Spanner.Data;
 using JetBrains.Annotations;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal

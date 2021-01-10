@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
@@ -78,24 +79,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         private void ClearTables()
         {
             using var con = GetConnection();
-            using var tx = con.BeginTransaction();
-            var cmd = con.CreateBatchDmlCommand();
-            cmd.Transaction = tx;
-            foreach (var table in new string[]
+            con.RunWithRetriableTransactionAsync((transaction) =>
             {
-                "TableWithAllColumnTypes",
-                "Performances",
-                "Concerts",
-                "Venues",
-                "Tracks",
-                "Albums",
-                "Singers",
-            })
-            {
-                cmd.Add($"DELETE FROM {table} WHERE TRUE");
-            }
-            cmd.ExecuteNonQuery();
-            tx.Commit();
+                var cmd = transaction.CreateBatchDmlCommand();
+                foreach (var table in new string[]
+                {
+                    "TableWithAllColumnTypes",
+                    "Performances",
+                    "Concerts",
+                    "Venues",
+                    "Tracks",
+                    "Albums",
+                    "Singers",
+                })
+                {
+                    cmd.Add($"DELETE FROM {table} WHERE TRUE");
+                }
+                return cmd.ExecuteNonQueryAsync();
+            }).ResultWithUnwrappedExceptions();
         }
 
         /// <summary>

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 using Google.Api.Gax;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using Grpc.Core;
 using System;
@@ -24,7 +23,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Status = Grpc.Core.Status;
 
-namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     /// <summary>
     /// Represents a SQL transaction to be made in a Spanner database.

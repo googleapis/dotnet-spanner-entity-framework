@@ -23,6 +23,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using System.Threading.Tasks;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -188,9 +189,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Theory]
-        [InlineData(true)]
         [InlineData(false)]
-        public void TransactionRetry(bool enableInternalRetries)
+        [InlineData(true)]
+        public void TransactionRetry(bool disableInternalRetries)
         {
             const int transactions = 8;
             var aborted = new List<Exception>();
@@ -201,7 +202,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     // The internal retry mechanism should be able to catch and retry
                     // all aborted transactions. If internal retries are disabled, multiple
                     // transactions will abort.
-                    InsertRandomSinger(enableInternalRetries).Wait();
+                    InsertRandomSinger(disableInternalRetries).Wait();
                 }
                 catch (AggregateException e) when (e.InnerException is SpannerException se && se.ErrorCode == ErrorCode.Aborted)
                 {
@@ -215,18 +216,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 }
             });
             Assert.True(
-                enableInternalRetries == (aborted.Count == 0),
-                $"Unexpected aborted count {aborted.Count} for enableInternalRetries={enableInternalRetries}. First aborted error: {aborted.FirstOrDefault()?.Message ?? "<none>"}"
+                disableInternalRetries == (aborted.Count > 0),
+                $"Unexpected aborted count {aborted.Count} for disableInternalRetries={disableInternalRetries}. First aborted error: {aborted.FirstOrDefault()?.Message ?? "<none>"}"
             );
         }
 
-        private async Task InsertRandomSinger(bool enableInternalRetries)
+        private async Task InsertRandomSinger(bool disableInternalRetries)
         {
             var rnd = new Random(Guid.NewGuid().GetHashCode());
             using var context = new TestSpannerSampleDbContext(_fixture.DatabaseName);
             using var transaction = await context.Database.BeginTransactionAsync();
-            var retriableTransaction = (SpannerRetriableTransaction)transaction.GetDbTransaction();
-            retriableTransaction.EnableInternalRetries = enableInternalRetries;
+            if (disableInternalRetries)
+            {
+                transaction.DisableInternalRetries();
+            }
 
             var rows = rnd.Next(1, 10);
             for (var row = 0; row < rows; row++)

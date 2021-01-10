@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1.Internal.Logging;
@@ -58,9 +59,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         public DatabaseName DatabaseName => Database.DatabaseName;
-        public SpannerRetriableConnection GetConnection() => Database.GetConnection();
+        internal SpannerConnection GetConnection() => Database.GetConnection();
         public string ConnectionString => Database.ConnectionString;
-        public SpannerRetriableConnection GetConnection(Logger logger) => Database.GetConnection(logger);
+        internal SpannerConnection GetConnection(Logger logger) => Database.GetConnection(logger);
 
         public long RandomLong() => RandomLong(_random);
 

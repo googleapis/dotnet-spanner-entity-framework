@@ -14,6 +14,7 @@
 
 using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
@@ -25,6 +26,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
     /// </summary>
     public static class SpannerIDbContextTransactionExtensions
     {
+        /// <summary>
+        /// Disables internal retries for Aborted errors for the transaction. Internal retries are enabled by default.
+        /// This method may only be called for read/write Spanner transactions.
+        /// </summary>
+        /// <param name="dbContextTransaction">The transaction to disable internal retries for.</param>
+        /// <exception cref="ArgumentException">If the transaction is not a read/write Spanner transaction</exception>
+        public static void DisableInternalRetries([NotNull] this IDbContextTransaction dbContextTransaction)
+        {
+            GaxPreconditions.CheckArgument(dbContextTransaction.GetDbTransaction() is SpannerRetriableTransaction, nameof(dbContextTransaction), "Must be a read/write Spanner transaction");
+            (dbContextTransaction.GetDbTransaction() as SpannerRetriableTransaction).EnableInternalRetries = false;
+        }
+
         /// <summary>
         /// The commit timestamp of the transaction. This property is only valid for read/write Spanner transactions that have committed.
         /// </summary>

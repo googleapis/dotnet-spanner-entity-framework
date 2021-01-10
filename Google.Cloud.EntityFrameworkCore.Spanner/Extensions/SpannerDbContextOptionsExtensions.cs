@@ -15,7 +15,7 @@
 using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -62,7 +62,7 @@ namespace Microsoft.EntityFrameworkCore
         /// <param name="connection"></param>
         /// <param name="spannerOptionsAction"></param>
         /// <returns></returns>
-        public static DbContextOptionsBuilder UseSpanner(
+        internal static DbContextOptionsBuilder UseSpanner(
             this DbContextOptionsBuilder optionsBuilder,
             SpannerRetriableConnection connection,
             Action<SpannerDbContextOptionsBuilder> spannerOptionsAction = null)
@@ -103,7 +103,7 @@ namespace Microsoft.EntityFrameworkCore
             => (DbContextOptionsBuilder<TContext>)UseSpanner(
                 (DbContextOptionsBuilder)optionsBuilder, new SpannerRetriableConnection(connection), spannerOptionsAction);
 
-        public static DbContextOptionsBuilder<TContext> UseSpanner<TContext>(
+        internal static DbContextOptionsBuilder<TContext> UseSpanner<TContext>(
             this DbContextOptionsBuilder<TContext> optionsBuilder,
             SpannerRetriableConnection connection,
             Action<SpannerDbContextOptionsBuilder> spannerOptionsAction = null)

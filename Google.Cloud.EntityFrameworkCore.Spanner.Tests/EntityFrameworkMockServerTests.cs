@@ -14,7 +14,6 @@
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.Data;
 using Grpc.Core;
 using Microsoft.EntityFrameworkCore;

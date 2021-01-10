@@ -20,9 +20,11 @@ using System.Collections.Generic;
 using Xunit;
 using System.Threading.Tasks;
 using System;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 {
+#pragma warning disable EF1001 // Internal EF Core API usage.
     public class AbortedTransactionsTests : IClassFixture<SpannerMockServerFixture>
     {
         private readonly SpannerMockServerFixture _fixture;
@@ -790,4 +792,5 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
     }
+#pragma warning restore EF1001 // Internal EF Core API usage.
 }

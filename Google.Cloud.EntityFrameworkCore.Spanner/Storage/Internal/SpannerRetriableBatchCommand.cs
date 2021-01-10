@@ -17,7 +17,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     /// <summary>
     /// Batch DML command that will automatically retry the underlying transaction if it is aborted by Cloud Spanner.

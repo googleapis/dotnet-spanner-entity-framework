@@ -13,7 +13,7 @@
 // limitations under the License.
 
 using Google.Api.Gax;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Admin.Database.V1;
 using Google.Cloud.Spanner.Admin.Instance.V1;
 using Google.Cloud.Spanner.Common.V1;
@@ -86,8 +86,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             {
                 // Switch to emulator config.
                 // Check if the instance exists and if not create it on the emulator.
-                var adminClientBuilder = new InstanceAdminClientBuilder();
-                adminClientBuilder.EmulatorDetection = EmulatorDetection.EmulatorOnly;
+                var adminClientBuilder = new InstanceAdminClientBuilder
+                {
+                    EmulatorDetection = EmulatorDetection.EmulatorOnly
+                };
                 var instanceAdminClient = adminClientBuilder.Build();
 
                 InstanceName instanceName = InstanceName.FromProjectInstance(projectId, SpannerInstance);
@@ -159,11 +161,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             string value = Environment.GetEnvironmentVariable(name);
             return string.IsNullOrEmpty(value) ? defaultValue : value;
         }
-        
-        public SpannerRetriableConnection GetConnection() => new SpannerRetriableConnection(new SpannerConnection(ConnectionString));
 
-        // Creates a SpannerRetriableConnection with a specific logger.
-        public SpannerRetriableConnection GetConnection(Logger logger) =>
-            new SpannerRetriableConnection(new SpannerConnection(new SpannerConnectionStringBuilder(ConnectionString) { SessionPoolManager = SessionPoolManager.Create(new Cloud.Spanner.V1.SessionPoolOptions(), logger) }));
+        public SpannerConnection GetConnection() => new SpannerConnection(ConnectionString);
+
+
+        // Creates a SpannerConnection with a specific logger.
+        public SpannerConnection GetConnection(Logger logger) =>
+            new SpannerConnection(new SpannerConnectionStringBuilder(ConnectionString) { SessionPoolManager = SessionPoolManager.Create(new Cloud.Spanner.V1.SessionPoolOptions(), logger) });
     }
 }
