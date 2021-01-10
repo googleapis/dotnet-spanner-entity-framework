@@ -22,6 +22,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Threading.Tasks;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -152,6 +153,40 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Equal("Venue 3", (await context1.Venues.FindAsync(venueCode)).Name);
         }
 
+        [Fact]
+        public async Task CanUseReadOnlyTransaction()
+        {
+            var venueCode = _fixture.RandomString(4);
+            var venueName = _fixture.RandomString(10);
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            using var transaction = await db.Database.BeginTransactionAsync();
+
+            // Add a venue.
+            db.Venues.AddRange(new Venues
+            {
+                Code = venueCode,
+                Name = venueName,
+            });
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+            var commitTimestamp = transaction.GetCommitTimestamp();
+
+            // Try to read the venue using a read-only transaction.
+            using var readOnlyTransaction = await db.Database.BeginReadOnlyTransactionAsync();
+            var foundVenue = await db.Venues.Where(v => v.Code == venueCode).FirstOrDefaultAsync();
+            Assert.NotNull(foundVenue);
+            Assert.Equal(venueName, foundVenue.Name);
+            // Read-only transactions cannot really be committed, but this releases the resources
+            // that are used by the transaction and enables us to start a new transacton on the context.
+            await readOnlyTransaction.CommitAsync();
+
+            // Try to read the venue using a read-only transaction that reads using
+            // a timestamp before the above venue was added. It should not return any results.
+            using var readOnlyTransactionBeforeAdd = await db.Database.BeginReadOnlyTransactionAsync(TimestampBound.OfReadTimestamp(commitTimestamp.AddMilliseconds(-1)));
+            var result = await db.Venues.Where(v => v.Code == venueCode).FirstOrDefaultAsync();
+            Assert.Null(result);
+        }
+
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
@@ -187,7 +222,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         private async Task InsertRandomSinger(bool enableInternalRetries)
         {
-            var rnd = new Random();
+            var rnd = new Random(Guid.NewGuid().GetHashCode());
             using var context = new TestSpannerSampleDbContext(_fixture.DatabaseName);
             using var transaction = await context.Database.BeginTransactionAsync();
             var retriableTransaction = (SpannerRetriableTransaction)transaction.GetDbTransaction();
@@ -198,7 +233,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             {
                 // This test assumes that this is random enough and that the id's
                 // will never overlap during a test run.
-                var id = _fixture.RandomLong();
+                var id = _fixture.RandomLong(rnd);
                 var prefix = id.ToString("D20");
                 // First name is required, so we just assign a meaningless random value.
                 var firstName = "FirstName" + "-" + rnd.Next(10000).ToString("D4");

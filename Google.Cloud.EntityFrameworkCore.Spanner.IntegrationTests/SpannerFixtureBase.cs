@@ -33,7 +33,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
     /// </summary>
     public abstract class SpannerFixtureBase : CloudProjectFixtureBase, IAsyncLifetime
     {
-        private Random _random = new Random();
+        private readonly Random _random = new Random(Guid.NewGuid().GetHashCode());
 
         public SpannerTestDatabase Database { get; }
 
@@ -62,24 +62,28 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public string ConnectionString => Database.ConnectionString;
         public SpannerRetriableConnection GetConnection(Logger logger) => Database.GetConnection(logger);
 
-        public long RandomLong()
+        public long RandomLong() => RandomLong(_random);
+
+        public long RandomLong(Random rnd)
         {
-            return RandomLong(0, long.MaxValue);
+            return RandomLong(0, long.MaxValue, rnd);
         }
 
-        public long RandomLong(long min, long max)
+        public long RandomLong(long min, long max, Random rnd)
         {
             byte[] buf = new byte[8];
-            _random.NextBytes(buf);
+            rnd.NextBytes(buf);
             long longRand = BitConverter.ToInt64(buf, 0);
 
             return (Math.Abs(longRand % (max - min)) + min);
         }
 
-        public string RandomString(int length)
+        public string RandomString(int length) => RandomString(length, _random);
+
+        public string RandomString(int length, Random rnd)
         {
             byte[] buf = new byte[length];
-            _random.NextBytes(buf);
+            rnd.NextBytes(buf);
             return System.Text.Encoding.ASCII.GetString(buf);
         }
     }

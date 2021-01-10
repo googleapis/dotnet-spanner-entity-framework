@@ -78,7 +78,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
             return true;
         }
 
-        private const int MAX_RETRIES = 100;
         private const int MAX_TIMEOUT_SECONDS = int.MaxValue / 1000; // Max is Int32.MaxValue milliseconds.
         private readonly IClock _clock;
         private readonly IScheduler _scheduler;
@@ -107,20 +106,34 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
         public bool EnableInternalRetries { get; set; } = true;
 
         /// <summary>
+        /// Sets the maximum number of internal retries that the transaction should
+        /// execute before giving up. Defaults to 100.
+        /// </summary>
+        public int MaxInternalRetryCount { get; set; } = 100;
+
+        /// <summary>
         /// The TransactionId of the underlying Spanner transaction. This id can change
         /// during the lifetime of this transaction, as the underlying Spanner transaction
         /// will be replaced with a new one in case of a retry.
         /// </summary>
         public TransactionId TransactionId => SpannerTransaction.TransactionId;
 
-        /// <see cref="SpannerTransaction.Rollback"/>
-        public override void Rollback() => SpannerTransaction.Rollback();
+        private DateTime? _commitTimestamp;
 
         /// <summary>
-        /// The underlying Spanner transaction. This transaction is refreshed with a new
-        /// one in case the transaction is aborted by Cloud Spanner.
+        /// The commit timestamp of this transaction. Only available after the transaction has committed.
         /// </summary>
-        internal SpannerTransaction SpannerTransaction { get; private set; }
+        /// <exception cref="InvalidOperationException">If the transaction has not committed</exception>
+        public DateTime CommitTimestamp {
+            get
+            {
+                GaxPreconditions.CheckState(_commitTimestamp != null, "Transaction has not committed");
+                return (DateTime)_commitTimestamp;
+            }
+        }
+
+        /// <see cref="SpannerTransaction.Rollback"/>
+        public override void Rollback() => SpannerTransaction.Rollback();
 
         internal new SpannerRetriableConnection Connection { get; private set; }
 
@@ -151,22 +164,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
                 catch (SpannerException e)
                 {
                     _retriableStatements.Add(new FailedDmlStatement(command, e));
-                    throw e;
+                    throw;
                 }
             }
         }
 
-        protected internal override IEnumerable<long> ExecuteNonQueryWithRetry(SpannerRetriableBatchCommand command)
+        protected internal override IReadOnlyList<long> ExecuteNonQueryWithRetry(SpannerRetriableBatchCommand command)
             => Task.Run(() => ExecuteNonQueryWithRetryAsync(command, CancellationToken.None)).ResultWithUnwrappedExceptions();
 
-        internal async Task<IEnumerable<long>> ExecuteNonQueryWithRetryAsync(SpannerRetriableBatchCommand command, CancellationToken cancellationToken = default)
+        internal async Task<IReadOnlyList<long>> ExecuteNonQueryWithRetryAsync(SpannerRetriableBatchCommand command, CancellationToken cancellationToken = default)
         {
             while (true)
             {
                 var spannerCommand = command.CreateSpannerBatchCommand();
                 try
                 {
-                    IEnumerable<long> res = await spannerCommand.ExecuteNonQueryAsync();
+                    IReadOnlyList<long> res = await spannerCommand.ExecuteNonQueryAsync();
                     _retriableStatements.Add(new RetriableBatchDmlStatement(command, res));
                     return res;
                 }
@@ -220,30 +233,49 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
             {
                 throw abortedException;
             }
+            DateTime? overallDeadline = _options.CalculateDeadline(_clock);
+            TimeSpan retryDelay = _options.InitialDelay;
+            // If there's a recommended retry delay specified on the exception
+            // we should respect it.
+            retryDelay = abortedException.RecommendedRetryDelay ?? _options.Jitter(retryDelay);
             while (true)
             {
-                RetryCount++;
+                if (RetryCount >= MaxInternalRetryCount)
+                {
+                    throw new SpannerException(ErrorCode.Aborted, "Transaction was aborted because it aborted and retried too many times");
+                }
+
+                DateTime expectedRetryTime = _clock.GetCurrentDateTimeUtc() + retryDelay;
+                if (expectedRetryTime > overallDeadline)
+                {
+                    throw new SpannerException(ErrorCode.Aborted, "Transaction was aborted because it timed out while retrying");
+                }
+                await _scheduler.Delay(retryDelay, cancellationToken).ConfigureAwait(false);
+
+                // TODO: Preferably the Spanner client library should have some 'reset' option on an existing
+                // transaction instead of having to begin a new transaction. This will potentially use a transaction
+                // on a different session, while the recommended behavior for a retry is to use the same session as
+                // the original attempt.
+                SpannerTransaction.Dispose();
                 SpannerTransaction = await Connection.SpannerConnection.BeginTransactionAsync(cancellationToken);
+                RetryCount++;
                 try
                 {
                     foreach (IRetriableStatement statement in _retriableStatements)
                     {
-                        await statement.Retry(this, cancellationToken, timeoutSeconds).ConfigureAwait(false);
+                        await statement.RetryAsync(this, cancellationToken, timeoutSeconds);
                     }
                     break;
                 }
-                catch (SpannerAbortedDueToConcurrentModificationException e)
+                catch (SpannerAbortedDueToConcurrentModificationException)
                 {
                     // Retry failed because of a concurrent modification.
-                    throw e;
+                    throw;
                 }
                 catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
                 {
                     // Ignore and retry.
-                    if (RetryCount >= MAX_RETRIES)
-                    {
-                        throw new SpannerException(ErrorCode.Aborted, "Transaction was aborted because it aborted and retried too many times");
-                    }
+                    retryDelay = e.RecommendedRetryDelay ?? _options.Jitter(_options.NextDelay(retryDelay));
                 }
             }
         }
@@ -259,7 +291,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
             {
                 try
                 {
-                    return await SpannerTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    _commitTimestamp = await SpannerTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    return (DateTime)_commitTimestamp;
                 }
                 catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
                 {

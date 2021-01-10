@@ -95,6 +95,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 cmd.Add($"DELETE FROM {table} WHERE TRUE");
             }
             cmd.ExecuteNonQuery();
+            tx.Commit();
         }
 
         /// <summary>

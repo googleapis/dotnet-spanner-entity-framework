@@ -27,5 +27,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
             : base(ErrorCode.Aborted, "Transaction aborted due to a concurrent modification")
         {
         }
+
+        internal SpannerAbortedDueToConcurrentModificationException(string message)
+            : base(ErrorCode.Aborted, $"Transaction aborted due to a concurrent modification: {message}")
+        {
+        }
     }
 }

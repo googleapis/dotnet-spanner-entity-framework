@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Api.Gax;
 using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using System;
 using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
@@ -40,19 +42,40 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <inheritdoc />
         public override bool IsMultipleActiveResultSetsEnabled => true;
 
+        /// <inheritdoc />
         protected override DbConnection CreateDbConnection() => new SpannerRetriableConnection(new SpannerConnection(ConnectionString));
 
+        /// <summary>
+        /// Begins a read-only transaction on this connection.
+        /// </summary>
+        /// <returns>A read-only transaction that uses <see cref="TimestampBoundMode.Strong"/></returns>
         public IDbContextTransaction BeginReadOnlyTransaction() => BeginReadOnlyTransaction(TimestampBound.Strong);
 
+        /// <summary>
+        /// Begins a read-only transaction with the specified <see cref="TimestampBound"/> on this connection.
+        /// </summary>
+        /// <param name="timestampBound">The read timestamp to use for the transaction</param>
+        /// <returns>A read-only transaction that uses the specified <see cref="TimestampBound"/></returns>
         public IDbContextTransaction BeginReadOnlyTransaction(TimestampBound timestampBound) =>
             UseTransaction(Connection.BeginReadOnlyTransaction(timestampBound));
 
+        /// <summary>
+        /// Begins a read-only transaction on this connection.
+        /// </summary>
+        /// <returns>A read-only transaction that uses <see cref="TimestampBoundMode.Strong"/></returns>
         public Task<IDbContextTransaction> BeginReadOnlyTransactionAsync() => BeginReadOnlyTransactionAsync(TimestampBound.Strong);
 
+        /// <summary>
+        /// Begins a read-only transaction with the specified <see cref="TimestampBound"/> on this connection.
+        /// </summary>
+        /// <param name="timestampBound">The read timestamp to use for the transaction</param>
+        /// <returns>A read-only transaction that uses the specified <see cref="TimestampBound"/></returns>
         public async Task<IDbContextTransaction> BeginReadOnlyTransactionAsync(TimestampBound timestampBound, CancellationToken cancellationToken = default) =>
             await UseTransactionAsync(await Connection.BeginReadOnlyTransactionAsync(timestampBound, cancellationToken));
 
         /// <summary>
+        /// Creates a connection to the Cloud Spanner instance that is referenced by <see cref="RelationalConnection.ConnectionString"/>.
+        /// The connection is not associated with any specific database.
         /// </summary>
         public ISpannerRelationalConnection CreateMasterConnection()
         {

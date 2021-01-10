@@ -19,12 +19,13 @@ using Grpc.Core;
 using System.Collections.Generic;
 using Xunit;
 using System.Threading.Tasks;
+using System;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 {
     public class AbortedTransactionsTests : IClassFixture<SpannerMockServerFixture>
     {
-        SpannerMockServerFixture _fixture;
+        private readonly SpannerMockServerFixture _fixture;
 
         public AbortedTransactionsTests(SpannerMockServerFixture service)
         {
@@ -45,6 +46,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var connection = CreateConnection();
             await connection.OpenAsync();
             using var transaction = await connection.BeginTransactionAsync();
+
             var cmd = connection.CreateDmlCommand(sql);
             cmd.Transaction = transaction;
             var updateCount = await cmd.ExecuteNonQueryAsync();
@@ -441,6 +443,43 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task ReadWriteTransaction_QueryFullyConsumed_WithModifiedResultsAfterLastRow_FailsRetry()
+        {
+            string sql = $"SELECT Id FROM Foo WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1));
+            using var connection = CreateConnection();
+            await connection.OpenAsync();
+            using var transaction = await connection.BeginTransactionAsync();
+            var cmd = connection.CreateSelectCommand(sql);
+            cmd.Transaction = transaction;
+            using (var reader = await cmd.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    Assert.Equal(1, reader.GetInt64(reader.GetOrdinal("Id")));
+                }
+            }
+            // Add a row to the result of the query on the server and abort the transaction. Even though the
+            // original query did not see the additional row, it did see a 'false' being returned after consuming
+            // the first row in the query, meaning that it knew that there were no more results.
+            // The retry should now fail.
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                },
+                new List<object[]>
+                {
+                    new object[] { 1L },
+                    new object[] { 2L },
+                }
+            ));
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+            var e = await Assert.ThrowsAsync<SpannerAbortedDueToConcurrentModificationException>(() => transaction.CommitAsync());
+            Assert.Equal(1, transaction.RetryCount);
+        }
+
+        [Fact]
         public async Task ReadWriteTransaction_QueryWithError_AndThenDifferentError_FailsRetry()
         {
             string sql = $"SELECT Id FROM Foo WHERE Id={_fixture.RandomLong()}";
@@ -721,5 +760,34 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
             }
         }
+
+        [Fact]
+        public async Task ReadWriteTransaction_Retry_GivesUp()
+        {
+            string sql = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1));
+            using var connection = CreateConnection();
+            await connection.OpenAsync();
+            using var transaction = await connection.BeginTransactionAsync();
+            transaction.MaxInternalRetryCount = 3;
+
+            for (var i = 0; i < transaction.MaxInternalRetryCount; i++)
+            {
+                _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+                var cmd = connection.CreateDmlCommand(sql);
+                cmd.Transaction = transaction;
+                var updateCount = await cmd.ExecuteNonQueryAsync();
+                Assert.Equal(1, updateCount);
+                Assert.Equal(i+1, transaction.RetryCount);
+            }
+            // The next statement that aborts will cause the transaction to fail.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+            var cmd2 = connection.CreateDmlCommand(sql);
+            cmd2.Transaction = transaction;
+            var e = await Assert.ThrowsAsync<SpannerException>(() => cmd2.ExecuteNonQueryAsync());
+            Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+            Assert.Contains("Transaction was aborted because it aborted and retried too many times", e.Message);
+        }
+
     }
 }
