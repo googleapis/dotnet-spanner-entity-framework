@@ -28,6 +28,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public bool? ColBool { get; set; }
         public DateTime? ColDate { get; set; }
         public DateTime? ColTimestamp { get; set; }
+        public DateTime? ColCommitTimestamp { get; set; }
         public float? ColFloat { get; set; }
         public double? ColDouble { get; set; }
         public string ColString { get; set; }

@@ -41,12 +41,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
     {
         public MigrationTestFixture()
         {
-            if (Database.Fresh)
-            {
-                Logger.DefaultLogger.Debug($"Generating Tables for database {Database.DatabaseName} using migration.");
-                GenerateTables();
-            }
-            else
+            Logger.DefaultLogger.Debug($"Applying pending migration for database {Database.DatabaseName} using migration.");
+            ApplyMigration();
+            if (!Database.Fresh)
             {
                 Logger.DefaultLogger.Debug($"Deleting data in {Database.DatabaseName}");
                 ClearTables();
@@ -78,9 +75,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         /// <summary>
-        /// Generate Tables using migration.
+        /// Applies all Pending migrations.
         /// </summary>
-        private void GenerateTables()
+        private void ApplyMigration()
         {
             using var context = new TestMigrationDbContext(Database.DatabaseName);
             context.Database.Migrate();

@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 {
@@ -25,6 +29,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
         public SpannerMigrationsAnnotationProvider(MigrationsAnnotationProviderDependencies dependencies)
             : base(dependencies)
         {
+        }
+
+        public override IEnumerable<IAnnotation> For(IProperty property)
+        {
+            var baseAnnotations = base.For(property);
+
+            // Commit Timestamp
+            var commitTimestampAnnotation = property.FindAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp);
+            if (commitTimestampAnnotation != null)
+            {
+                baseAnnotations = baseAnnotations.Concat(new[] { commitTimestampAnnotation });
+            }
+
+            return baseAnnotations;
         }
     }
 }

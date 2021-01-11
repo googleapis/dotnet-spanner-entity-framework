@@ -138,140 +138,153 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         [Fact]
         public async Task CanInsertAndUpdateRowWithAllDataTypes()
         {
-            var context = new TestMigrationDbContext(_fixture.DatabaseName);
             var now = DateTime.UtcNow;
             var guid = Guid.NewGuid();
-            var row = new AllColType
+            using (var context = new TestMigrationDbContext(_fixture.DatabaseName))
             {
-                Id = 10,
-                ColBool = true,
-                ColBoolArray = new bool[] { true, false },
-                ColBoolList = new List<bool> { false, true },
-                ColBytes = Encoding.UTF8.GetBytes("string 1"),
-                ColBytesArray = new byte[][] { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2") },
-                ColBytesList = new List<byte[]> { Encoding.UTF8.GetBytes("string 3"), Encoding.UTF8.GetBytes("string 4") },
-                ColTimestamp = new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288),
-                ColTimestampArray = new DateTime[] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now },
-                ColTimestampList = new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now },
-                ColDecimal = 10.100m,
-                ColDecimalArray = new decimal[] { 10.1m, 13.5m },
-                ColDecimalList = new List<decimal> { 10.1m, 13.5m },
-                ColDouble = 12.01,
-                ColDoubleArray = new double[] { 12.01, 12.02 },
-                ColDoubleList = new List<double> { 13.01, 13.02 },
-                ColFloat = 15.999f,
-                ColGuid = guid,
-                ColInt = 10,
-                ColLong = 155,
-                ColLongArray = new long[] { 15, 16 },
-                ColLongList = new List<long> { 20, 25 },
-                ColShort = 10,
-                ColString = "String 1",
-                ColStringArray = new string[] { "string1", "string2", "string3" },
-                ColStringList = new List<string> { "string4", "string5" },
-                ColUint = 12,
-                ColDate = new DateTime(2021, 1, 1),
-                ColDateArray = new DateTime[] { new DateTime(2021, 1, 1), new DateTime(2021, 1, 2) },
-                ColDateList = new List<DateTime> { new DateTime(2021, 1, 3), new DateTime(2021, 1, 4) },
-            };
-            context.AllColTypes.Add(row);
-            var rowCount = await context.SaveChangesAsync();
-            Assert.Equal(1, rowCount);
+                var row = new AllColType
+                {
+                    Id = 10,
+                    ColBool = true,
+                    ColBoolArray = new bool[] { true, false },
+                    ColBoolList = new List<bool> { false, true },
+                    ColBytes = Encoding.UTF8.GetBytes("string 1"),
+                    ColBytesArray = new byte[][] { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2") },
+                    ColBytesList = new List<byte[]> { Encoding.UTF8.GetBytes("string 3"), Encoding.UTF8.GetBytes("string 4") },
+                    ColTimestamp = new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288),
+                    ColTimestampArray = new DateTime[] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now },
+                    ColTimestampList = new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now },
+                    ColDecimal = 10.100m,
+                    ColDecimalArray = new decimal[] { 10.1m, 13.5m },
+                    ColDecimalList = new List<decimal> { 10.1m, 13.5m },
+                    ColDouble = 12.01,
+                    ColDoubleArray = new double[] { 12.01, 12.02 },
+                    ColDoubleList = new List<double> { 13.01, 13.02 },
+                    ColFloat = 15.999f,
+                    ColGuid = guid,
+                    ColInt = 10,
+                    ColLong = 155,
+                    ColLongArray = new long[] { 15, 16 },
+                    ColLongList = new List<long> { 20, 25 },
+                    ColShort = 10,
+                    ColString = "String 1",
+                    ColStringArray = new string[] { "string1", "string2", "string3" },
+                    ColStringList = new List<string> { "string4", "string5" },
+                    ColUint = 12,
+                    ColDate = new DateTime(2021, 1, 1),
+                    ColDateArray = new DateTime[] { new DateTime(2021, 1, 1), new DateTime(2021, 1, 2) },
+                    ColDateList = new List<DateTime> { new DateTime(2021, 1, 3), new DateTime(2021, 1, 4) },
+                };
+                context.AllColTypes.Add(row);
+                var rowCount = await context.SaveChangesAsync();
+                Assert.Equal(1, rowCount);
+            }
 
             // Get inserted Rows from database.
-            row = await context.AllColTypes.FindAsync(10);
-            Assert.Equal(10, row.Id);
-            Assert.True(row.ColBool);
-            Assert.Equal(new bool[] { true, false }, row.ColBoolArray);
-            Assert.Equal(new List<bool> { false, true }, row.ColBoolList);
-            Assert.Equal(Encoding.UTF8.GetBytes("string 1"), row.ColBytes);
-            Assert.Equal(new byte[][] { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2") }, row.ColBytesArray);
-            Assert.Equal(new List<byte[]> { Encoding.UTF8.GetBytes("string 3"), Encoding.UTF8.GetBytes("string 4") }, row.ColBytesList);
-            Assert.Equal(new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), row.ColTimestamp);
-            Assert.Equal(new DateTime[] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now }, row.ColTimestampArray);
-            Assert.Equal(new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now }, row.ColTimestampList);
-            Assert.Equal(10.100m, row.ColDecimal);
-            Assert.Equal(new decimal[] { 10.1m, 13.5m }, row.ColDecimalArray);
-            Assert.Equal(new List<decimal> { 10.1m, 13.5m }, row.ColDecimalList);
-            Assert.Equal(12.01, row.ColDouble);
-            Assert.Equal(new double[] { 12.01, 12.02 }, row.ColDoubleArray);
-            Assert.Equal(new List<double> { 13.01, 13.02 }, row.ColDoubleList);
-            Assert.Equal(15.999f, row.ColFloat);
-            Assert.Equal(guid, row.ColGuid);
-            Assert.Equal(10, row.ColInt);
-            Assert.Equal(155, row.ColLong);
-            Assert.Equal(new long[] { 15, 16 }, row.ColLongArray);
-            Assert.Equal(new List<long> { 20, 25 }, row.ColLongList);
-            Assert.Equal((short)10, row.ColShort);
-            Assert.Equal("String 1", row.ColString);
-            Assert.Equal(new string[] { "string1", "string2", "string3" }, row.ColStringArray);
-            Assert.Equal(new List<string> { "string4", "string5" }, row.ColStringList);
-            Assert.Equal((uint)12, row.ColUint);
-            Assert.Equal(new DateTime(2021, 1, 1), row.ColDate);
-            Assert.Equal(new DateTime[] { new DateTime(2021, 1, 1), new DateTime(2021, 1, 2) }, row.ColDateArray);
-            Assert.Equal(new List<DateTime> { new DateTime(2021, 1, 3), new DateTime(2021, 1, 4) }, row.ColDateList);
+            using (var context = new TestMigrationDbContext(_fixture.DatabaseName))
+            {
+                var row = await context.AllColTypes.FindAsync(10);
+                Assert.Equal(10, row.Id);
+                Assert.True(row.ColBool);
+                Assert.Equal(new bool[] { true, false }, row.ColBoolArray);
+                Assert.Equal(new List<bool> { false, true }, row.ColBoolList);
+                Assert.Equal(Encoding.UTF8.GetBytes("string 1"), row.ColBytes);
+                Assert.Equal(new byte[][] { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2") }, row.ColBytesArray);
+                Assert.Equal(new List<byte[]> { Encoding.UTF8.GetBytes("string 3"), Encoding.UTF8.GetBytes("string 4") }, row.ColBytesList);
+                Assert.Equal(new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), row.ColTimestamp);
+                Assert.Equal(new DateTime[] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now }, row.ColTimestampArray);
+                Assert.Equal(new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now }, row.ColTimestampList);
+                Assert.Equal(10.100m, row.ColDecimal);
+                Assert.Equal(new decimal[] { 10.1m, 13.5m }, row.ColDecimalArray);
+                Assert.Equal(new List<decimal> { 10.1m, 13.5m }, row.ColDecimalList);
+                Assert.Equal(12.01, row.ColDouble);
+                Assert.Equal(new double[] { 12.01, 12.02 }, row.ColDoubleArray);
+                Assert.Equal(new List<double> { 13.01, 13.02 }, row.ColDoubleList);
+                Assert.Equal(15.999f, row.ColFloat);
+                Assert.Equal(guid, row.ColGuid);
+                Assert.Equal(10, row.ColInt);
+                Assert.Equal(155, row.ColLong);
+                Assert.Equal(new long[] { 15, 16 }, row.ColLongArray);
+                Assert.Equal(new List<long> { 20, 25 }, row.ColLongList);
+                Assert.Equal((short)10, row.ColShort);
+                Assert.Equal("String 1", row.ColString);
+                Assert.Equal(new string[] { "string1", "string2", "string3" }, row.ColStringArray);
+                Assert.Equal(new List<string> { "string4", "string5" }, row.ColStringList);
+                Assert.Equal((uint)12, row.ColUint);
+                Assert.Equal(new DateTime(2021, 1, 1), row.ColDate);
+                Assert.Equal(new DateTime[] { new DateTime(2021, 1, 1), new DateTime(2021, 1, 2) }, row.ColDateArray);
+                Assert.Equal(new List<DateTime> { new DateTime(2021, 1, 3), new DateTime(2021, 1, 4) }, row.ColDateList);
 
-            // Update rows
-            row.ColBool = false;
-            row.ColBoolArray = new bool[] { false, true, false };
-            row.ColBoolList = new List<bool> { true, true };
-            row.ColBytes = Encoding.UTF8.GetBytes("This string has changed");
-            row.ColBytesArray = new byte[][] { Encoding.UTF8.GetBytes("string change 1"), Encoding.UTF8.GetBytes("string change 2") };
-            row.ColBytesList = new List<byte[]> { Encoding.UTF8.GetBytes("string change 3"), Encoding.UTF8.GetBytes("string change 4") };
-            row.ColTimestamp = new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000);
-            row.ColTimestampArray = new DateTime[] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000), now };
-            row.ColTimestampList = new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(500), now };
-            row.ColDecimal = 10.5m;
-            row.ColDecimalArray = new decimal[] { 20.1m, 30.5m };
-            row.ColDecimalList = new List<decimal> { 50m, 15.5m };
-            row.ColDouble = 15;
-            row.ColDoubleArray = new double[] { 15.5 };
-            row.ColDoubleList = new List<double> { 30.9 };
-            row.ColFloat = 16.52f;
-            row.ColInt = 200;
-            row.ColLong = 19999;
-            row.ColLongArray = new long[] { 17, 18 };
-            row.ColLongList = new List<long> { 25, 26 };
-            row.ColShort = 1;
-            row.ColString = "Updated String 1";
-            row.ColStringArray = new string[] { "string1 Updated" };
-            row.ColStringList = new List<string> { "string2 Updated" };
-            row.ColUint = 3;
-            row.ColDate = new DateTime(2021, 1, 2);
-            row.ColDateArray = new DateTime[] { new DateTime(2021, 1, 3), new DateTime(2021, 1, 4) };
-            row.ColDateList = new List<DateTime> { new DateTime(2021, 1, 5), new DateTime(2021, 1, 6) };
-            await context.SaveChangesAsync();
+                // The commit timestamp was automatically set by Cloud Spanner.
+                Assert.NotEqual(new DateTime(), row.ColCommitTimestamp);
+                // This assumes that the local time does not differ more than 10 minutes with TrueTime.
+                Assert.True(Math.Abs(DateTime.UtcNow.Subtract(row.ColCommitTimestamp.GetValueOrDefault()).TotalMinutes) < 10, $"Commit timestamp {row.ColCommitTimestamp} differs with more than 10 minutes from now ({DateTime.UtcNow})");
+
+                // Update rows
+                row.ColBool = false;
+                row.ColBoolArray = new bool[] { false, true, false };
+                row.ColBoolList = new List<bool> { true, true };
+                row.ColBytes = Encoding.UTF8.GetBytes("This string has changed");
+                row.ColBytesArray = new byte[][] { Encoding.UTF8.GetBytes("string change 1"), Encoding.UTF8.GetBytes("string change 2") };
+                row.ColBytesList = new List<byte[]> { Encoding.UTF8.GetBytes("string change 3"), Encoding.UTF8.GetBytes("string change 4") };
+                row.ColTimestamp = new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000);
+                row.ColTimestampArray = new DateTime[] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000), now };
+                row.ColTimestampList = new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(500), now };
+                row.ColDecimal = 10.5m;
+                row.ColDecimalArray = new decimal[] { 20.1m, 30.5m };
+                row.ColDecimalList = new List<decimal> { 50m, 15.5m };
+                row.ColDouble = 15;
+                row.ColDoubleArray = new double[] { 15.5 };
+                row.ColDoubleList = new List<double> { 30.9 };
+                row.ColFloat = 16.52f;
+                row.ColInt = 200;
+                row.ColLong = 19999;
+                row.ColLongArray = new long[] { 17, 18 };
+                row.ColLongList = new List<long> { 25, 26 };
+                row.ColShort = 1;
+                row.ColString = "Updated String 1";
+                row.ColStringArray = new string[] { "string1 Updated" };
+                row.ColStringList = new List<string> { "string2 Updated" };
+                row.ColUint = 3;
+                row.ColDate = new DateTime(2021, 1, 2);
+                row.ColDateArray = new DateTime[] { new DateTime(2021, 1, 3), new DateTime(2021, 1, 4) };
+                row.ColDateList = new List<DateTime> { new DateTime(2021, 1, 5), new DateTime(2021, 1, 6) };
+                await context.SaveChangesAsync();
+            }
 
             // Retrieve Updated Rows
-            row = await context.AllColTypes.FindAsync(10);
-            Assert.False(row.ColBool);
-            Assert.Equal(new bool[] { false, true, false }, row.ColBoolArray);
-            Assert.Equal(new List<bool> { true, true }, row.ColBoolList);
-            Assert.Equal(Encoding.UTF8.GetBytes("This string has changed"), row.ColBytes);
-            Assert.Equal(new byte[][] { Encoding.UTF8.GetBytes("string change 1"), Encoding.UTF8.GetBytes("string change 2") }, row.ColBytesArray);
-            Assert.Equal(new List<byte[]> { Encoding.UTF8.GetBytes("string change 3"), Encoding.UTF8.GetBytes("string change 4") }, row.ColBytesList);
-            Assert.Equal(new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000), row.ColTimestamp);
-            Assert.Equal(new DateTime[] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000), now }, row.ColTimestampArray);
-            Assert.Equal(new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(500), now }, row.ColTimestampList);
-            Assert.Equal(10.5m, row.ColDecimal);
-            Assert.Equal(new decimal[] { 20.1m, 30.5m }, row.ColDecimalArray);
-            Assert.Equal(new List<decimal> { 50m, 15.5m }, row.ColDecimalList);
-            Assert.Equal(15, row.ColDouble);
-            Assert.Equal(new double[] { 15.5 }, row.ColDoubleArray);
-            Assert.Equal(new List<double> { 30.9 }, row.ColDoubleList);
-            Assert.Equal(16.52f, row.ColFloat);
-            Assert.Equal(200, row.ColInt);
-            Assert.Equal(19999, row.ColLong);
-            Assert.Equal(new long[] { 17, 18 }, row.ColLongArray);
-            Assert.Equal(new List<long> { 25, 26 }, row.ColLongList);
-            Assert.Equal((short)1, row.ColShort);
-            Assert.Equal("Updated String 1", row.ColString);
-            Assert.Equal(new string[] { "string1 Updated" }, row.ColStringArray);
-            Assert.Equal(new List<string> { "string2 Updated" }, row.ColStringList);
-            Assert.Equal((uint)3, row.ColUint);
-            Assert.Equal(new DateTime(2021, 1, 2), row.ColDate);
-            Assert.Equal(new DateTime[] { new DateTime(2021, 1, 3), new DateTime(2021, 1, 4) }, row.ColDateArray);
-            Assert.Equal(new List<DateTime> { new DateTime(2021, 1, 5), new DateTime(2021, 1, 6) }, row.ColDateList);
+            using (var context = new TestMigrationDbContext(_fixture.DatabaseName))
+            {
+                var row = await context.AllColTypes.FindAsync(10);
+                Assert.False(row.ColBool);
+                Assert.Equal(new bool[] { false, true, false }, row.ColBoolArray);
+                Assert.Equal(new List<bool> { true, true }, row.ColBoolList);
+                Assert.Equal(Encoding.UTF8.GetBytes("This string has changed"), row.ColBytes);
+                Assert.Equal(new byte[][] { Encoding.UTF8.GetBytes("string change 1"), Encoding.UTF8.GetBytes("string change 2") }, row.ColBytesArray);
+                Assert.Equal(new List<byte[]> { Encoding.UTF8.GetBytes("string change 3"), Encoding.UTF8.GetBytes("string change 4") }, row.ColBytesList);
+                Assert.Equal(new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000), row.ColTimestamp);
+                Assert.Equal(new DateTime[] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000), now }, row.ColTimestampArray);
+                Assert.Equal(new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(500), now }, row.ColTimestampList);
+                Assert.Equal(10.5m, row.ColDecimal);
+                Assert.Equal(new decimal[] { 20.1m, 30.5m }, row.ColDecimalArray);
+                Assert.Equal(new List<decimal> { 50m, 15.5m }, row.ColDecimalList);
+                Assert.Equal(15, row.ColDouble);
+                Assert.Equal(new double[] { 15.5 }, row.ColDoubleArray);
+                Assert.Equal(new List<double> { 30.9 }, row.ColDoubleList);
+                Assert.Equal(16.52f, row.ColFloat);
+                Assert.Equal(200, row.ColInt);
+                Assert.Equal(19999, row.ColLong);
+                Assert.Equal(new long[] { 17, 18 }, row.ColLongArray);
+                Assert.Equal(new List<long> { 25, 26 }, row.ColLongList);
+                Assert.Equal((short)1, row.ColShort);
+                Assert.Equal("Updated String 1", row.ColString);
+                Assert.Equal(new string[] { "string1 Updated" }, row.ColStringArray);
+                Assert.Equal(new List<string> { "string2 Updated" }, row.ColStringList);
+                Assert.Equal((uint)3, row.ColUint);
+                Assert.Equal(new DateTime(2021, 1, 2), row.ColDate);
+                Assert.Equal(new DateTime[] { new DateTime(2021, 1, 3), new DateTime(2021, 1, 4) }, row.ColDateArray);
+                Assert.Equal(new List<DateTime> { new DateTime(2021, 1, 5), new DateTime(2021, 1, 6) }, row.ColDateList);
+            }
         }
 
         [Fact]

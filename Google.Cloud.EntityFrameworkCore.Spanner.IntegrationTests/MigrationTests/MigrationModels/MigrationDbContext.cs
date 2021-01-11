@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -40,6 +41,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 entity.Property(e => e.ColDate).HasColumnType("DATE");
                 entity.Property(e => e.ColDateArray).HasColumnType("ARRAY<DATE>");
                 entity.Property(e => e.ColDateList).HasColumnType("ARRAY<DATE>");
+                entity.Property(e => e.ColCommitTimestamp)
+                .HasAnnotation("UpdateCommitTimestamp", SpannerUpdateCommitTimestamp.OnInsertAndUpdate);
             });
 
             modelBuilder.Entity<OrderDetail>()

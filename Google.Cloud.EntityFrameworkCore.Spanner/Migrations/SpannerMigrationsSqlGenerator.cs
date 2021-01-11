@@ -230,6 +230,12 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             {
                 builder.Append(" NOT NULL");
             }
+
+            var commitTimestampAnnotation = operation.FindAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp);
+            if (commitTimestampAnnotation != null)
+            {
+                builder.Append(" OPTIONS (allow_commit_timestamp=true) ");
+            }
         }
     }
 }
