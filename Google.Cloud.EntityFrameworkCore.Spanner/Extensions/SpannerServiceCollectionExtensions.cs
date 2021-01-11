@@ -53,6 +53,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                 .TryAdd<IQuerySqlGeneratorFactory, SpannerQuerySqlGeneratorFactory>()
                 .TryAdd<IRelationalConnection>(p => p.GetService<ISpannerRelationalConnection>())
                 .TryAdd<IMigrationsSqlGenerator, SpannerMigrationsSqlGenerator>()
+                .TryAdd<IMigrationCommandExecutor, SpannerMigrationCommandExecutor>()
                 .TryAdd<IRelationalDatabaseCreator, SpannerDatabaseCreator>()
                 .TryAdd<IHistoryRepository, SpannerHistoryRepository>()
                 .TryAdd<IExecutionStrategyFactory, RelationalExecutionStrategyFactory>()
