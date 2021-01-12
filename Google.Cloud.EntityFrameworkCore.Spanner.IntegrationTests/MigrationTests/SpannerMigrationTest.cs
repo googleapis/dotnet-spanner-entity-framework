@@ -415,7 +415,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 "this is too long string should throw length validation error"
             });
 
-            Assert.Throws<ArgumentOutOfRangeException>(() => context.SaveChanges());
+            Assert.Throws<SpannerBatchNonQueryException>(() => context.SaveChanges());
         }
 
         [Fact]
