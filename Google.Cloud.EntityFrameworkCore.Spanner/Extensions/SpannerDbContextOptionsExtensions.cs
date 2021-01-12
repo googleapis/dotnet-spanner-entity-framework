@@ -13,13 +13,13 @@
 // limitations under the License.
 
 using Google.Api.Gax;
-using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
+using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using System;
-using System.Data.Common;
 
 namespace Microsoft.EntityFrameworkCore
 {
@@ -45,11 +45,16 @@ namespace Microsoft.EntityFrameworkCore
             ((IDbContextOptionsBuilderInfrastructure)optionsBuilder).AddOrUpdateExtension(extension);
 
             ConfigureWarnings(optionsBuilder);
-            // optionsBuilder.AddInterceptors(new SpannerTransactionInterceptor());
             spannerOptionsAction?.Invoke(new SpannerDbContextOptionsBuilder(optionsBuilder));
 
             return optionsBuilder;
         }
+
+        public static DbContextOptionsBuilder UseSpanner(
+            this DbContextOptionsBuilder optionsBuilder,
+            SpannerConnection connection,
+            Action<SpannerDbContextOptionsBuilder> spannerOptionsAction = null) =>
+            UseSpanner(optionsBuilder, new SpannerRetriableConnection(connection), spannerOptionsAction);
 
         /// <summary>
         /// </summary>
@@ -57,9 +62,9 @@ namespace Microsoft.EntityFrameworkCore
         /// <param name="connection"></param>
         /// <param name="spannerOptionsAction"></param>
         /// <returns></returns>
-        public static DbContextOptionsBuilder UseSpanner(
+        internal static DbContextOptionsBuilder UseSpanner(
             this DbContextOptionsBuilder optionsBuilder,
-            DbConnection connection,
+            SpannerRetriableConnection connection,
             Action<SpannerDbContextOptionsBuilder> spannerOptionsAction = null)
         {
             GaxPreconditions.CheckNotNull(optionsBuilder, nameof(optionsBuilder));
@@ -90,16 +95,17 @@ namespace Microsoft.EntityFrameworkCore
             => (DbContextOptionsBuilder<TContext>)UseSpanner(
                 (DbContextOptionsBuilder)optionsBuilder, connectionString, spannerOptionsAction);
 
-        /// <summary>
-        /// </summary>
-        /// <typeparam name="TContext"></typeparam>
-        /// <param name="optionsBuilder"></param>
-        /// <param name="connection"></param>
-        /// <param name="spannerOptionsAction"></param>
-        /// <returns></returns>
         public static DbContextOptionsBuilder<TContext> UseSpanner<TContext>(
             this DbContextOptionsBuilder<TContext> optionsBuilder,
-            DbConnection connection,
+            SpannerConnection connection,
+            Action<SpannerDbContextOptionsBuilder> spannerOptionsAction = null)
+            where TContext : DbContext
+            => (DbContextOptionsBuilder<TContext>)UseSpanner(
+                (DbContextOptionsBuilder)optionsBuilder, new SpannerRetriableConnection(connection), spannerOptionsAction);
+
+        internal static DbContextOptionsBuilder<TContext> UseSpanner<TContext>(
+            this DbContextOptionsBuilder<TContext> optionsBuilder,
+            SpannerRetriableConnection connection,
             Action<SpannerDbContextOptionsBuilder> spannerOptionsAction = null)
             where TContext : DbContext
             => (DbContextOptionsBuilder<TContext>)UseSpanner(

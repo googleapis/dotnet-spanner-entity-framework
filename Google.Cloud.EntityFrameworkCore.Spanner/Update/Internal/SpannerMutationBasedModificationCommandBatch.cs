@@ -14,6 +14,7 @@
 
 using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -78,9 +79,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         public override async Task ExecuteAsync(IRelationalConnection connection,
             CancellationToken cancellationToken = new CancellationToken())
         {
+            GaxPreconditions.CheckArgument(connection.DbConnection is SpannerRetriableConnection, nameof(connection), "");
             var spannerConnection = (SpannerRetriableConnection)connection.DbConnection;
-            var transaction = connection.CurrentTransaction?.GetDbTransaction() as SpannerRetriableTransaction;
-            if (transaction == null)
+            if (!(connection.CurrentTransaction?.GetDbTransaction() is SpannerRetriableTransaction transaction))
             {
                 throw new InvalidOperationException("");
             }
@@ -96,23 +97,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             SpannerRetriableTransaction transaction,
             ModificationCommand modificationCommand)
         {
-            // TODO: These will currently not be retried if the transaction is aborted and retried.
-            SpannerCommand cmd;
-            switch (modificationCommand.EntityState)
+            SpannerCommand cmd = modificationCommand.EntityState switch
             {
-                case EntityState.Deleted:
-                    cmd = spannerConnection.SpannerConnection.CreateDeleteCommand(modificationCommand.TableName);
-                    break;
-                case EntityState.Modified:
-                    cmd = spannerConnection.SpannerConnection.CreateUpdateCommand(modificationCommand.TableName);
-                    break;
-                case EntityState.Added:
-                    cmd = spannerConnection.SpannerConnection.CreateInsertCommand(modificationCommand.TableName);
-                    break;
-                default:
-                    throw new NotSupportedException(
-                        $"Modification type {modificationCommand.EntityState} is not supported.");
-            }
+                EntityState.Deleted => spannerConnection.SpannerConnection.CreateDeleteCommand(modificationCommand.TableName),
+                EntityState.Modified => spannerConnection.SpannerConnection.CreateUpdateCommand(modificationCommand.TableName),
+                EntityState.Added => spannerConnection.SpannerConnection.CreateInsertCommand(modificationCommand.TableName),
+                _ => throw new NotSupportedException($"Modification type {modificationCommand.EntityState} is not supported."),
+            };
             // TODO: Integrate with Spanner logging
             cmd.Transaction = transaction.SpannerTransaction;
             foreach (var columnModification in modificationCommand.ColumnModifications)

@@ -51,23 +51,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// </summary>
         public override void Create()
         {
-            using (var masterConnection = _connection.CreateMasterConnection())
-            {
-                Dependencies.MigrationCommandExecutor
-                    .ExecuteNonQuery(CreateCreateOperations(), masterConnection);
-            }
+            using var masterConnection = _connection.CreateMasterConnection();
+            Dependencies.MigrationCommandExecutor
+                .ExecuteNonQuery(CreateCreateOperations(), masterConnection);
         }
 
 
         /// <inheritdoc />
         public override async Task CreateAsync(CancellationToken cancellationToken = default)
         {
-            using (var masterConnection = _connection.CreateMasterConnection())
-            {
-                await Dependencies.MigrationCommandExecutor
-                    .ExecuteNonQueryAsync(CreateCreateOperations(), masterConnection, cancellationToken)
-                    .ConfigureAwait(false);
-            }
+            using var masterConnection = _connection.CreateMasterConnection();
+            await Dependencies.MigrationCommandExecutor
+                .ExecuteNonQueryAsync(CreateCreateOperations(), masterConnection, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc />
@@ -144,22 +140,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <inheritdoc />
         public override void Delete()
         {
-            using (var masterConnection = _connection.CreateMasterConnection())
-            {
-                Dependencies.MigrationCommandExecutor
-                    .ExecuteNonQuery(CreateDropCommands(), masterConnection);
-            }
+            using var masterConnection = _connection.CreateMasterConnection();
+            Dependencies.MigrationCommandExecutor
+                .ExecuteNonQuery(CreateDropCommands(), masterConnection);
         }
 
         /// <inheritdoc />
         public override async Task DeleteAsync(CancellationToken cancellationToken = default)
         {
-            using (var masterConnection = _connection.CreateMasterConnection())
-            {
-                await Dependencies.MigrationCommandExecutor
-                    .ExecuteNonQueryAsync(CreateDropCommands(), masterConnection, cancellationToken)
-                    .ConfigureAwait(false);
-            }
+            using var masterConnection = _connection.CreateMasterConnection();
+            await Dependencies.MigrationCommandExecutor
+                .ExecuteNonQueryAsync(CreateDropCommands(), masterConnection, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc />

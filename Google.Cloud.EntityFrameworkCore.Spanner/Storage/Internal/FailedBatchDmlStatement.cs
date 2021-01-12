@@ -1,8 +1,20 @@
-﻿using Google.Cloud.Spanner.Data;
+﻿// Copyright 2021, Google Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+using Google.Cloud.Spanner.Data;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -24,22 +36,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             _exception = exception;
         }
 
-        async Task IRetriableStatement.Retry(SpannerRetriableTransaction transaction, CancellationToken cancellationToken, int timeoutSeconds)
+        async Task IRetriableStatement.RetryAsync(SpannerRetriableTransaction transaction, CancellationToken cancellationToken, int timeoutSeconds)
         {
             try
             {
-                await _command.CreateSpannerBatchCommand().ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                await _command.CreateSpannerBatchCommand().ExecuteNonQueryAsync(cancellationToken);
                 // Fallthrough and throw the exception at the end of the method.
             }
             catch (SpannerBatchNonQueryException e)
             {
                 // Check that we got the exact same exception and results this time as the previous time.
-                if (_exception is SpannerBatchNonQueryException
+                if (_exception is SpannerBatchNonQueryException batchException
                     && e.ErrorCode == _exception.ErrorCode
                     && e.Message.Equals(_exception.Message)
                     // A Batch DML statement returns the update counts of the first N statements and the error
                     // that occurred for statement N+1.
-                    && e.SuccessfulCommandResults.SequenceEqual(((SpannerBatchNonQueryException)_exception).SuccessfulCommandResults)
+                    && e.SuccessfulCommandResults.SequenceEqual(batchException.SuccessfulCommandResults)
                     )
                 {
                     return;

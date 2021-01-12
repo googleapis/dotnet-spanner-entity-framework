@@ -17,13 +17,17 @@ using Google.Cloud.Spanner.Data;
 using System.Data;
 using System.Data.Common;
 
-namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
+    /// <summary>
+    /// <see cref="DbCommand"/> implementation for Cloud Spanner that can be retried if the underlying
+    /// Spanner transaction is aborted.
+    /// </summary>
     public class SpannerRetriableCommand : DbCommand
     {
         private SpannerRetriableConnection _connection;
         private readonly SpannerCommand _spannerCommand;
-        private SpannerRetriableTransaction _transaction;
+        private SpannerTransactionBase _transaction;
 
         internal SpannerRetriableCommand(SpannerRetriableConnection connection, SpannerCommand spannerCommand)
         {
@@ -45,7 +49,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
         protected override DbTransaction DbTransaction
         {
             get => _transaction;
-            set => _transaction = (SpannerRetriableTransaction)value;
+            set => _transaction = (SpannerTransactionBase)value;
         }
 
         protected override DbParameterCollection DbParameterCollection => _spannerCommand.Parameters;

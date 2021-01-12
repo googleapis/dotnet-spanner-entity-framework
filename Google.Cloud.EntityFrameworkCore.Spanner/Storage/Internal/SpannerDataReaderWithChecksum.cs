@@ -32,10 +32,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     /// </summary>
     public sealed class SpannerDataReaderWithChecksum : DbDataReader, IRetriableStatement
     {
-        private readonly SpannerCommand _spannerCommand;
         private int _numberOfReadCalls;
         private byte[] _currentChecksum = new byte[0];
         private SpannerException _firstException;
+        private readonly SpannerCommand _spannerCommand;
 
         internal SpannerDataReaderWithChecksum(
             SpannerRetriableTransaction transaction,
@@ -68,38 +68,33 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <inheritdoc />
         public override bool Read() => Task.Run(() => ReadAsync(CancellationToken.None)).ResultWithUnwrappedExceptions();
 
-        /// <inheritdoc />
-        public override Task<bool> ReadAsync(CancellationToken cancellationToken) =>
-            Execute(async () =>
+        public async override Task<bool> ReadAsync(CancellationToken cancellationToken)
+        {
+            while (true)
             {
-                while (true)
+                try
                 {
-                    try
-                    {
-                        bool res = await SpannerDataReader.ReadAsync(cancellationToken).ConfigureAwait(false);
-                        if (res)
-                        {
-                            _currentChecksum = CalculateNextChecksum(SpannerDataReader, _currentChecksum);
-                        }
-                        _numberOfReadCalls++;
-                        return res;
-                    }
-                    catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
-                    {
-                        // Retry the transaction and then retry the ReadAsync call.
-                        await Transaction.RetryAsync(e, cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (SpannerException e)
-                    {
-                        if (_firstException == null)
-                        {
-                            _firstException = e;
-                        }
-                        _numberOfReadCalls++;
-                        throw e;
-                    }
+                    bool res = await SpannerDataReader.ReadAsync(cancellationToken);
+                    _currentChecksum = CalculateNextChecksum(SpannerDataReader, _currentChecksum, res);
+                    _numberOfReadCalls++;
+                    return res;
                 }
-            });
+                catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
+                {
+                    // Retry the transaction and then retry the ReadAsync call.
+                    await Transaction.RetryAsync(e, cancellationToken);
+                }
+                catch (SpannerException e)
+                {
+                    if (_firstException == null)
+                    {
+                        _firstException = e;
+                    }
+                    _numberOfReadCalls++;
+                    throw e;
+                }
+            };
+        }
 
         internal static async Task<T> Execute<T>(Func<Task<T>> t)
         {
@@ -107,19 +102,27 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             return result;
         }
 
-        internal static byte[] CalculateNextChecksum(SpannerDataReader reader, byte[] currentChecksum)
+        internal static byte[] CalculateNextChecksum(SpannerDataReader reader, byte[] currentChecksum, bool readResult)
         {
             int size = currentChecksum.Length;
-            for (int i = 0; i < reader.FieldCount; i++)
+            size += Protobuf.WellKnownTypes.Value.ForBool(readResult).CalculateSize();
+            if (readResult)
             {
-                size += reader.GetJsonValue(i).CalculateSize();
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    size += reader.GetJsonValue(i).CalculateSize();
+                }
             }
             using var ms = new MemoryStream(size);
             ms.Write(currentChecksum, 0, currentChecksum.Length);
             using var cos = new CodedOutputStream(ms);
-            for (int i = 0; i < reader.FieldCount; i++)
+            Protobuf.WellKnownTypes.Value.ForBool(readResult).WriteTo(cos);
+            if (readResult)
             {
-                reader.GetJsonValue(i).WriteTo(cos);
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    reader.GetJsonValue(i).WriteTo(cos);
+                }
             }
             // Flush the protobuf stream so everything is written to the memory stream.
             cos.Flush();
@@ -129,10 +132,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             return checksum.ComputeHash(ms);
         }
 
-        async Task IRetriableStatement.Retry(SpannerRetriableTransaction transaction, CancellationToken cancellationToken, int timeoutSeconds)
+        async Task IRetriableStatement.RetryAsync(SpannerRetriableTransaction transaction, CancellationToken cancellationToken, int timeoutSeconds)
         {
             _spannerCommand.Transaction = transaction.SpannerTransaction;
-            var reader = await _spannerCommand.ExecuteReaderAsync();
+            var reader = await _spannerCommand.ExecuteReaderAsync(cancellationToken);
             int counter = 0;
             bool read = true;
             byte[] newChecksum = new byte[0];
@@ -141,11 +144,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             {
                 try
                 {
-                    read = await reader.ReadAsync().ConfigureAwait(false);
-                    if (read)
-                    {
-                        newChecksum = CalculateNextChecksum(reader, newChecksum);
-                    }
+                    read = await reader.ReadAsync(cancellationToken);
+                    newChecksum = CalculateNextChecksum(reader, newChecksum, read);
                     counter++;
                 }
                 catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)

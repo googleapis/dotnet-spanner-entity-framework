@@ -13,7 +13,6 @@
 // limitations under the License.
 
 using Google.Api.Gax;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using System;
 using System.Data;
@@ -21,7 +20,7 @@ using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     /// <summary>
     /// Wrapper around a SpannerConnection that can create transactions that can be
@@ -32,35 +31,115 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
     /// </summary>
     public class SpannerRetriableConnection : DbConnection
     {
+        private bool _disposed;
+
+        // TODO: Consider whether this could be made internal
         public SpannerRetriableConnection(SpannerConnection connection)
         {
             SpannerConnection = connection;
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+            if (disposing)
+            {
+                SpannerConnection.Dispose();
+            }
+            _disposed = true;
+            base.Dispose(disposing);
+        }
+
         internal SpannerConnection SpannerConnection { get; private set; }
 
+        /// <inheritdoc/>
         public override string ConnectionString { get => SpannerConnection.ConnectionString; set => SpannerConnection.ConnectionString = value; }
 
+        /// <inheritdoc/>
         public override string Database => SpannerConnection.Database;
 
+        /// <inheritdoc/>
         public override string DataSource => SpannerConnection.DataSource;
 
+        /// <inheritdoc/>
         public override string ServerVersion => SpannerConnection.ServerVersion;
 
+        /// <inheritdoc/>
         public override ConnectionState State => SpannerConnection.State;
 
+        /// <summary>
+        /// Begins a read-only transaction with <see cref="TimestampBoundMode.Strong"/>
+        /// </summary>
+        /// <returns>A new read-only transaction with <see cref="TimestampBoundMode.Strong"/></returns>
+        public SpannerReadOnlyTransaction BeginReadOnlyTransaction() => BeginReadOnlyTransaction(TimestampBound.Strong);
+
+        /// <summary>
+        /// Begins a read-only transaction with the specified <see cref="TimestampBound"/>
+        /// </summary>
+        /// <param name="timestampBound">The read timestamp to use for the read-only transaction.</param>
+        /// <returns>A new read-only transaction with the specified <see cref="TimestampBound"/></returns>
+        public SpannerReadOnlyTransaction BeginReadOnlyTransaction(TimestampBound timestampBound) =>
+            new SpannerReadOnlyTransaction(this, SpannerConnection.BeginReadOnlyTransaction(timestampBound));
+
+        /// <summary>
+        /// Begins a read-only transaction with <see cref="TimestampBoundMode.Strong"/>
+        /// </summary>
+        /// <returns>A new read-only transaction with <see cref="TimestampBoundMode.Strong"/></returns>
+        public Task<SpannerReadOnlyTransaction> BeginReadOnlyTransactionAsync(CancellationToken cancellationToken = default) =>
+            BeginReadOnlyTransactionAsync(TimestampBound.Strong, cancellationToken);
+
+        /// <summary>
+        /// Begins a read-only transaction with the specified <see cref="TimestampBound"/>
+        /// </summary>
+        /// <param name="timestampBound">The read timestamp to use for the read-only transaction.</param>
+        /// <returns>A new read-only transaction with the specified <see cref="TimestampBound"/></returns>
+        public async Task<SpannerReadOnlyTransaction> BeginReadOnlyTransactionAsync(TimestampBound timestampBound, CancellationToken cancellationToken = default) =>
+            new SpannerReadOnlyTransaction(this, await SpannerConnection.BeginReadOnlyTransactionAsync(timestampBound, cancellationToken));
+
+        /// <summary>
+        /// Begins a new read/write transaction on the connection. The transaction will automatically be
+        /// retried if one of the statements on the transaction is aborted by Cloud Spanner.
+        /// </summary>
+        /// <returns>A new read/write transaction with internal retries enabled.</returns>
         public new SpannerRetriableTransaction BeginTransaction()
             => BeginTransaction(IsolationLevel.Unspecified);
 
+        /// <summary>
+        /// Begins a new read/write transaction on the connection with the specified <see cref="IsolationLevel"/>.
+        /// Cloud Spanner only supports <see cref="IsolationLevel.Serializable"/>. Trying to set a different
+        /// isolation level will cause an <see cref="NotSupportedException"/>.
+        /// The transaction will automatically be retried if one of the statements on the transaction
+        /// is aborted by Cloud Spanner.
+        /// </summary>
+        /// <returns>A new read/write transaction with internal retries enabled.</returns>
+        /// <exception cref="NotSupportedException"/>
         public new SpannerRetriableTransaction BeginTransaction(IsolationLevel isolationLevel)
             => BeginTransactionAsync(isolationLevel).ResultWithUnwrappedExceptions();
 
+        /// <inheritdoc/>
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
             => BeginTransactionAsync(isolationLevel).ResultWithUnwrappedExceptions();
 
+        /// <summary>
+        /// Begins a new read/write transaction on the connection. The transaction will automatically be
+        /// retried if one of the statements on the transaction is aborted by Cloud Spanner.
+        /// </summary>
+        /// <returns>A new read/write transaction with internal retries enabled.</returns>
         public Task<SpannerRetriableTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
             => BeginTransactionAsync(IsolationLevel.Unspecified, cancellationToken);
 
+        /// <summary>
+        /// Begins a new read/write transaction on the connection with the specified <see cref="IsolationLevel"/>.
+        /// Cloud Spanner only supports <see cref="IsolationLevel.Serializable"/>. Trying to set a different
+        /// isolation level will cause an <see cref="NotSupportedException"/>.
+        /// The transaction will automatically be retried if one of the statements on the transaction
+        /// is aborted by Cloud Spanner.
+        /// </summary>
+        /// <returns>A new read/write transaction with internal retries enabled.</returns>
+        /// <exception cref="NotSupportedException"/>
         public async Task<SpannerRetriableTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default)
         {
             if (isolationLevel != IsolationLevel.Unspecified
@@ -77,17 +156,35 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
                 SystemScheduler.Instance);
         }
 
+        /// <summary>
+        /// Creates a command that can be used for a query. It will automatically retry if the transaction aborts.
+        /// </summary>
+        /// <param name="sqlQueryStatement"></param>
+        /// <param name="selectParameters"></param>
+        /// <returns>A new command that can be used for queries</returns>
         public SpannerRetriableCommand CreateSelectCommand(string sqlQueryStatement, SpannerParameterCollection selectParameters = null) =>
             new SpannerRetriableCommand(this, SpannerConnection.CreateSelectCommand(sqlQueryStatement, selectParameters));
 
+        /// <summary>
+        /// Creates a command that can be used for a DML statement. It will automatically retry if the transaction aborts.
+        /// </summary>
+        /// <param name="dmlStatement"></param>
+        /// <param name="dmlParameters"></param>
+        /// <returns>A new command that can be used for a DML statement</returns>
         public SpannerRetriableCommand CreateDmlCommand(string dmlStatement, SpannerParameterCollection dmlParameters = null) =>
             new SpannerRetriableCommand(this, SpannerConnection.CreateDmlCommand(dmlStatement, dmlParameters));
 
+        /// <summary>
+        /// Creates a command that can be used for a batch of DML statements. It will automatically retry if the transaction aborts.
+        /// </summary>
+        /// <returns>A new command that can be used for a batch of DML statements</returns>
         public SpannerRetriableBatchCommand CreateBatchDmlCommand() => new SpannerRetriableBatchCommand(this);
 
+        /// <inheritdoc/>
         protected override DbCommand CreateDbCommand() =>
             new SpannerRetriableCommand(this, new SpannerCommand { SpannerConnection = SpannerConnection });
 
+        // TODO: Test and document mutation commands
         public SpannerRetriableCommand CreateDeleteCommand(
             string databaseTable,
             SpannerParameterCollection primaryKeys = null) =>
@@ -110,10 +207,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
             string ddlStatement, params string[] extraDdlStatements) =>
             new SpannerRetriableCommand(this, SpannerConnection.CreateDdlCommand(ddlStatement, extraDdlStatements));
 
+        /// <inheritdoc/>
         public override void ChangeDatabase(string databaseName) => SpannerConnection.ChangeDatabase(databaseName);
 
+        /// <inheritdoc/>
         public override void Close() => SpannerConnection.Close();
 
+        /// <inheritdoc/>
         public override void Open() => SpannerConnection.Open();
 
     }

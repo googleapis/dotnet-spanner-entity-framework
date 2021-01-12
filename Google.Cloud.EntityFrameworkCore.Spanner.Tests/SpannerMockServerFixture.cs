@@ -20,7 +20,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 {
     public class SpannerMockServerFixture : IDisposable
     {
-        private Random _random = new Random();
+        private readonly Random _random = new Random();
 
         private readonly Server _server;
         public MockSpannerService SpannerMock { get; }
