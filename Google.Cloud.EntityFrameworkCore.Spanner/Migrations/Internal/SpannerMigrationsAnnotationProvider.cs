@@ -15,8 +15,11 @@
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Reflection;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 {
@@ -43,6 +46,29 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             }
 
             return baseAnnotations;
+        }
+
+        public override IEnumerable<IAnnotation> For(IEntityType entityType)
+        {
+            var baseAnnotations = base.For(entityType);
+            var interleaveInParentAttribute = GetAttribute<InterleaveInParentAttribute>(entityType.ClrType);
+            return interleaveInParentAttribute == null ? baseAnnotations
+              : baseAnnotations.Concat(new[] {
+                  new Annotation(SpannerAnnotationNames.InterleaveInParent,interleaveInParentAttribute.Table),
+                  new Annotation(SpannerAnnotationNames.InterleaveInParentOnDelete,interleaveInParentAttribute.OnDelete)
+              });
+        }
+
+        private static TAttribute GetAttribute<TAttribute>(MemberInfo memberInfo)
+            where TAttribute : Attribute
+        {
+            if (memberInfo == null
+                || !Attribute.IsDefined(memberInfo, typeof(TAttribute), inherit: true))
+            {
+                return null;
+            }
+
+            return memberInfo.GetCustomAttribute<TAttribute>(inherit: true);
         }
     }
 }

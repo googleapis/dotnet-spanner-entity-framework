@@ -33,6 +33,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderDetail> OrderDetails { get; set; }
         public DbSet<AllColType> AllColTypes { get; set; }
+        public DbSet<Article> Articles { get; set; }
+        public DbSet<Author> Authors { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -48,11 +51,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             modelBuilder.Entity<OrderDetail>()
                 .HasKey(c => new { c.OrderId, c.ProductId });
 
+            modelBuilder.Entity<Article>()
+                .HasKey(c => new { c.AuthorId, c.ArticleId });
+
             modelBuilder.Entity<Product>().ToTable("Products");
             modelBuilder.Entity<Category>().ToTable("Categories");
             modelBuilder.Entity<Order>().ToTable("Orders");
             modelBuilder.Entity<OrderDetail>().ToTable("OrderDetails");
             modelBuilder.Entity<AllColType>().ToTable("AllColTypes");
+            modelBuilder.Entity<Article>().ToTable("Articles");
+            modelBuilder.Entity<Author>().ToTable("Authors");
         }
     }
 }

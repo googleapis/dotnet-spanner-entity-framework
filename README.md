@@ -127,6 +127,30 @@ public partial class ArtistDbContext : DbContext
 1. Add-Migration "migration name"
 2. Update-Database
 
+## Creating a hierarchy of interleaved tables
+Using `InterLeave` Attribute you can create Hierarchy of [interleaved tables][inter-leaved-table].
+while declaring the Interleaved Table option it automatically ignore the foreign key referece.
+
+```cs
+public class Author
+{
+    public long AuthorId { get; set; }
+    public string AutherName { get; set; }
+
+    public ICollection<Article> Articles { get; set; }
+}
+
+[InterleaveInParent("Authors", "AuthorId", OnDelete.Cascade)]
+public class Article
+{
+    public long AuthorId { get; set; }
+    public long ArticleId { get; set; }
+    public DateTime PublishDate { get; set; }
+    public string ArticleTitle { get; set; }
+    public string ArticleContent { get; set; }
+    public Author Author { get; set; }
+}
+```
 # Query Limitations
 * Operation on `ARRAY` types performs in memory.
 * Data Annotation Validation on `ARRAY` types might not work. 
@@ -139,3 +163,4 @@ Instead, you may use a client side Guid generator for a primary key.
 [billing]: https://support.google.com/cloud/answer/6293499#enable-billing
 [enable_api]: https://console.cloud.google.com/flows/enableapi?apiid=spanner.googleapis.com
 [auth]: https://cloud.google.com/docs/authentication/getting-started
+[inter-leaved-table]: https://cloud.google.com/spanner/docs/schema-and-data-model#creating_a_hierarchy_of_interleaved_tables

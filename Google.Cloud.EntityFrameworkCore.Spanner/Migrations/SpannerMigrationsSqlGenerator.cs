@@ -137,6 +137,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 for (var i = 0; i < operation.Columns.Count; i++)
                 {
                     var column = operation.Columns[i];
+
                     ColumnDefinition(column, model, builder);
 
                     if (i != operation.Columns.Count - 1)
@@ -146,13 +147,26 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 }
             }
 
+
             if (operation.ForeignKeys.Any())
             {
+                // Exclude Interleaved table from foreign key.
+                var isInterleavedWithParent = operation.FindAnnotation(SpannerAnnotationNames.InterleaveInParent) != null;
                 builder.Append(",");
                 builder.AppendLine();
                 foreach (var key in operation.ForeignKeys)
                 {
-                    ForeignKeyConstraint(key, model, builder);
+                    if (isInterleavedWithParent)
+                    {
+                        if (!key.Columns.Any(c => operation.PrimaryKey.Columns.Any(i => i == c)))
+                        {
+                            ForeignKeyConstraint(key, model, builder);
+                        }
+                    }
+                    else
+                    {
+                        ForeignKeyConstraint(key, model, builder);
+                    }
                 }
             }
             else
@@ -164,6 +178,24 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             if (operation.PrimaryKey != null)
             {
                 PrimaryKeyConstraint(operation.PrimaryKey, model, builder);
+            }
+
+            var tableAttribute = operation.FindAnnotation(SpannerAnnotationNames.InterleaveInParent);
+            if (tableAttribute != null)
+            {
+                builder.AppendLine(",")
+                    .Append(" INTERLEAVE IN PARENT ")
+                    .Append(tableAttribute.Value)
+                    .Append(" ON DELETE ");
+                var onDeleteAtrribute = operation.FindAnnotation(SpannerAnnotationNames.InterleaveInParentOnDelete);
+                if ((OnDelete)onDeleteAtrribute?.Value == OnDelete.Cascade)
+                {
+                    builder.AppendLine("CASCADE ");
+                }
+                else
+                {
+                    builder.AppendLine("NO ACTION ");
+                }
             }
 
             if (terminate)

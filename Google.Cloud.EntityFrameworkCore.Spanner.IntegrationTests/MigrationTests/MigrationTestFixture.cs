@@ -63,7 +63,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                         "Orders",
                         "Products",
                         "Categories",
-                        "AllColTypes"
+                        "AllColTypes",
+                        "Articles",
+                        "Authors"
                 })
                 {
                     cmd.Add($"DELETE FROM {table} WHERE TRUE");

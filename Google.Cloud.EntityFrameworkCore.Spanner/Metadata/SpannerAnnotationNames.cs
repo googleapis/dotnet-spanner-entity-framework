@@ -17,6 +17,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata
     public static class SpannerAnnotationNames
     {
         public const string UpdateCommitTimestamp = "UpdateCommitTimestamp";
+        public const string InterleaveInParent = "Spanner:InterleaveInParent";
+        public const string InterleaveInParentOnDelete = "Spanner:InterleaveInParentOnDelete";
     }
 
     public enum SpannerUpdateCommitTimestamp
@@ -25,5 +27,11 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         OnUpdate,
         OnInsert,
         OnInsertAndUpdate
+    }
+
+    public enum OnDelete
+    {
+        Cascade,
+        NoAction
     }
 }

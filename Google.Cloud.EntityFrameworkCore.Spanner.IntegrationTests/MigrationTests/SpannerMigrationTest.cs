@@ -15,6 +15,7 @@
 using Google.Cloud.Spanner.Data;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
@@ -31,7 +32,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public async Task AllTablesAreGenerated()
         {
             using var connection = _fixture.GetConnection();
-            var tableNames = new string[] { "Products", "Categories", "Orders", "OrderDetails" };
+            var tableNames = new string[] { "Products", "Categories", "Orders", "OrderDetails", "Articles", "Authors" };
             var tables = new SpannerParameterCollection
             {
                 { "tables", SpannerDbType.ArrayOf(SpannerDbType.String), tableNames }
@@ -432,6 +433,62 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 }
             });
 
+            Assert.Throws<SpannerBatchNonQueryException>(() => context.SaveChanges());
+        }
+
+        [Fact]
+        public async Task CanInsertAndDeleteInterleaveOnDeleteCascade()
+        {
+            using (var context = new TestMigrationDbContext(_fixture.DatabaseName))
+            {
+                var article = new Article
+                {
+                    ArticleId = 1,
+                    Author = new Author
+                    {
+                        AuthorId = 1,
+                        AutherName = "Calvin Saunders"
+                    },
+                    ArticleTitle = "Research on Resource Reports",
+                    ArticleContent = "This is simple content on resource report research.",
+                    PublishDate = new DateTime(2020, 12, 1)
+                };
+                context.Articles.Add(article);
+                var rowCount = await context.SaveChangesAsync();
+                Assert.Equal(2, rowCount);
+            }
+
+            using (var context = new TestMigrationDbContext(_fixture.DatabaseName))
+            {
+                // Delete Author Should delete the Article's as well.
+                var author = new Author
+                {
+                    AuthorId = 1,
+                    AutherName = "Calvin Saunders"
+                };
+
+                context.Authors.Remove(author);
+                await context.SaveChangesAsync();
+
+                // Find Article with deleted Author
+                var article = context.Articles.FirstOrDefault(c => c.ArticleId == 1 && c.AuthorId == 1);
+                Assert.Null(article);
+            }
+        }
+
+        [Fact]
+        public void ShouldThrowInterleaveTableOnInsert()
+        {
+            using var context = new TestMigrationDbContext(_fixture.DatabaseName);
+            var article = new Article
+            {
+                ArticleId = 1,
+                AuthorId = 9999,
+                ArticleTitle = "Research on Perspectives",
+                ArticleContent = "This is simple content on Perspectives research.",
+                PublishDate = new DateTime(2020, 12, 1)
+            };
+            context.Articles.Add(article);
             Assert.Throws<SpannerBatchNonQueryException>(() => context.SaveChanges());
         }
     }
