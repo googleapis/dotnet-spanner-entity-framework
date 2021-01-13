@@ -142,20 +142,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             }
         }
 
-        private void DropOldDatabases(string projectId)
-        {
-            InstanceName instanceName = InstanceName.FromProjectInstance(projectId, SpannerInstance);
-            var databaseAdminClient = new DatabaseAdminClientBuilder().Build();
-            var databases = databaseAdminClient.ListDatabases(instanceName);
-            foreach (var db in databases)
-            {
-                if (db.DatabaseName.DatabaseId.StartsWith("testdb_202010") || db.DatabaseName.DatabaseId.StartsWith("testdb_202011") || db.DatabaseName.DatabaseId.StartsWith("testdb_202012"))
-                {
-                    databaseAdminClient.DropDatabase(db.DatabaseName);
-                }
-            }
-        }
-
         private static string GetEnvironmentVariableOrDefault(string name, string defaultValue)
         {
             string value = Environment.GetEnvironmentVariable(name);

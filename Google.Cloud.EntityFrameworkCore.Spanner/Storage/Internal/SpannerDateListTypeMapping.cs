@@ -1,4 +1,4 @@
-﻿// Copyright 2020, Google Inc. All rights reserved.
+﻿// Copyright 2021, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,26 +16,41 @@ using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System;
+using System.Collections.Generic;
+using System.Data.Common;
+using System.Linq;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
-    public class SpannerDateTypeMapping : RelationalTypeMapping
+    public class SpannerDateListTypeMapping : RelationalTypeMapping
     {
-        private static readonly ValueConverter converter = new ValueConverter<SpannerDate, DateTime>(
-            v => v.ToDateTime(),
-            v => SpannerDate.FromDateTime(v));
+        private static readonly ValueConverter converter = new ValueConverter<List<SpannerDate>, List<DateTime>>(
+            v => v.Select(sd => sd.ToDateTime()).ToList(),
+            v => v.Select(dt => SpannerDate.FromDateTime(dt)).ToList());
 
-        public SpannerDateTypeMapping()
+        public SpannerDateListTypeMapping()
             : base(new RelationalTypeMappingParameters(
-                   new CoreTypeMappingParameters(typeof(SpannerDate), converter),
-                   "DATE", StoreTypePostfix.None, System.Data.DbType.Date))
+                   new CoreTypeMappingParameters(typeof(List<SpannerDate>), converter),
+                   "ARRAY<DATE>"))
         { }
 
-        protected SpannerDateTypeMapping(RelationalTypeMappingParameters parameters)
+        protected SpannerDateListTypeMapping(RelationalTypeMappingParameters parameters)
             : base(parameters) { }
 
         protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters)
-            => new SpannerDateTypeMapping(parameters);
+            => new SpannerDateListTypeMapping(parameters);
+
+        protected override void ConfigureParameter(DbParameter parameter)
+        {
+            // This key step will configure our SpannerParameter with this complex type, which will result in
+            // the proper type conversions when the requests go out.
+
+            if (!(parameter is SpannerParameter spannerParameter))
+                throw new ArgumentException($"Spanner-specific type mapping {GetType().Name} being used with non-Spanner parameter type {parameter.GetType().Name}");
+
+            base.ConfigureParameter(parameter);
+            spannerParameter.SpannerDbType = SpannerDbType.ArrayOf(SpannerDbType.Date);
+        }
 
         protected override string GenerateNonNullSqlLiteral(object value)
         {

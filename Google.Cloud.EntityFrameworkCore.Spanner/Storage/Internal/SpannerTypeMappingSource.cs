@@ -90,11 +90,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly SpannerComplexTypeMapping s_longList
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<long>));
 
-        private static readonly SpannerComplexTypeMapping s_dateArray
-            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Date), typeof(DateTime[]));
+        private static readonly SpannerDateArrayTypeMapping s_dateArray = new SpannerDateArrayTypeMapping();
 
-        private static readonly SpannerComplexTypeMapping s_dateList
-            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Date), typeof(List<DateTime>));
+        private static readonly SpannerDateListTypeMapping s_dateList = new SpannerDateListTypeMapping();
 
         private static readonly SpannerComplexTypeMapping s_timestampArray
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Timestamp), typeof(DateTime[]));
@@ -129,6 +127,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(decimal), s_decimal},
                     {typeof(uint), s_uint},
                     {typeof(bool), s_bool},
+                    {typeof(SpannerDate), s_date},
                     {typeof(DateTime), s_datetime},
                     {typeof(float), s_float},
                     {typeof(double), s_double},
@@ -145,9 +144,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(List<double>), s_doubleList},
                     {typeof(long[]), s_longArray},
                     {typeof(List<long>), s_longList},
-                    // TODO: Figure out how to register this {typeof(DateTime[]), s_dateArray},
+                    {typeof(SpannerDate[]), s_dateArray},
                     {typeof(DateTime[]), s_timestampArray},
-                    // TODO: Figure out how to register this {typeof(List<DateTime>), s_dateList},
+                    {typeof(List<SpannerDate>), s_dateList},
                     {typeof(List<DateTime>), s_timestampList},
                     {typeof(byte[][]), s_byteArray},
                     {typeof(List<byte[]>), s_byteList}
@@ -203,7 +202,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 if (s_storeTypeMappings.TryGetValue(storeTypeName, out var mapping)
                     || s_storeTypeMappings.TryGetValue(storeTypeNameBase, out mapping))
                 {
-                    if (clrType == null || mapping.ClrType == clrType)
+                    if (clrType == null || mapping.ClrType == clrType || mapping.Converter?.ProviderClrType == clrType)
                     {
                         return mapping;
                     };
@@ -211,7 +210,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     if (s_listTypeMappings.TryGetValue(storeTypeName, out mapping)
                     || s_listTypeMappings.TryGetValue(storeTypeNameBase, out mapping))
                     {
-                        if (clrType == null || mapping.ClrType == clrType)
+                        if (clrType == null || mapping.ClrType == clrType || mapping.Converter?.ProviderClrType == clrType)
                         {
                             return mapping;
                         };

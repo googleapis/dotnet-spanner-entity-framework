@@ -1,6 +1,8 @@
 ﻿using System;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 {
@@ -34,8 +36,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                     .HasName("IDX_Albums_SingerId_A873389737762742");
 
                 entity.Property(e => e.AlbumId).ValueGeneratedNever();
-
-                entity.Property(e => e.ReleaseDate).HasColumnType("DATE");
 
                 entity.Property(e => e.Title)
                     .IsRequired()
@@ -118,8 +118,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 
                 entity.Property(e => e.SingerId).ValueGeneratedNever();
 
-                entity.Property(e => e.BirthDate).HasColumnType("DATE");
-
                 entity.Property(e => e.FirstName).HasMaxLength(200);
 
                 entity.Property(e => e.FullName)
@@ -156,8 +154,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                 entity.Property(e => e.ColComputed)
                     .HasMaxLength(2621440)
                     .ValueGeneratedOnAddOrUpdate();
-
-                entity.Property(e => e.ColDate).HasColumnType("DATE");
 
                 entity.Property(e => e.ColDateArray).HasColumnType("ARRAY<DATE>");
 

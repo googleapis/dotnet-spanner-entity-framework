@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.Data;
 using System;
 using System.Collections.Generic;
@@ -172,9 +173,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     ColStringArray = new string[] { "string1", "string2", "string3" },
                     ColStringList = new List<string> { "string4", "string5" },
                     ColUint = 12,
-                    ColDate = new DateTime(2021, 1, 1),
-                    ColDateArray = new DateTime[] { new DateTime(2021, 1, 1), new DateTime(2021, 1, 2) },
-                    ColDateList = new List<DateTime> { new DateTime(2021, 1, 3), new DateTime(2021, 1, 4) },
+                    ColDate = new SpannerDate(2021, 1, 1),
+                    ColDateArray = new SpannerDate[] { new SpannerDate(2021, 1, 1), new SpannerDate(2021, 1, 2) },
+                    ColDateList = new List<SpannerDate> { new SpannerDate(2021, 1, 3), new SpannerDate(2021, 1, 4) },
                 };
                 context.AllColTypes.Add(row);
                 var rowCount = await context.SaveChangesAsync();
@@ -212,9 +213,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new string[] { "string1", "string2", "string3" }, row.ColStringArray);
                 Assert.Equal(new List<string> { "string4", "string5" }, row.ColStringList);
                 Assert.Equal((uint)12, row.ColUint);
-                Assert.Equal(new DateTime(2021, 1, 1), row.ColDate);
-                Assert.Equal(new DateTime[] { new DateTime(2021, 1, 1), new DateTime(2021, 1, 2) }, row.ColDateArray);
-                Assert.Equal(new List<DateTime> { new DateTime(2021, 1, 3), new DateTime(2021, 1, 4) }, row.ColDateList);
+                Assert.Equal(new SpannerDate(2021, 1, 1), row.ColDate);
+                Assert.Equal(new SpannerDate[] { new SpannerDate(2021, 1, 1), new SpannerDate(2021, 1, 2) }, row.ColDateArray);
+                Assert.Equal(new List<SpannerDate> { new SpannerDate(2021, 1, 3), new SpannerDate(2021, 1, 4) }, row.ColDateList);
 
                 // The commit timestamp was automatically set by Cloud Spanner.
                 Assert.NotEqual(new DateTime(), row.ColCommitTimestamp);
@@ -247,9 +248,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row.ColStringArray = new string[] { "string1 Updated" };
                 row.ColStringList = new List<string> { "string2 Updated" };
                 row.ColUint = 3;
-                row.ColDate = new DateTime(2021, 1, 2);
-                row.ColDateArray = new DateTime[] { new DateTime(2021, 1, 3), new DateTime(2021, 1, 4) };
-                row.ColDateList = new List<DateTime> { new DateTime(2021, 1, 5), new DateTime(2021, 1, 6) };
+                row.ColDate = new SpannerDate(2021, 1, 2);
+                row.ColDateArray = new SpannerDate[] { new SpannerDate(2021, 1, 3), new SpannerDate(2021, 1, 4) };
+                row.ColDateList = new List<SpannerDate> { new SpannerDate(2021, 1, 5), new SpannerDate(2021, 1, 6) };
                 await context.SaveChangesAsync();
             }
 
@@ -282,9 +283,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new string[] { "string1 Updated" }, row.ColStringArray);
                 Assert.Equal(new List<string> { "string2 Updated" }, row.ColStringList);
                 Assert.Equal((uint)3, row.ColUint);
-                Assert.Equal(new DateTime(2021, 1, 2), row.ColDate);
-                Assert.Equal(new DateTime[] { new DateTime(2021, 1, 3), new DateTime(2021, 1, 4) }, row.ColDateArray);
-                Assert.Equal(new List<DateTime> { new DateTime(2021, 1, 5), new DateTime(2021, 1, 6) }, row.ColDateList);
+                Assert.Equal(new SpannerDate(2021, 1, 2), row.ColDate);
+                Assert.Equal(new SpannerDate[] { new SpannerDate(2021, 1, 3), new SpannerDate(2021, 1, 4) }, row.ColDateArray);
+                Assert.Equal(new List<SpannerDate> { new SpannerDate(2021, 1, 5), new SpannerDate(2021, 1, 6) }, row.ColDateList);
             }
         }
 

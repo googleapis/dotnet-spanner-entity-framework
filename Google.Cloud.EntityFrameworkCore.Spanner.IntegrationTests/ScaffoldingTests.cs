@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using Xunit;
 using System.Text;
 using System.Linq;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -103,7 +104,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     SingerId = singerId,
                     FirstName = "Rob",
                     LastName = "Morrison",
-                    BirthDate = new DateTime(2002, 10, 1),
+                    BirthDate = new SpannerDate(2002, 10, 1),
                     Picture = new byte[] { 1, 2, 3 },
                 };
                 db.Singers.Add(singer);
@@ -119,14 +120,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 var singer = await db.Singers.FindAsync(singerId);
                 Assert.Equal("Rob", singer.FirstName);
                 Assert.Equal("Morrison", singer.LastName);
-                Assert.Equal(new DateTime(2002, 10, 1), singer.BirthDate);
+                Assert.Equal(new SpannerDate(2002, 10, 1), singer.BirthDate);
                 Assert.Equal(new byte[] { 1, 2, 3 }, singer.Picture);
                 Assert.Equal("Rob Morrison", singer.FullName);
 
                 // Update the singer.
                 singer.FirstName = "Alice";
                 singer.LastName = "Morrison - Chine";
-                singer.BirthDate = new DateTime(2002, 10, 15);
+                singer.BirthDate = new SpannerDate(2002, 10, 15);
                 singer.Picture = new byte[] { 3, 2, 1 };
                 await db.SaveChangesAsync();
             }
@@ -137,7 +138,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 var singer = await db.Singers.FindAsync(singerId);
                 Assert.Equal("Alice", singer.FirstName);
                 Assert.Equal("Morrison - Chine", singer.LastName);
-                Assert.Equal(new DateTime(2002, 10, 15), singer.BirthDate);
+                Assert.Equal(new SpannerDate(2002, 10, 15), singer.BirthDate);
                 Assert.Equal(new byte[] { 3, 2, 1 }, singer.Picture);
                 Assert.Equal("Alice Morrison - Chine", singer.FullName);
             }
@@ -155,7 +156,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     SingerId = singerId,
                     FirstName = "Pete",
                     LastName = "Henderson",
-                    BirthDate = new DateTime(1997, 2, 20),
+                    BirthDate = new SpannerDate(1997, 2, 20),
                 };
                 db.Singers.Add(singer);
                 var album = new Albums
@@ -163,7 +164,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     SingerId = singer.SingerId,
                     AlbumId = albumId,
                     Title = "Pete Henderson's first album",
-                    ReleaseDate = new DateTime(2019, 04, 19),
+                    ReleaseDate = new SpannerDate(2019, 04, 19),
                 };
                 db.Albums.Add(album);
                 await db.SaveChangesAsync();
@@ -177,13 +178,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 // Reget the album from the database.
                 var album = await db.Albums.FindAsync(albumId);
                 Assert.Equal("Pete Henderson's first album", album.Title);
-                Assert.Equal(new DateTime(2019, 4, 19), album.ReleaseDate);
+                Assert.Equal(new SpannerDate(2019, 4, 19), album.ReleaseDate);
                 Assert.Equal(singerId, album.SingerId);
                 Assert.NotNull(album.Singer);
 
                 // Update the album.
                 album.Title = "Pete Henderson's first album - Refurbished";
-                album.ReleaseDate = new DateTime(2020, 2, 29);
+                album.ReleaseDate = new SpannerDate(2020, 2, 29);
                 await db.SaveChangesAsync();
             }
 
@@ -193,7 +194,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 // Reget the album from the database.
                 var album = await db.Albums.FindAsync(albumId);
                 Assert.Equal("Pete Henderson's first album - Refurbished", album.Title);
-                Assert.Equal(new DateTime(2020, 2, 29), album.ReleaseDate);
+                Assert.Equal(new SpannerDate(2020, 2, 29), album.ReleaseDate);
 
                 // Insert another singer and update the album to that singer.
                 var singer = new Singers
@@ -229,7 +230,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     SingerId = singerId,
                     FirstName = "Allis",
                     LastName = "Morrison",
-                    BirthDate = new DateTime(1968, 5, 4),
+                    BirthDate = new SpannerDate(1968, 5, 4),
                 };
                 db.Singers.Add(singer);
 
@@ -238,7 +239,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     SingerId = singer.SingerId,
                     AlbumId = albumId,
                     Title = "Allis Morrison's second album",
-                    ReleaseDate = new DateTime(1987, 12, 24),
+                    ReleaseDate = new SpannerDate(1987, 12, 24),
                 };
                 db.Albums.Add(album);
 
@@ -397,7 +398,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public async void CanInsertAndUpdateRowWithAllDataTypes()
         {
             var id = _fixture.RandomLong();
-            var today = DateTime.SpecifyKind(DateTime.Today, DateTimeKind.Unspecified);
+            var today = SpannerDate.FromDateTime(DateTime.SpecifyKind(DateTime.Today, DateTimeKind.Unspecified));
             var now = DateTime.UtcNow;
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
@@ -409,8 +410,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     ColBytesMax = Encoding.UTF8.GetBytes("This is a long string"),
                     ColBytesArray = new List<byte[]> { new byte[] { 3, 2, 1 }, new byte[] { }, new byte[] { 4, 5, 6 } },
                     ColBytesMaxArray = new List<byte[]> { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2"), Encoding.UTF8.GetBytes("string 3") },
-                    ColDate = new DateTime(2020, 12, 28),
-                    ColDateArray = new List<DateTime> { new DateTime(2020, 12, 28), new DateTime(2010, 1, 1), today },
+                    ColDate = new SpannerDate(2020, 12, 28),
+                    ColDateArray = new List<SpannerDate> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today },
                     ColFloat64 = 3.14D,
                     ColFloat64Array = new List<double> { 3.14D, 6.626D },
                     ColInt64 = id,
@@ -438,8 +439,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(Encoding.UTF8.GetBytes("This is a long string"), row.ColBytesMax);
                 Assert.Equal(new List<byte[]> { new byte[] { 3, 2, 1 }, new byte[] { }, new byte[] { 4, 5, 6 } }, row.ColBytesArray);
                 Assert.Equal(new List<byte[]> { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2"), Encoding.UTF8.GetBytes("string 3") }, row.ColBytesMaxArray);
-                Assert.Equal(new DateTime(2020, 12, 28), row.ColDate);
-                Assert.Equal(new List<DateTime> { new DateTime(2020, 12, 28), new DateTime(2010, 1, 1), today }, row.ColDateArray);
+                Assert.Equal(new SpannerDate(2020, 12, 28), row.ColDate);
+                Assert.Equal(new List<SpannerDate> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today }, row.ColDateArray);
                 Assert.Equal(3.14D, row.ColFloat64);
                 Assert.Equal(new List<double> { 3.14D, 6.626D }, row.ColFloat64Array);
                 Assert.Equal(3.14m, row.ColNumeric);
@@ -465,8 +466,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row.ColBytesMax = Encoding.UTF8.GetBytes("This string has changed");
                 row.ColBytesArray = new List<byte[]> { new byte[] { 10, 20, 30 }, new byte[] { 40, 50, 60 } };
                 row.ColBytesMaxArray = new List<byte[]> { Encoding.UTF8.GetBytes("changed string 1"), Encoding.UTF8.GetBytes("changed string 2"), Encoding.UTF8.GetBytes("changed string 3") };
-                row.ColDate = new DateTime(2020, 12, 30);
-                row.ColDateArray = new List<DateTime> { today, new DateTime(2020, 12, 30), new DateTime(2010, 2, 28) };
+                row.ColDate = new SpannerDate(2020, 12, 30);
+                row.ColDateArray = new List<SpannerDate> { today, new SpannerDate(2020, 12, 30), new SpannerDate(2010, 2, 28) };
                 row.ColFloat64 = 1.234D;
                 row.ColFloat64Array = new List<double> { 1.0D, 1.1D, 1.11D };
                 row.ColNumeric = 1.234m;
@@ -491,8 +492,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(Encoding.UTF8.GetBytes("This string has changed"), row.ColBytesMax);
                 Assert.Equal(new List<byte[]> { new byte[] { 10, 20, 30 }, new byte[] { 40, 50, 60 } }, row.ColBytesArray);
                 Assert.Equal(new List<byte[]> { Encoding.UTF8.GetBytes("changed string 1"), Encoding.UTF8.GetBytes("changed string 2"), Encoding.UTF8.GetBytes("changed string 3") }, row.ColBytesMaxArray);
-                Assert.Equal(new DateTime(2020, 12, 30), row.ColDate);
-                Assert.Equal(new List<DateTime> { today, new DateTime(2020, 12, 30), new DateTime(2010, 2, 28) }, row.ColDateArray);
+                Assert.Equal(new SpannerDate(2020, 12, 30), row.ColDate);
+                Assert.Equal(new List<SpannerDate> { today, new SpannerDate(2020, 12, 30), new SpannerDate(2010, 2, 28) }, row.ColDateArray);
                 Assert.Equal(1.234D, row.ColFloat64);
                 Assert.Equal(new List<double> { 1.0D, 1.1D, 1.11D }, row.ColFloat64Array);
                 Assert.Equal(1.234m, row.ColNumeric);
@@ -553,8 +554,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row.ColBytesArray = new List<byte[]> { };
                 row.ColBytesMax = new byte[0];
                 row.ColBytesMaxArray = new List<byte[]> { };
-                row.ColDate = new DateTime(1, 1, 1);
-                row.ColDateArray = new List<DateTime> { };
+                row.ColDate = new SpannerDate(1, 1, 1);
+                row.ColDateArray = new List<SpannerDate> { };
                 row.ColFloat64 = 0.0D;
                 row.ColFloat64Array = new List<double> { };
                 row.ColNumeric = 0.0m;

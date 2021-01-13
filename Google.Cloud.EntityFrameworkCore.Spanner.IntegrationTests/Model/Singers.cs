@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 {
@@ -16,7 +17,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public string FullName { get; set; }
-        public DateTime? BirthDate { get; set; }
+        public SpannerDate? BirthDate { get; set; }
         public byte[] Picture { get; set; }
 
         public virtual ICollection<Albums> Albums { get; set; }

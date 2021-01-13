@@ -49,12 +49,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             }
             if (otherStatements.Count() > 0)
             {
+                using var transaction = await spannerConnection.BeginTransactionAsync();
                 var cmd = spannerConnection.CreateBatchDmlCommand();
+                cmd.Transaction = transaction;
                 foreach (var statement in otherStatements)
                 {
                     cmd.Add(statement);
                 }
                 await cmd.ExecuteNonQueryAsync(cancellationToken);
+                await transaction.CommitAsync();
             }
         }
 

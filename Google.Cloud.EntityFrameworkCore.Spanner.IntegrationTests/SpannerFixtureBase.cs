@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1.Internal.Logging;

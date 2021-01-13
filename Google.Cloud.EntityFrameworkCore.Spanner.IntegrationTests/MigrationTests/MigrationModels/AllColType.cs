@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using System;
 using System.Collections.Generic;
 
@@ -26,7 +27,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public decimal? ColDecimal { get; set; }
         public uint? ColUint { get; set; }
         public bool? ColBool { get; set; }
-        public DateTime? ColDate { get; set; }
+        public SpannerDate? ColDate { get; set; }
         public DateTime? ColTimestamp { get; set; }
         public DateTime? ColCommitTimestamp { get; set; }
         public float? ColFloat { get; set; }
@@ -44,10 +45,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public List<double> ColDoubleList { get; set; }
         public long[] ColLongArray { get; set; }
         public List<long> ColLongList { get; set; }
+        public SpannerDate[] ColDateArray { get; set; }
+        public List<SpannerDate> ColDateList { get; set; }
         public DateTime[] ColTimestampArray { get; set; }
         public List<DateTime> ColTimestampList { get; set; }
-        public DateTime[] ColDateArray { get; set; }
-        public List<DateTime> ColDateList { get; set; }
         public byte[][] ColBytesArray { get; set; }
         public List<byte[]> ColBytesList { get; set; }
     }
