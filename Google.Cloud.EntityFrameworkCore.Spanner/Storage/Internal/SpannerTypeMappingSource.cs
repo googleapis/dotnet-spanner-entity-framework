@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Google.Cloud.Spanner.Data;
+using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
@@ -52,7 +53,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly SpannerComplexTypeMapping s_short
             = new SpannerComplexTypeMapping(SpannerDbType.Int64, typeof(short));
 
-        private static readonly SpannerNumericTypeMapping s_decimal = new SpannerNumericTypeMapping();
+        private static readonly SpannerNumericTypeMapping s_numeric = new SpannerNumericTypeMapping();
 
         private static readonly GuidTypeMapping s_guid
             = new GuidTypeMapping(SpannerDbType.String.ToString(), DbType.String);
@@ -101,16 +102,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Timestamp), typeof(List<DateTime>));
 
         private static readonly SpannerComplexTypeMapping s_numericArray
-            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric), typeof(decimal[]));
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric), typeof(SpannerNumeric[]));
 
         private static readonly SpannerComplexTypeMapping s_numericList
-            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric), typeof(List<decimal>));
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric), typeof(List<SpannerNumeric>));
 
         private readonly Dictionary<System.Type, RelationalTypeMapping> s_clrTypeMappings;
 
         private readonly Dictionary<string, RelationalTypeMapping> s_storeTypeMappings;
 
-        private readonly Dictionary<string, RelationalTypeMapping> s_listTypeMappings;
+        private readonly Dictionary<string, RelationalTypeMapping> s_arrayTypeMappings;
 
         public SpannerTypeMappingSource(
             TypeMappingSourceDependencies dependencies,
@@ -124,7 +125,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(short), s_short},
                     {typeof(int), s_int},
                     {typeof(long), s_long},
-                    {typeof(decimal), s_decimal},
+                    {typeof(decimal), s_numeric},
+                    {typeof(SpannerNumeric), s_numeric},
                     {typeof(uint), s_uint},
                     {typeof(bool), s_bool},
                     {typeof(SpannerDate), s_date},
@@ -135,7 +137,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(Guid), s_guid},
                     {typeof(byte[]), s_byte},
                     {typeof(decimal[]), s_numericArray},
+                    {typeof(SpannerNumeric[]), s_numericArray},
                     {typeof(List<decimal>), s_numericList},
+                    {typeof(List<SpannerNumeric>), s_numericList},
                     {typeof(string[]), s_stringArray},
                     {typeof(List<string>), s_stringList},
                     {typeof(bool[]), s_boolArray},
@@ -161,7 +165,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {SpannerDbType.Int64.ToString(), s_long},
                 {SpannerDbType.Timestamp.ToString(), s_datetime},
                 {SpannerDbType.String.ToString(), s_defaultString},
-                {SpannerDbType.Numeric.ToString(), s_decimal},
+                {SpannerDbType.Numeric.ToString(), s_numeric},
                 {SpannerDbType.Unspecified.ToString(), null},
                 {"ARRAY<BOOL>", s_boolList},
                 {"ARRAY<BYTES", s_byteList},
@@ -174,7 +178,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
             };
 
-            s_listTypeMappings = new Dictionary<string, RelationalTypeMapping>
+            s_arrayTypeMappings = new Dictionary<string, RelationalTypeMapping>
             {
                 {"ARRAY<BOOL>", s_boolArray},
                 {"ARRAY<BYTES", s_byteArray},
@@ -207,8 +211,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                         return mapping;
                     };
 
-                    if (s_listTypeMappings.TryGetValue(storeTypeName, out mapping)
-                    || s_listTypeMappings.TryGetValue(storeTypeNameBase, out mapping))
+                    if (s_arrayTypeMappings.TryGetValue(storeTypeName, out mapping)
+                    || s_arrayTypeMappings.TryGetValue(storeTypeNameBase, out mapping))
                     {
                         if (clrType == null || mapping.ClrType == clrType || mapping.Converter?.ProviderClrType == clrType)
                         {

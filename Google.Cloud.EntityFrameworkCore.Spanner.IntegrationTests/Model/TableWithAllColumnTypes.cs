@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
+using Google.Cloud.Spanner.V1;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 {
@@ -8,7 +9,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
     {
         public long ColInt64 { get; set; }
         public double? ColFloat64 { get; set; }
-        public decimal? ColNumeric { get; set; }
+        public SpannerNumeric? ColNumeric { get; set; }
         public bool? ColBool { get; set; }
         public string ColString { get; set; }
         public string ColStringMax { get; set; }
@@ -19,7 +20,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         public DateTime? ColCommitTs { get; set; }
         public List<long> ColInt64Array { get; set; }
         public List<double> ColFloat64Array { get; set; }
-        public List<decimal> ColNumericArray { get; set; }
+        public List<SpannerNumeric> ColNumericArray { get; set; }
         public List<bool> ColBoolArray { get; set; }
         public List<string> ColStringArray { get; set; }
         public List<string> ColStringMaxArray { get; set; }

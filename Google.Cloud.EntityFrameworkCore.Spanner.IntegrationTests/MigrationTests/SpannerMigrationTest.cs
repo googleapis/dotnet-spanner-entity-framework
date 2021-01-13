@@ -14,6 +14,7 @@
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.Data;
+using Google.Cloud.Spanner.V1;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -156,9 +157,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     ColTimestamp = new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288),
                     ColTimestampArray = new DateTime[] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now },
                     ColTimestampList = new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now },
-                    ColDecimal = 10.100m,
-                    ColDecimalArray = new decimal[] { 10.1m, 13.5m },
-                    ColDecimalList = new List<decimal> { 10.1m, 13.5m },
+                    ColDecimal = (SpannerNumeric)10.100m,
+                    ColDecimalArray = new SpannerNumeric[] { (SpannerNumeric)10.1m, (SpannerNumeric)13.5m },
+                    ColDecimalList = new List<SpannerNumeric> { (SpannerNumeric)10.1m, (SpannerNumeric)13.5m },
                     ColDouble = 12.01,
                     ColDoubleArray = new double[] { 12.01, 12.02 },
                     ColDoubleList = new List<double> { 13.01, 13.02 },
@@ -196,9 +197,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), row.ColTimestamp);
                 Assert.Equal(new DateTime[] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now }, row.ColTimestampArray);
                 Assert.Equal(new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now }, row.ColTimestampList);
-                Assert.Equal(10.100m, row.ColDecimal);
-                Assert.Equal(new decimal[] { 10.1m, 13.5m }, row.ColDecimalArray);
-                Assert.Equal(new List<decimal> { 10.1m, 13.5m }, row.ColDecimalList);
+                Assert.Equal((SpannerNumeric)10.100m, row.ColDecimal);
+                Assert.Equal(new SpannerNumeric[] { (SpannerNumeric)10.1m, (SpannerNumeric)13.5m }, row.ColDecimalArray);
+                Assert.Equal(new List<SpannerNumeric> { (SpannerNumeric)10.1m, (SpannerNumeric)13.5m }, row.ColDecimalList);
                 Assert.Equal(12.01, row.ColDouble);
                 Assert.Equal(new double[] { 12.01, 12.02 }, row.ColDoubleArray);
                 Assert.Equal(new List<double> { 13.01, 13.02 }, row.ColDoubleList);
@@ -232,9 +233,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row.ColTimestamp = new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000);
                 row.ColTimestampArray = new DateTime[] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000), now };
                 row.ColTimestampList = new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(500), now };
-                row.ColDecimal = 10.5m;
-                row.ColDecimalArray = new decimal[] { 20.1m, 30.5m };
-                row.ColDecimalList = new List<decimal> { 50m, 15.5m };
+                row.ColDecimal = (SpannerNumeric)10.5m;
+                row.ColDecimalArray = new SpannerNumeric[] { (SpannerNumeric)20.1m, (SpannerNumeric)30.5m };
+                row.ColDecimalList = new List<SpannerNumeric> { (SpannerNumeric)50m, (SpannerNumeric)15.5m };
                 row.ColDouble = 15;
                 row.ColDoubleArray = new double[] { 15.5 };
                 row.ColDoubleList = new List<double> { 30.9 };
@@ -267,9 +268,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000), row.ColTimestamp);
                 Assert.Equal(new DateTime[] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000), now }, row.ColTimestampArray);
                 Assert.Equal(new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(500), now }, row.ColTimestampList);
-                Assert.Equal(10.5m, row.ColDecimal);
-                Assert.Equal(new decimal[] { 20.1m, 30.5m }, row.ColDecimalArray);
-                Assert.Equal(new List<decimal> { 50m, 15.5m }, row.ColDecimalList);
+                Assert.Equal((SpannerNumeric)10.5m, row.ColDecimal);
+                Assert.Equal(new SpannerNumeric[] { (SpannerNumeric)20.1m, (SpannerNumeric)30.5m }, row.ColDecimalArray);
+                Assert.Equal(new List<SpannerNumeric> { (SpannerNumeric)50m, (SpannerNumeric)15.5m }, row.ColDecimalList);
                 Assert.Equal(15, row.ColDouble);
                 Assert.Equal(new double[] { 15.5 }, row.ColDoubleArray);
                 Assert.Equal(new List<double> { 30.9 }, row.ColDoubleList);

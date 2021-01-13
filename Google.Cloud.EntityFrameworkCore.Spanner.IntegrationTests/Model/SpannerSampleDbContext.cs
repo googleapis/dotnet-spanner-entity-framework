@@ -142,8 +142,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                     .HasMaxLength(2621440)
                     .ValueGeneratedOnAddOrUpdate();
 
-                entity.Property(e => e.ColNumeric).HasColumnType("NUMERIC");
-
                 entity.Property(e => e.ColString).HasMaxLength(100);
 
                 entity.Property(e => e.ColStringArray).HasColumnType("ARRAY<STRING(100)>");
@@ -163,8 +161,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                 entity.HasIndex(e => new { e.TrackId, e.Title })
                     .HasName("Idx_Tracks_AlbumId_Title")
                     .IsUnique();
-
-                entity.Property(e => e.Duration).HasColumnType("NUMERIC");
 
                 entity.Property(e => e.Lyrics).HasColumnType("ARRAY<STRING(2621440)>");
 

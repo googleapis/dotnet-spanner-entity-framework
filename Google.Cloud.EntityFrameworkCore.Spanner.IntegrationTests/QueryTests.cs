@@ -15,6 +15,7 @@
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.Data;
+using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -186,8 +187,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 ColFloat64Array = new List<double> { 3.14D, 6.626D },
                 ColInt64 = id1,
                 ColInt64Array = new List<long> { 1L, 2L, 4L, 8L },
-                ColNumeric = 3.14m,
-                ColNumericArray = new List<decimal> { 3.14m, 6.626m },
+                ColNumeric = (SpannerNumeric?)3.14m,
+                ColNumericArray = new List<SpannerNumeric> { (SpannerNumeric)3.14m, (SpannerNumeric)6.626m },
                 ColString = "some string",
                 ColStringArray = new List<string> { "string1", "string2", "string3" },
                 ColStringMax = "some longer string",

@@ -20,6 +20,7 @@ using Xunit;
 using System.Text;
 using System.Linq;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
+using Google.Cloud.Spanner.V1;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -248,7 +249,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     AlbumId = albumId,
                     TrackId = trackId,
                     Title = "Track 1",
-                    Duration = 4.32m,
+                    Duration = (SpannerNumeric?)4.32m,
                     Lyrics = new List<string> { "Song lyrics", "Liedtext" },
                     LyricsLanguages = new List<string> { "EN", "DE" },
                 };
@@ -264,7 +265,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 // Reget the track from the database.
                 var track = await db.Tracks.FindAsync(albumId, trackId);
                 Assert.Equal("Track 1", track.Title);
-                Assert.Equal(4.32m, track.Duration);
+                Assert.Equal((SpannerNumeric?)4.32m, track.Duration);
                 Assert.Equal(new List<string> { "Song lyrics", "Liedtext" }, track.Lyrics);
                 Assert.Equal(new List<string> { "EN", "DE" }, track.LyricsLanguages);
                 // Check that the link with album works.
@@ -273,7 +274,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
                 // Update the track.
                 track.Title = "Track 1 - Refurbished";
-                track.Duration = 4.35m;
+                track.Duration = (SpannerNumeric?)4.35m;
                 track.Lyrics = new List<string>(track.Lyrics.Union(new string[] { "Sangtekst" }));
                 track.LyricsLanguages = new List<string>(track.LyricsLanguages.Union(new string[] { "NO" }));
                 await db.SaveChangesAsync();
@@ -284,7 +285,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 // Reget the track from the database.
                 var track = await db.Tracks.FindAsync(albumId, trackId);
                 Assert.Equal("Track 1 - Refurbished", track.Title);
-                Assert.Equal(4.35m, track.Duration);
+                Assert.Equal((SpannerNumeric?)4.35m, track.Duration);
                 Assert.Equal(new List<string> { "Song lyrics", "Liedtext", "Sangtekst" }, track.Lyrics);
                 Assert.Equal(new List<string> { "EN", "DE", "NO" }, track.LyricsLanguages);
             }
@@ -416,8 +417,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     ColFloat64Array = new List<double> { 3.14D, 6.626D },
                     ColInt64 = id,
                     ColInt64Array = new List<long> { 1L, 2L, 4L, 8L },
-                    ColNumeric = 3.14m,
-                    ColNumericArray = new List<decimal> { 3.14m, 6.626m },
+                    ColNumeric = (SpannerNumeric?)3.14m,
+                    ColNumericArray = new List<SpannerNumeric> { (SpannerNumeric)3.14m, (SpannerNumeric)6.626m },
                     ColString = "some string",
                     ColStringArray = new List<string> { "string1", "string2", "string3" },
                     ColStringMax = "some longer string",
@@ -443,8 +444,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<SpannerDate> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today }, row.ColDateArray);
                 Assert.Equal(3.14D, row.ColFloat64);
                 Assert.Equal(new List<double> { 3.14D, 6.626D }, row.ColFloat64Array);
-                Assert.Equal(3.14m, row.ColNumeric);
-                Assert.Equal(new List<decimal> { 3.14m, 6.626m }, row.ColNumericArray);
+                Assert.Equal((SpannerNumeric?)3.14m, row.ColNumeric);
+                Assert.Equal(new List<SpannerNumeric> { (SpannerNumeric)3.14m, (SpannerNumeric)6.626m }, row.ColNumericArray);
                 Assert.Equal(id, row.ColInt64);
                 Assert.Equal(new List<long> { 1L, 2L, 4L, 8L }, row.ColInt64Array);
                 Assert.Equal("some string", row.ColString);
@@ -470,8 +471,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row.ColDateArray = new List<SpannerDate> { today, new SpannerDate(2020, 12, 30), new SpannerDate(2010, 2, 28) };
                 row.ColFloat64 = 1.234D;
                 row.ColFloat64Array = new List<double> { 1.0D, 1.1D, 1.11D };
-                row.ColNumeric = 1.234m;
-                row.ColNumericArray = new List<decimal> { 1.0m, 1.1m, 1.11m };
+                row.ColNumeric = (SpannerNumeric?)1.234m;
+                row.ColNumericArray = new List<SpannerNumeric> { (SpannerNumeric)1.0m, (SpannerNumeric)1.1m, (SpannerNumeric)1.11m };
                 row.ColInt64Array = new List<long> { 500L, 1000L };
                 row.ColString = "some changed string";
                 row.ColStringArray = new List<string> { "changed string1", "changed string2", "changed string3" };
@@ -496,8 +497,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<SpannerDate> { today, new SpannerDate(2020, 12, 30), new SpannerDate(2010, 2, 28) }, row.ColDateArray);
                 Assert.Equal(1.234D, row.ColFloat64);
                 Assert.Equal(new List<double> { 1.0D, 1.1D, 1.11D }, row.ColFloat64Array);
-                Assert.Equal(1.234m, row.ColNumeric);
-                Assert.Equal(new List<decimal> { 1.0m, 1.1m, 1.11m }, row.ColNumericArray);
+                Assert.Equal((SpannerNumeric?)1.234m, row.ColNumeric);
+                Assert.Equal(new List<SpannerNumeric> { (SpannerNumeric)1.0m, (SpannerNumeric)1.1m, (SpannerNumeric)1.11m }, row.ColNumericArray);
                 Assert.Equal(new List<long> { 500L, 1000L }, row.ColInt64Array);
                 Assert.Equal("some changed string", row.ColString);
                 Assert.Equal(new List<string> { "changed string1", "changed string2", "changed string3" }, row.ColStringArray);
@@ -558,8 +559,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row.ColDateArray = new List<SpannerDate> { };
                 row.ColFloat64 = 0.0D;
                 row.ColFloat64Array = new List<double> { };
-                row.ColNumeric = 0.0m;
-                row.ColNumericArray = new List<decimal> { };
+                row.ColNumeric = (SpannerNumeric?)0.0m;
+                row.ColNumericArray = new List<SpannerNumeric> { };
                 row.ColInt64Array = new List<long> { };
                 row.ColString = "";
                 row.ColStringArray = new List<string> { };

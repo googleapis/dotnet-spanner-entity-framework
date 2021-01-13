@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Google.Cloud.Spanner.V1;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 {
@@ -13,7 +14,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         public long AlbumId { get; set; }
         public long TrackId { get; set; }
         public string Title { get; set; }
-        public decimal? Duration { get; set; }
+        public SpannerNumeric? Duration { get; set; }
         public List<string> LyricsLanguages { get; set; }
         public List<string> Lyrics { get; set; }
 
