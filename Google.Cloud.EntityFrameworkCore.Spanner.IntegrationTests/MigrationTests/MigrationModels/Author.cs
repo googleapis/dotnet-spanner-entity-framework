@@ -19,7 +19,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
     public class Author
     {
         public long AuthorId { get; set; }
-        public string AutherName { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string FullName { get; set; }
 
         public ICollection<Article> Articles { get; set; }
     }

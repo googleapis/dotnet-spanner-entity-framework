@@ -147,7 +147,6 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 }
             }
 
-
             if (operation.ForeignKeys.Any())
             {
                 // Exclude Interleaved table from foreign key.
@@ -261,6 +260,11 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             if (!operation.IsNullable)
             {
                 builder.Append(" NOT NULL");
+            }
+
+            if (operation.ComputedColumnSql != null)
+            {
+                builder.Append(" AS ").Append(operation.ComputedColumnSql);
             }
 
             var commitTimestampAnnotation = operation.FindAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp);

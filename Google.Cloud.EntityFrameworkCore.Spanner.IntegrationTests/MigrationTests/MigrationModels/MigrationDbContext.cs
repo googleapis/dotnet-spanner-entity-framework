@@ -51,6 +51,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             modelBuilder.Entity<Article>()
                 .HasKey(c => new { c.AuthorId, c.ArticleId });
 
+            modelBuilder.Entity<Author>()
+                .Property(c => c.FullName)
+                .ValueGeneratedOnAddOrUpdate()
+                .HasComputedColumnSql("(ARRAY_TO_STRING([FirstName, LastName], ' ')) STORED");
+
             modelBuilder.Entity<Product>().ToTable("Products");
             modelBuilder.Entity<Category>().ToTable("Categories");
             modelBuilder.Entity<Order>().ToTable("Orders");

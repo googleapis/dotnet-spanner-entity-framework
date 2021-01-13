@@ -148,7 +148,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INT64");
 
-                    b.Property<string>("AutherName")
+                    b.Property<string>("FirstName")
+                        .HasColumnType("STRING");
+
+                    b.Property<string>("FullName")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("STRING")
+                        .HasComputedColumnSql("(ARRAY_TO_STRING([FirstName, LastName], ' ')) STORED");
+
+                    b.Property<string>("LastName")
                         .HasColumnType("STRING");
 
                     b.HasKey("AuthorId");

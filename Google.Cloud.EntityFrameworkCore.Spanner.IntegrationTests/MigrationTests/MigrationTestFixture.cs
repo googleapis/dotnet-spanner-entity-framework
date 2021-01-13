@@ -24,6 +24,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
     /// </summary>
     internal class TestMigrationDbContext : MigrationDbContext
     {
+        public TestMigrationDbContext()
+        {
+
+        }
+
         private readonly DatabaseName _databaseName;
 
         internal TestMigrationDbContext(DatabaseName databaseName) => _databaseName = databaseName;

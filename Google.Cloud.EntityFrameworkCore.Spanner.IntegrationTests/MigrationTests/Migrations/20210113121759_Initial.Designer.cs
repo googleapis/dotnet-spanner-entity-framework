@@ -4,13 +4,14 @@ using System.Collections.Generic;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTests.Migrations
 {
     [DbContext(typeof(TestMigrationDbContext))]
-    [Migration("20210101122841_Initial")]
+    [Migration("20210113121759_Initial")]
     partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -42,6 +43,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
 
                     b.Property<List<byte[]>>("ColBytesList")
                         .HasColumnType("ARRAY<BYTES>");
+
+                    b.Property<DateTime?>("ColCommitTimestamp")
+                        .HasColumnType("TIMESTAMP")
+                        .HasAnnotation("UpdateCommitTimestamp", SpannerUpdateCommitTimestamp.OnInsertAndUpdate);
 
                     b.Property<DateTime?>("ColDate")
                         .HasColumnType("DATE");
@@ -115,6 +120,50 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     b.HasKey("Id");
 
                     b.ToTable("AllColTypes");
+                });
+
+            modelBuilder.Entity("Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Article", b =>
+                {
+                    b.Property<long>("AuthorId")
+                        .HasColumnType("INT64");
+
+                    b.Property<long>("ArticleId")
+                        .HasColumnType("INT64");
+
+                    b.Property<string>("ArticleContent")
+                        .HasColumnType("STRING");
+
+                    b.Property<string>("ArticleTitle")
+                        .HasColumnType("STRING");
+
+                    b.Property<DateTime>("PublishDate")
+                        .HasColumnType("TIMESTAMP");
+
+                    b.HasKey("AuthorId", "ArticleId");
+
+                    b.ToTable("Articles");
+                });
+
+            modelBuilder.Entity("Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Author", b =>
+                {
+                    b.Property<long>("AuthorId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INT64");
+
+                    b.Property<string>("FirstName")
+                        .HasColumnType("STRING");
+
+                    b.Property<string>("FullName")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("STRING")
+                        .HasComputedColumnSql("(ARRAY_TO_STRING([FirstName, LastName], ' ')) STORED");
+
+                    b.Property<string>("LastName")
+                        .HasColumnType("STRING");
+
+                    b.HasKey("AuthorId");
+
+                    b.ToTable("Authors");
                 });
 
             modelBuilder.Entity("Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Category", b =>
@@ -218,6 +267,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     b.HasIndex("CategoryId");
 
                     b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Article", b =>
+                {
+                    b.HasOne("Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Author", "Author")
+                        .WithMany("Articles")
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.OrderDetail", b =>

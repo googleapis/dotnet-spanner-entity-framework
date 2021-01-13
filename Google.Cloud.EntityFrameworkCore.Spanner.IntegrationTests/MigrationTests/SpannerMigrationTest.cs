@@ -448,7 +448,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     Author = new Author
                     {
                         AuthorId = 1,
-                        AutherName = "Calvin Saunders"
+                        FirstName = "Calvin",
+                        LastName = "Saunders"
                     },
                     ArticleTitle = "Research on Resource Reports",
                     ArticleContent = "This is simple content on resource report research.",
@@ -465,7 +466,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 var author = new Author
                 {
                     AuthorId = 1,
-                    AutherName = "Calvin Saunders"
+                    FirstName = "Calvin",
+                    LastName = "Saunders"
                 };
 
                 context.Authors.Remove(author);
@@ -491,6 +493,25 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             };
             context.Articles.Add(article);
             Assert.Throws<SpannerBatchNonQueryException>(() => context.SaveChanges());
+        }
+
+        [Fact]
+        public async Task ComputedColumn()
+        {
+            using var context = new TestMigrationDbContext(_fixture.DatabaseName);
+            using var transaction = await context.Database.BeginTransactionAsync();
+            var author = new Author
+            {
+                AuthorId = 10,
+                FirstName = "Loren",
+                LastName = "Ritchie"
+            };
+            context.Authors.Add(author);
+            var rowCount = await context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            author = await context.Authors.FindAsync(10L);
+            Assert.Equal("Loren Ritchie", author.FullName);
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTests.Migrations
@@ -21,6 +22,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     ColBool = table.Column<bool>(nullable: true),
                     ColDate = table.Column<DateTime>(type: "DATE", nullable: true),
                     ColTimestamp = table.Column<DateTime>(nullable: true),
+                    ColCommitTimestamp = table.Column<DateTime>(nullable: true)
+                        .Annotation("UpdateCommitTimestamp", SpannerUpdateCommitTimestamp.OnInsertAndUpdate),
                     ColFloat = table.Column<float>(nullable: true),
                     ColDouble = table.Column<double>(nullable: true),
                     ColString = table.Column<string>(nullable: true),
@@ -46,6 +49,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AllColTypes", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Authors",
+                columns: table => new
+                {
+                    AuthorId = table.Column<long>(nullable: false),
+                    FirstName = table.Column<string>(nullable: true),
+                    LastName = table.Column<string>(nullable: true),
+                    FullName = table.Column<string>(nullable: true, computedColumnSql: "(ARRAY_TO_STRING([FirstName, LastName], ' ')) STORED")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Authors", x => x.AuthorId);
                 });
 
             migrationBuilder.CreateTable(
@@ -81,6 +98,29 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                 {
                     table.PrimaryKey("PK_Orders", x => x.OrderId);
                 });
+
+            migrationBuilder.CreateTable(
+                name: "Articles",
+                columns: table => new
+                {
+                    AuthorId = table.Column<long>(nullable: false),
+                    ArticleId = table.Column<long>(nullable: false),
+                    PublishDate = table.Column<DateTime>(nullable: false),
+                    ArticleTitle = table.Column<string>(nullable: true),
+                    ArticleContent = table.Column<string>(nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Articles", x => new { x.AuthorId, x.ArticleId });
+                    table.ForeignKey(
+                        name: "FK_Articles_Authors_AuthorId",
+                        column: x => x.AuthorId,
+                        principalTable: "Authors",
+                        principalColumn: "AuthorId",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("Spanner:InterleaveInParent", "Authors")
+                .Annotation("Spanner:InterleaveInParentOnDelete", OnDelete.Cascade);
 
             migrationBuilder.CreateTable(
                 name: "Products",
@@ -145,7 +185,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                 name: "AllColTypes");
 
             migrationBuilder.DropTable(
+                name: "Articles");
+
+            migrationBuilder.DropTable(
                 name: "OrderDetails");
+
+            migrationBuilder.DropTable(
+                name: "Authors");
 
             migrationBuilder.DropTable(
                 name: "Orders");
