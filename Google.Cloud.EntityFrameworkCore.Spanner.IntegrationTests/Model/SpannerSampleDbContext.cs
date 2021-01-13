@@ -1,8 +1,6 @@
 ﻿using System;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 {
@@ -32,9 +30,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                 entity.HasKey(e => e.AlbumId)
                     .HasName("PRIMARY_KEY");
 
-                entity.HasIndex(e => e.SingerId)
-                    .HasName("IDX_Albums_SingerId_A873389737762742");
-
                 entity.Property(e => e.AlbumId).ValueGeneratedNever();
 
                 entity.Property(e => e.Title)
@@ -52,9 +47,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
             {
                 entity.HasKey(e => new { e.VenueCode, e.StartTime, e.SingerId })
                     .HasName("PRIMARY_KEY");
-
-                entity.HasIndex(e => e.SingerId)
-                    .HasName("IDX_Concerts_SingerId_B428E23F69F5F316");
 
                 entity.Property(e => e.VenueCode).HasMaxLength(10);
 
@@ -77,15 +69,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
             {
                 entity.HasKey(e => new { e.VenueCode, e.SingerId, e.StartTime })
                     .HasName("PRIMARY_KEY");
-
-                entity.HasIndex(e => e.SingerId)
-                    .HasName("IDX_Performances_SingerId_027098E475ABA8F2");
-
-                entity.HasIndex(e => new { e.AlbumId, e.TrackId })
-                    .HasName("IDX_Performances_AlbumId_TrackId_E337390ADF11835E");
-
-                entity.HasIndex(e => new { e.VenueCode, e.ConcertStartTime, e.SingerId })
-                    .HasName("IDX_Performances_VenueCode_ConcertStartTime_SingerId_4E1AF1497E5409C1");
 
                 entity.Property(e => e.VenueCode).HasMaxLength(10);
 
@@ -137,6 +120,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                 entity.HasKey(e => e.ColInt64)
                     .HasName("PRIMARY_KEY");
 
+                entity.HasIndex(e => new { e.ColDate, e.ColCommitTs })
+                    .HasName("IDX_TableWithAllColumnTypes_ColDate_ColCommitTS")
+                    .HasAnnotation("Spanner:IsNullFiltered", true);
+
                 entity.Property(e => e.ColInt64).ValueGeneratedNever();
 
                 entity.Property(e => e.ColBytes).HasColumnType("BYTES(100)");
@@ -154,8 +141,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                 entity.Property(e => e.ColComputed)
                     .HasMaxLength(2621440)
                     .ValueGeneratedOnAddOrUpdate();
-
-                entity.Property(e => e.ColDateArray).HasColumnType("ARRAY<DATE>");
 
                 entity.Property(e => e.ColNumeric).HasColumnType("NUMERIC");
 
@@ -176,7 +161,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                 entity.HasAnnotation("CONSTRAINT `Chk_Languages_Lyrics_Length_Equal`", "CHECK ARRAY_LENGTH(LyricsLanguages) = ARRAY_LENGTH(Lyrics)");
 
                 entity.HasIndex(e => new { e.TrackId, e.Title })
-                    .HasName("Idx_Tracks_AlbumId_Title");
+                    .HasName("Idx_Tracks_AlbumId_Title")
+                    .IsUnique();
 
                 entity.Property(e => e.Duration).HasColumnType("NUMERIC");
 
