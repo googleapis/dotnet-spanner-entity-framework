@@ -37,8 +37,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             var tableNames = new string[] {
                 "Singers", "Albums", "Tracks", "Venues", "Concerts", "Performances", "TableWithAllColumnTypes"
             };
-            var tables = new SpannerParameterCollection();
-            tables.Add("tables", SpannerDbType.ArrayOf(SpannerDbType.String), tableNames);
+            var tables = new SpannerParameterCollection
+            {
+                { "tables", SpannerDbType.ArrayOf(SpannerDbType.String), tableNames }
+            };
             var cmd = connection.CreateSelectCommand(
                 "SELECT COUNT(*) " +
                 "FROM INFORMATION_SCHEMA.TABLES " +
@@ -61,7 +63,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     Name = "Concert Hall",
                     Active = true,
                     Capacity = 2000,
-                    Ratings = new List<double> { 8.9, 6.5, 8.0 },
+                    Ratings = new List<double?> { 8.9, 6.5, 8.0 },
                 };
                 db.Venues.Add(venue);
                 await db.SaveChangesAsync();
@@ -73,14 +75,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 var venue = await db.Venues.FindAsync(code);
                 Assert.Equal("Concert Hall", venue.Name);
                 Assert.Equal(2000, venue.Capacity);
-                Assert.Equal(new List<double> { 8.9, 6.5, 8.0 }, venue.Ratings);
+                Assert.Equal(new List<double?> { 8.9, 6.5, 8.0 }, venue.Ratings);
 
                 // Update the venue.
                 venue.Name = "Concert Hall - Refurbished";
                 venue.Capacity = 3000;
                 // TODO: Preferably it should be possible to just call List.AddRange(...) to
                 // update a list.
-                venue.Ratings = new List<double>(venue.Ratings.Union(new double[] { 9.5, 9.8, 10.0 }));
+                venue.Ratings = new List<double?>(venue.Ratings.Union(new double?[] { 9.5, 9.8, 10.0 }));
                 await db.SaveChangesAsync();
             }
 
@@ -90,7 +92,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 var venue = await db.Venues.FindAsync(code);
                 Assert.Equal("Concert Hall - Refurbished", venue.Name);
                 Assert.Equal(3000, venue.Capacity);
-                Assert.Equal(new List<double> { 8.9, 6.5, 8.0, 9.5, 9.8, 10.0 }, venue.Ratings);
+                Assert.Equal(new List<double?> { 8.9, 6.5, 8.0, 9.5, 9.8, 10.0 }, venue.Ratings);
             }
         }
 
@@ -406,25 +408,25 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 var row = new TableWithAllColumnTypes
                 {
                     ColBool = true,
-                    ColBoolArray = new List<bool> { true, false, true },
+                    ColBoolArray = new List<bool?> { true, false, true },
                     ColBytes = new byte[] { 1, 2, 3 },
                     ColBytesMax = Encoding.UTF8.GetBytes("This is a long string"),
                     ColBytesArray = new List<byte[]> { new byte[] { 3, 2, 1 }, new byte[] { }, new byte[] { 4, 5, 6 } },
                     ColBytesMaxArray = new List<byte[]> { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2"), Encoding.UTF8.GetBytes("string 3") },
                     ColDate = new SpannerDate(2020, 12, 28),
-                    ColDateArray = new List<SpannerDate> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today },
+                    ColDateArray = new List<SpannerDate?> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today },
                     ColFloat64 = 3.14D,
-                    ColFloat64Array = new List<double> { 3.14D, 6.626D },
+                    ColFloat64Array = new List<double?> { 3.14D, 6.626D },
                     ColInt64 = id,
-                    ColInt64Array = new List<long> { 1L, 2L, 4L, 8L },
+                    ColInt64Array = new List<long?> { 1L, 2L, 4L, 8L },
                     ColNumeric = (SpannerNumeric?)3.14m,
-                    ColNumericArray = new List<SpannerNumeric> { (SpannerNumeric)3.14m, (SpannerNumeric)6.626m },
+                    ColNumericArray = new List<SpannerNumeric?> { (SpannerNumeric)3.14m, (SpannerNumeric)6.626m },
                     ColString = "some string",
                     ColStringArray = new List<string> { "string1", "string2", "string3" },
                     ColStringMax = "some longer string",
                     ColStringMaxArray = new List<string> { "longer string1", "longer string2", "longer string3" },
                     ColTimestamp = new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288),
-                    ColTimestampArray = new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now },
+                    ColTimestampArray = new List<DateTime?> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now },
                 };
                 db.TableWithAllColumnTypes.Add(row);
                 await db.SaveChangesAsync();
@@ -435,25 +437,25 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 // Reget the row from the database.
                 var row = await db.TableWithAllColumnTypes.FindAsync(id);
                 Assert.True(row.ColBool);
-                Assert.Equal(new List<bool> { true, false, true }, row.ColBoolArray);
+                Assert.Equal(new List<bool?> { true, false, true }, row.ColBoolArray);
                 Assert.Equal(new byte[] { 1, 2, 3 }, row.ColBytes);
                 Assert.Equal(Encoding.UTF8.GetBytes("This is a long string"), row.ColBytesMax);
                 Assert.Equal(new List<byte[]> { new byte[] { 3, 2, 1 }, new byte[] { }, new byte[] { 4, 5, 6 } }, row.ColBytesArray);
                 Assert.Equal(new List<byte[]> { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2"), Encoding.UTF8.GetBytes("string 3") }, row.ColBytesMaxArray);
                 Assert.Equal(new SpannerDate(2020, 12, 28), row.ColDate);
-                Assert.Equal(new List<SpannerDate> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today }, row.ColDateArray);
+                Assert.Equal(new List<SpannerDate?> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today }, row.ColDateArray);
                 Assert.Equal(3.14D, row.ColFloat64);
-                Assert.Equal(new List<double> { 3.14D, 6.626D }, row.ColFloat64Array);
+                Assert.Equal(new List<double?> { 3.14D, 6.626D }, row.ColFloat64Array);
                 Assert.Equal((SpannerNumeric?)3.14m, row.ColNumeric);
-                Assert.Equal(new List<SpannerNumeric> { (SpannerNumeric)3.14m, (SpannerNumeric)6.626m }, row.ColNumericArray);
+                Assert.Equal(new List<SpannerNumeric?> { (SpannerNumeric)3.14m, (SpannerNumeric)6.626m }, row.ColNumericArray);
                 Assert.Equal(id, row.ColInt64);
-                Assert.Equal(new List<long> { 1L, 2L, 4L, 8L }, row.ColInt64Array);
+                Assert.Equal(new List<long?> { 1L, 2L, 4L, 8L }, row.ColInt64Array);
                 Assert.Equal("some string", row.ColString);
                 Assert.Equal(new List<string> { "string1", "string2", "string3" }, row.ColStringArray);
                 Assert.Equal("some longer string", row.ColStringMax);
                 Assert.Equal(new List<string> { "longer string1", "longer string2", "longer string3" }, row.ColStringMaxArray);
                 Assert.Equal(new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), row.ColTimestamp);
-                Assert.Equal(new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now }, row.ColTimestampArray);
+                Assert.Equal(new List<DateTime?> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now }, row.ColTimestampArray);
 
                 // The commit timestamp was automatically set by Cloud Spanner.
                 Assert.NotEqual(new DateTime(), row.ColCommitTs);
@@ -462,24 +464,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
                 // Update the row.
                 row.ColBool = false;
-                row.ColBoolArray = new List<bool> { false, true, false };
+                row.ColBoolArray = new List<bool?> { false, true, false };
                 row.ColBytes = new byte[] { 3, 2, 1 };
                 row.ColBytesMax = Encoding.UTF8.GetBytes("This string has changed");
                 row.ColBytesArray = new List<byte[]> { new byte[] { 10, 20, 30 }, new byte[] { 40, 50, 60 } };
                 row.ColBytesMaxArray = new List<byte[]> { Encoding.UTF8.GetBytes("changed string 1"), Encoding.UTF8.GetBytes("changed string 2"), Encoding.UTF8.GetBytes("changed string 3") };
                 row.ColDate = new SpannerDate(2020, 12, 30);
-                row.ColDateArray = new List<SpannerDate> { today, new SpannerDate(2020, 12, 30), new SpannerDate(2010, 2, 28) };
+                row.ColDateArray = new List<SpannerDate?> { today, new SpannerDate(2020, 12, 30), new SpannerDate(2010, 2, 28) };
                 row.ColFloat64 = 1.234D;
-                row.ColFloat64Array = new List<double> { 1.0D, 1.1D, 1.11D };
+                row.ColFloat64Array = new List<double?> { 1.0D, 1.1D, 1.11D };
                 row.ColNumeric = (SpannerNumeric?)1.234m;
-                row.ColNumericArray = new List<SpannerNumeric> { (SpannerNumeric)1.0m, (SpannerNumeric)1.1m, (SpannerNumeric)1.11m };
-                row.ColInt64Array = new List<long> { 500L, 1000L };
+                row.ColNumericArray = new List<SpannerNumeric?> { (SpannerNumeric)1.0m, (SpannerNumeric)1.1m, (SpannerNumeric)1.11m };
+                row.ColInt64Array = new List<long?> { 500L, 1000L };
                 row.ColString = "some changed string";
                 row.ColStringArray = new List<string> { "changed string1", "changed string2", "changed string3" };
                 row.ColStringMax = "some longer changed string";
                 row.ColStringMaxArray = new List<string> { "changed longer string1", "changed longer string2", "changed longer string3" };
                 row.ColTimestamp = new DateTime(2020, 12, 30, 15, 16, 28, 148).AddTicks(5498);
-                row.ColTimestampArray = new List<DateTime> { now, new DateTime(2020, 12, 30, 15, 16, 28, 148).AddTicks(5498) };
+                row.ColTimestampArray = new List<DateTime?> { now, new DateTime(2020, 12, 30, 15, 16, 28, 148).AddTicks(5498) };
                 await db.SaveChangesAsync();
             }
 
@@ -488,24 +490,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 // Reget the row from the database.
                 var row = await db.TableWithAllColumnTypes.FindAsync(id);
                 Assert.False(row.ColBool);
-                Assert.Equal(new List<bool> { false, true, false }, row.ColBoolArray);
+                Assert.Equal(new List<bool?> { false, true, false }, row.ColBoolArray);
                 Assert.Equal(new byte[] { 3, 2, 1 }, row.ColBytes);
                 Assert.Equal(Encoding.UTF8.GetBytes("This string has changed"), row.ColBytesMax);
                 Assert.Equal(new List<byte[]> { new byte[] { 10, 20, 30 }, new byte[] { 40, 50, 60 } }, row.ColBytesArray);
                 Assert.Equal(new List<byte[]> { Encoding.UTF8.GetBytes("changed string 1"), Encoding.UTF8.GetBytes("changed string 2"), Encoding.UTF8.GetBytes("changed string 3") }, row.ColBytesMaxArray);
                 Assert.Equal(new SpannerDate(2020, 12, 30), row.ColDate);
-                Assert.Equal(new List<SpannerDate> { today, new SpannerDate(2020, 12, 30), new SpannerDate(2010, 2, 28) }, row.ColDateArray);
+                Assert.Equal(new List<SpannerDate?> { today, new SpannerDate(2020, 12, 30), new SpannerDate(2010, 2, 28) }, row.ColDateArray);
                 Assert.Equal(1.234D, row.ColFloat64);
-                Assert.Equal(new List<double> { 1.0D, 1.1D, 1.11D }, row.ColFloat64Array);
+                Assert.Equal(new List<double?> { 1.0D, 1.1D, 1.11D }, row.ColFloat64Array);
                 Assert.Equal((SpannerNumeric?)1.234m, row.ColNumeric);
-                Assert.Equal(new List<SpannerNumeric> { (SpannerNumeric)1.0m, (SpannerNumeric)1.1m, (SpannerNumeric)1.11m }, row.ColNumericArray);
-                Assert.Equal(new List<long> { 500L, 1000L }, row.ColInt64Array);
+                Assert.Equal(new List<SpannerNumeric?> { (SpannerNumeric)1.0m, (SpannerNumeric)1.1m, (SpannerNumeric)1.11m }, row.ColNumericArray);
+                Assert.Equal(new List<long?> { 500L, 1000L }, row.ColInt64Array);
                 Assert.Equal("some changed string", row.ColString);
                 Assert.Equal(new List<string> { "changed string1", "changed string2", "changed string3" }, row.ColStringArray);
                 Assert.Equal("some longer changed string", row.ColStringMax);
                 Assert.Equal(new List<string> { "changed longer string1", "changed longer string2", "changed longer string3" }, row.ColStringMaxArray);
                 Assert.Equal(new DateTime(2020, 12, 30, 15, 16, 28, 148).AddTicks(5498), row.ColTimestamp);
-                Assert.Equal(new List<DateTime> { now, new DateTime(2020, 12, 30, 15, 16, 28, 148).AddTicks(5498) }, row.ColTimestampArray);
+                Assert.Equal(new List<DateTime?> { now, new DateTime(2020, 12, 30, 15, 16, 28, 148).AddTicks(5498) }, row.ColTimestampArray);
             }
         }
 
@@ -550,24 +552,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
                 // Update from null to non-null.
                 row.ColBool = true;
-                row.ColBoolArray = new List<bool> { };
+                row.ColBoolArray = new List<bool?> { };
                 row.ColBytes = new byte[0];
                 row.ColBytesArray = new List<byte[]> { };
                 row.ColBytesMax = new byte[0];
                 row.ColBytesMaxArray = new List<byte[]> { };
                 row.ColDate = new SpannerDate(1, 1, 1);
-                row.ColDateArray = new List<SpannerDate> { };
+                row.ColDateArray = new List<SpannerDate?> { };
                 row.ColFloat64 = 0.0D;
-                row.ColFloat64Array = new List<double> { };
+                row.ColFloat64Array = new List<double?> { };
                 row.ColNumeric = (SpannerNumeric?)0.0m;
-                row.ColNumericArray = new List<SpannerNumeric> { };
-                row.ColInt64Array = new List<long> { };
+                row.ColNumericArray = new List<SpannerNumeric?> { };
+                row.ColInt64Array = new List<long?> { };
                 row.ColString = "";
                 row.ColStringArray = new List<string> { };
                 row.ColStringMax = "";
                 row.ColStringMaxArray = new List<string> { };
                 row.ColTimestamp = new DateTime(1, 1, 1, 0, 0, 0);
-                row.ColTimestampArray = new List<DateTime> { };
+                row.ColTimestampArray = new List<DateTime?> { };
                 await db.SaveChangesAsync();
             }
 
@@ -647,88 +649,154 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
+        public async void CanInsertAndUpdateNullValuesInArrays()
+        {
+            var id = _fixture.RandomLong();
+            using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
+            {
+                var row = new TableWithAllColumnTypes
+                {
+                    ColInt64 = id,
+                    ColBoolArray = new List<bool?> { true, null, false },
+                    ColBytesArray = new List<byte[]> { new byte[] { 1 }, null, new byte[] { 2 } },
+                    ColBytesMaxArray = new List<byte[]> { new byte[] { 1 }, null, new byte[] { 2 } },
+                    ColDateArray = new List<SpannerDate?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) },
+                    ColFloat64Array = new List<double?> { 3.14, null, 6.662 },
+                    ColInt64Array = new List<long?> { 100, null, 200 },
+                    ColNumericArray = new List<SpannerNumeric?> { (SpannerNumeric)3.14m, null, (SpannerNumeric)6.662m },
+                    ColStringArray = new List<string> { "string1", null, "string2" },
+                    ColStringMaxArray = new List<string> { "long string 1", null, "long string 2" },
+                    ColTimestampArray = new List<DateTime?> { new DateTime(2021, 1, 13, 15, 24, 19), null },
+                };
+
+                db.TableWithAllColumnTypes.Add(row);
+                await db.SaveChangesAsync();
+            }
+
+            using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
+            {
+                var row = await db.TableWithAllColumnTypes.FindAsync(id);
+                Assert.Equal(new List<bool?> { true, null, false }, row.ColBoolArray);
+                Assert.Equal(new List<byte[]> { new byte[] { 1 }, null, new byte[] { 2 } }, row.ColBytesArray);
+                Assert.Equal(new List<byte[]> { new byte[] { 1 }, null, new byte[] { 2 } }, row.ColBytesMaxArray);
+                Assert.Equal(new List<SpannerDate?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) }, row.ColDateArray);
+                Assert.Equal(new List<double?> { 3.14, null, 6.662 }, row.ColFloat64Array);
+                Assert.Equal(new List<long?> { 100, null, 200 }, row.ColInt64Array);
+                Assert.Equal(new List<SpannerNumeric?> { (SpannerNumeric)3.14m, null, (SpannerNumeric)6.662m }, row.ColNumericArray);
+                Assert.Equal(new List<string> { "string1", null, "string2" }, row.ColStringArray);
+                Assert.Equal(new List<string> { "long string 1", null, "long string 2" }, row.ColStringMaxArray);
+                Assert.Equal(new List<DateTime?> { new DateTime(2021, 1, 13, 15, 24, 19), null }, row.ColTimestampArray);
+
+                row.ColBoolArray = new List<bool?> { null, true, null };
+                row.ColBytesArray = new List<byte[]> { new byte[] { 1 }, null, new byte[] { 2 } };
+                row.ColBytesMaxArray = new List<byte[]> { new byte[] { 1 }, null, new byte[] { 2 } };
+                row.ColDateArray = new List<SpannerDate?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) };
+                row.ColFloat64Array = new List<double?> { 3.14, null, 6.662 };
+                row.ColInt64Array = new List<long?> { 100, null, 200 };
+                row.ColNumericArray = new List<SpannerNumeric?> { (SpannerNumeric)3.14m, null, (SpannerNumeric)6.662m };
+                row.ColStringArray = new List<string> { "string1", null, "string2" };
+                row.ColStringMaxArray = new List<string> { "long string 1", null, "long string 2" };
+                row.ColTimestampArray = new List<DateTime?> { new DateTime(2021, 1, 13, 15, 24, 19), null };
+                await db.SaveChangesAsync();
+            }
+
+            using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
+            {
+                var row = await db.TableWithAllColumnTypes.FindAsync(id);
+                Assert.Equal(new List<bool?> { null, true, null }, row.ColBoolArray);
+                Assert.Equal(new List<byte[]> { new byte[] { 1 }, null, new byte[] { 2 } }, row.ColBytesArray);
+                Assert.Equal(new List<byte[]> { new byte[] { 1 }, null, new byte[] { 2 } }, row.ColBytesMaxArray);
+                Assert.Equal(new List<SpannerDate?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) }, row.ColDateArray);
+                Assert.Equal(new List<double?> { 3.14, null, 6.662 }, row.ColFloat64Array);
+                Assert.Equal(new List<long?> { 100, null, 200 }, row.ColInt64Array);
+                Assert.Equal(new List<SpannerNumeric?> { (SpannerNumeric)3.14m, null, (SpannerNumeric)6.662m }, row.ColNumericArray);
+                Assert.Equal(new List<string> { "string1", null, "string2" }, row.ColStringArray);
+                Assert.Equal(new List<string> { "long string 1", null, "long string 2" }, row.ColStringMaxArray);
+                Assert.Equal(new List<DateTime?> { new DateTime(2021, 1, 13, 15, 24, 19), null }, row.ColTimestampArray);
+            }
+        }
+
+        [Fact]
         public async void CanDeleteData()
         {
             var singerId = _fixture.RandomLong();
             var albumId = _fixture.RandomLong();
             var trackId = _fixture.RandomLong();
             var venueCode = _fixture.RandomString(4);
-            using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singer = new Singers
             {
-                var singer = new Singers
-                {
-                    SingerId = singerId,
-                    LastName = "To be deleted",
-                };
-                db.Singers.Add(singer);
+                SingerId = singerId,
+                LastName = "To be deleted",
+            };
+            db.Singers.Add(singer);
 
-                var album = new Albums
-                {
-                    AlbumId = albumId,
-                    Title = "To be deleted",
-                    SingerId = singer.SingerId,
-                };
-                db.Albums.Add(album);
+            var album = new Albums
+            {
+                AlbumId = albumId,
+                Title = "To be deleted",
+                SingerId = singer.SingerId,
+            };
+            db.Albums.Add(album);
 
-                var track = new Tracks
-                {
-                    AlbumId = album.AlbumId,
-                    TrackId = trackId,
-                    Title = "To be deleted",
-                };
-                db.Tracks.Add(track);
+            var track = new Tracks
+            {
+                AlbumId = album.AlbumId,
+                TrackId = trackId,
+                Title = "To be deleted",
+            };
+            db.Tracks.Add(track);
 
-                var venue = new Venues
-                {
-                    Code = venueCode,
-                    Name = "To be deleted",
-                };
-                db.Venues.Add(venue);
+            var venue = new Venues
+            {
+                Code = venueCode,
+                Name = "To be deleted",
+            };
+            db.Venues.Add(venue);
 
-                var concert = new Concerts
-                {
-                    VenueCode = venue.Code,
-                    StartTime = new DateTime(2020, 12, 30, 10, 00, 30),
-                    SingerId = singer.SingerId,
-                };
-                db.Concerts.Add(concert);
+            var concert = new Concerts
+            {
+                VenueCode = venue.Code,
+                StartTime = new DateTime(2020, 12, 30, 10, 00, 30),
+                SingerId = singer.SingerId,
+            };
+            db.Concerts.Add(concert);
 
-                var performance = new Performances
-                {
-                    VenueCode = venue.Code,
-                    ConcertStartTime = concert.StartTime,
-                    SingerId = singer.SingerId,
-                    AlbumId = album.AlbumId,
-                    TrackId = track.TrackId,
-                    StartTime = concert.StartTime.AddMinutes(30),
-                };
-                db.Performances.Add(performance);
+            var performance = new Performances
+            {
+                VenueCode = venue.Code,
+                ConcertStartTime = concert.StartTime,
+                SingerId = singer.SingerId,
+                AlbumId = album.AlbumId,
+                TrackId = track.TrackId,
+                StartTime = concert.StartTime.AddMinutes(30),
+            };
+            db.Performances.Add(performance);
 
-                var id = _fixture.RandomLong();
-                var row = new TableWithAllColumnTypes { ColInt64 = id };
-                db.TableWithAllColumnTypes.Add(row);
+            var id = _fixture.RandomLong();
+            var row = new TableWithAllColumnTypes { ColInt64 = id };
+            db.TableWithAllColumnTypes.Add(row);
 
-                await db.SaveChangesAsync();
+            await db.SaveChangesAsync();
 
-                // Delete all rows.
-                db.TableWithAllColumnTypes.Remove(row);
-                db.Performances.Remove(performance);
-                db.Concerts.Remove(concert);
-                db.Venues.Remove(venue);
-                db.Tracks.Remove(track);
-                db.Albums.Remove(album);
-                db.Singers.Remove(singer);
-                await db.SaveChangesAsync();
+            // Delete all rows.
+            db.TableWithAllColumnTypes.Remove(row);
+            db.Performances.Remove(performance);
+            db.Concerts.Remove(concert);
+            db.Venues.Remove(venue);
+            db.Tracks.Remove(track);
+            db.Albums.Remove(album);
+            db.Singers.Remove(singer);
+            await db.SaveChangesAsync();
 
-                // Verify that all rows were deleted.
-                Assert.Null(await db.Singers.FindAsync(singer.SingerId));
-                Assert.Null(await db.Albums.FindAsync(album.AlbumId));
-                Assert.Null(await db.Tracks.FindAsync(album.AlbumId, track.TrackId));
-                Assert.Null(await db.Venues.FindAsync(venue.Code));
-                Assert.Null(await db.Concerts.FindAsync(concert.VenueCode, concert.StartTime, concert.SingerId));
-                Assert.Null(await db.Performances.FindAsync(performance.VenueCode, performance.SingerId, performance.StartTime));
-                Assert.Null(await db.TableWithAllColumnTypes.FindAsync(row.ColInt64));
-            }
+            // Verify that all rows were deleted.
+            Assert.Null(await db.Singers.FindAsync(singer.SingerId));
+            Assert.Null(await db.Albums.FindAsync(album.AlbumId));
+            Assert.Null(await db.Tracks.FindAsync(album.AlbumId, track.TrackId));
+            Assert.Null(await db.Venues.FindAsync(venue.Code));
+            Assert.Null(await db.Concerts.FindAsync(concert.VenueCode, concert.StartTime, concert.SingerId));
+            Assert.Null(await db.Performances.FindAsync(performance.VenueCode, performance.SingerId, performance.StartTime));
+            Assert.Null(await db.TableWithAllColumnTypes.FindAsync(row.ColInt64));
         }
     }
 }

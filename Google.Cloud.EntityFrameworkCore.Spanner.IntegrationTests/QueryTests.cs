@@ -176,25 +176,25 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             var row = new TableWithAllColumnTypes
             {
                 ColBool = true,
-                ColBoolArray = new List<bool> { true, false, true },
+                ColBoolArray = new List<bool?> { true, false, true },
                 ColBytes = new byte[] { 1, 2, 3 },
                 ColBytesMax = Encoding.UTF8.GetBytes("This is a long string"),
                 ColBytesArray = new List<byte[]> { new byte[] { 3, 2, 1 }, new byte[] { }, new byte[] { 4, 5, 6 } },
                 ColBytesMaxArray = new List<byte[]> { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2"), Encoding.UTF8.GetBytes("string 3") },
                 ColDate = new SpannerDate(2020, 12, 28),
-                ColDateArray = new List<SpannerDate> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today },
+                ColDateArray = new List<SpannerDate?> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today },
                 ColFloat64 = 3.14D,
-                ColFloat64Array = new List<double> { 3.14D, 6.626D },
+                ColFloat64Array = new List<double?> { 3.14D, 6.626D },
                 ColInt64 = id1,
-                ColInt64Array = new List<long> { 1L, 2L, 4L, 8L },
+                ColInt64Array = new List<long?> { 1L, 2L, 4L, 8L },
                 ColNumeric = (SpannerNumeric?)3.14m,
-                ColNumericArray = new List<SpannerNumeric> { (SpannerNumeric)3.14m, (SpannerNumeric)6.626m },
+                ColNumericArray = new List<SpannerNumeric?> { (SpannerNumeric)3.14m, (SpannerNumeric)6.626m },
                 ColString = "some string",
                 ColStringArray = new List<string> { "string1", "string2", "string3" },
                 ColStringMax = "some longer string",
                 ColStringMaxArray = new List<string> { "longer string1", "longer string2", "longer string3" },
                 ColTimestamp = new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288),
-                ColTimestampArray = new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now },
+                ColTimestampArray = new List<DateTime?> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now },
             };
             var updateCount1 = await db.Database.ExecuteSqlRawAsync(
                 @"INSERT INTO TableWithAllColumnTypes 

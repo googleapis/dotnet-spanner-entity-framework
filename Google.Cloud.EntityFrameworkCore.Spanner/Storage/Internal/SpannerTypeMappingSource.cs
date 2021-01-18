@@ -26,6 +26,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         internal const int StringMax = 2621440;
         internal const int BytesMax = 10485760;
 
+        // --- Non-array types ---
+
         private static readonly BoolTypeMapping s_bool
             = new SpannerBoolTypeMapping(SpannerDbType.Bool.ToString());
 
@@ -61,6 +63,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly ByteArrayTypeMapping s_byte
             = new ByteArrayTypeMapping(SpannerDbType.Bytes.ToString(), DbType.Binary);
 
+
+        // --- Array Types ---
+
         private static readonly SpannerComplexTypeMapping s_byteArray
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bytes), typeof(byte[][]));
 
@@ -73,37 +78,59 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly SpannerComplexTypeMapping s_stringList
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String), typeof(List<string>));
 
+        private static readonly SpannerComplexTypeMapping s_nullableBoolArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bool), typeof(bool?[]));
         private static readonly SpannerComplexTypeMapping s_boolArray
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bool), typeof(bool[]));
 
+        private static readonly SpannerComplexTypeMapping s_nullableBoolList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bool), typeof(List<bool?>));
         private static readonly SpannerComplexTypeMapping s_boolList
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bool), typeof(List<bool>));
 
+        private static readonly SpannerComplexTypeMapping s_nullableDoubleArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Float64), typeof(double?[]));
         private static readonly SpannerComplexTypeMapping s_doubleArray
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Float64), typeof(double[]));
 
+        private static readonly SpannerComplexTypeMapping s_nullableDoubleList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Float64), typeof(List<double?>));
         private static readonly SpannerComplexTypeMapping s_doubleList
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Float64), typeof(List<double>));
 
+        private static readonly SpannerComplexTypeMapping s_nullableLongArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(long?[]));
         private static readonly SpannerComplexTypeMapping s_longArray
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(long[]));
 
+        private static readonly SpannerComplexTypeMapping s_nullableLongList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<long?>));
         private static readonly SpannerComplexTypeMapping s_longList
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<long>));
 
+        private static readonly SpannerNullableDateArrayTypeMapping s_nullableDateArray = new SpannerNullableDateArrayTypeMapping();
         private static readonly SpannerDateArrayTypeMapping s_dateArray = new SpannerDateArrayTypeMapping();
 
+        private static readonly SpannerNullableDateListTypeMapping s_nullableDateList = new SpannerNullableDateListTypeMapping();
         private static readonly SpannerDateListTypeMapping s_dateList = new SpannerDateListTypeMapping();
 
+        private static readonly SpannerComplexTypeMapping s_nullableTimestampArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Timestamp), typeof(DateTime?[]));
         private static readonly SpannerComplexTypeMapping s_timestampArray
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Timestamp), typeof(DateTime[]));
 
+        private static readonly SpannerComplexTypeMapping s_nullableTimestampList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Timestamp), typeof(List<DateTime?>));
         private static readonly SpannerComplexTypeMapping s_timestampList
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Timestamp), typeof(List<DateTime>));
 
+        private static readonly SpannerComplexTypeMapping s_nullableNumericArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric), typeof(SpannerNumeric?[]));
         private static readonly SpannerComplexTypeMapping s_numericArray
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric), typeof(SpannerNumeric[]));
 
+        private static readonly SpannerComplexTypeMapping s_nullableNumericList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric), typeof(List<SpannerNumeric?>));
         private static readonly SpannerComplexTypeMapping s_numericList
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric), typeof(List<SpannerNumeric>));
 
@@ -137,23 +164,37 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(Guid), s_guid},
                     {typeof(byte[]), s_byte},
                     {typeof(decimal[]), s_numericArray},
+                    {typeof(decimal?[]), s_nullableNumericArray},
                     {typeof(SpannerNumeric[]), s_numericArray},
+                    {typeof(SpannerNumeric?[]), s_nullableNumericArray},
                     {typeof(List<decimal>), s_numericList},
+                    {typeof(List<decimal?>), s_nullableNumericList},
                     {typeof(List<SpannerNumeric>), s_numericList},
+                    {typeof(List<SpannerNumeric?>), s_nullableNumericList},
                     {typeof(string[]), s_stringArray},
                     {typeof(List<string>), s_stringList},
                     {typeof(bool[]), s_boolArray},
+                    {typeof(bool?[]), s_nullableBoolArray},
                     {typeof(List<bool>), s_boolList},
+                    {typeof(List<bool?>), s_nullableBoolList},
                     {typeof(double[]), s_doubleArray},
+                    {typeof(double?[]), s_nullableDoubleArray},
                     {typeof(List<double>), s_doubleList},
+                    {typeof(List<double?>), s_nullableDoubleList},
                     {typeof(long[]), s_longArray},
+                    {typeof(long?[]), s_nullableLongArray},
                     {typeof(List<long>), s_longList},
+                    {typeof(List<long?>), s_nullableLongList},
                     {typeof(SpannerDate[]), s_dateArray},
-                    {typeof(DateTime[]), s_timestampArray},
+                    {typeof(SpannerDate?[]), s_nullableDateArray},
                     {typeof(List<SpannerDate>), s_dateList},
+                    {typeof(List<SpannerDate?>), s_nullableDateList},
                     {typeof(List<DateTime>), s_timestampList},
+                    {typeof(List<DateTime?>), s_nullableTimestampList},
+                    {typeof(DateTime[]), s_timestampArray},
+                    {typeof(DateTime?[]), s_nullableTimestampArray},
                     {typeof(byte[][]), s_byteArray},
-                    {typeof(List<byte[]>), s_byteList}
+                    {typeof(List<byte[]>), s_byteList},
                 };
 
             s_storeTypeMappings = new Dictionary<string, RelationalTypeMapping>
@@ -166,28 +207,26 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {SpannerDbType.Timestamp.ToString(), s_datetime},
                 {SpannerDbType.String.ToString(), s_defaultString},
                 {SpannerDbType.Numeric.ToString(), s_numeric},
-                {SpannerDbType.Unspecified.ToString(), null},
-                {"ARRAY<BOOL>", s_boolList},
+                {"ARRAY<BOOL>", s_nullableBoolList},
                 {"ARRAY<BYTES", s_byteList},
-                {"ARRAY<DATE>", s_dateList},
-                {"ARRAY<FLOAT64>", s_doubleList},
-                {"ARRAY<INT64>", s_longList},
+                {"ARRAY<DATE>", s_nullableDateList},
+                {"ARRAY<FLOAT64>", s_nullableDoubleList},
+                {"ARRAY<INT64>", s_nullableLongList},
                 {"ARRAY<STRING", s_stringList},
-                {"ARRAY<TIMESTAMP>", s_timestampList},
-                {"ARRAY<NUMERIC>", s_numericList}
-
+                {"ARRAY<TIMESTAMP>", s_nullableTimestampList},
+                {"ARRAY<NUMERIC>", s_nullableNumericList}
             };
 
             s_arrayTypeMappings = new Dictionary<string, RelationalTypeMapping>
             {
-                {"ARRAY<BOOL>", s_boolArray},
+                {"ARRAY<BOOL>", s_nullableBoolArray},
                 {"ARRAY<BYTES", s_byteArray},
-                {"ARRAY<DATE>", s_dateArray},
-                {"ARRAY<FLOAT64>", s_doubleArray},
-                {"ARRAY<INT64>", s_longArray},
+                {"ARRAY<DATE>", s_nullableDateArray},
+                {"ARRAY<FLOAT64>", s_nullableDoubleArray},
+                {"ARRAY<INT64>", s_nullableLongArray},
                 {"ARRAY<STRING", s_stringArray},
-                {"ARRAY<TIMESTAMP>", s_timestampArray},
-                {"ARRAY<NUMERIC>", s_numericArray}
+                {"ARRAY<TIMESTAMP>", s_nullableTimestampArray},
+                {"ARRAY<NUMERIC>", s_nullableNumericArray}
             };
         }
 
@@ -206,19 +245,28 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 if (s_storeTypeMappings.TryGetValue(storeTypeName, out var mapping)
                     || s_storeTypeMappings.TryGetValue(storeTypeNameBase, out mapping))
                 {
-                    if (clrType == null || mapping.ClrType == clrType || mapping.Converter?.ProviderClrType == clrType)
+                    if (clrType == null
+                        || mapping.ClrType == clrType
+                        || mapping.Converter?.ProviderClrType == clrType)
                     {
                         return mapping;
                     };
 
-                    if (s_arrayTypeMappings.TryGetValue(storeTypeName, out mapping)
-                    || s_arrayTypeMappings.TryGetValue(storeTypeNameBase, out mapping))
+                    if (s_arrayTypeMappings.TryGetValue(storeTypeName, out var arrayMapping)
+                    || s_arrayTypeMappings.TryGetValue(storeTypeNameBase, out arrayMapping))
                     {
-                        if (clrType == null || mapping.ClrType == clrType || mapping.Converter?.ProviderClrType == clrType)
+                        if (clrType == null
+                            || arrayMapping.ClrType == clrType
+                            || arrayMapping.Converter?.ProviderClrType == clrType)
                         {
-                            return mapping;
+                            return arrayMapping;
                         };
                     }
+                }
+
+                if (TryFindConverterMapping(storeTypeName, clrType, out mapping))
+                {
+                    return mapping;
                 }
             }
 
@@ -231,6 +279,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             }
 
             return null;
+        }
+
+        private bool TryFindConverterMapping(string storeType, System.Type clrType, out RelationalTypeMapping mapping)
+        {
+            foreach (var m in s_clrTypeMappings.Values)
+            {
+                if (m.Converter?.ProviderClrType == clrType && m.StoreType == storeType)
+                {
+                    mapping = m;
+                    return true;
+                }
+            }
+            mapping = null;
+            return false;
         }
     }
 }

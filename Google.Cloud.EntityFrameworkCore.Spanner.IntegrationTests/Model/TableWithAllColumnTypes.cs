@@ -18,16 +18,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         public SpannerDate? ColDate { get; set; }
         public DateTime? ColTimestamp { get; set; }
         public DateTime? ColCommitTs { get; set; }
-        public List<long> ColInt64Array { get; set; }
-        public List<double> ColFloat64Array { get; set; }
-        public List<SpannerNumeric> ColNumericArray { get; set; }
-        public List<bool> ColBoolArray { get; set; }
+        public List<Nullable<long>> ColInt64Array { get; set; }
+        public List<Nullable<double>> ColFloat64Array { get; set; }
+        public List<Nullable<SpannerNumeric>> ColNumericArray { get; set; }
+        public List<Nullable<bool>> ColBoolArray { get; set; }
         public List<string> ColStringArray { get; set; }
         public List<string> ColStringMaxArray { get; set; }
         public List<byte[]> ColBytesArray { get; set; }
         public List<byte[]> ColBytesMaxArray { get; set; }
-        public List<SpannerDate> ColDateArray { get; set; }
-        public List<DateTime> ColTimestampArray { get; set; }
+        public List<Nullable<SpannerDate>> ColDateArray { get; set; }
+        public List<Nullable<DateTime>> ColTimestampArray { get; set; }
         public string ColComputed { get; set; }
     }
 }

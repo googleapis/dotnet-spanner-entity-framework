@@ -14,7 +14,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         public string Name { get; set; }
         public bool Active { get; set; }
         public long? Capacity { get; set; }
-        public List<double> Ratings { get; set; }
+        public List<Nullable<double>> Ratings { get; set; }
 
         public virtual ICollection<Concerts> Concerts { get; set; }
     }
