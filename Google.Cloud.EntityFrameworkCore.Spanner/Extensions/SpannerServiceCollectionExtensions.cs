@@ -48,6 +48,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                 .TryAdd<ISqlGenerationHelper, SpannerSqlGenerationHelper>()
                 .TryAdd<IMigrationsAnnotationProvider, SpannerMigrationsAnnotationProvider>()
                 .TryAdd<IUpdateSqlGenerator, SpannerUpdateSqlGenerator>()
+                .TryAdd<IBatchExecutor, SpannerBatchExecutor>()
                 .TryAdd<IModificationCommandBatchFactory, SpannerModificationCommandBatchFactory>()
                 .TryAdd<IModelValidator, RelationalModelValidator>()
                 .TryAdd<IQuerySqlGeneratorFactory, SpannerQuerySqlGeneratorFactory>()
