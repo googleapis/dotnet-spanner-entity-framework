@@ -20,6 +20,7 @@ using Google.Cloud.Spanner.V1;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -416,6 +417,141 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             // Update the update count to 1 to simulate a resolved version conflict.
             _fixture.SpannerMock.AddOrUpdateStatementResult(updateSql, StatementResult.CreateUpdateCount(1L));
             Assert.Equal(1L, await db.SaveChangesAsync());
+        }
+
+        [Theory]
+        [InlineData(true, true)]
+        [InlineData(true, false)]
+        [InlineData(false, true)]
+        [InlineData(false, false)]
+        public async Task ExplicitAndImplicitTransactionIsRetried(bool disableInternalRetries, bool useExplicitTransaction)
+        {
+            // Setup results.
+            var insertSql = "INSERT INTO Venues (Code, Active, Capacity, Name, Ratings)\r\nVALUES (@p0, @p1, @p2, @p3, @p4)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateUpdateCount(1L));
+            // Abort the next statement that is executed on the mock server.
+            _fixture.SpannerMock.AbortNextStatement();
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            IDbContextTransaction transaction = null;
+            if (useExplicitTransaction)
+            {
+                transaction = await db.Database.BeginTransactionAsync();
+                if (disableInternalRetries)
+                {
+                    transaction.DisableInternalRetries();
+                }
+            }
+            db.Venues.Add(new Venues
+            {
+                Code = "C1",
+                Name = "Concert Hall",
+            });
+
+            // We can only disable internal retries when using explicit transactions. Otherwise internal retries
+            // are always used.
+            if (disableInternalRetries && useExplicitTransaction)
+            {
+                var e = await Assert.ThrowsAsync<SpannerException>(() => db.SaveChangesAsync());
+                Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+            }
+            else
+            {
+                var updateCount = await db.SaveChangesAsync();
+                Assert.Equal(1L, updateCount);
+                if (useExplicitTransaction)
+                {
+                    await transaction.CommitAsync();
+                }
+                Assert.Collection(
+                    _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest).Select(request => (ExecuteBatchDmlRequest)request),
+                    // The Batch DML request is sent twice to the server, as the statement is aborted during the first attempt.
+                    request =>
+                    {
+                        Assert.Single(request.Statements);
+                        Assert.Equal(insertSql, request.Statements[0].Sql);
+                        Assert.NotNull(request.Transaction?.Id);
+                    },
+                    request =>
+                    {
+                        Assert.Single(request.Statements);
+                        Assert.Equal(insertSql, request.Statements[0].Sql);
+                        Assert.NotNull(request.Transaction?.Id);
+                    }
+                );
+                // Even if we are using implicit transactions, there will still be a transaction in the background and this transaction should be committed.
+                Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
+            }
+        }
+
+        [Theory]
+        [InlineData(true, true)]
+        [InlineData(true, false)]
+        [InlineData(false, true)]
+        [InlineData(false, false)]
+        public async Task ExplicitAndImplicitTransactionIsRetried_WhenUsingRawSql(bool disableInternalRetries, bool useExplicitTransaction)
+        {
+            // Setup results.
+            var insertSql = "INSERT INTO Venues (Code, Active, Capacity, Name, Ratings)\r\nVALUES (@p0, @p1, @p2, @p3, @p4)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateUpdateCount(1L));
+            // Abort the next statement that is executed on the mock server.
+            _fixture.SpannerMock.AbortNextStatement();
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            IDbContextTransaction transaction = null;
+            if (useExplicitTransaction)
+            {
+                transaction = await db.Database.BeginTransactionAsync();
+                if (disableInternalRetries)
+                {
+                    transaction.DisableInternalRetries();
+                }
+            }
+
+            // We can only disable internal retries when using explicit transactions. Otherwise internal retries
+            // are always used.
+            if (disableInternalRetries && useExplicitTransaction)
+            {
+                var e = await Assert.ThrowsAsync<SpannerException>(() => db.Database.ExecuteSqlRawAsync(insertSql,
+                    new SpannerParameter("p0", SpannerDbType.String, "C1"),
+                    new SpannerParameter("p1", SpannerDbType.Bool, true),
+                    new SpannerParameter("p2", SpannerDbType.Int64, 1000L),
+                    new SpannerParameter("p3", SpannerDbType.String, "Concert Hall"),
+                    new SpannerParameter("p4", SpannerDbType.ArrayOf(SpannerDbType.Float64))
+                ));
+                Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+            }
+            else
+            {
+                var updateCount = await db.Database.ExecuteSqlRawAsync(insertSql,
+                    new SpannerParameter("p0", SpannerDbType.String, "C1"),
+                    new SpannerParameter("p1", SpannerDbType.Bool, true),
+                    new SpannerParameter("p2", SpannerDbType.Int64, 1000L),
+                    new SpannerParameter("p3", SpannerDbType.String, "Concert Hall"),
+                    new SpannerParameter("p4", SpannerDbType.ArrayOf(SpannerDbType.Float64))
+                );
+                Assert.Equal(1L, updateCount);
+                if (useExplicitTransaction)
+                {
+                    await transaction.CommitAsync();
+                }
+                Assert.Collection(
+                    _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                    // The ExecuteSqlRequest is sent twice to the server, as the statement is aborted during the first attempt.
+                    request =>
+                    {
+                        Assert.Equal(insertSql, request.Sql);
+                        Assert.NotNull(request.Transaction?.Id);
+                    },
+                    request =>
+                    {
+                        Assert.Equal(insertSql, request.Sql);
+                        Assert.NotNull(request.Transaction?.Id);
+                    }
+                );
+                // Even if we are using implicit transactions, there will still be a transaction in the background and this transaction should be committed.
+                Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
+            }
         }
 
         private string AddFindSingerResult()

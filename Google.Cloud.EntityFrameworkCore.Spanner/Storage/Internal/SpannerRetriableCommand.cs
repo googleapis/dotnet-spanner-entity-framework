@@ -16,6 +16,7 @@ using Google.Api.Gax;
 using Google.Cloud.Spanner.Data;
 using System.Data;
 using System.Data.Common;
+using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
@@ -60,16 +61,30 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         public override int ExecuteNonQuery() =>
             _transaction == null
-            ? _spannerCommand.ExecuteNonQuery()
+            ? ExecuteNonQueryWithRetryAsync(_spannerCommand).ResultWithUnwrappedExceptions()
             : _transaction.ExecuteNonQueryWithRetry(_spannerCommand);
+
+        /// <summary>
+        /// Wraps a DML command in a Spanner retriable transaction to retry Aborted errors.
+        /// </summary>
+        private async Task<int> ExecuteNonQueryWithRetryAsync(SpannerCommand spannerCommand)
+        {
+            return await _connection.SpannerConnection.RunWithRetriableTransactionAsync(async transaction =>
+            {
+                spannerCommand.Transaction = transaction;
+                return await spannerCommand.ExecuteNonQueryAsync();
+            });
+        }
 
         public override object ExecuteScalar() =>
             _transaction == null
+            // These don't need retry protection as the ephemeral transaction used by the client library is a read-only transaction.
             ? _spannerCommand.ExecuteScalar()
             : _transaction.ExecuteScalarWithRetry(_spannerCommand);
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
             => _transaction == null
+            // These don't need retry protection as the ephemeral transaction used by the client library is a read-only transaction.
             ? _spannerCommand.ExecuteReader()
             : _transaction.ExecuteDbDataReaderWithRetry(_spannerCommand);
 

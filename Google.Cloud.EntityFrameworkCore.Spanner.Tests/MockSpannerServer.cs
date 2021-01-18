@@ -254,6 +254,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         private static readonly Empty EMPTY = new Empty();
         private static readonly TransactionOptions SINGLE_USE = new TransactionOptions { ReadOnly = new TransactionOptions.Types.ReadOnly { Strong = true, ReturnReadTimestamp = false } };
 
+        private readonly object _lock = new object();
         private readonly ConcurrentDictionary<string, StatementResult> _results = new ConcurrentDictionary<string, StatementResult>();
         private ConcurrentQueue<IMessage> _requests = new ConcurrentQueue<IMessage>();
         private int _sessionCounter;
@@ -262,6 +263,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         private readonly ConcurrentDictionary<ByteString, Transaction> _transactions = new ConcurrentDictionary<ByteString, Transaction>();
         private readonly ConcurrentDictionary<ByteString, TransactionOptions> _transactionOptions = new ConcurrentDictionary<ByteString, TransactionOptions>();
         private readonly ConcurrentDictionary<ByteString, bool> _abortedTransactions = new ConcurrentDictionary<ByteString, bool>();
+        private bool _abortNextStatement = false;
         private readonly ConcurrentDictionary<string, ExecutionTime> _executionTimes = new ConcurrentDictionary<string, ExecutionTime>();
 
         public void AddOrUpdateStatementResult(string sql, StatementResult result)
@@ -285,6 +287,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var prop = transactionId.GetType().GetProperty("Id", BindingFlags.Instance | BindingFlags.NonPublic);
             var id = (string) prop.GetValue(transactionId);
             _abortedTransactions.TryAdd(ByteString.FromBase64(id), true);
+        }
+
+        internal void AbortNextStatement()
+        {
+            lock (_lock)
+            {
+                _abortNextStatement = true;
+            }
         }
 
         public IEnumerable<IMessage> Requests => new List<IMessage>(_requests).AsReadOnly();
@@ -349,6 +359,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             if (_abortedTransactions.TryGetValue(id, out bool aborted) && aborted)
             {
                 throw CreateAbortedException();
+            }
+            lock (_lock)
+            {
+                if (_abortNextStatement)
+                {
+                    _abortNextStatement = false;
+                    throw CreateAbortedException();
+                }
             }
             if (remove ? _transactions.TryRemove(id, out Transaction tx) : _transactions.TryGetValue(id, out tx))
             {
