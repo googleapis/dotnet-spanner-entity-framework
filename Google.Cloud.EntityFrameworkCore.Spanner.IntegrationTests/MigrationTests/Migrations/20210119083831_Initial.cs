@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 
@@ -17,10 +18,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     ColShort = table.Column<short>(nullable: true),
                     ColInt = table.Column<int>(nullable: true),
                     ColLong = table.Column<long>(nullable: true),
-                    ColDecimal = table.Column<decimal>(nullable: true),
+                    ColDecimal = table.Column<SpannerNumeric>(nullable: true),
                     ColUint = table.Column<uint>(nullable: true),
                     ColBool = table.Column<bool>(nullable: true),
-                    ColDate = table.Column<DateTime>(type: "DATE", nullable: true),
+                    ColDate = table.Column<DateTime>(nullable: true),
                     ColTimestamp = table.Column<DateTime>(nullable: true),
                     ColCommitTimestamp = table.Column<DateTime>(nullable: true)
                         .Annotation("UpdateCommitTimestamp", SpannerUpdateCommitTimestamp.OnInsertAndUpdate),
@@ -29,8 +30,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     ColString = table.Column<string>(nullable: true),
                     ColGuid = table.Column<Guid>(nullable: true),
                     ColBytes = table.Column<byte[]>(nullable: true),
-                    ColDecimalArray = table.Column<decimal[]>(nullable: true),
-                    ColDecimalList = table.Column<List<decimal>>(nullable: true),
+                    ColDecimalArray = table.Column<SpannerNumeric[]>(nullable: true),
+                    ColDecimalList = table.Column<List<SpannerNumeric>>(nullable: true),
                     ColStringArray = table.Column<string[]>(nullable: true),
                     ColStringList = table.Column<List<string>>(nullable: true),
                     ColBoolArray = table.Column<bool[]>(nullable: true),
@@ -39,10 +40,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     ColDoubleList = table.Column<List<double>>(nullable: true),
                     ColLongArray = table.Column<long[]>(nullable: true),
                     ColLongList = table.Column<List<long>>(nullable: true),
+                    ColDateArray = table.Column<DateTime[]>(nullable: true),
+                    ColDateList = table.Column<List<DateTime>>(nullable: true),
                     ColTimestampArray = table.Column<DateTime[]>(nullable: true),
                     ColTimestampList = table.Column<List<DateTime>>(nullable: true),
-                    ColDateArray = table.Column<DateTime[]>(type: "ARRAY<DATE>", nullable: true),
-                    ColDateList = table.Column<List<DateTime>>(type: "ARRAY<DATE>", nullable: true),
                     ColBytesArray = table.Column<byte[][]>(nullable: true),
                     ColBytesList = table.Column<List<byte[]>>(nullable: true)
                 },
@@ -167,6 +168,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                         principalColumn: "ProductId",
                         onDelete: ReferentialAction.Cascade);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AllColTypes_ColDate_ColCommitTimestamp",
+                table: "AllColTypes",
+                columns: new[] { "ColDate", "ColCommitTimestamp" })
+                .Annotation("Spanner:IsNullFiltered", true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_OrderDetails_ProductId",

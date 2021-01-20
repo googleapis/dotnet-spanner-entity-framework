@@ -49,10 +49,18 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             bool terminate = true)
         {
             builder.Append("CREATE ");
+
             if (operation.IsUnique)
             {
                 builder.Append("UNIQUE ");
             }
+
+            var nullFilteredIndexAnnotation = operation.FindAnnotation(SpannerAnnotationNames.IsNullFilteredIndex);
+            if (nullFilteredIndexAnnotation != null && (bool)nullFilteredIndexAnnotation.Value)
+            {
+                builder.Append("NULL_FILTERED ");
+            }
+
             builder.Append("INDEX ")
                 .Append(operation.Name)
                 .Append(" ON ")

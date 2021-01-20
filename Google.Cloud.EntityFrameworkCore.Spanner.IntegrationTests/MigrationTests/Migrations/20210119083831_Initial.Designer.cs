@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests;
+using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -11,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTests.Migrations
 {
     [DbContext(typeof(TestMigrationDbContext))]
-    [Migration("20210113121759_Initial")]
+    [Migration("20210119083831_Initial")]
     partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -57,13 +58,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     b.Property<List<DateTime>>("ColDateList")
                         .HasColumnType("ARRAY<DATE>");
 
-                    b.Property<decimal?>("ColDecimal")
+                    b.Property<SpannerNumeric?>("ColDecimal")
                         .HasColumnType("NUMERIC");
 
-                    b.Property<decimal[]>("ColDecimalArray")
+                    b.Property<SpannerNumeric[]>("ColDecimalArray")
                         .HasColumnType("ARRAY<NUMERIC>");
 
-                    b.Property<List<decimal>>("ColDecimalList")
+                    b.Property<List<SpannerNumeric>>("ColDecimalList")
                         .HasColumnType("ARRAY<NUMERIC>");
 
                     b.Property<double?>("ColDouble")
@@ -118,6 +119,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                         .HasColumnType("INT64");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ColDate", "ColCommitTimestamp")
+                        .HasAnnotation("Spanner:IsNullFiltered", true);
 
                     b.ToTable("AllColTypes");
                 });

@@ -41,6 +41,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         {
             modelBuilder.Entity<AllColType>(entity =>
             {
+                entity.HasIndex(e => new { e.ColDate, e.ColCommitTimestamp })
+                .IsNullFiltered();
                 entity.Property(e => e.ColCommitTimestamp)
                 .HasAnnotation("UpdateCommitTimestamp", SpannerUpdateCommitTimestamp.OnInsertAndUpdate);
             });

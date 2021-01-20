@@ -59,6 +59,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
               });
         }
 
+        public override IEnumerable<IAnnotation> For(IIndex index)
+        {
+            var baseAnnotations = base.For(index);
+            var nullFilteredIndexAnnotation = index.FindAnnotation(SpannerAnnotationNames.IsNullFilteredIndex);
+            return nullFilteredIndexAnnotation == null ? baseAnnotations : baseAnnotations.Concat(new[] {
+                nullFilteredIndexAnnotation
+            });
+        }
+
         private static TAttribute GetAttribute<TAttribute>(MemberInfo memberInfo)
             where TAttribute : Attribute
         {
