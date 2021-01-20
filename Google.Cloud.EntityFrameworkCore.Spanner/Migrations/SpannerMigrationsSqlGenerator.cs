@@ -181,6 +181,15 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 builder.AppendLine();
             }
 
+            if (operation.CheckConstraints.Any())
+            {
+                foreach (var checkConstraint in operation.CheckConstraints)
+                {
+                    CheckConstraint(checkConstraint, model, builder);
+                    builder.AppendLine(",");
+                }
+            }
+
             builder.Append(")");
             if (operation.PrimaryKey != null)
             {
