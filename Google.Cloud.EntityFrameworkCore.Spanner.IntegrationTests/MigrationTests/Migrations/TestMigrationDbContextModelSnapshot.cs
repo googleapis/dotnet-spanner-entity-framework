@@ -34,6 +34,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     b.Property<List<bool>>("ColBoolList")
                         .HasColumnType("ARRAY<BOOL>");
 
+                    b.Property<byte?>("ColByte")
+                        .HasColumnType("INT64");
+
                     b.Property<byte[]>("ColBytes")
                         .HasColumnType("BYTES");
 
@@ -92,6 +95,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     b.Property<List<long>>("ColLongList")
                         .HasColumnType("ARRAY<INT64>");
 
+                    b.Property<sbyte?>("ColSbyte")
+                        .HasColumnType("INT64");
+
                     b.Property<short?>("ColShort")
                         .HasColumnType("INT64");
 
@@ -112,6 +118,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
 
                     b.Property<List<DateTime>>("ColTimestampList")
                         .HasColumnType("ARRAY<TIMESTAMP>");
+
+                    b.Property<ulong?>("ColULong")
+                        .HasColumnType("INT64");
+
+                    b.Property<ushort?>("ColUShort")
+                        .HasColumnType("INT64");
 
                     b.Property<uint?>("ColUint")
                         .HasColumnType("INT64");

@@ -177,6 +177,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     ColDate = new SpannerDate(2021, 1, 1),
                     ColDateArray = new SpannerDate[] { new SpannerDate(2021, 1, 1), new SpannerDate(2021, 1, 2) },
                     ColDateList = new List<SpannerDate> { new SpannerDate(2021, 1, 3), new SpannerDate(2021, 1, 4) },
+                    ColByte = 10,
+                    ColSbyte = -120,
+                    ColULong = 1000000,
+                    ColUShort = 2
                 };
                 context.AllColTypes.Add(row);
                 var rowCount = await context.SaveChangesAsync();
@@ -217,6 +221,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new SpannerDate(2021, 1, 1), row.ColDate);
                 Assert.Equal(new SpannerDate[] { new SpannerDate(2021, 1, 1), new SpannerDate(2021, 1, 2) }, row.ColDateArray);
                 Assert.Equal(new List<SpannerDate> { new SpannerDate(2021, 1, 3), new SpannerDate(2021, 1, 4) }, row.ColDateList);
+                Assert.Equal((byte)10, row.ColByte);
+                Assert.Equal((sbyte)-120, row.ColSbyte);
+                Assert.Equal((ulong)1000000, row.ColULong);
+                Assert.Equal((ushort)2, row.ColUShort);
 
                 // The commit timestamp was automatically set by Cloud Spanner.
                 Assert.NotEqual(new DateTime(), row.ColCommitTimestamp);
@@ -252,6 +260,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row.ColDate = new SpannerDate(2021, 1, 2);
                 row.ColDateArray = new SpannerDate[] { new SpannerDate(2021, 1, 3), new SpannerDate(2021, 1, 4) };
                 row.ColDateList = new List<SpannerDate> { new SpannerDate(2021, 1, 5), new SpannerDate(2021, 1, 6) };
+                row.ColByte = 20;
+                row.ColSbyte = -101;
+                row.ColULong = 2000000;
+                row.ColUShort = 5;
                 await context.SaveChangesAsync();
             }
 
@@ -287,6 +299,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new SpannerDate(2021, 1, 2), row.ColDate);
                 Assert.Equal(new SpannerDate[] { new SpannerDate(2021, 1, 3), new SpannerDate(2021, 1, 4) }, row.ColDateArray);
                 Assert.Equal(new List<SpannerDate> { new SpannerDate(2021, 1, 5), new SpannerDate(2021, 1, 6) }, row.ColDateList);
+                Assert.Equal((byte)20, row.ColByte);
+                Assert.Equal((sbyte)-101, row.ColSbyte);
+                Assert.Equal((ulong)2000000, row.ColULong);
+                Assert.Equal((ushort)5, row.ColUShort);
             }
         }
 

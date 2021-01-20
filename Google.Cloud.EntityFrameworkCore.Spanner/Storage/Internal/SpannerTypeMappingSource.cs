@@ -60,7 +60,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly GuidTypeMapping s_guid
             = new GuidTypeMapping(SpannerDbType.String.ToString(), DbType.String);
 
-        private static readonly ByteArrayTypeMapping s_byte
+        private static readonly SpannerComplexTypeMapping s_byte
+            = new SpannerComplexTypeMapping(SpannerDbType.Int64, typeof(byte));
+
+        private static readonly SpannerComplexTypeMapping s_sbyte
+            = new SpannerComplexTypeMapping(SpannerDbType.Int64, typeof(sbyte));
+
+        private static readonly SpannerComplexTypeMapping s_ulong
+            = new SpannerComplexTypeMapping(SpannerDbType.Int64, typeof(ulong));
+
+        private static readonly SpannerComplexTypeMapping s_ushort
+            = new SpannerComplexTypeMapping(SpannerDbType.Int64, typeof(ushort));
+
+        private static readonly ByteArrayTypeMapping s_bytes
             = new ByteArrayTypeMapping(SpannerDbType.Bytes.ToString(), DbType.Binary);
 
 
@@ -162,7 +174,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(double), s_double},
                     {typeof(string), s_defaultString},
                     {typeof(Guid), s_guid},
-                    {typeof(byte[]), s_byte},
+                    {typeof(byte), s_byte},
+                    {typeof(sbyte), s_sbyte},
+                    {typeof(ulong), s_ulong},
+                    {typeof(ushort), s_ushort},
+                    {typeof(byte[]), s_bytes},
 
                     {typeof(decimal[]), s_numericArray},
                     {typeof(decimal?[]), s_nullableNumericArray},
@@ -201,7 +217,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             s_storeTypeMappings = new Dictionary<string, RelationalTypeMapping>
             {
                 {SpannerDbType.Bool.ToString(), s_bool},
-                {SpannerDbType.Bytes.ToString(), s_byte},
+                {SpannerDbType.Bytes.ToString(), s_bytes},
                 {SpannerDbType.Date.ToString(), s_date},
                 {SpannerDbType.Float64.ToString(), s_double},
                 {SpannerDbType.Int64.ToString(), s_long},
