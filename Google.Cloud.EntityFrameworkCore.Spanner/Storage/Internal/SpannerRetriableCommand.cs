@@ -69,6 +69,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// </summary>
         private async Task<int> ExecuteNonQueryWithRetryAsync(SpannerCommand spannerCommand)
         {
+            var builder = SpannerCommandTextBuilder.FromCommandText(spannerCommand.CommandText);
+            if (builder.SpannerCommandType == SpannerCommandType.Ddl)
+            {
+                return await spannerCommand.ExecuteNonQueryAsync();
+            }
             return await _connection.SpannerConnection.RunWithRetriableTransactionAsync(async transaction =>
             {
                 spannerCommand.Transaction = transaction;
