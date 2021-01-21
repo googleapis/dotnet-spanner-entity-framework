@@ -272,7 +272,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             builder
                 .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(name))
                 .Append(" ")
-                .Append(GetCorrectedColumnType(GetColumnType(schema, table, name, operation, model)));
+                .Append(GetCorrectedColumnType(operation.ColumnType ?? GetColumnType(schema, table, name, operation, model)));
 
             if (!operation.IsNullable)
             {
