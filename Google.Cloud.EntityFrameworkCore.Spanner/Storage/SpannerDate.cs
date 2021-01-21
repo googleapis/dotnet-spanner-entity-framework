@@ -42,6 +42,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
 
         public DateTime ToDateTime() => new DateTime(Year, Month, Day, 0, 0, 0, DateTimeKind.Unspecified);
 
+        public SpannerDate AddYears(int years) => FromDateTime(ToDateTime().AddYears(years));
+
+        public SpannerDate AddMonths(int months) => FromDateTime(ToDateTime().AddMonths(months));
+
+        public SpannerDate AddDays(int days) => FromDateTime(ToDateTime().AddDays(days));
+
         public override bool Equals(object other) => (other is SpannerDate sd) && Equals(sd);
 
         public bool Equals(SpannerDate other) => Year == other.Year && Month == other.Month && Day == other.Day;

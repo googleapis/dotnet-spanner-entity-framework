@@ -730,6 +730,114 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
+        public async Task CanUseSpannerDateAddYears()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "Pete", LastName = "Peterson", BirthDate = new SpannerDate(2001, 12, 13) }
+            );
+            await db.SaveChangesAsync();
+
+            var tenthBirthDate = await db.Singers
+                .Where(s => s.SingerId == singerId)
+                .Select(s => ((SpannerDate)s.BirthDate).AddYears(10))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal(new SpannerDate(2011, 12, 13), tenthBirthDate);
+        }
+
+        [Fact]
+        public async Task CanUseSpannerDateAddMonths()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "Pete", LastName = "Peterson", BirthDate = new SpannerDate(2001, 12, 13) }
+            );
+            await db.SaveChangesAsync();
+
+            var date = await db.Singers
+                .Where(s => s.SingerId == singerId)
+                .Select(s => ((SpannerDate)s.BirthDate).AddMonths(23))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal(new SpannerDate(2003, 11, 13), date);
+        }
+
+        [Fact]
+        public async Task CanUseSpannerDateAddDays()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "Pete", LastName = "Peterson", BirthDate = new SpannerDate(2001, 12, 13) }
+            );
+            await db.SaveChangesAsync();
+
+            var date = await db.Singers
+                .Where(s => s.SingerId == singerId)
+                .Select(s => ((SpannerDate)s.BirthDate).AddDays(23))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal(new SpannerDate(2002, 1, 5), date);
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeAddDays()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.AddRange(
+                new TableWithAllColumnTypes { ColInt64 = id, ColTimestamp = new DateTime(2021, 1, 21, 11, 40, 10, DateTimeKind.Utc) }
+            );
+            await db.SaveChangesAsync();
+
+            var date = await db.TableWithAllColumnTypes
+                .Where(s => s.ColInt64 == id)
+                .Select(s => ((DateTime)s.ColTimestamp).AddDays(23))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal(new DateTime(2021, 2, 13, 11, 40, 10, DateTimeKind.Utc), date);
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeAddHours()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.AddRange(
+                new TableWithAllColumnTypes { ColInt64 = id, ColTimestamp = new DateTime(2021, 1, 21, 11, 40, 10, DateTimeKind.Utc) }
+            );
+            await db.SaveChangesAsync();
+
+            var date = await db.TableWithAllColumnTypes
+                .Where(s => s.ColInt64 == id)
+                .Select(s => ((DateTime)s.ColTimestamp).AddHours(47))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal(new DateTime(2021, 1, 23, 10, 40, 10, DateTimeKind.Utc), date);
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeAddTicks()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.AddRange(
+                new TableWithAllColumnTypes { ColInt64 = id, ColTimestamp = new DateTime(2021, 1, 21, 11, 40, 10, DateTimeKind.Utc) }
+            );
+            await db.SaveChangesAsync();
+
+            var date = await db.TableWithAllColumnTypes
+                .Where(s => s.ColInt64 == id)
+                .Select(s => ((DateTime)s.ColTimestamp).AddTicks(20))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal(new DateTime(2021, 1, 21, 11, 40, 10, DateTimeKind.Utc).AddTicks(20), date);
+        }
+
+        [Fact]
         public async Task CanQueryRawSqlWithParameters()
         {
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);

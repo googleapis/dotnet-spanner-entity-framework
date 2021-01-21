@@ -831,6 +831,272 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.Collection(firstNames, s => Assert.Equal("Allison", s));
         }
 
+        [Fact]
+        public async Task CanUseDateTimeAddYears()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            // Note: AddYears cannot be applied server side to a TIMESTAMP, only to a DATE, so this is handled client side.
+            var sql = "SELECT c.StartTime\r\nFROM Concerts AS c\r\nWHERE c.SingerId = @__singerId_0";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Timestamp, "StartTime"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2021-01-20T18:00:00Z" },
+                }
+            ));
+
+            var singerId = 1L;
+            var startTimes = await db.Concerts
+                .Where(c => c.SingerId == singerId)
+                .Select(s => s.StartTime.AddYears(1))
+                .ToListAsync();
+            Assert.Collection(startTimes, s => Assert.Equal(new DateTime(2022, 1, 20, 18, 0, 0, DateTimeKind.Utc), s));
+        }
+
+        [Fact]
+        public async Task CanUseSpannerDateAddYears()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT DATE_ADD(s.BirthDate, INTERVAL 1 YEAR)\r\nFROM Singers AS s\r\nWHERE (s.SingerId = @__singerId_0) AND s.BirthDate IS NOT NULL";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Timestamp, "BirthDate"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "1980-01-20" },
+                }
+            ));
+
+            var singerId = 1L;
+            var startTimes = await db.Singers
+                .Where(s => s.SingerId == singerId && s.BirthDate != null)
+                .Select(s => ((SpannerDate)s.BirthDate).AddYears(1))
+                .ToListAsync();
+            Assert.Collection(startTimes, s => Assert.Equal(new SpannerDate(1980, 1, 20), s));
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeAddMonths()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            // Note: AddMonths cannot be applied server side to a TIMESTAMP, only to a DATE, so this is handled client side.
+            var sql = "SELECT c.StartTime\r\nFROM Concerts AS c\r\nWHERE c.SingerId = @__singerId_0";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Timestamp, "StartTime"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2021-01-20T18:00:00Z" },
+                }
+            ));
+
+            var singerId = 1L;
+            var startTimes = await db.Concerts
+                .Where(c => c.SingerId == singerId)
+                .Select(s => s.StartTime.AddMonths(1))
+                .ToListAsync();
+            Assert.Collection(startTimes, s => Assert.Equal(new DateTime(2021, 2, 20, 18, 0, 0, DateTimeKind.Utc), s));
+        }
+
+        [Fact]
+        public async Task CanUseSpannerDateAddMonths()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT DATE_ADD(s.BirthDate, INTERVAL 1 MONTH)\r\nFROM Singers AS s\r\nWHERE (s.SingerId = @__singerId_0) AND s.BirthDate IS NOT NULL";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Timestamp, "BirthDate"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "1980-01-20" },
+                }
+            ));
+
+            var singerId = 1L;
+            var startTimes = await db.Singers
+                .Where(s => s.SingerId == singerId && s.BirthDate != null)
+                .Select(s => ((SpannerDate)s.BirthDate).AddMonths(1))
+                .ToListAsync();
+            Assert.Collection(startTimes, s => Assert.Equal(new SpannerDate(1980, 1, 20), s));
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeAddDays()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT TIMESTAMP_ADD(c.StartTime, INTERVAL CAST(1.0 AS INT64) DAY)\r\nFROM Concerts AS c\r\nWHERE c.SingerId = @__singerId_0";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Timestamp, "StartTime"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2021-01-20T18:00:00Z" },
+                }
+            ));
+
+            var singerId = 1L;
+            var startTimes = await db.Concerts
+                .Where(c => c.SingerId == singerId)
+                .Select(s => s.StartTime.AddDays(1))
+                .ToListAsync();
+            Assert.Collection(startTimes, s => Assert.Equal(new DateTime(2021, 1, 20, 18, 0, 0, DateTimeKind.Utc), s));
+        }
+
+        [Fact]
+        public async Task CanUseSpannerDateAddDays()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT DATE_ADD(s.BirthDate, INTERVAL 1 DAY)\r\nFROM Singers AS s\r\nWHERE (s.SingerId = @__singerId_0) AND s.BirthDate IS NOT NULL";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Timestamp, "BirthDate"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "1980-01-20" },
+                }
+            ));
+
+            var singerId = 1L;
+            var startTimes = await db.Singers
+                .Where(s => s.SingerId == singerId && s.BirthDate != null)
+                .Select(s => ((SpannerDate)s.BirthDate).AddDays(1))
+                .ToListAsync();
+            Assert.Collection(startTimes, s => Assert.Equal(new SpannerDate(1980, 1, 20), s));
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeAddHours()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT TIMESTAMP_ADD(c.StartTime, INTERVAL CAST(1.0 AS INT64) HOUR)\r\nFROM Concerts AS c\r\nWHERE c.SingerId = @__singerId_0";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Timestamp, "StartTime"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2021-01-20T18:00:00Z" },
+                }
+            ));
+
+            var singerId = 1L;
+            var startTimes = await db.Concerts
+                .Where(c => c.SingerId == singerId)
+                .Select(s => s.StartTime.AddHours(1))
+                .ToListAsync();
+            Assert.Collection(startTimes, s => Assert.Equal(new DateTime(2021, 1, 20, 18, 0, 0, DateTimeKind.Utc), s));
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeAddMinutes()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT TIMESTAMP_ADD(c.StartTime, INTERVAL CAST(1.0 AS INT64) MINUTE)\r\nFROM Concerts AS c\r\nWHERE c.SingerId = @__singerId_0";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Timestamp, "StartTime"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2021-01-20T18:00:00Z" },
+                }
+            ));
+
+            var singerId = 1L;
+            var startTimes = await db.Concerts
+                .Where(c => c.SingerId == singerId)
+                .Select(s => s.StartTime.AddMinutes(1))
+                .ToListAsync();
+            Assert.Collection(startTimes, s => Assert.Equal(new DateTime(2021, 1, 20, 18, 0, 0, DateTimeKind.Utc), s));
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeAddSeconds()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT TIMESTAMP_ADD(c.StartTime, INTERVAL CAST(1.0 AS INT64) SECOND)\r\nFROM Concerts AS c\r\nWHERE c.SingerId = @__singerId_0";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Timestamp, "StartTime"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2021-01-20T18:00:00Z" },
+                }
+            ));
+
+            var singerId = 1L;
+            var startTimes = await db.Concerts
+                .Where(c => c.SingerId == singerId)
+                .Select(s => s.StartTime.AddSeconds(1))
+                .ToListAsync();
+            Assert.Collection(startTimes, s => Assert.Equal(new DateTime(2021, 1, 20, 18, 0, 0, DateTimeKind.Utc), s));
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeAddMilliseconds()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT TIMESTAMP_ADD(c.StartTime, INTERVAL CAST(1.0 AS INT64) MILLISECOND)\r\nFROM Concerts AS c\r\nWHERE c.SingerId = @__singerId_0";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Timestamp, "StartTime"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2021-01-20T18:00:00Z" },
+                }
+            ));
+
+            var singerId = 1L;
+            var startTimes = await db.Concerts
+                .Where(c => c.SingerId == singerId)
+                .Select(s => s.StartTime.AddMilliseconds(1))
+                .ToListAsync();
+            Assert.Collection(startTimes, s => Assert.Equal(new DateTime(2021, 1, 20, 18, 0, 0, DateTimeKind.Utc), s));
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeAddTicks()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT TIMESTAMP_ADD(c.StartTime, INTERVAL 100 * 1 NANOSECOND)\r\nFROM Concerts AS c\r\nWHERE c.SingerId = @__singerId_0";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Timestamp, "StartTime"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2021-01-20T18:00:00Z" },
+                }
+            ));
+
+            var singerId = 1L;
+            var startTimes = await db.Concerts
+                .Where(c => c.SingerId == singerId)
+                .Select(s => s.StartTime.AddTicks(1))
+                .ToListAsync();
+            Assert.Collection(startTimes, s => Assert.Equal(new DateTime(2021, 1, 20, 18, 0, 0, DateTimeKind.Utc), s));
+        }
+
         private string AddFindSingerResult(string sql = "SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture\r\nFROM Singers AS s\r\nWHERE s.SingerId = @__p_0\r\nLIMIT 1")
         {
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
