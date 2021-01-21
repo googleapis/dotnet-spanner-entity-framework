@@ -18,6 +18,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Text.RegularExpressions;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
@@ -174,6 +175,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(double), s_double},
                     {typeof(string), s_defaultString},
                     {typeof(Guid), s_guid},
+                    {typeof(Regex), s_defaultString },
                     {typeof(byte), s_byte},
                     {typeof(sbyte), s_sbyte},
                     {typeof(ulong), s_ulong},

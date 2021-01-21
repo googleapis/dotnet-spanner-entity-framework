@@ -25,6 +25,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Xunit;
 using V1 = Google.Cloud.Spanner.V1;
@@ -554,9 +555,284 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             }
         }
 
-        private string AddFindSingerResult()
+        [Fact]
+        public async Task CanUseLimitWithoutOffset()
         {
-            var sql = "SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture\r\nFROM Singers AS s\r\nWHERE s.SingerId = @__p_0\r\nLIMIT 1";
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture\r\nFROM Singers AS s\r\nORDER BY s.LastName\r\nLIMIT @__p_0";
+            AddFindSingerResult(sql);
+
+            var singers = await db.Singers
+                .OrderBy(s => s.LastName)
+                .Take(1)
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Morrison", s.LastName));
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal("1", request.Params.Fields["__p_0"].StringValue);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanUseLimitWithOffset()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture\r\nFROM Singers AS s\r\nORDER BY s.LastName\r\nLIMIT @__p_1 OFFSET @__p_0";
+            AddFindSingerResult(sql);
+
+            var singers = await db.Singers
+                .OrderBy(s => s.LastName)
+                .Skip(2)
+                .Take(1)
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Morrison", s.LastName));
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal("2", request.Params.Fields["__p_0"].StringValue);
+                    Assert.Equal("1", request.Params.Fields["__p_1"].StringValue);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanUseOffsetWithoutLimit()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture\r\nFROM Singers AS s\r\nORDER BY s.LastName\r\nLIMIT {long.MaxValue / 2} OFFSET @__p_0";
+            AddFindSingerResult(sql);
+
+            var singers = await db.Singers
+                .OrderBy(s => s.LastName)
+                .Skip(3)
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Morrison", s.LastName));
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal("3", request.Params.Fields["__p_0"].StringValue);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanUseInnerJoin()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture, a.AlbumId, a.ReleaseDate, a.SingerId, a.Title\r\nFROM Singers AS s\r\nINNER JOIN Albums AS a ON s.SingerId = a.SingerId";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "SingerId"),
+                    Tuple.Create(V1.TypeCode.Date, "BirthDate"),
+                    Tuple.Create(V1.TypeCode.String, "FirstName"),
+                    Tuple.Create(V1.TypeCode.String, "FullName"),
+                    Tuple.Create(V1.TypeCode.String, "LastName"),
+                    Tuple.Create(V1.TypeCode.Bytes, "Picture"),
+                    Tuple.Create(V1.TypeCode.Int64, "AlbumId"),
+                    Tuple.Create(V1.TypeCode.Date, "ReleaseDate"),
+                    Tuple.Create(V1.TypeCode.Int64, "SingerId"),
+                    Tuple.Create(V1.TypeCode.String, "Title"),
+                },
+                new List<object[]>
+                {
+                    new object[] { 1L, null, "Zeke", "Zeke Peterson", "Peterson", null, 100L, null, 1L, "Some Title" },
+                }
+            ));
+
+            var singers = await db.Singers
+                .Join(db.Albums, a => a.SingerId, s => s.SingerId, (s, a) => new { Singer = s, Album = a })
+                .ToListAsync();
+
+            Assert.Collection(singers,
+                s =>
+                {
+                    Assert.Equal("Peterson", s.Singer.LastName);
+                    Assert.Equal("Some Title", s.Album.Title);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanUseOuterJoin()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture, a.AlbumId, a.ReleaseDate, a.SingerId, a.Title\r\nFROM Singers AS s\r\nLEFT JOIN Albums AS a ON s.SingerId = a.SingerId";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "SingerId"),
+                    Tuple.Create(V1.TypeCode.Date, "BirthDate"),
+                    Tuple.Create(V1.TypeCode.String, "FirstName"),
+                    Tuple.Create(V1.TypeCode.String, "FullName"),
+                    Tuple.Create(V1.TypeCode.String, "LastName"),
+                    Tuple.Create(V1.TypeCode.Bytes, "Picture"),
+                    Tuple.Create(V1.TypeCode.Int64, "AlbumId"),
+                    Tuple.Create(V1.TypeCode.Date, "ReleaseDate"),
+                    Tuple.Create(V1.TypeCode.Int64, "SingerId"),
+                    Tuple.Create(V1.TypeCode.String, "Title"),
+                },
+                new List<object[]>
+                {
+                    new object[] { 2L, null, "Alice", "Alice Morrison", "Morrison", null, null, null, null, null },
+                    new object[] { 3L, null, "Zeke", "Zeke Peterson", "Peterson", null, 100L, null, 3L, "Some Title" },
+                }
+            ));
+
+            var singers = await db.Singers
+                .GroupJoin(db.Albums, s => s.SingerId, a => a.SingerId, (s, a) => new { Singer = s, Albums = a })
+                .SelectMany(
+                    s => s.Albums.DefaultIfEmpty(),
+                    (s, a) => new { s.Singer, Album = a })
+                .ToListAsync();
+
+            Assert.Collection(singers,
+                s =>
+                {
+                    Assert.Equal("Morrison", s.Singer.LastName);
+                    Assert.Null(s.Album);
+                },
+                s =>
+                {
+                    Assert.Equal("Peterson", s.Singer.LastName);
+                    Assert.Equal(100L, s.Album.AlbumId);
+                    Assert.Equal("Some Title", s.Album.Title);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanUseStringContains()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture\r\nFROM Singers AS s\r\nWHERE STRPOS(s.FirstName, @__firstName_0) > 0";
+            AddFindSingerResult(sql);
+
+            var firstName = "Alice";
+            var singers = await db.Singers
+                .Where(s => s.FirstName.Contains(firstName))
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Morrison", s.LastName));
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal("Alice", request.Params.Fields["__firstName_0"].StringValue);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanUseStringStartsWith()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture\r\nFROM Singers AS s\r\nWHERE (@__fullName_0 = '') OR STARTS_WITH(s.FullName, @__fullName_0)";
+            AddFindSingerResult(sql);
+
+            var fullName = "Alice M";
+            var singers = await db.Singers
+                .Where(s => s.FullName.StartsWith(fullName))
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Morrison", s.LastName));
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal("Alice M", request.Params.Fields["__fullName_0"].StringValue);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanUseStringEndsWith()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture\r\nFROM Singers AS s\r\nWHERE (@__fullName_0 = '') OR ENDS_WITH(s.FullName, @__fullName_0)";
+            AddFindSingerResult(sql);
+
+            var fullName = " Morrison";
+            var singers = await db.Singers
+                .Where(s => s.FullName.EndsWith(fullName))
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Morrison", s.LastName));
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal(" Morrison", request.Params.Fields["__fullName_0"].StringValue);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanUseStringLength()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture\r\nFROM Singers AS s\r\nWHERE CHAR_LENGTH(s.FirstName) > @__minLength_0";
+            AddFindSingerResult(sql);
+
+            var minLength = 4;
+            var singers = await db.Singers
+                .Where(s => s.FirstName.Length > minLength)
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Morrison", s.LastName));
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal("4", request.Params.Fields["__minLength_0"].StringValue);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanUseRegexReplace()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT REGEXP_REPLACE(s.FirstName, @__regex_1, @__replacement_2)\r\nFROM Singers AS s\r\nWHERE s.SingerId = @__singerId_0";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.String, "FirstName"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "Allison" },
+                }
+            ));
+
+            var singerId = 1L;
+            var replacement = "Allison";
+            var pattern = "Al.*";
+            var regex = new Regex(pattern);
+            var firstNames = await db.Singers
+                .Where(s => s.SingerId == singerId)
+                .Select(s => regex.Replace(s.FirstName, replacement))
+                .ToListAsync();
+            Assert.Collection(firstNames, s => Assert.Equal("Allison", s));
+        }
+
+        private string AddFindSingerResult(string sql = "SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture\r\nFROM Singers AS s\r\nWHERE s.SingerId = @__p_0\r\nLIMIT 1")
+        {
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {

@@ -21,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -97,6 +98,634 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 a => Assert.Equal("Album 3", a.Title),
                 a => Assert.Equal("Album 4", a.Title),
                 a => Assert.Equal("Album 5", a.Title)
+            );
+        }
+
+        [Fact]
+        public async Task CanUseLimitWithoutOffset()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Zeke", LastName = "Allison" }
+            );
+            await db.SaveChangesAsync();
+
+            var singers = await db.Singers
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .OrderBy(s => s.LastName)
+                .Take(1)
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Allison", s.LastName));
+        }
+
+        [Fact]
+        public async Task CanUseLimitWithOffset()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            var singerId3 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Zeke", LastName = "Allison" },
+                new Singers { SingerId = singerId3, FirstName = "Sandra", LastName = "Ericson" }
+            );
+            await db.SaveChangesAsync();
+
+            var singers = await db.Singers
+                .Where(s => new long[] { singerId1, singerId2, singerId3 }.Contains(s.SingerId))
+                .OrderBy(s => s.LastName)
+                .Skip(1)
+                .Take(1)
+                .ToListAsync();
+
+            Assert.Collection(singers,
+                s => Assert.Equal("Ericson", s.LastName)
+            );
+        }
+
+        [Fact]
+        public async Task CanUseOffsetWithoutLimit()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Zeke", LastName = "Allison" }
+            );
+            await db.SaveChangesAsync();
+
+            var singers = await db.Singers
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .OrderBy(s => s.LastName)
+                .Skip(1)
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Peterson", s.LastName));
+        }
+
+        [Fact]
+        public async Task CanUseInnerJoin()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Zeke", LastName = "Allison" }
+            );
+            db.Albums.Add(new Albums { AlbumId = _fixture.RandomLong(), Title = "Some Title", SingerId = singerId1 });
+            await db.SaveChangesAsync();
+
+            var singers = await db.Singers
+                .Join(db.Albums, a => a.SingerId, s => s.SingerId, (s, a) => new { Singer = s, Album = a })
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.Singer.SingerId))
+                .ToListAsync();
+
+            Assert.Collection(singers,
+                s =>
+                {
+                    Assert.Equal("Peterson", s.Singer.LastName);
+                    Assert.Equal("Some Title", s.Album.Title);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanUseOuterJoin()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Zeke", LastName = "Allison" }
+            );
+            db.Albums.Add(new Albums { AlbumId = _fixture.RandomLong(), Title = "Some Title", SingerId = singerId1 });
+            await db.SaveChangesAsync();
+
+            var singers = await db.Singers
+                .GroupJoin(db.Albums, s => s.SingerId, a => a.SingerId, (s, a) => new { Singer = s, Albums = a })
+                .SelectMany(
+                    s => s.Albums.DefaultIfEmpty(),
+                    (s, a) => new { s.Singer, Album = a })
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.Singer.SingerId))
+                .OrderBy(s => s.Singer.LastName)
+                .ToListAsync();
+
+            Assert.Collection(singers,
+                s =>
+                {
+                    Assert.Equal("Allison", s.Singer.LastName);
+                    Assert.Null(s.Album);
+                },
+                s =>
+                {
+                    Assert.Equal("Peterson", s.Singer.LastName);
+                    Assert.Equal("Some Title", s.Album.Title);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanUseStringContains()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Zeke", LastName = "Allison" }
+            );
+            await db.SaveChangesAsync();
+
+            var fullName = "Alli";
+            var singers = await db.Singers
+                .Where(s => s.FullName.Contains(fullName))
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Zeke Allison", s.FullName));
+        }
+
+        [Fact]
+        public async Task CanUseStringStartsWith()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Zeke", LastName = "Allison" }
+            );
+            await db.SaveChangesAsync();
+
+            var fullName = "Zeke";
+            var singers = await db.Singers
+                .Where(s => s.FullName.StartsWith(fullName))
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Zeke Allison", s.FullName));
+        }
+
+        [Fact]
+        public async Task CanUseStringEndsWith()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Zeke", LastName = "Allison" }
+            );
+            await db.SaveChangesAsync();
+
+            var fullName = "Peterson";
+            var singers = await db.Singers
+                .Where(s => s.FullName.EndsWith(fullName))
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Pete Peterson", s.FullName));
+        }
+
+        [Fact]
+        public async Task CanUseStringLength()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var minLength = 4;
+            var singers = await db.Singers
+                .Where(s => s.FirstName.Length > minLength)
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Alice Morrison", s.FullName));
+        }
+
+        [Fact]
+        public async Task CanUseStringIndexOf()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var name = "Morrison";
+            var minIndex = -1;
+            var singers = await db.Singers
+                .Where(s => s.FullName.IndexOf(name) > minIndex)
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Alice Morrison", s.FullName));
+        }
+
+        [Fact]
+        public async Task CanUseStringReplace()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var from = "Pete";
+            var to = "Peter";
+            var name = "Peter Peterrson";
+            var singers = await db.Singers
+                .Where(s => s.FullName.Replace(from, to) == name)
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Pete Peterson", s.FullName));
+        }
+
+        [Fact]
+        public async Task CanUseStringToLower()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var fullNameLowerCase = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => s.FullName.ToLower())
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("alice morrison", fullNameLowerCase);
+        }
+
+        [Fact]
+        public async Task CanUseStringToUpper()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var fullNameLowerCase = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => s.FullName.ToUpper())
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("ALICE MORRISON", fullNameLowerCase);
+        }
+
+        [Fact]
+        public async Task CanUseStringSubstring()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var lastNameFromFullName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => s.FullName.Substring(6))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("Morrison", lastNameFromFullName);
+        }
+
+        [Fact]
+        public async Task CanUseStringSubstringWithLength()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var lastNameFromFullName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => s.FullName.Substring(6, 3))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("Mor", lastNameFromFullName);
+        }
+
+        [Fact]
+        public async Task CanUseStringTrimStart()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "   Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var trimmedName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => s.FullName.TrimStart())
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("Alice Morrison", trimmedName);
+        }
+
+        [Fact]
+        public async Task CanUseStringTrimStartWithArgument()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "\t\t\tAlice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var trimmedName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => s.FullName.TrimStart('\t'))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("Alice Morrison", trimmedName);
+        }
+
+        [Fact]
+        public async Task CanUseStringTrimEnd()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "Alice", LastName = "Morrison   " }
+            );
+            await db.SaveChangesAsync();
+
+            var trimmedName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => s.FullName.TrimEnd())
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("Alice Morrison", trimmedName);
+        }
+
+        [Fact]
+        public async Task CanUseStringTrimEndWithArgument()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "Alice", LastName = "Morrison\t\t\t" }
+            );
+            await db.SaveChangesAsync();
+
+            var trimmedName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => s.FullName.TrimEnd('\t'))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("Alice Morrison", trimmedName);
+        }
+
+        [Fact]
+        public async Task CanUseStringTrim()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "   Alice", LastName = "Morrison   " }
+            );
+            await db.SaveChangesAsync();
+
+            var trimmedName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => s.FullName.Trim())
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("Alice Morrison", trimmedName);
+        }
+
+        [Fact]
+        public async Task CanUseStringTrimWithArgument()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "\t\t\tAlice", LastName = "Morrison\t\t\t" }
+            );
+            await db.SaveChangesAsync();
+
+            var trimmedName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => s.FullName.Trim('\t'))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("Alice Morrison", trimmedName);
+        }
+
+        [Fact]
+        public async Task CanUseStringConcat()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var calculatedFullName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => s.FirstName + " " + s.LastName)
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("Alice Morrison", calculatedFullName);
+        }
+
+        [Fact]
+        public async Task CanUseStringPadLeft()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var paddedName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => s.FullName.PadLeft(20))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("      Alice Morrison", paddedName);
+        }
+
+        [Fact]
+        public async Task CanUseStringPadLeftWithChar()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var paddedName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => s.FullName.PadLeft(20, '$'))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("$$$$$$Alice Morrison", paddedName);
+        }
+
+        [Fact]
+        public async Task CanUseStringPadRight()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var paddedName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => s.FullName.PadRight(20))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("Alice Morrison      ", paddedName);
+        }
+
+        [Fact]
+        public async Task CanUseStringPadRightWithChar()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var paddedName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => s.FullName.PadRight(20, '$'))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("Alice Morrison$$$$$$", paddedName);
+        }
+
+        [Fact]
+        public async Task CanUseStringFormat()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "Alice", LastName = "Morrison", BirthDate = new SpannerDate(1973, 10, 9)}
+            );
+            await db.SaveChangesAsync();
+
+            var formattedName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => string.Format("String without formatting"))
+                .FirstOrDefaultAsync();
+            Assert.Equal("String without formatting", formattedName);
+
+            formattedName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => string.Format("%s", s.FullName))
+                .FirstOrDefaultAsync();
+            Assert.Equal("Alice Morrison", formattedName);
+
+            formattedName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => string.Format("%025d: %s", s.SingerId, s.FullName))
+                .FirstOrDefaultAsync();
+            Assert.Equal($"{singerId.ToString().PadLeft(25, '0')}: Alice Morrison", formattedName);
+
+            formattedName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => string.Format("%025d: %s, born on %t", s.SingerId, s.FullName, s.BirthDate))
+                .FirstOrDefaultAsync();
+            Assert.Equal($"{singerId.ToString().PadLeft(25, '0')}: Alice Morrison, born on {new SpannerDate(1973, 10, 9)}", formattedName);
+        }
+
+        [Fact]
+        public async Task CanUseRegexIsMatch()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var pattern = ".*Peterson";
+            var regex = new Regex(pattern);
+            var singers = await db.Singers
+                .Where(s => regex.IsMatch(s.FullName))
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .ToListAsync();
+            Assert.Collection(singers, s => Assert.Equal("Pete Peterson", s.FullName));
+
+            singers = await db.Singers
+                .Where(s => Regex.IsMatch(s.FullName, pattern))
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .ToListAsync();
+            Assert.Collection(singers, s => Assert.Equal("Pete Peterson", s.FullName));
+        }
+
+        [Fact]
+        public async Task CanUseRegexReplace()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var replacement = "Allison";
+            var pattern = "Al.*";
+            var regex = new Regex(pattern);
+            var firstNames = await db.Singers
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .OrderBy(s => s.LastName)
+                .Select(s => regex.Replace(s.FirstName, replacement))
+                .ToListAsync();
+            Assert.Collection(firstNames,
+                s => Assert.Equal("Allison", s),
+                s => Assert.Equal("Pete", s)
+            );
+
+            firstNames = await db.Singers
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .OrderBy(s => s.LastName)
+                .Select(s => Regex.Replace(s.FirstName, pattern, replacement))
+                .ToListAsync();
+            Assert.Collection(firstNames,
+                s => Assert.Equal("Allison", s),
+                s => Assert.Equal("Pete", s)
             );
         }
 

@@ -15,6 +15,7 @@
 using Google.Api.Gax;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
+using System;
 using System.Linq.Expressions;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
@@ -30,6 +31,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         {
         }
 
+        protected override string GenerateOperator(SqlBinaryExpression binaryExpression)
+        {
+            if (binaryExpression.OperatorType == ExpressionType.Add)
+            {
+                if ((binaryExpression.Left.TypeMapping.StoreTypeNameBase == "STRING" || binaryExpression.Left.TypeMapping.StoreTypeNameBase == "BYTES")
+                    && (binaryExpression.Right.TypeMapping.StoreTypeNameBase == "STRING" || binaryExpression.Right.TypeMapping.StoreTypeNameBase == "BYTES"))
+                {
+                    return "||";
+                }
+            }
+            return base.GenerateOperator(binaryExpression);
+        }
+
         protected override void GenerateLimitOffset(SelectExpression selectExpression)
         {
             GaxPreconditions.CheckNotNull(selectExpression, nameof(selectExpression));
@@ -42,7 +56,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             else if (selectExpression.Offset != null)
             {
                 // Cloud Spanner requires limit if offset is specified.
-                Sql.AppendLine().Append($"LIMIT {int.MaxValue}");
+                // So we create a LIMIT clause that contains the maximum possible number of rows,
+                // which means INT64.MAX_VALUE - OFFSET.
+                long limit;
+                if (selectExpression.Offset is SqlConstantExpression sqlConstantExpression)
+                {
+                    limit = long.MaxValue - Convert.ToInt64(sqlConstantExpression.Value);
+                }
+                else
+                {
+                    // We can't get the value here, so we need to just set a very high value.
+                    limit = long.MaxValue / 2;
+                }
+                Sql.AppendLine().Append($"LIMIT {limit}");
             }
 
             if (selectExpression.Offset == null)
