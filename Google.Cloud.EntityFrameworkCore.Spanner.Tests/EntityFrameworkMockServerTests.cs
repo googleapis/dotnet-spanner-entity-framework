@@ -1097,6 +1097,294 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.Collection(startTimes, s => Assert.Equal(new DateTime(2021, 1, 20, 18, 0, 0, DateTimeKind.Utc), s));
         }
 
+        [Fact]
+        public async Task CanUseLongAbs()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT ABS(t.ColInt64)\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "ColInt64"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "1" },
+                }
+            ));
+
+            var id = -1L;
+            var absId = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => Math.Abs(t.ColInt64))
+                .FirstOrDefaultAsync();
+            Assert.Equal(1L, absId);
+        }
+
+        [Fact]
+        public async Task CanUseDoubleAbs()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT ABS(COALESCE(t.ColFloat64, 0.0))\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Float64, "ColFloat64"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "3.14" },
+                }
+            ));
+
+            var id = -1L;
+            var absId = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => Math.Abs(t.ColFloat64.GetValueOrDefault()))
+                .FirstOrDefaultAsync();
+            Assert.Equal(3.14d, absId);
+        }
+
+        [Fact]
+        public async Task CanUseDecimalAbs()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT ABS(COALESCE(t.ColNumeric, 0))\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Numeric, "ColNumeric"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "3.14" },
+                }
+            ));
+
+            var id = -1L;
+            var absId = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => Math.Abs(t.ColNumeric.GetValueOrDefault().ToDecimal(LossOfPrecisionHandling.Truncate)))
+                .FirstOrDefaultAsync();
+            Assert.Equal(3.14m, absId);
+        }
+
+        [Fact]
+        public async Task CanUseLongMax()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT GREATEST(t.ColInt64, 2)\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "ColInt64"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2" },
+                }
+            ));
+
+            var id = 1L;
+            var max = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => Math.Max(t.ColInt64, 2L))
+                .FirstOrDefaultAsync();
+            Assert.Equal(2L, max);
+        }
+
+        [Fact]
+        public async Task CanUseDoubleMax()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT GREATEST(COALESCE(t.ColFloat64, 0.0), 3.1400000000000001)\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Float64, "ColFloat64"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "3.1400000000000001" },
+                }
+            ));
+
+            var id = 1L;
+            var max = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => Math.Max(t.ColFloat64.GetValueOrDefault(), 3.14d))
+                .FirstOrDefaultAsync();
+            Assert.Equal(3.14d, max);
+        }
+
+        [Fact]
+        public async Task CanUseLongMin()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT LEAST(t.ColInt64, 2)\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "ColInt64"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "1" },
+                }
+            ));
+
+            var id = 1L;
+            var min = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => Math.Min(t.ColInt64, 2L))
+                .FirstOrDefaultAsync();
+            Assert.Equal(1L, min);
+        }
+
+        [Fact]
+        public async Task CanUseDoubleMin()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT LEAST(COALESCE(t.ColFloat64, 0.0), 3.1400000000000001)\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Float64, "ColFloat64"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "0.1" },
+                }
+            ));
+
+            var id = 1L;
+            var min = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => Math.Min(t.ColFloat64.GetValueOrDefault(), 3.14d))
+                .FirstOrDefaultAsync();
+            Assert.Equal(0.1d, min);
+        }
+
+        [Fact]
+        public async Task CanUseRound()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT ROUND(COALESCE(t.ColFloat64, 0.0))\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Float64, "ColFloat64"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "3.0" },
+                }
+            ));
+
+            var id = 1L;
+            var rounded = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => Math.Round(t.ColFloat64.GetValueOrDefault(), MidpointRounding.AwayFromZero))
+                .FirstOrDefaultAsync();
+            Assert.Equal(3.0d, rounded);
+        }
+
+        [Fact]
+        public async Task CanUseDecimalRound()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT ROUND(COALESCE(t.ColNumeric, 0))\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Numeric, "ColNumeric"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "3.0" },
+                }
+            ));
+
+            var id = 1L;
+            var rounded = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => Math.Round(t.ColNumeric.GetValueOrDefault().ToDecimal(LossOfPrecisionHandling.Truncate), MidpointRounding.AwayFromZero))
+                .FirstOrDefaultAsync();
+            Assert.Equal(3.0m, rounded);
+        }
+
+        [Fact]
+        public async Task CanUseRoundWithDigits()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT ROUND(COALESCE(t.ColFloat64, 0.0), 1)\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Float64, "ColFloat64"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "3.1" },
+                }
+            ));
+
+            var id = 1L;
+            var rounded = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => Math.Round(t.ColFloat64.GetValueOrDefault(), 1, MidpointRounding.AwayFromZero))
+                .FirstOrDefaultAsync();
+            Assert.Equal(3.1d, rounded);
+        }
+
+        [Fact]
+        public async Task CanUseCeiling()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT CEIL(COALESCE(t.ColFloat64, 0.0))\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Float64, "ColFloat64"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "4.0" },
+                }
+            ));
+
+            var id = 1L;
+            var ceil = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => Math.Ceiling(t.ColFloat64.GetValueOrDefault()))
+                .FirstOrDefaultAsync();
+            Assert.Equal(4.0d, ceil);
+        }
+
+        [Fact]
+        public async Task CanUseFloor()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT FLOOR(COALESCE(t.ColFloat64, 0.0))\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Float64, "ColFloat64"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "3.0" },
+                }
+            ));
+
+            var id = 1L;
+            var floor = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => Math.Floor(t.ColFloat64.GetValueOrDefault()))
+                .FirstOrDefaultAsync();
+            Assert.Equal(3.0d, floor);
+        }
+
         private string AddFindSingerResult(string sql = "SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture\r\nFROM Singers AS s\r\nWHERE s.SingerId = @__p_0\r\nLIMIT 1")
         {
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(

@@ -838,6 +838,47 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
+        public async Task CanUseNumericValueOrDefaultAsDecimal_ThenRoundWithDigits()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.AddRange(
+                new TableWithAllColumnTypes { ColInt64 = id, ColNumeric = SpannerNumeric.FromDecimal(3.14m, LossOfPrecisionHandling.Throw) }
+            );
+            await db.SaveChangesAsync();
+
+            var expectedValue = 3.1m;
+            var dbValue = await db.TableWithAllColumnTypes
+                // Only rounding with the option AwayFromZero can be handled server side, as that is the only option offered by
+                // Cloud Spanner. If the user does not specify this rounding mode, this query would fail as it cannot be constructed.
+                .Where(s => s.ColInt64 == id && Math.Round(s.ColNumeric.GetValueOrDefault().ToDecimal(LossOfPrecisionHandling.Throw), 1, MidpointRounding.AwayFromZero) == expectedValue)
+                .Select(s => Math.Round(s.ColNumeric.GetValueOrDefault().ToDecimal(LossOfPrecisionHandling.Throw), 1, MidpointRounding.AwayFromZero))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal(expectedValue, dbValue);
+        }
+
+        [Fact]
+        public async Task CanUseLongMax()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            var randomLong = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.AddRange(
+                new TableWithAllColumnTypes { ColInt64 = id }
+            );
+            await db.SaveChangesAsync();
+
+            var expectedValue = Math.Max(id, randomLong);
+            var dbValue = await db.TableWithAllColumnTypes
+                .Where(s => s.ColInt64 == id && Math.Max(s.ColInt64, randomLong) == expectedValue)
+                .Select(s => Math.Max(s.ColInt64, randomLong))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal(expectedValue, dbValue);
+        }
+
+        [Fact]
         public async Task CanQueryRawSqlWithParameters()
         {
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
