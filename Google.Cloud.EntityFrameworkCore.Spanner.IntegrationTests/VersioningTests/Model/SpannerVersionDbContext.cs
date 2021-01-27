@@ -49,8 +49,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         {
             modelBuilder.Entity<SingersWithVersion>(entity =>
             {
-                entity.HasKey(e => e.SingerId)
-                    .HasName("PRIMARY_KEY");
+                entity
+                    .ToTable("SingersWithVersion")
+                    .HasKey(e => e.SingerId).HasName("PRIMARY_KEY");
 
                 entity.Property(e => e.SingerId).ValueGeneratedNever();
                 entity.Property(e => e.FirstName);
@@ -60,7 +61,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 
             modelBuilder.Entity<AlbumsWithVersion>(entity =>
             {
-                entity.HasKey(entity => new { entity.SingerId, entity.AlbumId });
+                entity
+                    .ToTable("AlbumsWithVersion")
+                    .HasKey(entity => new { entity.SingerId, entity.AlbumId });
                 entity.Property(e => e.SingerId).ValueGeneratedNever();
                 entity.Property(e => e.AlbumId).ValueGeneratedNever();
             });
