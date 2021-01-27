@@ -16,6 +16,7 @@ using Google.Api.Gax;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -199,9 +200,11 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             var tableAttribute = operation.FindAnnotation(SpannerAnnotationNames.InterleaveInParent);
             if (tableAttribute != null)
             {
+                var parentEntity = tableAttribute.Value as Type;
+                var parentTableName = model.FindEntityType(parentEntity).GetTableName();
                 builder.AppendLine(",")
                     .Append(" INTERLEAVE IN PARENT ")
-                    .Append(tableAttribute.Value)
+                    .Append(parentTableName)
                     .Append(" ON DELETE ");
                 var onDeleteAtrribute = operation.FindAnnotation(SpannerAnnotationNames.InterleaveInParentOnDelete);
                 if ((OnDelete)onDeleteAtrribute?.Value == OnDelete.Cascade)

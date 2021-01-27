@@ -21,6 +21,7 @@ CREATE TABLE Singers (
   FullName  STRING(400) NOT NULL AS (COALESCE(FirstName || ' ', '') || LastName) STORED,
   BirthDate DATE,
   Picture   BYTES(MAX),
+  Version   INT64 NOT NULL,
 ) PRIMARY KEY (SingerId);
 
 CREATE INDEX Idx_Singers_FullName ON Singers (FullName);
@@ -30,6 +31,7 @@ CREATE TABLE Albums (
   Title       STRING(100) NOT NULL,
   ReleaseDate DATE,
   SingerId    STRING(36) NOT NULL,
+  Version     INT64 NOT NULL,
   CONSTRAINT FK_Albums_Singers FOREIGN KEY (SingerId) REFERENCES Singers (SingerId),
 ) PRIMARY KEY (AlbumId);
 
@@ -40,17 +42,17 @@ CREATE TABLE Tracks (
   Duration        NUMERIC,
   LyricsLanguages ARRAY<STRING(2)>,
   Lyrics          ARRAY<STRING(MAX)>,
+  Version         INT64 NOT NULL,
   CONSTRAINT Chk_Languages_Lyrics_Length_Equal CHECK (ARRAY_LENGTH(LyricsLanguages) = ARRAY_LENGTH(Lyrics)),
 ) PRIMARY KEY (AlbumId, TrackId), INTERLEAVE IN PARENT Albums;
 
-CREATE UNIQUE INDEX Idx_Tracks_AlbumId_Title ON Tracks (TrackId, Title);
+CREATE UNIQUE INDEX Idx_Tracks_AlbumId_Title ON Tracks (AlbumId, Title);
 
 CREATE TABLE Venues (
   Code      STRING(10) NOT NULL,
   Name      STRING(100),
   Active    BOOL NOT NULL,
-  Capacity  INT64,
-  Ratings   ARRAY<FLOAT64>,
+  Version   INT64 NOT NULL,
 ) PRIMARY KEY (Code);
 
 CREATE TABLE Concerts (
@@ -58,6 +60,7 @@ CREATE TABLE Concerts (
   StartTime TIMESTAMP NOT NULL,
   SingerId  STRING(36) NOT NULL,
   Title     STRING(200),
+  Version   INT64 NOT NULL,
   CONSTRAINT FK_Concerts_Venues FOREIGN KEY (VenueCode) REFERENCES Venues (Code),
   CONSTRAINT FK_Concerts_Singers FOREIGN KEY (SingerId) REFERENCES Singers (SingerId),
 ) PRIMARY KEY (VenueCode, StartTime, SingerId);
@@ -70,6 +73,9 @@ CREATE TABLE Performances (
   TrackId          INT64 NOT NULL,
   StartTime        TIMESTAMP,
   Rating           FLOAT64,
+  CreatedAt        TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),
+  LastUpdatedAt   TIMESTAMP OPTIONS (allow_commit_timestamp=true),
+  Version          INT64 NOT NULL,
   CONSTRAINT FK_Performances_Concerts FOREIGN KEY (VenueCode, ConcertStartTime, SingerId) REFERENCES Concerts (VenueCode, StartTime, SingerId),
   CONSTRAINT FK_Performances_Singers FOREIGN KEY (SingerId) REFERENCES Singers (SingerId),
   CONSTRAINT FK_Performances_Tracks FOREIGN KEY (AlbumId, TrackId) REFERENCES Tracks (AlbumId, TrackId),

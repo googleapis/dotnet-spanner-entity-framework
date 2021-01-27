@@ -20,17 +20,19 @@ namespace System.ComponentModel.DataAnnotations
     public class InterleaveInParentAttribute : Attribute
     {
         /// <summary>
-        /// Parent table name.
+        /// The parent entity that the child will be interleaved with.
+        /// Must be a valid entity type.
         /// </summary>
-        public string Table { get; set; }
+        public Type ParentEntity { get; set; }
+
         /// <summary>
         /// Action on delete operation, default is `No Action`.
         /// </summary>
         public OnDelete OnDelete { get; set; }
 
-        public InterleaveInParentAttribute(string table, OnDelete onDelete = OnDelete.NoAction)
+        public InterleaveInParentAttribute(Type parentEntity, OnDelete onDelete = OnDelete.NoAction)
         {
-            Table = table;
+            ParentEntity = parentEntity;
             OnDelete = onDelete;
         }
     }

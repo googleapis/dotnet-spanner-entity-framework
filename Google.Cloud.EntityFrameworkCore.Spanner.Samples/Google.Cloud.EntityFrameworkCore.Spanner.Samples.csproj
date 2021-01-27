@@ -6,6 +6,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Samples\**" />
+    <EmbeddedResource Remove="Samples\**" />
+    <None Remove="Samples\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="SampleModel\SampleDataModel.sql" />
   </ItemGroup>
 
@@ -17,10 +23,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Google.Cloud.EntityFrameworkCore.Spanner\Google.Cloud.EntityFrameworkCore.Spanner.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Samples\" />
   </ItemGroup>
 
 </Project>

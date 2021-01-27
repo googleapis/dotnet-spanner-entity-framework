@@ -27,11 +27,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
     /// 
     /// This relationship is seen as a foreign key by Entity Framework, although it technically is not.
     /// </summary>
-    [InterleaveInParent("Albums", OnDelete.Cascade)]
+    [InterleaveInParent(typeof(Album), OnDelete.Cascade)]
     public partial class Track : VersionedEntity
     {
         public Track()
         {
+            Performances = new HashSet<Performance>();
         }
 
         /// <summary>
@@ -63,5 +64,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
         /// it to be treated as such.
         /// </summary>
         public virtual Album Album { get; set; }
+
+        public virtual ICollection<Performance> Performances { get; set; }
     }
 }

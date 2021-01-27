@@ -1385,6 +1385,247 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.Equal(3.0d, floor);
         }
 
+        [Fact]
+        public async Task CanUseDateTimeProperties()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT EXTRACT(YEAR FROM COALESCE(t.ColTimestamp, TIMESTAMP '0001-01-01T00:00:00Z') AT TIME ZONE 'UTC') AS Year, EXTRACT(MONTH FROM COALESCE(t.ColTimestamp, TIMESTAMP '0001-01-01T00:00:00Z') AT TIME ZONE 'UTC') AS Month\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "Year"),
+                    Tuple.Create(V1.TypeCode.Int64, "Month"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2021" },
+                    new object[] { "1" },
+                }
+            ));
+
+            var id = 1L;
+            var extracted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => new
+                {
+                    t.ColTimestamp.GetValueOrDefault().Year,
+                    t.ColTimestamp.GetValueOrDefault().Month,
+                })
+                .FirstOrDefaultAsync();
+            Assert.Equal(2021, extracted.Year);
+            Assert.Equal(1, extracted.Month);
+        }
+
+        [Fact]
+        public async Task CanUseSpannerDateProperties()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT EXTRACT(YEAR FROM COALESCE(t.ColDate, DATE '0001-01-01')) AS Year, EXTRACT(MONTH FROM COALESCE(t.ColDate, DATE '0001-01-01')) AS Month, EXTRACT(DAY FROM COALESCE(t.ColDate, DATE '0001-01-01')) AS Day, EXTRACT(DAYOFYEAR FROM COALESCE(t.ColDate, DATE '0001-01-01')) AS DayOfYear, EXTRACT(DAYOFWEEK FROM COALESCE(t.ColDate, DATE '0001-01-01')) - 1 AS DayOfWeek\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "Year"),
+                    Tuple.Create(V1.TypeCode.Int64, "Month"),
+                    Tuple.Create(V1.TypeCode.Int64, "Day"),
+                    Tuple.Create(V1.TypeCode.Int64, "DayOfYear"),
+                    Tuple.Create(V1.TypeCode.Int64, "DayOfWeek"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2021" },
+                    new object[] { "1" },
+                    new object[] { "25" },
+                    new object[] { "25" },
+                    new object[] { "1" },
+                }
+            ));
+
+            var id = 1L;
+            var extracted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => new
+                {
+                    t.ColDate.GetValueOrDefault().Year,
+                    t.ColDate.GetValueOrDefault().Month,
+                    t.ColDate.GetValueOrDefault().Day,
+                    t.ColDate.GetValueOrDefault().DayOfYear,
+                    t.ColDate.GetValueOrDefault().DayOfWeek,
+                })
+                .FirstOrDefaultAsync();
+            Assert.Equal(2021, extracted.Year);
+            Assert.Equal(1, extracted.Month);
+            Assert.Equal(25, extracted.Day);
+            Assert.Equal(25, extracted.DayOfYear);
+            Assert.Equal(DayOfWeek.Monday, extracted.DayOfWeek);
+        }
+
+        [Fact]
+        public async Task CanUseBoolToString()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT CAST(COALESCE(t.ColBool, false) AS STRING)\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.String, "Converted"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "TRUE" },
+                }
+            ));
+            var id = 1L;
+            var converted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => t.ColBool.GetValueOrDefault().ToString())
+                .FirstOrDefaultAsync();
+            Assert.Equal("TRUE", converted);
+        }
+
+        [Fact]
+        public async Task CanUseBytesToString()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT CAST(t.ColBytes AS STRING)\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.String, "Converted"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "some bytes" },
+                }
+            ));
+
+            var id = 1L;
+            var converted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => t.ColBytes.ToString())
+                .FirstOrDefaultAsync();
+            Assert.Equal("some bytes", converted);
+        }
+
+        [Fact]
+        public async Task CanUseLongToString()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT CAST(t.ColInt64 AS STRING)\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.String, "Converted"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "100" },
+                }
+            ));
+
+            var id = 1L;
+            var converted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => t.ColInt64.ToString())
+                .FirstOrDefaultAsync();
+            Assert.Equal("100", converted);
+        }
+
+        [Fact]
+        public async Task CanUseSpannerNumericToString()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT CAST(COALESCE(t.ColNumeric, 0) AS STRING)\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.String, "Converted"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "3.14" },
+                }
+            ));
+
+            var id = 1L;
+            var converted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => t.ColNumeric.GetValueOrDefault().ToString())
+                .FirstOrDefaultAsync();
+            Assert.Equal("3.14", converted);
+        }
+
+        [Fact]
+        public async Task CanUseDoubleToString()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT CAST(COALESCE(t.ColFloat64, 0.0) AS STRING)\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.String, "Converted"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "3.0" },
+                }
+            ));
+
+            var id = 1L;
+            var converted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => t.ColFloat64.GetValueOrDefault().ToString())
+                .FirstOrDefaultAsync();
+            Assert.Equal("3.0", converted);
+        }
+
+        [Fact]
+        public async Task CanUseSpannerDateToString()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT CAST(COALESCE(t.ColDate, DATE '0001-01-01') AS STRING)\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.String, "Converted"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2021-01-25" },
+                }
+            ));
+
+            var id = 1L;
+            var converted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => t.ColDate.GetValueOrDefault().ToString())
+                .FirstOrDefaultAsync();
+            Assert.Equal("2021-01-25", converted);
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeToString()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT FORMAT_TIMESTAMP('%FT%H:%M:%E*SZ', COALESCE(t.ColTimestamp, TIMESTAMP '0001-01-01T00:00:00Z'), 'UTC')\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.String, "Converted"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2021-01-25T12:46:01.982784Z" },
+                }
+            ));
+
+            var id = 1L;
+            var converted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => t.ColTimestamp.GetValueOrDefault().ToString())
+                .FirstOrDefaultAsync();
+            Assert.Equal("2021-01-25T12:46:01.982784Z", converted);
+        }
+
         private string AddFindSingerResult(string sql = "SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture\r\nFROM Singers AS s\r\nWHERE s.SingerId = @__p_0\r\nLIMIT 1")
         {
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(

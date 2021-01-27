@@ -20,7 +20,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.Snippets
 {
     public static class AddEntitySample
     {
-        public static async Task AddEntity(string connectionString)
+        public static async Task Run(string connectionString)
         {
             using var context = new SpannerSampleDbContext(connectionString);
 
@@ -33,7 +33,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.Snippets
                 FirstName = "Jamie",
                 LastName = "Yngvason"
             });
-            await context.SaveChangesAsync();
+            var count = await context.SaveChangesAsync();
+
+            // SaveChangesAsync returns the total number of rows that was inserted/updated/deleted.
+            Console.WriteLine($"Added {count} singer.");
         }
     }
 }

@@ -54,7 +54,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             var interleaveInParentAttribute = GetAttribute<InterleaveInParentAttribute>(entityType.ClrType);
             return interleaveInParentAttribute == null ? baseAnnotations
               : baseAnnotations.Concat(new[] {
-                  new Annotation(SpannerAnnotationNames.InterleaveInParent,interleaveInParentAttribute.Table),
+                  new Annotation(SpannerAnnotationNames.InterleaveInParent,interleaveInParentAttribute.ParentEntity),
                   new Annotation(SpannerAnnotationNames.InterleaveInParentOnDelete,interleaveInParentAttribute.OnDelete)
               });
         }

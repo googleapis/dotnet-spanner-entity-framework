@@ -22,7 +22,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
     {
         public Singer()
         {
-            // Albums = new HashSet<Album>();
+            Albums = new HashSet<Album>();
+            Performances = new HashSet<Performance>();
         }
 
         /// <summary>
@@ -48,6 +49,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
         public SpannerDate? BirthDate { get; set; }
         public byte[] Picture { get; set; }
 
-        // public virtual ICollection<Album> Albums { get; set; }
+        public virtual ICollection<Album> Albums { get; set; }
+        public virtual ICollection<Performance> Performances { get; set; }
     }
 }

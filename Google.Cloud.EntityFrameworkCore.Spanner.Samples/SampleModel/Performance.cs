@@ -26,6 +26,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
         public DateTime? StartTime { get; set; }
         public double? Rating { get; set; }
 
+        /// <summary>
+        /// This timestamp is automatically filled by Cloud Spanner when a new row is inserted.
+        /// <seealso cref="SpannerSampleDbContext"/> for the annotation that is attached to this property.
+        /// </summary>
+        public DateTime CreatedAt { get; set; }
+        /// <summary>
+        /// This timestamp is automatically filled by Cloud Spanner when a row is updated.
+        /// <seealso cref="SpannerSampleDbContext"/> for the annotation that is attached to this property.
+        /// </summary>
+        public DateTime? LastUpdatedAt { get; set; }
+
         public virtual Concert Concert { get; set; }
         public virtual Singer Singer { get; set; }
         public virtual Track Track { get; set; }

@@ -734,7 +734,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         {
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
             var singerId = _fixture.RandomLong();
-            db.Singers.AddRange(
+            db.Singers.Add(
                 new Singers { SingerId = singerId, FirstName = "Pete", LastName = "Peterson", BirthDate = new SpannerDate(2001, 12, 13) }
             );
             await db.SaveChangesAsync();
@@ -752,7 +752,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         {
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
             var singerId = _fixture.RandomLong();
-            db.Singers.AddRange(
+            db.Singers.Add(
                 new Singers { SingerId = singerId, FirstName = "Pete", LastName = "Peterson", BirthDate = new SpannerDate(2001, 12, 13) }
             );
             await db.SaveChangesAsync();
@@ -770,7 +770,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         {
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
             var singerId = _fixture.RandomLong();
-            db.Singers.AddRange(
+            db.Singers.Add(
                 new Singers { SingerId = singerId, FirstName = "Pete", LastName = "Peterson", BirthDate = new SpannerDate(2001, 12, 13) }
             );
             await db.SaveChangesAsync();
@@ -788,17 +788,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         {
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
             var id = _fixture.RandomLong();
-            db.TableWithAllColumnTypes.AddRange(
-                new TableWithAllColumnTypes { ColInt64 = id, ColTimestamp = new DateTime(2021, 1, 21, 11, 40, 10, DateTimeKind.Utc) }
+            var timestamp = new DateTime(2021, 1, 21, 11, 40, 10, DateTimeKind.Utc);
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id, ColTimestamp = timestamp }
             );
             await db.SaveChangesAsync();
 
             var date = await db.TableWithAllColumnTypes
                 .Where(s => s.ColInt64 == id)
-                .Select(s => ((DateTime)s.ColTimestamp).AddDays(23))
+                .Select(s => new { D1 = ((DateTime)s.ColTimestamp).AddDays(23), D2 = ((DateTime)s.ColTimestamp).AddDays(100) })
                 .FirstOrDefaultAsync();
 
-            Assert.Equal(new DateTime(2021, 2, 13, 11, 40, 10, DateTimeKind.Utc), date);
+            Assert.Equal(timestamp.AddDays(23), date.D1);
+            Assert.Equal(timestamp.AddDays(100), date.D2);
         }
 
         [Fact]
@@ -806,7 +808,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         {
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
             var id = _fixture.RandomLong();
-            db.TableWithAllColumnTypes.AddRange(
+            db.TableWithAllColumnTypes.Add(
                 new TableWithAllColumnTypes { ColInt64 = id, ColTimestamp = new DateTime(2021, 1, 21, 11, 40, 10, DateTimeKind.Utc) }
             );
             await db.SaveChangesAsync();
@@ -824,7 +826,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         {
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
             var id = _fixture.RandomLong();
-            db.TableWithAllColumnTypes.AddRange(
+            db.TableWithAllColumnTypes.Add(
                 new TableWithAllColumnTypes { ColInt64 = id, ColTimestamp = new DateTime(2021, 1, 21, 11, 40, 10, DateTimeKind.Utc) }
             );
             await db.SaveChangesAsync();
@@ -842,7 +844,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         {
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
             var id = _fixture.RandomLong();
-            db.TableWithAllColumnTypes.AddRange(
+            db.TableWithAllColumnTypes.Add(
                 new TableWithAllColumnTypes { ColInt64 = id, ColNumeric = SpannerNumeric.FromDecimal(3.14m, LossOfPrecisionHandling.Throw) }
             );
             await db.SaveChangesAsync();
@@ -864,7 +866,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
             var id = _fixture.RandomLong();
             var randomLong = _fixture.RandomLong();
-            db.TableWithAllColumnTypes.AddRange(
+            db.TableWithAllColumnTypes.Add(
                 new TableWithAllColumnTypes { ColInt64 = id }
             );
             await db.SaveChangesAsync();
@@ -876,6 +878,195 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 .FirstOrDefaultAsync();
 
             Assert.Equal(expectedValue, dbValue);
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeProperties()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            var randomLong = _fixture.RandomLong();
+            var timestamp = new DateTime(2021, 1, 25, 14, 29, 15, 182, DateTimeKind.Utc);
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id, ColTimestamp = timestamp }
+            );
+            await db.SaveChangesAsync();
+
+            var extracted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => new
+                {
+                    t.ColTimestamp.GetValueOrDefault().Year,
+                    t.ColTimestamp.GetValueOrDefault().Month,
+                    t.ColTimestamp.GetValueOrDefault().Day,
+                    t.ColTimestamp.GetValueOrDefault().DayOfYear,
+                    t.ColTimestamp.GetValueOrDefault().DayOfWeek,
+                    t.ColTimestamp.GetValueOrDefault().Hour,
+                    t.ColTimestamp.GetValueOrDefault().Minute,
+                    t.ColTimestamp.GetValueOrDefault().Second,
+                    t.ColTimestamp.GetValueOrDefault().Millisecond,
+                    t.ColTimestamp.GetValueOrDefault().Date,
+                })
+                .FirstOrDefaultAsync();
+            Assert.Equal(timestamp.Year, extracted.Year);
+            Assert.Equal(timestamp.Month, extracted.Month);
+            Assert.Equal(timestamp.Day, extracted.Day);
+            Assert.Equal(timestamp.DayOfYear, extracted.DayOfYear);
+            Assert.Equal(timestamp.DayOfWeek, extracted.DayOfWeek);
+            Assert.Equal(timestamp.Hour, extracted.Hour);
+            Assert.Equal(timestamp.Minute, extracted.Minute);
+            Assert.Equal(timestamp.Second, extracted.Second);
+            Assert.Equal(timestamp.Millisecond, extracted.Millisecond);
+            Assert.Equal(timestamp.Date, extracted.Date);
+        }
+
+        [Fact]
+        public async Task CanUseSpannerDateProperties()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            var randomLong = _fixture.RandomLong();
+            var date = new SpannerDate(2021, 1, 25);
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id, ColDate = date }
+            );
+            await db.SaveChangesAsync();
+
+            var extracted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => new
+                {
+                    t.ColDate.GetValueOrDefault().Year,
+                    t.ColDate.GetValueOrDefault().Month,
+                    t.ColDate.GetValueOrDefault().Day,
+                    t.ColDate.GetValueOrDefault().DayOfYear,
+                    t.ColDate.GetValueOrDefault().DayOfWeek,
+                })
+                .FirstOrDefaultAsync();
+            Assert.Equal(date.Year, extracted.Year);
+            Assert.Equal(date.Month, extracted.Month);
+            Assert.Equal(date.Day, extracted.Day);
+            Assert.Equal(date.DayOfYear, extracted.DayOfYear);
+            Assert.Equal(date.DayOfWeek, extracted.DayOfWeek);
+        }
+
+        [Fact]
+        public async Task CanUseBoolToString()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id, ColBool = true }
+            );
+            await db.SaveChangesAsync();
+
+            var converted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => t.ColBool.GetValueOrDefault().ToString())
+                .FirstOrDefaultAsync();
+            Assert.Equal("true", converted);
+        }
+
+        [Fact]
+        public async Task CanUseBytesToString()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id, ColBytes = Encoding.UTF8.GetBytes("test") }
+            );
+            await db.SaveChangesAsync();
+
+            var converted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => t.ColBytes.ToString())
+                .FirstOrDefaultAsync();
+            Assert.Equal("test", converted);
+        }
+
+        [Fact]
+        public async Task CanUseLongToString()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id }
+            );
+            await db.SaveChangesAsync();
+
+            var converted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => t.ColInt64.ToString())
+                .FirstOrDefaultAsync();
+            Assert.Equal($"{id}", converted);
+        }
+
+        [Fact]
+        public async Task CanUseSpannerNumericToString()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id, ColNumeric = SpannerNumeric.Parse("3.14") }
+            );
+            await db.SaveChangesAsync();
+
+            var converted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => t.ColNumeric.GetValueOrDefault().ToString())
+                .FirstOrDefaultAsync();
+            Assert.Equal("3.14", converted);
+        }
+
+        [Fact]
+        public async Task CanUseDoubleToString()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id, ColFloat64 = 3.14d }
+            );
+            await db.SaveChangesAsync();
+
+            var converted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => t.ColFloat64.GetValueOrDefault().ToString())
+                .FirstOrDefaultAsync();
+            Assert.Equal("3.14", converted);
+        }
+
+        [Fact]
+        public async Task CanUseSpannerDateToString()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id, ColDate = new SpannerDate(2021, 1, 25) }
+            );
+            await db.SaveChangesAsync();
+
+            var converted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => t.ColDate.GetValueOrDefault().ToString())
+                .FirstOrDefaultAsync();
+            Assert.Equal("2021-01-25", converted);
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeToString()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id, ColTimestamp = new DateTime(2021, 1, 25, 12, 46, 1, 982, DateTimeKind.Utc) }
+            );
+            await db.SaveChangesAsync();
+
+            var converted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => t.ColTimestamp.GetValueOrDefault().ToString())
+                .FirstOrDefaultAsync();
+            Assert.Equal("2021-01-25T12:46:01.982Z", converted);
         }
 
         [Fact]
