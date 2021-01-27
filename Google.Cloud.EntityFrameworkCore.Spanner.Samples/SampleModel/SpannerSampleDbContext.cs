@@ -32,62 +32,64 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
     /// </summary>
     public partial class SpannerSampleDbContext : DbContext
     {
-        public SpannerSampleDbContext()
+        private readonly string _connectionString;
+
+        public SpannerSampleDbContext(string connectionString)
         {
+            _connectionString = connectionString;
         }
 
-        public SpannerSampleDbContext(DbContextOptions<SpannerSampleDbContext> options)
+        public SpannerSampleDbContext(string connectionString, DbContextOptions<SpannerSampleDbContext> options)
             : base(options)
         {
+            _connectionString = connectionString;
         }
 
         public virtual DbSet<Singer> Singers { get; set; }
         public virtual DbSet<Album> Albums { get; set; }
+        public virtual DbSet<Track> Tracks { get; set; }
+        public virtual DbSet<Venue> Venues { get; set; }
+        public virtual DbSet<Concert> Concerts { get; set; }
+        public virtual DbSet<Performance> Performances { get; set; }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder options)
+            => options.UseSpanner(_connectionString);
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Singer>(entity =>
             {
                 entity.HasKey(e => e.SingerId);
-                entity.Property(e => e.SingerId).ValueGeneratedNever();
                 entity.Property(e => e.Version).IsConcurrencyToken();
             });
 
             modelBuilder.Entity<Album>(entity =>
             {
                 entity.HasKey(entity => new { entity.AlbumId });
-                entity.Property(e => e.SingerId).ValueGeneratedNever();
-                entity.Property(e => e.AlbumId).ValueGeneratedNever();
                 entity.Property(e => e.Version).IsConcurrencyToken();
             });
 
             modelBuilder.Entity<Track>(entity =>
             {
                 entity.HasKey(entity => new { entity.AlbumId, entity.TrackId });
-                entity.Property(e => e.AlbumId).ValueGeneratedNever();
                 entity.Property(e => e.Version).IsConcurrencyToken();
             });
 
             modelBuilder.Entity<Venue>(entity =>
             {
                 entity.HasKey(entity => new { entity.Code });
-                entity.Property(e => e.Code).ValueGeneratedNever();
                 entity.Property(e => e.Version).IsConcurrencyToken();
             });
 
             modelBuilder.Entity<Concert>(entity =>
             {
                 entity.HasKey(entity => new { entity.VenueCode, entity.SingerId, entity.StartTime });
-                entity.Property(e => e.VenueCode).ValueGeneratedNever();
-                entity.Property(e => e.SingerId).ValueGeneratedNever();
-                entity.Property(e => e.StartTime).ValueGeneratedNever();
                 entity.Property(e => e.Version).IsConcurrencyToken();
             });
 
             modelBuilder.Entity<Performance>(entity =>
             {
                 entity.HasKey(entity => new { entity.VenueCode, entity.SingerId, entity.ConcertStartTime });
-                entity.Property(e => e.VenueCode).ValueGeneratedNever();
                 entity.Property(e => e.Version).IsConcurrencyToken();
             });
 
