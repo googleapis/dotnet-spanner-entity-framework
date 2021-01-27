@@ -18,7 +18,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
-    [InterleaveInParent("Authors", OnDelete.Cascade)]
+    [InterleaveInParent(typeof(Author), OnDelete.Cascade)]
     public class Article
     {
         public long AuthorId { get; set; }

@@ -18,7 +18,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.VersioningTests.Model
 {
-    [InterleaveInParent("SingersWithVersion", OnDelete.Cascade)]
+    [InterleaveInParent(typeof(SingersWithVersion), OnDelete.Cascade)]
     public partial class AlbumsWithVersion : VersionedEntity
     {
         public long AlbumId { get; set; }
