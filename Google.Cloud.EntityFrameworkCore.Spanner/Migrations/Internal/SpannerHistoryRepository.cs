@@ -22,8 +22,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 {
     public class SpannerHistoryRepository : HistoryRepository
     {
+        /// <summary>
+        ///     The default name for the Migrations history table.
+        /// </summary>
+        public const string DefaultMigrationsHistoryTableName = "EFMigrationsHistory";
 
-        private const string DefaultMigrationsHistoryTableName = "EFMigrationsHistory";
         /// <summary>
         ///     This is internal functionality and not intended for public use.
         /// </summary>

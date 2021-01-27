@@ -35,21 +35,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.Snippets
     {
         public static async Task Run(string connectionString)
         {
-            Tuple<Concert, Track> concertAndTrack = null;
+            Concert concert = null;
+            Track track = null;
             var startTime = new DateTime(2021, 1, 27, 19, 0, 0, DateTimeKind.Utc);
             using (var context = new SpannerSampleDbContext(connectionString))
             {
-                concertAndTrack = await GetConcertAndTrackAsync(context);
+                (concert, track) = await GetConcertAndTrackAsync(context);
 
                 // Create a new performance and save it.
                 // This will automatically fill the CreatedAt property with the commit timestamp of the transaction.
                 var performance = new Performance
                 {
-                    VenueCode = concertAndTrack.Item1.VenueCode,
-                    SingerId = concertAndTrack.Item1.SingerId,
-                    ConcertStartTime = concertAndTrack.Item1.StartTime,
-                    AlbumId = concertAndTrack.Item2.AlbumId,
-                    TrackId = concertAndTrack.Item2.TrackId,
+                    VenueCode = concert.VenueCode,
+                    SingerId = concert.SingerId,
+                    ConcertStartTime = concert.StartTime,
+                    AlbumId = track.AlbumId,
+                    TrackId = track.TrackId,
                     StartTime = startTime,
                     Rating = 7.5,
                 };
@@ -63,7 +64,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.Snippets
             using (var context = new SpannerSampleDbContext(connectionString))
             {
                 // Read the performance from the database and check the CreatedAt value.
-                var performance = await context.Performances.FindAsync(concertAndTrack.Item1.VenueCode, concertAndTrack.Item1.SingerId, startTime);
+                var performance = await context.Performances.FindAsync(concert.VenueCode, concert.SingerId, startTime);
                 Console.WriteLine($"Performance was created at {performance.CreatedAt}");
 
                 var lastUpdated = performance.LastUpdatedAt == null ? "<never>" : performance.LastUpdatedAt.ToString();
@@ -77,13 +78,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.Snippets
 
             using (var context = new SpannerSampleDbContext(connectionString))
             {
-                var performance = await context.Performances.FindAsync(concertAndTrack.Item1.VenueCode, concertAndTrack.Item1.SingerId, startTime);
+                var performance = await context.Performances.FindAsync(concert.VenueCode, concert.SingerId, startTime);
                 Console.WriteLine($"Performance was created at {performance.CreatedAt}");
                 Console.WriteLine($"Performance was updated at {performance.LastUpdatedAt}");
             }
         }
 
-        private static async Task<Tuple<Concert, Track>> GetConcertAndTrackAsync(SpannerSampleDbContext context)
+        private static async Task<(Concert, Track)> GetConcertAndTrackAsync(SpannerSampleDbContext context)
         {
             var singer = new Singer
             {
@@ -125,7 +126,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.Snippets
             context.Add(concert);
 
             await context.SaveChangesAsync();
-            return new Tuple<Concert, Track>(concert, track);
+            return (concert, track);
         }
     }
 }

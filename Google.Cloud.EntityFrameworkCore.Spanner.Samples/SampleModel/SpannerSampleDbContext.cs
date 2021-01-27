@@ -98,6 +98,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
                 entity.HasKey(entity => new { entity.VenueCode, entity.SingerId, entity.StartTime });
                 entity.Property(e => e.Version).IsConcurrencyToken();
 
+                // Specify when the CreateAt and LastUpdatedAt columns should be updated.
+                entity.Property(e => e.CreatedAt)
+                    .HasAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp, SpannerUpdateCommitTimestamp.OnInsert);
+                entity.Property(e => e.LastUpdatedAt)
+                    .HasAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp, SpannerUpdateCommitTimestamp.OnUpdate);
+
+                // We need to specify the foreign keys of Performance because it has one column
+                // that is included in two different foreign keys: SingerId is used to both
+                // reference Singer (SingerId) and Concert (VenueCode, SingerId, StartTime).
                 entity.HasOne(d => d.Singer)
                     .WithMany(p => p.Performances)
                     .HasForeignKey(d => d.SingerId)
@@ -112,11 +121,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
                     .WithMany(p => p.Performances)
                     .HasForeignKey(d => new { d.VenueCode, d.SingerId, d.ConcertStartTime })
                     .OnDelete(DeleteBehavior.ClientSetNull);
-
-                entity.Property(e => e.CreatedAt)
-                    .HasAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp, SpannerUpdateCommitTimestamp.OnInsert);
-                entity.Property(e => e.LastUpdatedAt)
-                    .HasAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp, SpannerUpdateCommitTimestamp.OnUpdate);
             });
 
             OnModelCreatingPartial(modelBuilder);
@@ -126,6 +130,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
+            // First update the versions of all entities that will be written to the database,
+            // then send the modifications to the database.
             UpdateVersions();
             return base.SaveChanges(acceptAllChangesOnSuccess);
         }
@@ -133,11 +139,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
         public override Task<int> SaveChangesAsync(
             bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
         {
+            // First update the versions of all entities that will be written to the database,
+            // then send the modifications to the database.
             UpdateVersions();
             return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
 
-        private void UpdateVersions()
+        /// <summary>
+        /// Updates the versions of all entities that are currently marked as modified.
+        /// </summary>
+        internal void UpdateVersions()
         {
             var versionEntries = new ObservableHashSet<PropertyEntry>();
             foreach (EntityEntry entityEntry in ChangeTracker.Entries())
@@ -150,6 +161,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
                     versionEntries.Add(propertyEntry);
                 }
             }
+            // Mark the updated versions as not being modified. This prevents the entity from being
+            // included in any subsequent SaveChanges call, unless one of its actual properties is
+            // updated.
             foreach (PropertyEntry pe in versionEntries)
             {
                 pe.IsModified = false;

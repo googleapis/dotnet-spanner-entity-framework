@@ -23,7 +23,7 @@ using System.Reflection;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 {
-    internal class SpannerMigrationsAnnotationProvider : MigrationsAnnotationProvider
+    public class SpannerMigrationsAnnotationProvider : MigrationsAnnotationProvider
     {
         /// <summary>
         /// Initializes a new instance of this class.

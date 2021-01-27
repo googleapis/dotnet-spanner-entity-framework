@@ -25,7 +25,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.Snippets
     /// 
     /// The sample model contains an abstract base entity VersionedEntity with one property 'Version'.
     /// All concrete entities extend from this base entity and use the 'Version' property as a concurrency
-    /// token. This concurrency token is automatically increased by the model every time an entity is updated.
+    /// token.
+    /// 
+    /// The concurrency token is automatically increased by the model every time an entity is updated.
+    /// This update happens in <see cref="SpannerSampleDbContext.UpdateVersions()"/>.
     /// This means that if a row was updated by a different process between the moment that this process read
     /// it and tries to write it, the other process will have updated the version number of the row and the
     /// update by this process will fail with a <see cref="DbUpdateConcurrencyException"/>.
@@ -38,7 +41,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.Snippets
 
             using var context = new SpannerSampleDbContext(connectionString);
 
-            // Read a venue from the database.
+            // Read a venue from the database. Note that class Venue extends VersionedEntity.
             var code = "CON";
             var venue = await context.Venues.FindAsync(code);
 

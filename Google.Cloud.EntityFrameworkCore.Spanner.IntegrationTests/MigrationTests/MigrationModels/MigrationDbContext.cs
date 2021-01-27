@@ -57,14 +57,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 .Property(c => c.FullName)
                 .ValueGeneratedOnAddOrUpdate()
                 .HasComputedColumnSql("(ARRAY_TO_STRING([FirstName, LastName], ' ')) STORED");
-
-            modelBuilder.Entity<Product>().ToTable("Products");
-            modelBuilder.Entity<Category>().ToTable("Categories");
-            modelBuilder.Entity<Order>().ToTable("Orders");
-            modelBuilder.Entity<OrderDetail>().ToTable("OrderDetails");
-            modelBuilder.Entity<AllColType>().ToTable("AllColTypes");
-            modelBuilder.Entity<Article>().ToTable("Articles");
-            modelBuilder.Entity<Author>().ToTable("Authors");
         }
     }
 }

@@ -15,13 +15,13 @@
 using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.Diagnostics.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal;
-using Google.Cloud.EntityFrameworkCore.Spanner.Metadata.Conventions.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Query;
@@ -44,12 +44,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
             GaxPreconditions.CheckNotNull(serviceCollection, nameof(serviceCollection));
 
             var builder = new EntityFrameworkRelationalServicesBuilder(serviceCollection)
-                .TryAdd<IProviderConventionSetBuilder, SpannerConventionSetBuilder>()
                 .TryAdd<LoggingDefinitions, SpannerLoggingDefinitions>()
                 .TryAdd<IDatabaseProvider, DatabaseProvider<SpannerOptionsExtension>>()
                 .TryAdd<IRelationalTypeMappingSource, SpannerTypeMappingSource>()
                 .TryAdd<ISqlGenerationHelper, SpannerSqlGenerationHelper>()
                 .TryAdd<IMigrationsAnnotationProvider, SpannerMigrationsAnnotationProvider>()
+                .TryAdd<IProviderConventionSetBuilder, SpannerConventionSetBuilder>()
                 .TryAdd<IUpdateSqlGenerator, SpannerUpdateSqlGenerator>()
                 .TryAdd<IBatchExecutor, SpannerBatchExecutor>()
                 .TryAdd<IModificationCommandBatchFactory, SpannerModificationCommandBatchFactory>()

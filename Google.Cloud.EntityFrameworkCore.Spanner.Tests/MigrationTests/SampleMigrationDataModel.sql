@@ -75,11 +75,6 @@ CREATE TABLE Performances (
  CONSTRAINT FK_Performances_Tracks FOREIGN KEY (AlbumId, TrackId) REFERENCES Tracks (AlbumId, TrackId),
  CONSTRAINT FK_Performances_Concerts FOREIGN KEY (VenueCode, ConcertStartTime, SingerId) REFERENCES Concerts (VenueCode, StartTime, SingerId),
 )PRIMARY KEY (VenueCode, SingerId, StartTime)
-CREATE INDEX IX_Albums_SingerId ON Albums (SingerId)
-CREATE INDEX IX_Concerts_SingerId ON Concerts (SingerId)
-CREATE INDEX IX_Performances_SingerId ON Performances (SingerId)
-CREATE INDEX IX_Performances_AlbumId_TrackId ON Performances (AlbumId, TrackId)
-CREATE INDEX IX_Performances_VenueCode_ConcertStartTime_SingerId ON Performances (VenueCode, ConcertStartTime, SingerId)
 CREATE INDEX Idx_Singers_FullName ON Singers (FullName)
 CREATE NULL_FILTERED INDEX IDX_TableWithAllColumnTypes_ColDate_ColCommitTS ON TableWithAllColumnTypes (ColDate, ColCommitTS)
 CREATE UNIQUE INDEX Idx_Tracks_AlbumId_Title ON Tracks (TrackId, Title)

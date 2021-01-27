@@ -432,6 +432,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 await db.SaveChangesAsync();
             }
 
+            DateTime? insertedCommitTimestamp = null;
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Reget the row from the database.
@@ -461,6 +462,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.NotEqual(new DateTime(), row.ColCommitTs);
                 // This assumes that the local time does not differ more than 10 minutes with TrueTime.
                 Assert.True(Math.Abs(DateTime.UtcNow.Subtract(row.ColCommitTs.GetValueOrDefault()).TotalMinutes) < 10, $"Commit timestamp {row.ColCommitTs} differs with more than 10 minutes from now ({DateTime.UtcNow})");
+                insertedCommitTimestamp = row.ColCommitTs;
 
                 // Update the row.
                 row.ColBool = false;
@@ -508,6 +510,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<string> { "changed longer string1", "changed longer string2", "changed longer string3" }, row.ColStringMaxArray);
                 Assert.Equal(new DateTime(2020, 12, 30, 15, 16, 28, 148).AddTicks(5498), row.ColTimestamp);
                 Assert.Equal(new List<DateTime?> { now, new DateTime(2020, 12, 30, 15, 16, 28, 148).AddTicks(5498) }, row.ColTimestampArray);
+
+                // Do an update. This should also update the commit timestamp.
+                row.ColBool = !row.ColBool;
+                await db.SaveChangesAsync();
+            }
+
+            using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
+            {
+                // Reget the row from the database and check that the new commit timestamp is later than the initial.
+                var row = await db.TableWithAllColumnTypes.FindAsync(id);
+                Assert.True(row.ColCommitTs.GetValueOrDefault().CompareTo(insertedCommitTimestamp) > 0);
             }
         }
 
