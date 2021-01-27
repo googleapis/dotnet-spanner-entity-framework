@@ -21,6 +21,8 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -47,6 +49,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                 .TryAdd<IRelationalTypeMappingSource, SpannerTypeMappingSource>()
                 .TryAdd<ISqlGenerationHelper, SpannerSqlGenerationHelper>()
                 .TryAdd<IMigrationsAnnotationProvider, SpannerMigrationsAnnotationProvider>()
+                .TryAdd<IProviderConventionSetBuilder, SpannerConventionSetBuilder>()
                 .TryAdd<IUpdateSqlGenerator, SpannerUpdateSqlGenerator>()
                 .TryAdd<IBatchExecutor, SpannerBatchExecutor>()
                 .TryAdd<IModificationCommandBatchFactory, SpannerModificationCommandBatchFactory>()
