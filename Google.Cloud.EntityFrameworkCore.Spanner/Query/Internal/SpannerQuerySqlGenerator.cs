@@ -98,21 +98,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 
                         return sqlFunctionExpression;
                     }
-                case "EXTRACT":
-                    {
-                        Sql.Append(sqlFunctionExpression.Name);
-                        Sql.Append("(");
-
-                        Visit(sqlFunctionExpression.Arguments[0]);
-
-                        Sql.Append(" FROM CAST(");
-
-                        Visit(sqlFunctionExpression.Arguments[1]);
-
-                        Sql.Append(" AS TIMESTAMP) AT TIME ZONE '+0')");
-
-                        return sqlFunctionExpression;
-                    }
                 case "LN":
                 case "LOG":
                 case "LOG10":

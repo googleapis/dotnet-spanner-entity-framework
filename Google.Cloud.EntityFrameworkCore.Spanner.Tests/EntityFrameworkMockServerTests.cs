@@ -1386,6 +1386,80 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task CanUseDateTimeProperties()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT EXTRACT(YEAR FROM COALESCE(t.ColTimestamp, TIMESTAMP '0001-01-01T00:00:00Z') AT TIME ZONE 'UTC') AS Year, EXTRACT(MONTH FROM COALESCE(t.ColTimestamp, TIMESTAMP '0001-01-01T00:00:00Z') AT TIME ZONE 'UTC') AS Month\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "Year"),
+                    Tuple.Create(V1.TypeCode.Int64, "Month"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2021" },
+                    new object[] { "1" },
+                }
+            ));
+
+            var id = 1L;
+            var extracted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => new
+                {
+                    t.ColTimestamp.GetValueOrDefault().Year,
+                    t.ColTimestamp.GetValueOrDefault().Month,
+                })
+                .FirstOrDefaultAsync();
+            Assert.Equal(2021, extracted.Year);
+            Assert.Equal(1, extracted.Month);
+        }
+
+        [Fact]
+        public async Task CanUseSpannerDateProperties()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT EXTRACT(YEAR FROM COALESCE(t.ColDate, DATE '0001-01-01')) AS Year, EXTRACT(MONTH FROM COALESCE(t.ColDate, DATE '0001-01-01')) AS Month, EXTRACT(DAY FROM COALESCE(t.ColDate, DATE '0001-01-01')) AS Day, EXTRACT(DAYOFYEAR FROM COALESCE(t.ColDate, DATE '0001-01-01')) AS DayOfYear, EXTRACT(DAYOFWEEK FROM COALESCE(t.ColDate, DATE '0001-01-01')) - 1 AS DayOfWeek\r\nFROM TableWithAllColumnTypes AS t\r\nWHERE t.ColInt64 = @__id_0\r\nLIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "Year"),
+                    Tuple.Create(V1.TypeCode.Int64, "Month"),
+                    Tuple.Create(V1.TypeCode.Int64, "Day"),
+                    Tuple.Create(V1.TypeCode.Int64, "DayOfYear"),
+                    Tuple.Create(V1.TypeCode.Int64, "DayOfWeek"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2021" },
+                    new object[] { "1" },
+                    new object[] { "25" },
+                    new object[] { "25" },
+                    new object[] { "1" },
+                }
+            ));
+
+            var id = 1L;
+            var extracted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => new
+                {
+                    t.ColDate.GetValueOrDefault().Year,
+                    t.ColDate.GetValueOrDefault().Month,
+                    t.ColDate.GetValueOrDefault().Day,
+                    t.ColDate.GetValueOrDefault().DayOfYear,
+                    t.ColDate.GetValueOrDefault().DayOfWeek,
+                })
+                .FirstOrDefaultAsync();
+            Assert.Equal(2021, extracted.Year);
+            Assert.Equal(1, extracted.Month);
+            Assert.Equal(25, extracted.Day);
+            Assert.Equal(25, extracted.DayOfYear);
+            Assert.Equal(DayOfWeek.Monday, extracted.DayOfWeek);
+        }
+
+        [Fact]
         public async Task CanUseBoolToString()
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
@@ -1400,7 +1474,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     new object[] { "TRUE" },
                 }
             ));
-
             var id = 1L;
             var converted = await db.TableWithAllColumnTypes
                 .Where(t => t.ColInt64 == id)

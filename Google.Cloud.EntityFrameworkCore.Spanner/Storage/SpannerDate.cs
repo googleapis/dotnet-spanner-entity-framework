@@ -42,6 +42,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
 
         public DateTime ToDateTime() => new DateTime(Year, Month, Day, 0, 0, 0, DateTimeKind.Unspecified);
 
+        public int DayOfYear => ToDateTime().DayOfYear;
+
+        public DayOfWeek DayOfWeek => ToDateTime().DayOfWeek;
+
         public SpannerDate AddYears(int years) => FromDateTime(ToDateTime().AddYears(years));
 
         public SpannerDate AddMonths(int months) => FromDateTime(ToDateTime().AddMonths(months));
