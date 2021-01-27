@@ -31,7 +31,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             => new SpannerTimestampTypeMapping(parameters);
 
         protected override string GenerateNonNullSqlLiteral(object value)
-            => FormattableString.Invariant($"TIMESTAMP '{(DateTime)value:yyyy-MM-ddTHH:mm:ss.FFFFFFF}'");
+            => FormattableString.Invariant($"TIMESTAMP '{(DateTime)value:yyyy-MM-ddTHH:mm:ss.FFFFFFF}Z'");
 
         public override string GenerateProviderValueSqlLiteral([CanBeNull] object value)
         {
