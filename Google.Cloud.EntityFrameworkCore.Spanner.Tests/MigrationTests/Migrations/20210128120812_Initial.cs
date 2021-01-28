@@ -142,7 +142,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                         principalColumn: "AlbumId",
                         onDelete: ReferentialAction.Restrict);
                 })
-                .Annotation("Spanner:InterleaveInParent", "Albums")
+                .Annotation("Spanner:InterleaveInParent", "Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models.Albums")
                 .Annotation("Spanner:InterleaveInParentOnDelete", OnDelete.NoAction);
 
             migrationBuilder.CreateTable(
@@ -179,31 +179,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                         principalColumns: new[] { "VenueCode", "StartTime", "SingerId" },
                         onDelete: ReferentialAction.Restrict);
                 });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Albums_SingerId",
-                table: "Albums",
-                column: "SingerId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Concerts_SingerId",
-                table: "Concerts",
-                column: "SingerId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Performances_SingerId",
-                table: "Performances",
-                column: "SingerId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Performances_AlbumId_TrackId",
-                table: "Performances",
-                columns: new[] { "AlbumId", "TrackId" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Performances_VenueCode_ConcertStartTime_SingerId",
-                table: "Performances",
-                columns: new[] { "VenueCode", "ConcertStartTime", "SingerId" });
 
             migrationBuilder.CreateIndex(
                 name: "Idx_Singers_FullName",

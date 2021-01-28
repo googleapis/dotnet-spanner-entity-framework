@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTests.Migrations
 {
     [DbContext(typeof(TestMigrationDbContext))]
-    [Migration("20210120131315_Initial")]
+    [Migration("20210128120110_Initial")]
     partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -259,8 +259,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
 
                     b.HasKey("OrderId", "ProductId");
 
-                    b.HasIndex("ProductId");
-
                     b.ToTable("OrderDetails");
                 });
 
@@ -279,8 +277,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                         .HasMaxLength(50);
 
                     b.HasKey("ProductId");
-
-                    b.HasIndex("CategoryId");
 
                     b.ToTable("Products");
                 });

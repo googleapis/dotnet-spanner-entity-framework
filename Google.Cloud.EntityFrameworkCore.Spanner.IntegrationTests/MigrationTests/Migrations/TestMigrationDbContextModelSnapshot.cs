@@ -257,8 +257,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
 
                     b.HasKey("OrderId", "ProductId");
 
-                    b.HasIndex("ProductId");
-
                     b.ToTable("OrderDetails");
                 });
 
@@ -277,8 +275,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                         .HasMaxLength(50);
 
                     b.HasKey("ProductId");
-
-                    b.HasIndex("CategoryId");
 
                     b.ToTable("Products");
                 });

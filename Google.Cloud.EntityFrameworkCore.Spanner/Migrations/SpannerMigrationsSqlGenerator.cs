@@ -200,7 +200,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             var tableAttribute = operation.FindAnnotation(SpannerAnnotationNames.InterleaveInParent);
             if (tableAttribute != null)
             {
-                var parentEntity = tableAttribute.Value as Type;
+                var parentEntity = tableAttribute.Value.ToString();
                 var parentTableName = model.FindEntityType(parentEntity).GetTableName();
                 builder.AppendLine(",")
                     .Append(" INTERLEAVE IN PARENT ")

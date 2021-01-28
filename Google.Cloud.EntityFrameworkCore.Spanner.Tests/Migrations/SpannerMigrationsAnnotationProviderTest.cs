@@ -51,7 +51,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
             var entity = _modelBuilder.Entity<Entity>().Metadata;
             var migrationAnnotations = _annotations.For(entity).ToList();
             Assert.Contains(migrationAnnotations,
-                a => a.Name == SpannerAnnotationNames.InterleaveInParent && a.Value as System.Type == typeof(ParentEntity));
+                a => a.Name == SpannerAnnotationNames.InterleaveInParent
+                && a.Value.ToString() == "Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations.SpannerMigrationsAnnotationProviderTest+ParentEntity");
         }
 
 
