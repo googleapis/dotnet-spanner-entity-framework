@@ -90,15 +90,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
         [Fact]
         public virtual void CreateTableWithAllColTypes()
         {
-            var colCommitTimestampColumn = new AddColumnOperation
-            {
-                Name = "ColCommitTimestamp",
-                Table = "AllColTypes",
-                ClrType = typeof(DateTime),
-                IsNullable = true,
-            };
-            colCommitTimestampColumn.AddAnnotation("UpdateCommitTimestamp", SpannerUpdateCommitTimestamp.OnInsertAndUpdate);
-
             Generate(new CreateTableOperation
             {
                 Name = "AllColTypes",
@@ -188,7 +179,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                             ClrType = typeof(DateTime),
                             IsNullable = true
                         },
-                        colCommitTimestampColumn,
+                        new AddColumnOperation
+                        {
+                            Name = "ColCommitTimestamp",
+                            Table = "AllColTypes",
+                            ClrType = typeof(DateTime),
+                            IsNullable = true,
+                            [SpannerAnnotationNames.UpdateCommitTimestamp] = SpannerUpdateCommitTimestamp.OnInsertAndUpdate
+                        },
                         new AddColumnOperation
                         {
                             Name = "ColFloat",
@@ -371,18 +369,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
 
         [Fact]
         public virtual void CreateIndexOperation_is_null_filtered()
-        {
-            var createIndexOperation = new CreateIndexOperation
-            {
-                Name = "IX_Singer_FullName",
-                Table = "Singer",
-                Columns = new[] { "FullName" },
-            };
-            createIndexOperation.AddAnnotation(SpannerAnnotationNames.IsNullFilteredIndex, true);
-            Generate(
+            => Generate(
                 modelBuilder => modelBuilder.Entity("Singer").Property<string>("FullName"),
-                createIndexOperation);
-        }
+                new CreateIndexOperation
+                {
+                    Name = "IX_Singer_FullName",
+                    Table = "Singer",
+                    Columns = new[] { "FullName" },
+                    [SpannerAnnotationNames.IsNullFilteredIndex] = true
+                });
 
         [Fact]
         public virtual void CreateIndexOperation_is_unique()
@@ -409,7 +404,189 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                 IsNullable = false
             });
 
+        [Fact]
+        public virtual void AddColumnOperation_with_computedSql()
+            => Generate(new AddColumnOperation
+            {
+                Table = "Singer",
+                Name = "FullName",
+                ClrType = typeof(string),
+                ComputedColumnSql = "(COALESCE(FirstName || ' ', '') || LastName) STORED"
+            });
 
+        [Fact]
+        public virtual void AddColumnOperation_with_update_commit_timestamp()
+            => Generate(new AddColumnOperation
+            {
+                Table = "Album",
+                Name = "CreatedDate",
+                ClrType = typeof(string),
+                [SpannerAnnotationNames.UpdateCommitTimestamp] = SpannerUpdateCommitTimestamp.OnInsertAndUpdate
+            });
+
+        [Fact]
+        public virtual void AddColumnOperation_without_column_type()
+            => Generate(new AddColumnOperation
+            {
+                Table = "Singer",
+                Name = "FullName",
+                ClrType = typeof(string)
+            });
+
+        [Fact]
+        public virtual void AddColumnOperation_with_column_type()
+            => Generate(new AddColumnOperation
+            {
+                Table = "Singer",
+                Name = "FullName",
+                ClrType = typeof(string),
+                ColumnType = "ARRAY<STRING(200)>"
+            });
+
+        [Fact]
+        public virtual void AddColumnOperation_with_maxLength()
+            => Generate(
+                modelBuilder => modelBuilder.Entity("Singer").Property<string>("FullName").HasMaxLength(30),
+                new AddColumnOperation
+                {
+                    Table = "Singer",
+                    Name = "FullName",
+                    ClrType = typeof(string),
+                    MaxLength = 30,
+                    IsNullable = true
+                });
+
+        [Fact]
+        public virtual void AddColumnOperation_with_maxLength_overridden()
+            => Generate(
+                modelBuilder => modelBuilder.Entity("Singer").Property<string>("FullName").HasMaxLength(30),
+                new AddColumnOperation
+                {
+                    Table = "Singer",
+                    Name = "FullName",
+                    ClrType = typeof(string),
+                    MaxLength = 32,
+                    IsNullable = true
+                });
+
+        [Fact]
+        public virtual void AddColumnOperation_with_maxLength_no_model()
+            => Generate(
+                new AddColumnOperation
+                {
+                    Table = "Singer",
+                    Name = "FullName",
+                    ClrType = typeof(string),
+                    MaxLength = 30,
+                    IsNullable = true
+                });
+
+        [Fact]
+        public virtual void AddColumnOperation_with_maxLength_on_derived()
+            => Generate(
+                modelBuilder =>
+                {
+                    modelBuilder.Entity("Singer");
+                    modelBuilder.Entity(
+                        "SpecialSinger", b =>
+                        {
+                            b.HasBaseType("Singer");
+                            b.Property<string>("Name").HasMaxLength(30);
+                        });
+
+                    modelBuilder.Entity("MoreSpecialSinger").HasBaseType("SpecialSinger");
+                }, new AddColumnOperation
+                {
+                    Table = "Singer",
+                    Name = "Name",
+                    ClrType = typeof(string),
+                    MaxLength = 30,
+                    IsNullable = true
+                });
+
+        [Fact]
+        public virtual void AddColumnOperation_with_shared_column()
+            => Generate(
+                modelBuilder =>
+                {
+                    modelBuilder.Entity<VersionedEntity>();
+                    modelBuilder.Entity<Derived1>();
+                    modelBuilder.Entity<Derived2>();
+                },
+                new AddColumnOperation
+                {
+                    Table = "VersionedEntity",
+                    Name = "Version",
+                    ClrType = typeof(long),
+                    IsNullable = true
+                });
+
+        [Fact]
+        public virtual void AddForeignKeyOperation_with_name()
+            => Generate(
+                new AddForeignKeyOperation
+                {
+                    Table = "Album",
+                    Name = "FK_Album_Singer",
+                    Columns = new[] { "SingerId" },
+                    PrincipalTable = "Singer",
+                    PrincipalColumns = new[] { "SingerId" },
+                    OnDelete = ReferentialAction.Cascade
+                });
+
+        [Fact]
+        public virtual void DropColumnOperation()
+            => Generate(
+                new DropColumnOperation
+                {
+                    Table = "Singer",
+                    Name = "FullName"
+                });
+
+        [Fact]
+        public virtual void DropForeignKeyOperation()
+            => Generate(
+                new DropForeignKeyOperation
+                {
+                    Table = "Album",
+                    Name = "FK_Album_Singers"
+                });
+
+        [Fact]
+        public virtual void DropIndexOperation()
+            => Generate(new DropIndexOperation
+            {
+                Name = "IX_Singer_FullName",
+                Table = "Singer",
+            });
+
+        [Fact]
+        public virtual void DropTableOperation()
+            => Generate(new DropTableOperation { Name = "Singer" });
+
+        [Fact]
+        public virtual void DropCheckConstraintOperation()
+            => Generate(
+                new DropCheckConstraintOperation
+                {
+                    Table = "Singer",
+                    Name = "CK_Singer_FullName"
+                });
+
+        private class VersionedEntity
+        {
+            public long Version { get; set; }
+        }
+
+        private class Derived1 : VersionedEntity
+        {
+            public string Foo { get; set; }
+        }
+
+        private class Derived2 : VersionedEntity
+        {
+            public string Foo { get; set; }
+        }
         protected TestHelpers TestHelpers { get; }
 
         protected MigrationSqlGeneratorTestBase(TestHelpers testHelpers)
