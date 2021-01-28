@@ -75,6 +75,40 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 )PRIMARY KEY (AlbumId)");
         }
 
+        public override void CreateTableOperation_no_key()
+        {
+            base.CreateTableOperation_no_key();
+            AssertSql(
+                @"CREATE TABLE Anonymous (
+    Value INT64 NOT NULL
+)");
+        }
+
+        public override void CreateIndexOperation()
+        {
+            base.CreateIndexOperation();
+            AssertSql(@"CREATE INDEX IX_Singer_FullName ON Singer (FullName)");
+        }
+
+        public override void CreateIndexOperation_is_null_filtered()
+        {
+            base.CreateIndexOperation_is_null_filtered();
+            AssertSql(@"CREATE NULL_FILTERED INDEX IX_Singer_FullName ON Singer (FullName)");
+        }
+
+        public override void CreateIndexOperation_is_unique()
+        {
+            base.CreateIndexOperation_is_unique();
+            AssertSql(@"CREATE UNIQUE INDEX IX_Singer_FullName ON Singer (FullName)");
+        }
+
+        public override void AddColumOperation()
+        {
+            base.AddColumOperation();
+            AssertSql(
+                @"ALTER TABLE Singer ADD Name STRING(30) NOT NULL");
+        }
+
         public SpannerMigrationSqlGeneratorTest()
             : base(SpannerTestHelpers.Instance)
         {

@@ -38,11 +38,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
         [Fact]
         public virtual void CreateTableOperation()
         {
-            Generate(
-                 new CreateTableOperation
-                 {
-                     Name = "Albums",
-                     Columns =
+            Generate(new CreateTableOperation
+            {
+                Name = "Albums",
+                Columns =
                      {
                         new AddColumnOperation
                         {
@@ -73,9 +72,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                             IsNullable = false
                         }
                      },
-                     PrimaryKey = new AddPrimaryKeyOperation { Columns = new[] { "AlbumId" } },
-                     CheckConstraints = { new CreateCheckConstraintOperation { Name = "Chk_Title_Length_Equal", Sql = "CHARACTER_LENGTH(Title) > 0" } },
-                     ForeignKeys =
+                PrimaryKey = new AddPrimaryKeyOperation { Columns = new[] { "AlbumId" } },
+                CheckConstraints = { new CreateCheckConstraintOperation { Name = "Chk_Title_Length_Equal", Sql = "CHARACTER_LENGTH(Title) > 0" } },
+                ForeignKeys =
                      {
                         new AddForeignKeyOperation
                         {
@@ -85,7 +84,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                             PrincipalColumns = new[] { "SingerId" },
                         }
                      },
-                 });
+            });
         }
 
         [Fact]
@@ -100,11 +99,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
             };
             colCommitTimestampColumn.AddAnnotation("UpdateCommitTimestamp", SpannerUpdateCommitTimestamp.OnInsertAndUpdate);
 
-            Generate(
-                new CreateTableOperation
-                {
-                    Name = "AllColTypes",
-                    Columns =
+            Generate(new CreateTableOperation
+            {
+                Name = "AllColTypes",
+                Columns =
                     {
                         new AddColumnOperation
                         {
@@ -339,9 +337,78 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                             IsNullable = true
                         }
                     },
-                    PrimaryKey = new AddPrimaryKeyOperation { Columns = new[] { "AlbumId" } },
+                PrimaryKey = new AddPrimaryKeyOperation { Columns = new[] { "AlbumId" } },
+            });
+        }
+
+        [Fact]
+        public virtual void CreateTableOperation_no_key()
+            => Generate(new CreateTableOperation
+            {
+                Name = "Anonymous",
+                Columns =
+                    {
+                        new AddColumnOperation
+                        {
+                            Name = "Value",
+                            Table = "Anonymous",
+                            ClrType = typeof(int),
+                            IsNullable = false
+                        }
+                    }
+            });
+
+        [Fact]
+        public virtual void CreateIndexOperation()
+            => Generate(
+                modelBuilder => modelBuilder.Entity("Singer").Property<string>("FullName").IsRequired(),
+                new CreateIndexOperation
+                {
+                    Name = "IX_Singer_FullName",
+                    Table = "Singer",
+                    Columns = new[] { "FullName" },
+                });
+
+        [Fact]
+        public virtual void CreateIndexOperation_is_null_filtered()
+        {
+            var createIndexOperation = new CreateIndexOperation
+            {
+                Name = "IX_Singer_FullName",
+                Table = "Singer",
+                Columns = new[] { "FullName" },
+            };
+            createIndexOperation.AddAnnotation(SpannerAnnotationNames.IsNullFilteredIndex, true);
+            Generate(
+                modelBuilder => modelBuilder.Entity("Singer").Property<string>("FullName"),
+                createIndexOperation);
+        }
+
+        [Fact]
+        public virtual void CreateIndexOperation_is_unique()
+        {
+            Generate(
+                modelBuilder => modelBuilder.Entity("Singer").Property<string>("FullName"),
+                new CreateIndexOperation
+                {
+                    Name = "IX_Singer_FullName",
+                    Table = "Singer",
+                    Columns = new[] { "FullName" },
+                    IsUnique = true
                 });
         }
+
+        [Fact]
+        public virtual void AddColumOperation()
+            => Generate(new AddColumnOperation
+            {
+                Table = "Singer",
+                Name = "Name",
+                ClrType = typeof(string),
+                ColumnType = "STRING(30)",
+                IsNullable = false
+            });
+
 
         protected TestHelpers TestHelpers { get; }
 
