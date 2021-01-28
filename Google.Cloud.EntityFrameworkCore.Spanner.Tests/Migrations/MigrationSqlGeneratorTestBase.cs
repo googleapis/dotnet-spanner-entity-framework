@@ -420,7 +420,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
             {
                 Table = "Album",
                 Name = "CreatedDate",
-                ClrType = typeof(string),
+                ClrType = typeof(DateTime),
                 [SpannerAnnotationNames.UpdateCommitTimestamp] = SpannerUpdateCommitTimestamp.OnInsertAndUpdate
             });
 
@@ -533,6 +533,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     PrincipalColumns = new[] { "SingerId" },
                     OnDelete = ReferentialAction.Cascade
                 });
+
+        [Fact]
+        public virtual void AddForeignKeyOperation_with_multiple_column()
+            => Generate(new AddForeignKeyOperation
+            {
+                Table = "Performances",
+                Name = "FK_Performances_Concerts",
+                Columns = new[] { "VenueCode", "ConcertStartTime", "SingerId" },
+                PrincipalTable = "Concerts",
+                PrincipalColumns = new[] { "VenueCode", "StartTime", "SingerId" }
+            });
 
         [Fact]
         public virtual void DropColumnOperation()

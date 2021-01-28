@@ -119,7 +119,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void AddColumnOperation_with_update_commit_timestamp()
         {
             base.AddColumnOperation_with_update_commit_timestamp();
-            AssertSql(@"ALTER TABLE Album ADD CreatedDate STRING(MAX) NOT NULL OPTIONS (allow_commit_timestamp=true) 
+            AssertSql(@"ALTER TABLE Album ADD CreatedDate TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true) 
 ");
         }
 
@@ -180,6 +180,15 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 ");
         }
 
+        public override void AddForeignKeyOperation_with_multiple_column()
+        {
+            base.AddForeignKeyOperation_with_multiple_column();
+            var test = Sql;
+            AssertSql(@"ALTER TABLE Performances ADD  CONSTRAINT FK_Performances_Concerts FOREIGN KEY (VenueCode, ConcertStartTime, SingerId) REFERENCES Concerts (VenueCode, StartTime, SingerId),
+
+");
+        }
+
         [Fact]
         public void CreateDatabaseOperation()
         {
@@ -204,7 +213,6 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void DropIndexOperation()
         {
             base.DropIndexOperation();
-            var test = Sql;
             AssertSql(@" DROP INDEX IX_Singer_FullName");
         }
 
