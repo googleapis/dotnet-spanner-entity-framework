@@ -128,7 +128,7 @@ public partial class ArtistDbContext : DbContext
 2. Update-Database
 
 ## Creating a hierarchy of interleaved tables
-Using `InterLeave` Attribute you can create Hierarchy of [interleaved tables][inter-leaved-table].
+Using `InterleaveInParent` Attribute you can create Hierarchy of [interleaved tables][inter-leaved-table].
 while declaring the Interleaved Table option it automatically ignore the foreign key referece.
 
 ```cs
@@ -140,7 +140,7 @@ public class Author
     public ICollection<Article> Articles { get; set; }
 }
 
-[InterleaveInParent("Authors", "AuthorId", OnDelete.Cascade)]
+[InterleaveInParent(typeof(Author))]
 public class Article
 {
     public long AuthorId { get; set; }
