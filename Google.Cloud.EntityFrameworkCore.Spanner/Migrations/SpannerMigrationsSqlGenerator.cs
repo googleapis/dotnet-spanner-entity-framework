@@ -272,6 +272,38 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             GaxPreconditions.CheckNotNull(operation, nameof(operation));
             GaxPreconditions.CheckNotNull(builder, nameof(builder));
 
+            if (operation.ComputedColumnSql != null)
+            {
+                ComputedColumnDefinition(schema, table, name, operation, model, builder);
+                return;
+            }
+
+            var columnType = operation.ColumnType ?? GetColumnType(schema, table, name, operation, model);
+            builder
+                .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(name))
+                .Append(" ")
+                .Append(GetCorrectedColumnType(columnType));
+
+            if (!operation.IsNullable)
+            {
+                builder.Append(" NOT NULL");
+            }
+
+            var commitTimestampAnnotation = operation.FindAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp);
+            if (commitTimestampAnnotation != null)
+            {
+                builder.Append(" OPTIONS (allow_commit_timestamp=true) ");
+            }
+        }
+
+        protected override void ComputedColumnDefinition(
+            string schema,
+            string table,
+            string name,
+            ColumnOperation operation,
+            IModel model,
+            MigrationCommandListBuilder builder)
+        {
             builder
                 .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(name))
                 .Append(" ")
@@ -282,16 +314,9 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 builder.Append(" NOT NULL");
             }
 
-            if (operation.ComputedColumnSql != null)
-            {
-                builder.Append(" AS ").Append(operation.ComputedColumnSql);
-            }
-
-            var commitTimestampAnnotation = operation.FindAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp);
-            if (commitTimestampAnnotation != null)
-            {
-                builder.Append(" OPTIONS (allow_commit_timestamp=true) ");
-            }
+            builder
+                .Append(" AS ")
+                .Append(operation.ComputedColumnSql);
         }
     }
 }
