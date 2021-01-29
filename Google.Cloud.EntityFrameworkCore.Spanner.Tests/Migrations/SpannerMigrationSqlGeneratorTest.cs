@@ -264,6 +264,16 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         }
 
         [Fact]
+        public virtual void DropSequenceOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new DropSequenceOperation
+                {
+                    Name = "SpannerkHiLoSequence"
+                }));
+        }
+
+        [Fact]
         public virtual void RenameSequenceOperation()
         {
             Assert.Throws<NotSupportedException>(() => Generate(

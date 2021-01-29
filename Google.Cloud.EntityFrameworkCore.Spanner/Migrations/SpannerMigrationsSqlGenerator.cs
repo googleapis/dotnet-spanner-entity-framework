@@ -338,5 +338,10 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         {
             throw new NotSupportedException($"Cloud Spanner doesn't have a sequence generation feature.");
         }
+
+        protected override void Generate(DropSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner doesn't have a sequence generation feature.");
+        }
     }
 }
