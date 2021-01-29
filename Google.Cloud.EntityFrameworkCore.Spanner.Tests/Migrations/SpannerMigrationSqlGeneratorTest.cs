@@ -14,6 +14,7 @@
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Tests.TestUtilities;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
+using System;
 using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
@@ -187,10 +188,38 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         }
 
         [Fact]
+        public void AlterSequenceOperation_with_minValue_and_maxValue()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+               new AlterSequenceOperation
+               {
+                   Name = "SpannerkHiLoSequence",
+                   IncrementBy = 1,
+                   MinValue = 2,
+                   MaxValue = 816,
+                   IsCyclic = true
+               }));
+        }
+
+        [Fact]
         public void CreateDatabaseOperation()
         {
             Generate(new SpannerCreateDatabaseOperation { Name = "Northwind" });
             AssertSql(@"CREATE DATABASE Northwind");
+        }
+
+        [Fact]
+        public virtual void CreateSequenceOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new CreateSequenceOperation
+                {
+                    Name = "SpannerkHiLoSequence",
+                    StartValue = 3,
+                    IncrementBy = 1,
+                    ClrType = typeof(long),
+                    IsCyclic = true
+                }));
         }
 
         public override void DropColumnOperation()
@@ -232,6 +261,28 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         {
             Generate(new SpannerDropDatabaseOperation { Name = "Northwind" });
             AssertSql(@"DROP DATABASE Northwind");
+        }
+
+        [Fact]
+        public virtual void RenameSequenceOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new RenameSequenceOperation
+                {
+                    Name = "SpannerkHiLoSequence",
+                    NewName = "SpannerkHiLoSequenceUpdated"
+                }));
+        }
+
+        [Fact]
+        public virtual void RestartSequenceOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new RestartSequenceOperation
+                {
+                    Name = "SpannerkHiLoSequence",
+                    StartValue = 1
+                }));
         }
 
         public SpannerMigrationSqlGeneratorTest()
