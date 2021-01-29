@@ -160,8 +160,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             {
                 // Exclude Interleaved table from foreign key.
                 var isInterleavedWithParent = operation.FindAnnotation(SpannerAnnotationNames.InterleaveInParent) != null;
-                builder.Append(",");
-                builder.AppendLine();
+                builder.AppendLine(",");
                 foreach (var key in operation.ForeignKeys)
                 {
                     if (isInterleavedWithParent)
@@ -169,11 +168,13 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                         if (!key.Columns.Any(c => operation.PrimaryKey.Columns.Any(i => i == c)))
                         {
                             ForeignKeyConstraint(key, model, builder);
+                            builder.AppendLine(",");
                         }
                     }
                     else
                     {
                         ForeignKeyConstraint(key, model, builder);
+                        builder.AppendLine(",");
                     }
                 }
             }
@@ -248,8 +249,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 .Append(operation.PrincipalTable)
                 .Append(" (")
                 .Append(ColumnList(operation.PrincipalColumns))
-                .Append("),");
-            builder.AppendLine();
+                .Append(")");
         }
 
         private static string GetCorrectedColumnType(string columnType)

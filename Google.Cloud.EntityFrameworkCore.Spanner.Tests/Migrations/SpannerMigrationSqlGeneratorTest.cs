@@ -175,17 +175,14 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void AddForeignKeyOperation_with_name()
         {
             base.AddForeignKeyOperation_with_name();
-            AssertSql(@"ALTER TABLE Album ADD  CONSTRAINT FK_Album_Singer FOREIGN KEY (SingerId) REFERENCES Singer (SingerId),
-
+            AssertSql(@"ALTER TABLE Album ADD  CONSTRAINT FK_Album_Singer FOREIGN KEY (SingerId) REFERENCES Singer (SingerId)
 ");
         }
 
         public override void AddForeignKeyOperation_with_multiple_column()
         {
             base.AddForeignKeyOperation_with_multiple_column();
-            var test = Sql;
-            AssertSql(@"ALTER TABLE Performances ADD  CONSTRAINT FK_Performances_Concerts FOREIGN KEY (VenueCode, ConcertStartTime, SingerId) REFERENCES Concerts (VenueCode, StartTime, SingerId),
-
+            AssertSql(@"ALTER TABLE Performances ADD  CONSTRAINT FK_Performances_Concerts FOREIGN KEY (VenueCode, ConcertStartTime, SingerId) REFERENCES Concerts (VenueCode, StartTime, SingerId)
 ");
         }
 
