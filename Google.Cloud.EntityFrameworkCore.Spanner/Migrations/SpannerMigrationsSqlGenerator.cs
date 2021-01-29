@@ -318,5 +318,30 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 .Append(" AS ")
                 .Append(operation.ComputedColumnSql);
         }
+
+        protected override void Generate(CreateSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner doesn't have a sequence generation feature.");
+        }
+
+        protected override void Generate(AlterSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner doesn't have a sequence generation feature.");
+        }
+
+        protected override void Generate(RenameSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner doesn't have a sequence generation feature.");
+        }
+
+        protected override void Generate(RestartSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner doesn't have a sequence generation feature.");
+        }
+
+        protected override void Generate(DropSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner doesn't have a sequence generation feature.");
+        }
     }
 }
