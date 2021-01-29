@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migrations
 {
     [DbContext(typeof(MockMigrationSampleDbContext))]
-    [Migration("20210121131513_Initial")]
+    [Migration("20210128120812_Initial")]
     partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -40,8 +40,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                     b.HasKey("AlbumId")
                         .HasName("PRIMARY_KEY");
 
-                    b.HasIndex("SingerId");
-
                     b.ToTable("Albums");
                 });
 
@@ -63,8 +61,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
 
                     b.HasKey("VenueCode", "StartTime", "SingerId")
                         .HasName("PRIMARY_KEY");
-
-                    b.HasIndex("SingerId");
 
                     b.ToTable("Concerts");
                 });
@@ -95,12 +91,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
 
                     b.HasKey("VenueCode", "SingerId", "StartTime")
                         .HasName("PRIMARY_KEY");
-
-                    b.HasIndex("SingerId");
-
-                    b.HasIndex("AlbumId", "TrackId");
-
-                    b.HasIndex("VenueCode", "ConcertStartTime", "SingerId");
 
                     b.ToTable("Performances");
                 });

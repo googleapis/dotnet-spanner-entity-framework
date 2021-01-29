@@ -124,7 +124,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                         principalColumn: "AuthorId",
                         onDelete: ReferentialAction.Cascade);
                 })
-                .Annotation("Spanner:InterleaveInParent", "Authors")
+                .Annotation("Spanner:InterleaveInParent", "Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Author")
                 .Annotation("Spanner:InterleaveInParentOnDelete", OnDelete.Cascade);
 
             migrationBuilder.CreateTable(
@@ -178,16 +178,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                 table: "AllColTypes",
                 columns: new[] { "ColDate", "ColCommitTimestamp" })
                 .Annotation("Spanner:IsNullFiltered", true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_OrderDetails_ProductId",
-                table: "OrderDetails",
-                column: "ProductId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Products_CategoryId",
-                table: "Products",
-                column: "CategoryId");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
