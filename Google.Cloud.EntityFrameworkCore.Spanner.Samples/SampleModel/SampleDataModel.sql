@@ -44,7 +44,7 @@ CREATE TABLE Tracks (
   Lyrics          ARRAY<STRING(MAX)>,
   Version         INT64 NOT NULL,
   CONSTRAINT Chk_Languages_Lyrics_Length_Equal CHECK (ARRAY_LENGTH(LyricsLanguages) = ARRAY_LENGTH(Lyrics)),
-) PRIMARY KEY (AlbumId, TrackId), INTERLEAVE IN PARENT Albums;
+) PRIMARY KEY (AlbumId, TrackId), INTERLEAVE IN PARENT Albums ON DELETE CASCADE;
 
 CREATE UNIQUE INDEX Idx_Tracks_AlbumId_Title ON Tracks (AlbumId, Title);
 
