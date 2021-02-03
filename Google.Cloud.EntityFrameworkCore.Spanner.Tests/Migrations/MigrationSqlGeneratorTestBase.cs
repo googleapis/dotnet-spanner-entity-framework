@@ -546,6 +546,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
             });
 
         [Fact]
+        public virtual void CreateCheckConstraintOperation_with_name()
+            => Generate(
+                new CreateCheckConstraintOperation
+                {
+                    Table = "Singers",
+                    Name = "Chk_Title_Length_Equal",
+                    Sql = "CHARACTER_LENGTH(Title) > 0"
+                });
+
+        [Fact]
         public virtual void DropColumnOperation()
             => Generate(
                 new DropColumnOperation
@@ -582,6 +592,84 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                 {
                     Table = "Singer",
                     Name = "CK_Singer_FullName"
+                });
+
+        [Fact]
+        public virtual void InsertDataOperation()
+            => Generate(
+                new InsertDataOperation
+                {
+                    Table = "Singer",
+                    Columns = new[] { "SingerId", "FirstName", "LastName" },
+                    Values = new object[,] {
+                        { 1, "Marc", "Richards" }, { 2, "Catalina", "Smith" }, { 3, "Alice", "Trentor" }, { 4, "Lea", "Martin" }
+                    }
+                });
+
+        [Fact]
+        public virtual void DeleteDataOperation_simple_key()
+            => Generate(
+                new DeleteDataOperation
+                {
+                    Table = "Singer",
+                    KeyColumns = new[] { "SingerId" },
+                    KeyValues = new object[,] { { 1 }, { 3 } }
+                });
+
+        [Fact]
+        public virtual void DeleteDataOperation_composite_key()
+            => Generate(
+                new DeleteDataOperation
+                {
+                    Table = "Singer",
+                    KeyColumns = new[] { "FirstName", "LastName" },
+                    KeyValues = new object[,] { { "Dorothy", null }, { "Curt", "Lee" } }
+                });
+
+        [Fact]
+        public virtual void UpdateDataOperation_simple_key()
+            => Generate(
+                new UpdateDataOperation
+                {
+                    Table = "Singer",
+                    KeyColumns = new[] { "SingerId" },
+                    KeyValues = new object[,] { { 1 }, { 4 } },
+                    Columns = new[] { "FirstName" },
+                    Values = new object[,] { { "Christopher" }, { "Lisa" } }
+                });
+
+        [Fact]
+        public virtual void UpdateDataOperation_composite_key()
+            => Generate(
+                new UpdateDataOperation
+                {
+                    Table = "Album",
+                    KeyColumns = new[] { "SingerId", "AlbumId" },
+                    KeyValues = new object[,] { { 1, 1 }, { 1, 2 } },
+                    Columns = new[] { "Title" },
+                    Values = new object[,] { { "Total Junk" }, { "Terrified" } }
+                });
+
+        [Fact]
+        public virtual void UpdateDataOperation_multiple_columns()
+            => Generate(
+                new UpdateDataOperation
+                {
+                    Table = "Singer",
+                    KeyColumns = new[] { "SingerId" },
+                    KeyValues = new object[,] { { 1 }, { 4 } },
+                    Columns = new[] { "FirstName", "LastName" },
+                    Values = new object[,] { { "Gregory", "Davis" }, { "Katherine", "Palmer" } }
+                });
+
+        [Fact]
+        public virtual void RenameColumnOperation()
+            => Generate(
+                new RenameColumnOperation
+                {
+                    Table = "Singer",
+                    Name = "Name",
+                    NewName = "FullName"
                 });
 
         private class VersionedEntity

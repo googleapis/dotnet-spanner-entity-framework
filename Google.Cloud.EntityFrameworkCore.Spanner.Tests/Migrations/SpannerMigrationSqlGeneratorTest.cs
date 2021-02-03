@@ -222,6 +222,13 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
                 }));
         }
 
+        public override void CreateCheckConstraintOperation_with_name()
+        {
+            base.CreateCheckConstraintOperation_with_name();
+            AssertSql(@"ALTER TABLE Singers ADD CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0)
+");
+        }
+
         public override void DropColumnOperation()
         {
             base.DropColumnOperation();
@@ -292,6 +299,97 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
                 {
                     Name = "SpannerkHiLoSequence",
                     StartValue = 1
+                }));
+        }
+
+        public override void RenameColumnOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => base.RenameColumnOperation());
+        }
+
+        public override void InsertDataOperation()
+        {
+            base.InsertDataOperation();
+            AssertSql(@"INSERT INTO Singer (SingerId, FirstName, LastName)
+VALUES (1, 'Marc', 'Richards');
+INSERT INTO Singer (SingerId, FirstName, LastName)
+VALUES (2, 'Catalina', 'Smith');
+INSERT INTO Singer (SingerId, FirstName, LastName)
+VALUES (3, 'Alice', 'Trentor');
+INSERT INTO Singer (SingerId, FirstName, LastName)
+VALUES (4, 'Lea', 'Martin');
+");
+        }
+
+        public override void DeleteDataOperation_simple_key()
+        {
+            base.DeleteDataOperation_simple_key();
+            AssertSql(@"DELETE FROM Singer
+WHERE SingerId = 1;
+DELETE FROM Singer
+WHERE SingerId = 3;
+");
+        }
+
+        public override void DeleteDataOperation_composite_key()
+        {
+            base.DeleteDataOperation_composite_key();
+            AssertSql(@"DELETE FROM Singer
+WHERE FirstName = 'Dorothy' AND LastName IS NULL;
+DELETE FROM Singer
+WHERE FirstName = 'Curt' AND LastName = 'Lee';
+");
+        }
+
+        public override void UpdateDataOperation_simple_key()
+        {
+            base.UpdateDataOperation_simple_key();
+            AssertSql(@"UPDATE Singer SET FirstName = 'Christopher'
+WHERE SingerId = 1;
+UPDATE Singer SET FirstName = 'Lisa'
+WHERE SingerId = 4;
+");
+        }
+
+        public override void UpdateDataOperation_composite_key()
+        {
+            base.UpdateDataOperation_composite_key();
+            AssertSql(@"UPDATE Album SET Title = 'Total Junk'
+WHERE SingerId = 1 AND AlbumId = 1;
+UPDATE Album SET Title = 'Terrified'
+WHERE SingerId = 1 AND AlbumId = 2;
+");
+        }
+
+        public override void UpdateDataOperation_multiple_columns()
+        {
+            base.UpdateDataOperation_multiple_columns();
+            AssertSql(@"UPDATE Singer SET FirstName = 'Gregory', LastName = 'Davis'
+WHERE SingerId = 1;
+UPDATE Singer SET FirstName = 'Katherine', LastName = 'Palmer'
+WHERE SingerId = 4;
+");
+        }
+
+        [Fact]
+        public virtual void AlterDatabaseOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new AlterDatabaseOperation
+                {
+                    ["TestAnnotation"] = "Value"
+                }));
+        }
+
+        [Fact]
+        public virtual void RenameIndexOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new RenameIndexOperation
+                {
+                    Table = "Singer",
+                    Name = "IX_Singer_Name",
+                    NewName = "IX_Singer_FullName"
                 }));
         }
 

@@ -343,5 +343,20 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         {
             throw new NotSupportedException($"Cloud Spanner doesn't have a sequence generation feature.");
         }
+
+        protected override void Generate(RenameColumnOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner doesn't support column rename feature.");
+        }
+
+        protected override void Generate(AlterDatabaseOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner doesn't support to change database feature.");
+        }
+
+        protected override void Generate(RenameIndexOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner doesn't support to rename index feature.");
+        }
     }
 }
