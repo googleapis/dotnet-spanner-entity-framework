@@ -28,6 +28,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         {
         }
 
+        internal SpannerPendingCommitTimestampColumnModification(IUpdateEntry entry, IProperty property, bool sensitiveLoggingEnabled)
+            : base(entry, property, () => "", false, true, false, false, false, sensitiveLoggingEnabled)
+        {
+        }
+
         public override bool IsWrite => true;
 
         public override bool UseCurrentValueParameter => false;
@@ -47,13 +52,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         {
             _delegate = cmd;
             List<ColumnModification> columnModifications = new List<ColumnModification>(cmd.ColumnModifications.Count);
+            foreach (var entry in cmd.Entries)
+            {
+                foreach (var prop in entry.EntityType.GetProperties())
+                {
+                    if (IsCommitTimestampModification(entry, prop))
+                    {
+                        columnModifications.Add(new SpannerPendingCommitTimestampColumnModification(entry, prop, sensitiveLoggingEnabled));
+                    }
+                }
+            }
             foreach (ColumnModification columnModification in cmd.ColumnModifications)
             {
-                if (IsCommitTimestampModification(columnModification))
-                {
-                    columnModifications.Add(new SpannerPendingCommitTimestampColumnModification(columnModification, sensitiveLoggingEnabled));
-                }
-                else
+                if (!IsCommitTimestampModification(columnModification))
                 {
                     columnModifications.Add(columnModification);
                 }
@@ -69,11 +80,37 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 
         internal static bool HasCommitTimestampColumn(ModificationCommand modificationCommand)
         {
-            foreach (var columnModification in modificationCommand.ColumnModifications)
+            foreach (var entry in modificationCommand.Entries)
             {
-                if (IsCommitTimestampModification(columnModification))
+                foreach (var prop in entry.EntityType.GetProperties())
                 {
-                    return true;
+                    if (IsCommitTimestampModification(entry, prop))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        internal static bool IsCommitTimestampModification(IUpdateEntry entry, IProperty property)
+        {
+            if (property.FindAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp) != null)
+            {
+                if (property.FindAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp).Value is SpannerUpdateCommitTimestamp updateCommitTimestamp)
+                {
+                    switch (updateCommitTimestamp)
+                    {
+                        case SpannerUpdateCommitTimestamp.OnInsert:
+                            return entry.EntityState == EntityState.Added;
+                        case SpannerUpdateCommitTimestamp.OnUpdate:
+                            return entry.EntityState == EntityState.Modified;
+                        case SpannerUpdateCommitTimestamp.OnInsertAndUpdate:
+                            return entry.EntityState == EntityState.Added || entry.EntityState == EntityState.Modified;
+                        case SpannerUpdateCommitTimestamp.Never:
+                        default:
+                            return false;
+                    }
                 }
             }
             return false;
