@@ -345,8 +345,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             // Add a 100 nanosecond retry delay to the error to ensure that the delay is used, but does not slow
             // down the tests unnecessary (100ns == 1 Tick is the smallest possible measurable timespan in .NET).
             var key = RetryInfo.Descriptor.FullName + "-bin";
-            var entry = new Metadata.Entry(key, new RetryInfo { RetryDelay = new Duration { Nanos = 100 } }.ToByteArray());
-            var trailers = new Metadata{ entry };
+            var entry = new Grpc.Core.Metadata.Entry(key, new RetryInfo { RetryDelay = new Duration { Nanos = 100 } }.ToByteArray());
+            var trailers = new Grpc.Core.Metadata { entry };
 
             var status = new Grpc.Core.Status(StatusCode.Aborted, "Transaction aborted");
             var rpc = new RpcException(status, trailers);

@@ -1626,6 +1626,50 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.Equal("2021-01-25T12:46:01.982784Z", converted);
         }
 
+        [Fact]
+        public async Task CanInsertCommitTimestamp()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "INSERT INTO TableWithAllColumnTypes (ColCommitTS, ColInt64, ColBool, ColBoolArray, ColBytes, ColBytesArray, ColBytesMax, ColBytesMaxArray, ColDate, ColDateArray, ColFloat64, ColFloat64Array, ColInt64Array, ColNumeric, ColNumericArray, ColString, ColStringArray, ColStringMax, ColStringMaxArray, ColTimestamp, ColTimestampArray)\r\nVALUES (PENDING_COMMIT_TIMESTAMP(), @p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1L));
+            _fixture.SpannerMock.AddOrUpdateStatementResult("\r\nSELECT ColComputed\r\nFROM TableWithAllColumnTypes\r\nWHERE  TRUE  AND ColInt64 = @p0", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
+
+            db.TableWithAllColumnTypes.Add(new TableWithAllColumnTypes { ColInt64 = 1L });
+            await db.SaveChangesAsync();
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest).Select(request => (ExecuteBatchDmlRequest)request),
+                request =>
+                {
+                    Assert.Single(request.Statements);
+                    Assert.Contains("PENDING_COMMIT_TIMESTAMP()", request.Statements[0].Sql);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanUpdateCommitTimestamp()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "UPDATE TableWithAllColumnTypes SET ColCommitTS = PENDING_COMMIT_TIMESTAMP(), ColBool = @p0\r\nWHERE ColInt64 = @p1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1L));
+            _fixture.SpannerMock.AddOrUpdateStatementResult("\r\nSELECT ColComputed\r\nFROM TableWithAllColumnTypes\r\nWHERE  TRUE  AND ColInt64 = @p1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
+
+            var row = new TableWithAllColumnTypes { ColInt64 = 1L };
+            db.TableWithAllColumnTypes.Attach(row);
+            row.ColBool = true;
+            await db.SaveChangesAsync();
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest).Select(request => (ExecuteBatchDmlRequest)request),
+                request =>
+                {
+                    Assert.Single(request.Statements);
+                    Assert.Contains("PENDING_COMMIT_TIMESTAMP()", request.Statements[0].Sql);
+                }
+            );
+        }
+
         private string AddFindSingerResult(string sql = "SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture\r\nFROM Singers AS s\r\nWHERE s.SingerId = @__p_0\r\nLIMIT 1")
         {
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
