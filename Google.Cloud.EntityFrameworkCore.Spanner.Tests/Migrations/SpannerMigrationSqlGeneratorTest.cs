@@ -393,6 +393,48 @@ WHERE SingerId = 4;
                 }));
         }
 
+        [Fact]
+        public virtual void RenameTableOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new RenameTableOperation
+                {
+                    Name = "People",
+                    NewName = "Person"
+                }));
+        }
+
+        public override void AddUniqueConstraintOperation()
+        {
+            base.AddUniqueConstraintOperation();
+            AssertSql(@"ALTER TABLE Singer ADD CONSTRAINT Unique_Name UNIQUE (FirstName, LastName)
+");
+        }
+
+        public override void DropUniqueConstraintOperation()
+        {
+            base.DropUniqueConstraintOperation();
+            AssertSql(@"ALTER TABLE Singer DROP CONSTRAINT Unique_Name
+");
+        }
+
+        [Fact]
+        public virtual void CreateSchemaOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new EnsureSchemaOperation { Name = "my" }));
+        }
+
+        [Fact]
+        public virtual void DropSchemaOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new DropSchemaOperation
+                {
+                    Name = "dbo"
+                }));
+        }
+
         public SpannerMigrationSqlGeneratorTest()
             : base(SpannerTestHelpers.Instance)
         {

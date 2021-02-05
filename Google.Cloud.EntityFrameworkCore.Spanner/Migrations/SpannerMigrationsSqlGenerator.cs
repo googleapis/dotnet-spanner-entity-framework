@@ -358,5 +358,20 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         {
             throw new NotSupportedException($"Cloud Spanner doesn't support to rename index feature.");
         }
+
+        protected override void Generate(RenameTableOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner doesn't support to rename table feature.");
+        }
+
+        protected override void Generate(EnsureSchemaOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner doesn't support schema.");
+        }
+
+        protected override void Generate(DropSchemaOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner doesn't support schema.");
+        }
     }
 }
