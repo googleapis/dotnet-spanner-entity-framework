@@ -321,27 +321,57 @@ namespace Microsoft.EntityFrameworkCore.Migrations
 
         protected override void Generate(CreateSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException($"Cloud Spanner doesn't have a sequence generation feature.");
+            throw new NotSupportedException($"Cloud Spanner does not support sequence generation feature.");
         }
 
         protected override void Generate(AlterSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException($"Cloud Spanner doesn't have a sequence generation feature.");
+            throw new NotSupportedException($"Cloud Spanner does not support sequence generation feature.");
         }
 
         protected override void Generate(RenameSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException($"Cloud Spanner doesn't have a sequence generation feature.");
+            throw new NotSupportedException($"Cloud Spanner does not support sequence generation feature.");
         }
 
         protected override void Generate(RestartSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException($"Cloud Spanner doesn't have a sequence generation feature.");
+            throw new NotSupportedException($"Cloud Spanner does not support sequence generation feature.");
         }
 
         protected override void Generate(DropSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException($"Cloud Spanner doesn't have a sequence generation feature.");
+            throw new NotSupportedException($"Cloud Spanner does not support sequence generation feature.");
+        }
+
+        protected override void Generate(RenameColumnOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner does not support renaming columns.");
+        }
+
+        protected override void Generate(AlterDatabaseOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner Entity Framework Provider does not support AlterDatabaseOperation.");
+        }
+
+        protected override void Generate(RenameIndexOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner does not support renaming indexes.");
+        }
+
+        protected override void Generate(RenameTableOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner does not support renaming tables.");
+        }
+
+        protected override void Generate(EnsureSchemaOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner does not support creating schema.");
+        }
+
+        protected override void Generate(DropSchemaOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException($"Cloud Spanner does not support dropping schema.");
         }
     }
 }
