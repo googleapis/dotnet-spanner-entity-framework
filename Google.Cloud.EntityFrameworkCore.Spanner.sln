@@ -7,7 +7,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Google.Cloud.EntityFramewor
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests", "Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests\Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.csproj", "{783D23AA-8DF3-4A86-930F-101DAAD09B2A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Google.Cloud.EntityFrameworkCore.Spanner.Tests", "Google.Cloud.EntityFrameworkCore.Spanner.Tests\Google.Cloud.EntityFrameworkCore.Spanner.Tests.csproj", "{D95F20F2-94D4-45E9-9AB8-95D7179B48AD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Google.Cloud.EntityFrameworkCore.Spanner.Tests", "Google.Cloud.EntityFrameworkCore.Spanner.Tests\Google.Cloud.EntityFrameworkCore.Spanner.Tests.csproj", "{D95F20F2-94D4-45E9-9AB8-95D7179B48AD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Google.Cloud.EntityFrameworkCore.Spanner.Samples", "Google.Cloud.EntityFrameworkCore.Spanner.Samples\Google.Cloud.EntityFrameworkCore.Spanner.Samples.csproj", "{E37C9685-BAA3-4A83-8259-3C25730E6E36}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,6 +29,10 @@ Global
 		{D95F20F2-94D4-45E9-9AB8-95D7179B48AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D95F20F2-94D4-45E9-9AB8-95D7179B48AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D95F20F2-94D4-45E9-9AB8-95D7179B48AD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E37C9685-BAA3-4A83-8259-3C25730E6E36}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E37C9685-BAA3-4A83-8259-3C25730E6E36}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E37C9685-BAA3-4A83-8259-3C25730E6E36}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E37C9685-BAA3-4A83-8259-3C25730E6E36}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
