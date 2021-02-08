@@ -178,6 +178,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     b.HasKey("AuthorId");
 
                     b.ToTable("Authors");
+
+                    b.HasData(
+                        new
+                        {
+                            AuthorId = 1L,
+                            FirstName = "Belinda",
+                            LastName = "Stiles"
+                        },
+                        new
+                        {
+                            AuthorId = 2L,
+                            FirstName = "Kelly",
+                            LastName = "Houser"
+                        });
                 });
 
             modelBuilder.Entity("Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Category", b =>

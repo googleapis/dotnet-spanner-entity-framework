@@ -13,12 +13,14 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace Microsoft.EntityFrameworkCore.Migrations
 {
@@ -317,6 +319,27 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             builder
                 .Append(" AS ")
                 .Append(operation.ComputedColumnSql);
+        }
+
+        protected override void Generate(
+            InsertDataOperation operation,
+            IModel model,
+            MigrationCommandListBuilder builder,
+            bool terminate = true)
+        {
+
+            var sqlBuilder = new StringBuilder();
+            ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).AppendBulkInsertOperation(
+                sqlBuilder,
+                operation.GenerateModificationCommands(model).ToList(),
+                0);
+
+            builder.Append(sqlBuilder.ToString());
+
+            if (terminate)
+            {
+                builder.EndCommand();
+            }
         }
 
         protected override void Generate(CreateSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)

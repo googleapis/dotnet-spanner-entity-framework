@@ -584,6 +584,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     Name = "CK_Singer_FullName"
                 });
 
+        [Fact]
+        public virtual void InsertDataOperation()
+            => Generate(
+                new InsertDataOperation
+                {
+                    Table = "Singer",
+                    Columns = new[] { "SingerId", "FirstName", "LastName" },
+                    Values = new object[,] {
+                        { 1, "Marc", "Richards" }, { 2, "Catalina", "Smith" }, { 3, "Alice", "Trentor" }, { 4, "Lea", "Martin" }
+                    }
+                });
+
         private class VersionedEntity
         {
             public long Version { get; set; }

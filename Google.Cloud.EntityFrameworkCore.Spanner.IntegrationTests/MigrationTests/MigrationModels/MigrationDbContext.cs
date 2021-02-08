@@ -57,6 +57,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 .Property(c => c.FullName)
                 .ValueGeneratedOnAddOrUpdate()
                 .HasComputedColumnSql("(ARRAY_TO_STRING([FirstName, LastName], ' ')) STORED");
+
+            modelBuilder.Entity<Author>().HasData(
+                new Author { AuthorId = 1, FirstName = "Belinda", LastName = "Stiles" },
+                new Author { AuthorId = 2, FirstName = "Kelly", LastName = "Houser" });
         }
     }
 }

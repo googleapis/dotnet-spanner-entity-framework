@@ -295,6 +295,17 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
                 }));
         }
 
+        public override void InsertDataOperation()
+        {
+            base.InsertDataOperation();
+            AssertSql(@"INSERT INTO Singer (SingerId, FirstName, LastName)
+VALUES (1, 'Marc', 'Richards'),
+(2, 'Catalina', 'Smith'),
+(3, 'Alice', 'Trentor'),
+(4, 'Lea', 'Martin');
+");
+        }
+
         public SpannerMigrationSqlGeneratorTest()
             : base(SpannerTestHelpers.Instance)
         {

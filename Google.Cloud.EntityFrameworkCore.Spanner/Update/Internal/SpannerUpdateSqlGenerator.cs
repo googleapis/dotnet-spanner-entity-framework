@@ -16,11 +16,14 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Update;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Text;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 {
-    public class SpannerUpdateSqlGenerator : UpdateSqlGenerator
+    public class SpannerUpdateSqlGenerator : UpdateSqlGenerator, ISpannerUpdateSqlGenerator
     {
         private readonly ISqlGenerationHelper _sqlGenerationHelper;
 
@@ -47,6 +50,49 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         protected override void AppendRowsAffectedWhereCondition([NotNull] StringBuilder commandStringBuilder, int expectedRowsAffected)
         {
             commandStringBuilder.Append(" TRUE ");
+        }
+
+        public virtual ResultSetMapping AppendBulkInsertOperation(
+            StringBuilder commandStringBuilder,
+            IReadOnlyList<ModificationCommand> modificationCommands,
+            int commandPosition)
+        {
+            if (modificationCommands.Count == 1
+                && modificationCommands[0].ColumnModifications.All(
+                    o =>
+                        !o.IsKey
+                        || !o.IsRead))
+            {
+                return AppendInsertOperation(commandStringBuilder, modificationCommands[0], commandPosition);
+            }
+
+            var writeOperations = modificationCommands[0].ColumnModifications.ToList();
+            return AppendBulkInsertWithoutServerValues(commandStringBuilder, modificationCommands, writeOperations);
+
+        }
+
+        private ResultSetMapping AppendBulkInsertWithoutServerValues(
+            StringBuilder commandStringBuilder,
+            IReadOnlyList<ModificationCommand> modificationCommands,
+            List<ColumnModification> writeOperations)
+        {
+            Debug.Assert(writeOperations.Count > 0);
+
+            var name = modificationCommands[0].TableName;
+            var schema = modificationCommands[0].Schema;
+
+            AppendInsertCommandHeader(commandStringBuilder, name, schema, writeOperations);
+            AppendValuesHeader(commandStringBuilder, writeOperations);
+            AppendValues(commandStringBuilder, writeOperations);
+            for (var i = 1; i < modificationCommands.Count; i++)
+            {
+                commandStringBuilder.AppendLine(",");
+                AppendValues(commandStringBuilder, modificationCommands[i].ColumnModifications.Where(o => o.IsWrite).ToList());
+            }
+
+            commandStringBuilder.AppendLine(SqlGenerationHelper.StatementTerminator);
+
+            return ResultSetMapping.NoResultSet;
         }
     }
 }
