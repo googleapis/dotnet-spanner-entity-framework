@@ -546,6 +546,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
             });
 
         [Fact]
+        public virtual void CreateCheckConstraintOperation_with_name()
+            => Generate(
+                new CreateCheckConstraintOperation
+                {
+                    Table = "Singers",
+                    Name = "Chk_Title_Length_Equal",
+                    Sql = "CHARACTER_LENGTH(Title) > 0"
+                });
+
+        [Fact]
         public virtual void DropColumnOperation()
             => Generate(
                 new DropColumnOperation
@@ -582,6 +592,35 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                 {
                     Table = "Singer",
                     Name = "CK_Singer_FullName"
+                });
+
+        [Fact]
+        public virtual void RenameColumnOperation()
+            => Generate(
+                new RenameColumnOperation
+                {
+                    Table = "Singer",
+                    Name = "Name",
+                    NewName = "FullName"
+                });
+
+        [Fact]
+        public virtual void AddUniqueConstraintOperation()
+            => Generate(
+                new AddUniqueConstraintOperation
+                {
+                    Table = "Singer",
+                    Name = "Unique_Name",
+                    Columns = new[] { "FirstName", "LastName" }
+                });
+
+        [Fact]
+        public virtual void DropUniqueConstraintOperation()
+            => Generate(
+                new DropUniqueConstraintOperation
+                {
+                    Table = "Singer",
+                    Name = "Unique_Name",
                 });
 
         [Fact]

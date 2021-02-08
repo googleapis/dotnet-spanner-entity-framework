@@ -222,6 +222,13 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
                 }));
         }
 
+        public override void CreateCheckConstraintOperation_with_name()
+        {
+            base.CreateCheckConstraintOperation_with_name();
+            AssertSql(@"ALTER TABLE Singers ADD CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0)
+");
+        }
+
         public override void DropColumnOperation()
         {
             base.DropColumnOperation();
@@ -292,6 +299,75 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
                 {
                     Name = "SpannerkHiLoSequence",
                     StartValue = 1
+                }));
+        }
+
+        public override void RenameColumnOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => base.RenameColumnOperation());
+        }
+
+        [Fact]
+        public virtual void AlterDatabaseOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new AlterDatabaseOperation
+                {
+                    ["TestAnnotation"] = "Value"
+                }));
+        }
+
+        [Fact]
+        public virtual void RenameIndexOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new RenameIndexOperation
+                {
+                    Table = "Singer",
+                    Name = "IX_Singer_Name",
+                    NewName = "IX_Singer_FullName"
+                }));
+        }
+
+        [Fact]
+        public virtual void RenameTableOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new RenameTableOperation
+                {
+                    Name = "People",
+                    NewName = "Person"
+                }));
+        }
+
+        public override void AddUniqueConstraintOperation()
+        {
+            base.AddUniqueConstraintOperation();
+            AssertSql(@"ALTER TABLE Singer ADD CONSTRAINT Unique_Name UNIQUE (FirstName, LastName)
+");
+        }
+
+        public override void DropUniqueConstraintOperation()
+        {
+            base.DropUniqueConstraintOperation();
+            AssertSql(@"ALTER TABLE Singer DROP CONSTRAINT Unique_Name
+");
+        }
+
+        [Fact]
+        public virtual void CreateSchemaOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new EnsureSchemaOperation { Name = "my" }));
+        }
+
+        [Fact]
+        public virtual void DropSchemaOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new DropSchemaOperation
+                {
+                    Name = "dbo"
                 }));
         }
 
