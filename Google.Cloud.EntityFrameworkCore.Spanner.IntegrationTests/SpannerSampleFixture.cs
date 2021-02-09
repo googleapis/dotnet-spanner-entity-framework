@@ -167,7 +167,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             var dirPath = Path.GetDirectoryName(codeBasePath);
             var sampleModel = Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST") == null ? "SampleDataModel.sql" : "SampleDataModel - Emulator.sql";
             var fileName =  Path.Combine(dirPath, sampleModel);
-            Console.WriteLine(fileName);
             var script = File.ReadAllText(fileName);
             var statements = script.Split(";");
             for (var i = 0; i < statements.Length; i++)

@@ -65,8 +65,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 .OrderBy(s => s.LastName)
                 .ToListAsync();
             Assert.Collection(singers,
-                s => Assert.Equal("Allison", s.LastName),
-                s => Assert.Equal("Peterson", s.LastName)
+                s => Assert.Equal("Zeke Allison", s.FullName),
+                s => Assert.Equal("Pete Peterson", s.FullName)
             );
         }
 

@@ -122,8 +122,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     });
                     operation.PollUntilCompleted();
                 }
-                builder.DataSource = $"projects/{instanceName.ProjectId}/instances/{instanceName.InstanceId}";
-                Console.WriteLine($"Connecting to {builder.DataSource}");
             }
             NoDbConnectionString = builder.ConnectionString;
             var databaseBuilder = builder.WithDatabase(SpannerDatabase);
