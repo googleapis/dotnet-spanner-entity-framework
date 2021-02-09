@@ -16,10 +16,16 @@ using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
+using Google.Cloud.Spanner.V1;
 using Google.Cloud.Spanner.V1.Internal.Logging;
+using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.ValueGeneration;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using Xunit;
 
@@ -44,9 +50,60 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             if (!optionsBuilder.IsConfigured)
             {
                 optionsBuilder
-                    .UseSpanner($"Data Source={_databaseName}")
+                    .UseSpanner($"Data Source={_databaseName};emulatordetection=EmulatorOrProduction")
                     .UseLazyLoadingProxies();
             }
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            if (SpannerFixtureBase.IsEmulator)
+            {
+                // Simulate a generated column when testing against the emulator.
+                modelBuilder.Entity<Singers>(entity =>
+                {
+                    entity.Property(e => e.FullName)
+                        .HasValueGenerator<FullNameGenerator>()
+                        .ValueGeneratedNever();
+                });
+
+                modelBuilder.Entity<Tracks>(entity =>
+                {
+                    // Configure the numeric columns for automatic conversion to/from FLOAT64 as the emulator does not support NUMERIC.
+                    entity.Property(e => e.Duration)
+                        .HasConversion(
+                            v => v.HasValue ? (double)v.Value.ToDecimal(LossOfPrecisionHandling.Truncate) : 0d,
+                            v => new SpannerNumeric?(SpannerNumeric.FromDecimal((decimal)v, LossOfPrecisionHandling.Truncate))
+                        ).HasDefaultValue(new SpannerNumeric());
+                });
+
+                    modelBuilder.Entity<TableWithAllColumnTypes>(entity =>
+                {
+                    // Configure the numeric columns for automatic conversion to/from FLOAT64 as the emulator does not support NUMERIC.
+                    entity.Property(e => e.ColNumeric)
+                        .HasConversion(
+                            v => v.HasValue ? (double) v.Value.ToDecimal(LossOfPrecisionHandling.Truncate) : 0d,
+                            v => new SpannerNumeric?(SpannerNumeric.FromDecimal((decimal) v, LossOfPrecisionHandling.Truncate))
+                        ).HasDefaultValue(new SpannerNumeric());
+                    entity.Property(e => e.ColNumericArray)
+                        .HasConversion(
+                            v => v == null ? new List<double?>() : v.Select(element => new double?((double) element.GetValueOrDefault().ToDecimal(LossOfPrecisionHandling.Truncate))).ToList(),
+                            v => v == null ? new List<SpannerNumeric?>() : v.Select(element => new SpannerNumeric?(SpannerNumeric.FromDecimal((decimal)element, LossOfPrecisionHandling.Truncate))).ToList()
+                        );
+                });
+            }
+        }
+    }
+
+    internal class FullNameGenerator : ValueGenerator<string>
+    {
+        public override bool GeneratesTemporaryValues => false;
+
+        public override string Next([NotNull] EntityEntry entry)
+        {
+            var singer = entry.Entity as Singers;
+            return (singer.FirstName ?? "") + " " + (singer.LastName ?? "");
         }
     }
 
@@ -108,7 +165,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             var codeBaseUrl = new Uri(Assembly.GetExecutingAssembly().CodeBase);
             var codeBasePath = Uri.UnescapeDataString(codeBaseUrl.AbsolutePath);
             var dirPath = Path.GetDirectoryName(codeBasePath);
-            var fileName = Path.Combine(dirPath, "SampleDataModel.sql");
+            var sampleModel = Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST") == null ? "SampleDataModel.sql" : "SampleDataModel - Emulator.sql";
+            var fileName =  Path.Combine(dirPath, sampleModel);
             Console.WriteLine(fileName);
             var script = File.ReadAllText(fileName);
             var statements = script.Split(";");

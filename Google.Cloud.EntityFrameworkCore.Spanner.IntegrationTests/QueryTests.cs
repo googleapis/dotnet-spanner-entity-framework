@@ -65,8 +65,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 .OrderBy(s => s.LastName)
                 .ToListAsync();
             Assert.Collection(singers,
-                s => Assert.Equal("Zeke Allison", s.FullName),
-                s => Assert.Equal("Pete Peterson", s.FullName)
+                s => Assert.Equal("Allison", s.LastName),
+                s => Assert.Equal("Peterson", s.LastName)
             );
         }
 
@@ -839,9 +839,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Equal(new DateTime(2021, 1, 21, 11, 40, 10, DateTimeKind.Utc).AddTicks(20), date);
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task CanUseNumericValueOrDefaultAsDecimal_ThenRoundWithDigits()
         {
+            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support NUMERIC");
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
             var id = _fixture.RandomLong();
             db.TableWithAllColumnTypes.Add(
@@ -1015,7 +1016,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 .Where(t => t.ColInt64 == id)
                 .Select(t => t.ColNumeric.GetValueOrDefault().ToString())
                 .FirstOrDefaultAsync();
-            Assert.Equal("3.14", converted);
+            // The emulator and real Spanner have a slight difference in casting this FLOAT64 to STRING.
+            // Real Spanner returns '3.14' and the emulator returns '3.1400000000000001'.
+            Assert.StartsWith("3.14", converted);
         }
 
         [Fact]
@@ -1032,7 +1035,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 .Where(t => t.ColInt64 == id)
                 .Select(t => t.ColFloat64.GetValueOrDefault().ToString())
                 .FirstOrDefaultAsync();
-            Assert.Equal("3.14", converted);
+            // The emulator and real Spanner have a slight difference in casting this FLOAT64 to STRING.
+            // Real Spanner returns '3.14' and the emulator returns '3.1400000000000001'.
+            Assert.StartsWith("3.14", converted);
         }
 
         [Fact]
@@ -1123,6 +1128,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Equal(1, updateCount1);
             Assert.Equal(1, updateCount2);
             Assert.Equal(1, updateCount3);
+            if (SpannerFixtureBase.IsEmulator)
+            {
+                await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE Singers SET FullName=(COALESCE(FirstName || ' ', '') || LastName) WHERE SingerId IN UNNEST(@id)",
+                    new SpannerParameter("id", SpannerDbType.ArrayOf(SpannerDbType.Int64), new List<long> { singerId1, singerId2, singerId3 })
+                );
+            }
             var singers = await db.Singers
                 .FromSqlRaw("SELECT * FROM Singers WHERE SingerId IN UNNEST(@id)", new SpannerParameter("id", SpannerDbType.ArrayOf(SpannerDbType.Int64), new List<long> { singerId1, singerId2, singerId3 }))
                 .OrderBy(s => s.LastName)
@@ -1134,9 +1146,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             );
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task CanInsertRowWithAllColumnTypesUsingRawSql()
         {
+            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support NUMERIC");
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
             var id1 = _fixture.RandomLong();
             var today = SpannerDate.FromDateTime(DateTime.SpecifyKind(DateTime.Today, DateTimeKind.Unspecified));

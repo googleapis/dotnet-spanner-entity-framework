@@ -36,6 +36,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         public SpannerTestDatabase Database { get; }
 
+        public static bool IsEmulator { get => Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST") != null; }
+
         public SpannerFixtureBase()
         {
             Database = SpannerTestDatabase.CreateInstance(ProjectId);

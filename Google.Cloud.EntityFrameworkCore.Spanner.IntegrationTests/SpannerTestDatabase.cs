@@ -108,7 +108,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 }
                 if (existing == null)
                 {
-                    instanceAdminClient.CreateInstance(new CreateInstanceRequest
+                    var operation = instanceAdminClient.CreateInstance(new CreateInstanceRequest
                     {
                         InstanceId = instanceName.InstanceId,
                         Parent = $"projects/{instanceName.ProjectId}",
@@ -120,7 +120,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                             NodeCount = 1,
                         },
                     });
+                    operation.PollUntilCompleted();
                 }
+                builder.DataSource = $"projects/{instanceName.ProjectId}/instances/{instanceName.InstanceId}";
+                Console.WriteLine($"Connecting to {builder.DataSource}");
             }
             NoDbConnectionString = builder.ConnectionString;
             var databaseBuilder = builder.WithDatabase(SpannerDatabase);
