@@ -1128,8 +1128,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Equal(1, updateCount1);
             Assert.Equal(1, updateCount2);
             Assert.Equal(1, updateCount3);
+
             if (SpannerFixtureBase.IsEmulator)
             {
+                // Simulate the automatic update of the computed column if we are testing against the emulator, as it
+                // does not support computed columns.
                 await db.Database.ExecuteSqlRawAsync(
                     "UPDATE Singers SET FullName=(COALESCE(FirstName || ' ', '') || LastName) WHERE SingerId IN UNNEST(@id)",
                     new SpannerParameter("id", SpannerDbType.ArrayOf(SpannerDbType.Int64), new List<long> { singerId1, singerId2, singerId3 })

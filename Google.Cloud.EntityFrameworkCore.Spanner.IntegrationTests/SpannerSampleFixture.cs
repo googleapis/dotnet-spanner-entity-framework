@@ -58,6 +58,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            // Override some settings if the tests are executed against the emulator, as the emulator does
+            // not support all features of Spanner.
             if (SpannerFixtureBase.IsEmulator)
             {
                 // Simulate a generated column when testing against the emulator.
@@ -165,7 +167,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             var codeBaseUrl = new Uri(Assembly.GetExecutingAssembly().CodeBase);
             var codeBasePath = Uri.UnescapeDataString(codeBaseUrl.AbsolutePath);
             var dirPath = Path.GetDirectoryName(codeBasePath);
-            var sampleModel = Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST") == null ? "SampleDataModel.sql" : "SampleDataModel - Emulator.sql";
+            // We must use a slightly edited sample data model for the emulator, as the emulator does not support:
+            // 1. NUMERIC data type.
+            // 2. Computed columns.
+            // 3. Check constraints.
+            var sampleModel = IsEmulator ? "SampleDataModel - Emulator.sql" : "SampleDataModel.sql";
             var fileName =  Path.Combine(dirPath, sampleModel);
             var script = File.ReadAllText(fileName);
             var statements = script.Split(";");

@@ -122,12 +122,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                                 NodeCount = 1,
                             },
                         });
-                        // Skip polling.
-                        // operation.PollUntilCompleted();
                     }
                     catch (RpcException e)
                     {
-                        // Check if the instance was already created by a parallel test.
+                        // Ignore if the instance was already created by a parallel test.
                         if (e.StatusCode != StatusCode.AlreadyExists)
                         {
                             throw e;

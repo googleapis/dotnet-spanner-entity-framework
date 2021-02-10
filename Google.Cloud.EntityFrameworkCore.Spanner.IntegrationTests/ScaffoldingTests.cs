@@ -21,6 +21,7 @@ using System.Text;
 using System.Linq;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.V1;
+using Microsoft.EntityFrameworkCore;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -818,8 +819,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Null(await db.Venues.FindAsync(venue.Code));
             Assert.Null(await db.Concerts.FindAsync(concert.VenueCode, concert.StartTime, concert.SingerId));
             Assert.Null(await db.Performances.FindAsync(performance.VenueCode, performance.SingerId, performance.StartTime));
-            // Getting this row does not work on the emulator because of the ARRAY<NUMERIC> column.
-            if (!SpannerFixtureBase.IsEmulator)
+            // Getting this row the normal way does not work on the emulator because of the ARRAY<NUMERIC> column.
+            if (SpannerFixtureBase.IsEmulator)
+            {
+                Assert.Equal(0, await db.TableWithAllColumnTypes
+                    .Where(r => r.ColInt64 == row.ColInt64)
+                    .Select(r => r.ColInt64)
+                    .FirstOrDefaultAsync());
+            }
+            else
             {
                 Assert.Null(await db.TableWithAllColumnTypes.FindAsync(row.ColInt64));
             }

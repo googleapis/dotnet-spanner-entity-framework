@@ -52,6 +52,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            // Override some settings if the tests are executed against the emulator, as the emulator does
+            // not support all features of Spanner.
             if (SpannerFixtureBase.IsEmulator)
             {
                 // Simulate a generated column when testing against the emulator.
@@ -87,6 +89,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             }
         }
     }
+
     internal class AuthorFullNameGenerator : ValueGenerator<string>
     {
         public override bool GeneratesTemporaryValues => false;
