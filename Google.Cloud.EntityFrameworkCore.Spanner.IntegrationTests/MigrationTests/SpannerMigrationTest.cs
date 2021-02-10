@@ -537,7 +537,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         {
             using var context = new TestMigrationDbContext(_fixture.DatabaseName);
             var authors = await context.Authors.Where(c => c.AuthorId == 1 || c.AuthorId == 2).ToListAsync();
-            Assert.Equal(2, authors.Count);
+            Assert.Collection(authors,
+                s => Assert.Equal("Belinda Stiles", s.FullName),
+                s => Assert.Equal("Kelly Houser", s.FullName));
         }
     }
 }

@@ -66,16 +66,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 return AppendInsertOperation(commandStringBuilder, modificationCommands[0], commandPosition);
             }
 
-            var writeOperations = modificationCommands[0].ColumnModifications.ToList();
-            return AppendBulkInsertWithoutServerValues(commandStringBuilder, modificationCommands, writeOperations);
-
+            return AppendBulkInsertValues(commandStringBuilder, modificationCommands);
         }
 
-        private ResultSetMapping AppendBulkInsertWithoutServerValues(
+        private ResultSetMapping AppendBulkInsertValues(
             StringBuilder commandStringBuilder,
-            IReadOnlyList<ModificationCommand> modificationCommands,
-            List<ColumnModification> writeOperations)
+            IReadOnlyList<ModificationCommand> modificationCommands)
         {
+            var writeOperations = modificationCommands[0].ColumnModifications.ToList();
+
             Debug.Assert(writeOperations.Count > 0);
 
             var name = modificationCommands[0].TableName;
