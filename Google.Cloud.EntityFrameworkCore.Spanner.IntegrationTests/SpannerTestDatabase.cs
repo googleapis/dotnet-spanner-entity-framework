@@ -45,7 +45,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         public string SpannerHost { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_HOST", null);
         public string SpannerPort { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_PORT", null);
-        public string SpannerInstance { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_INSTANCE", $"test_{Guid.NewGuid().ToString().Substring(0, 23).Replace('-', '_')}");
+        public string SpannerInstance { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_INSTANCE", $"test-{Guid.NewGuid()}");
         public string SpannerDatabase
         {
             get => env_databaseName == "" ? s_generatedDatabaseName : env_databaseName;
