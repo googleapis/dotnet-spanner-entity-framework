@@ -145,6 +145,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             await Assert.ThrowsAsync<SpannerException>(() =>
                 db.TableWithAllColumnTypes
                     .Where(r => r.ColInt64 == id)
+                    .Select(r => new { r.ColInt64, r.ColCommitTs })
                     .FirstOrDefaultAsync());
             // Commit the transaction. This will generate a commit timestamp.
             await transaction.CommitAsync();
@@ -159,9 +160,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             // Detaching the entity from the context and re-getting it will give us the most recent commit timestamp.
             db.Entry(rowUpdated).State = EntityState.Detached;
-            var rowRefreshed = await db.TableWithAllColumnTypes.FindAsync(id);
-            Assert.NotNull(rowRefreshed);
-            Assert.NotNull(rowRefreshed.ColCommitTs);
+            if (SpannerFixtureBase.IsEmulator)
+            {
+                // The emulator does not support getting the enitire entity because of the ARRAY<NUMERIC> column.
+                var rowRefreshed = await db.TableWithAllColumnTypes
+                    .Where(r => r.ColInt64 == id)
+                    .Select(r => new { r.ColInt64, r.ColCommitTs })
+                    .FirstOrDefaultAsync();
+                Assert.NotNull(rowRefreshed);
+                Assert.NotNull(rowRefreshed.ColCommitTs);
+            }
+            else
+            {
+                var rowRefreshed = await db.TableWithAllColumnTypes.FindAsync(id);
+                Assert.NotNull(rowRefreshed);
+                Assert.NotNull(rowRefreshed.ColCommitTs);
+            }
         }
 
         [Fact]

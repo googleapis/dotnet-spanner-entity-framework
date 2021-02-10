@@ -15,6 +15,7 @@
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,9 +31,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         public SpannerMigrationTest(MigrationTestFixture fixture) => _fixture = fixture;
 
-        [Fact]
+        [SkippableFact]
         public async Task AllTablesAreGenerated()
         {
+            Skip.If(SpannerFixtureBase.IsEmulator, "The query in this test crashes the emulator");
             using var connection = _fixture.GetConnection();
             var tableNames = new string[] { "Products", "Categories", "Orders", "OrderDetails", "Articles", "Authors" };
             var tables = new SpannerParameterCollection
@@ -138,9 +140,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Null(row.ColTimestampList);
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task CanInsertAndUpdateRowWithAllDataTypes()
         {
+            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support NUMERIC");
             var now = DateTime.UtcNow;
             var guid = Guid.NewGuid();
             using (var context = new TestMigrationDbContext(_fixture.DatabaseName))
@@ -415,7 +418,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Null(await context.Products.FindAsync(product.ProductId));
             Assert.Null(await context.Orders.FindAsync(order.OrderId));
             Assert.Null(await context.OrderDetails.FindAsync(orderDetail.OrderId, orderDetail.ProductId));
-            Assert.Null(await context.AllColTypes.FindAsync(allColType.Id));
+            if (SpannerFixtureBase.IsEmulator)
+            {
+                Assert.Equal(0, await context.AllColTypes
+                    .Where(row => row.Id == allColType.Id)
+                    .Select(row => row.Id)
+                    .FirstOrDefaultAsync());
+            }
+            else
+            {
+                Assert.Null(await context.AllColTypes.FindAsync(allColType.Id));
+            }
         }
 
         [Fact]

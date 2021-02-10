@@ -13,9 +13,17 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTests.Migrations;
 using Google.Cloud.Spanner.Common.V1;
+using Google.Cloud.Spanner.V1;
 using Google.Cloud.Spanner.V1.Internal.Logging;
+using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.ValueGeneration;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -26,7 +34,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
     {
         public TestMigrationDbContext()
         {
-
         }
 
         private readonly DatabaseName _databaseName;
@@ -38,8 +45,56 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             if (!optionsBuilder.IsConfigured)
             {
                 optionsBuilder
-                    .UseSpanner($"Data Source={_databaseName}");
+                    .UseSpanner($"Data Source={_databaseName};emulatordetection=EmulatorOrProduction");
             }
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            if (SpannerFixtureBase.IsEmulator)
+            {
+                // Simulate a generated column when testing against the emulator.
+                modelBuilder.Entity<Author>(entity =>
+                {
+                    entity.Property(e => e.FullName)
+                        .HasValueGenerator<AuthorFullNameGenerator>()
+                        .ValueGeneratedNever();
+                });
+
+                modelBuilder.Entity<AllColType>(entity =>
+                {
+                    entity.Ignore(e => e.ColDecimal);
+
+                    // Configure the numeric columns for automatic conversion to/from FLOAT64 as the emulator does not support NUMERIC.
+                    entity.Property(e => e.ColDecimal)
+                        .HasConversion(
+                            v => v.HasValue ? (double)v.Value.ToDecimal(LossOfPrecisionHandling.Truncate) : 0d,
+                            v => new SpannerNumeric?(SpannerNumeric.FromDecimal((decimal)v, LossOfPrecisionHandling.Truncate))
+                        )
+                        .HasDefaultValue(new SpannerNumeric());
+                    entity.Property(e => e.ColDecimalList)
+                        .HasConversion(
+                            v => v == null ? new List<double>() : v.Select(element => (double)element.ToDecimal(LossOfPrecisionHandling.Truncate)).ToList(),
+                            v => v == null ? new List<SpannerNumeric>() : v.Select(element => SpannerNumeric.FromDecimal((decimal)element, LossOfPrecisionHandling.Truncate)).ToList()
+                        );
+                    entity.Property(e => e.ColDecimalArray)
+                        .HasConversion(
+                            v => v == null ? new double[0] : v.Select(element => (double)element.ToDecimal(LossOfPrecisionHandling.Truncate)).ToArray(),
+                            v => v == null ? new SpannerNumeric[0] : v.Select(element => SpannerNumeric.FromDecimal((decimal)element, LossOfPrecisionHandling.Truncate)).ToArray()
+                        );
+                });
+            }
+        }
+    }
+    internal class AuthorFullNameGenerator : ValueGenerator<string>
+    {
+        public override bool GeneratesTemporaryValues => false;
+
+        public override string Next([NotNull] EntityEntry entry)
+        {
+            var author = entry.Entity as Author;
+            return (author.FirstName ?? "") + " " + (author.LastName ?? "");
         }
     }
 
