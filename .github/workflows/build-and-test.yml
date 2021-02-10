@@ -29,7 +29,7 @@ jobs:
       run: dotnet build --no-restore
     - name: Integration Tests on Emulator
       working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
-      run: dotnet test --verbosity normal
+      run: dotnet test --filter BasicsTests --no-build --verbosity normal
       env:
         JOB_TYPE: test
         SPANNER_EMULATOR_HOST: localhost:9010
