@@ -32,8 +32,9 @@ jobs:
       run: dotnet test --no-build --verbosity normal
     - name: Integration Tests on Emulator
       working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
-      run: echo "{{ \"parallelizeTestCollections\": false }}" > xunit.runner.json
-      run: dotnet test --verbosity normal
+      run: |
+        echo "{ \"parallelizeTestCollections\": false }" > xunit.runner.json
+        dotnet test --verbosity normal
       env:
         JOB_TYPE: test
         SPANNER_EMULATOR_HOST: localhost:9010
