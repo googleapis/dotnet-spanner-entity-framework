@@ -45,7 +45,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         public string SpannerHost { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_HOST", null);
         public string SpannerPort { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_PORT", null);
-        public string SpannerInstance { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_INSTANCE", $"test-{Guid.NewGuid()}");
+        public string SpannerInstance { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_INSTANCE", "spannerintegration");
         public string SpannerDatabase
         {
             get => env_databaseName == "" ? s_generatedDatabaseName : env_databaseName;
@@ -66,8 +66,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public string NoDbConnectionString { get; }
         public string ProjectId { get; }
         public DatabaseName DatabaseName { get; }
-
-        private readonly object _createInstanceLock = new object();
 
         private SpannerTestDatabase(string projectId)
         {
@@ -94,23 +92,23 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
                 InstanceName instanceName = InstanceName.FromProjectInstance(projectId, SpannerInstance);
                 Instance existing = null;
-                lock (_createInstanceLock)
+                try
+                {
+                    existing = instanceAdminClient.GetInstance(new GetInstanceRequest
+                    {
+                        InstanceName = instanceName,
+                    });
+                }
+                catch (RpcException e)
+                {
+                    if (e.StatusCode != StatusCode.NotFound)
+                    {
+                        throw e;
+                    }
+                }
+                if (existing == null)
                 {
                     try
-                    {
-                        existing = instanceAdminClient.GetInstance(new GetInstanceRequest
-                        {
-                            InstanceName = instanceName,
-                        });
-                    }
-                    catch (RpcException e)
-                    {
-                        if (e.StatusCode != StatusCode.NotFound)
-                        {
-                            throw e;
-                        }
-                    }
-                    if (existing == null)
                     {
                         var operation = instanceAdminClient.CreateInstance(new CreateInstanceRequest
                         {
@@ -125,6 +123,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                             },
                         });
                         operation.PollUntilCompleted();
+                    }
+                    catch (RpcException e)
+                    {
+                        // Check if the instance was already created by a parallel test.
+                        if (e.StatusCode != StatusCode.AlreadyExists)
+                        {
+                            throw e;
+                        }
                     }
                 }
             }
