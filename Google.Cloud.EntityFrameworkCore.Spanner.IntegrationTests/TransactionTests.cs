@@ -12,18 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.Spanner.Data;
-using System;
-using System.Collections.Generic;
-using Xunit;
-using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
-using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
+using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -240,11 +238,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Null(result);
         }
 
-        [Theory]
+        [SkippableTheory]
         [InlineData(false)]
         [InlineData(true)]
         public void TransactionRetry(bool disableInternalRetries)
         {
+            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support multiple simultanous transactions");
             const int transactions = 8;
             var aborted = new List<Exception>();
             var res = Parallel.For(0, transactions, (i, state) =>
