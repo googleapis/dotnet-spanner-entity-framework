@@ -122,7 +122,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                                 NodeCount = 1,
                             },
                         });
-                        operation.PollUntilCompleted();
+                        // Skip polling.
+                        // operation.PollUntilCompleted();
                     }
                     catch (RpcException e)
                     {
