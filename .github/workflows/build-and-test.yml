@@ -36,4 +36,4 @@ jobs:
       env:
         SPANNER_EMULATOR_HOST: localhost:9010
         TEST_PROJECT: emulator-test-project
-        TEST_INSTANCE: test-instance
+        TEST_SPANNER_INSTANCE: test-instance

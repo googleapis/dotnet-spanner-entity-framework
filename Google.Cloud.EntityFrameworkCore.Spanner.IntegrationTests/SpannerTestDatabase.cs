@@ -67,6 +67,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public string ProjectId { get; }
         public DatabaseName DatabaseName { get; }
 
+        private readonly object _createInstanceLock = new object();
+
         private SpannerTestDatabase(string projectId)
         {
             ProjectId = projectId;
@@ -92,35 +94,38 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
                 InstanceName instanceName = InstanceName.FromProjectInstance(projectId, SpannerInstance);
                 Instance existing = null;
-                try
+                lock (_createInstanceLock)
                 {
-                    existing = instanceAdminClient.GetInstance(new GetInstanceRequest
+                    try
                     {
-                        InstanceName = instanceName,
-                    });
-                }
-                catch (RpcException e)
-                {
-                    if (e.StatusCode != StatusCode.NotFound)
-                    {
-                        throw e;
-                    }
-                }
-                if (existing == null)
-                {
-                    var operation = instanceAdminClient.CreateInstance(new CreateInstanceRequest
-                    {
-                        InstanceId = instanceName.InstanceId,
-                        Parent = $"projects/{instanceName.ProjectId}",
-                        Instance = new Instance
+                        existing = instanceAdminClient.GetInstance(new GetInstanceRequest
                         {
                             InstanceName = instanceName,
-                            ConfigAsInstanceConfigName = new InstanceConfigName(projectId, "emulator-config"),
-                            DisplayName = "Test Instance",
-                            NodeCount = 1,
-                        },
-                    });
-                    operation.PollUntilCompleted();
+                        });
+                    }
+                    catch (RpcException e)
+                    {
+                        if (e.StatusCode != StatusCode.NotFound)
+                        {
+                            throw e;
+                        }
+                    }
+                    if (existing == null)
+                    {
+                        var operation = instanceAdminClient.CreateInstance(new CreateInstanceRequest
+                        {
+                            InstanceId = instanceName.InstanceId,
+                            Parent = $"projects/{instanceName.ProjectId}",
+                            Instance = new Instance
+                            {
+                                InstanceName = instanceName,
+                                ConfigAsInstanceConfigName = new InstanceConfigName(projectId, "emulator-config"),
+                                DisplayName = "Test Instance",
+                                NodeCount = 1,
+                            },
+                        });
+                        operation.PollUntilCompleted();
+                    }
                 }
             }
             NoDbConnectionString = builder.ConnectionString;
