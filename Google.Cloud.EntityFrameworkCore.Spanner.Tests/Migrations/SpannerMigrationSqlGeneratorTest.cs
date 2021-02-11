@@ -21,6 +21,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
 {
     public class SpannerMigrationSqlGeneratorTest : MigrationSqlGeneratorTestBase
     {
+        [Fact]
         public override void CreateTableOperation()
         {
             base.CreateTableOperation();
@@ -34,6 +35,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
 CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 )PRIMARY KEY (AlbumId)");
         }
+
+        [Fact]
         public override void CreateTableWithAllColTypes()
         {
             base.CreateTableWithAllColTypes();
@@ -76,6 +79,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 )PRIMARY KEY (AlbumId)");
         }
 
+        [Fact]
         public override void CreateTableOperation_no_key()
         {
             base.CreateTableOperation_no_key();
@@ -85,24 +89,28 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 )");
         }
 
+        [Fact]
         public override void CreateIndexOperation()
         {
             base.CreateIndexOperation();
             AssertSql(@"CREATE INDEX IX_Singer_FullName ON Singer (FullName)");
         }
 
+        [Fact]
         public override void CreateIndexOperation_is_null_filtered()
         {
             base.CreateIndexOperation_is_null_filtered();
             AssertSql(@"CREATE NULL_FILTERED INDEX IX_Singer_FullName ON Singer (FullName)");
         }
 
+        [Fact]
         public override void CreateIndexOperation_is_unique()
         {
             base.CreateIndexOperation_is_unique();
             AssertSql(@"CREATE UNIQUE INDEX IX_Singer_FullName ON Singer (FullName)");
         }
 
+        [Fact]
         public override void AddColumOperation()
         {
             base.AddColumOperation();
@@ -110,6 +118,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 ");
         }
 
+        [Fact]
         public override void AddColumnOperation_with_computedSql()
         {
             base.AddColumnOperation_with_computedSql();
@@ -117,6 +126,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 ");
         }
 
+        [Fact]
         public override void AddColumnOperation_with_update_commit_timestamp()
         {
             base.AddColumnOperation_with_update_commit_timestamp();
@@ -124,6 +134,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 ");
         }
 
+        [Fact]
         public override void AddColumnOperation_without_column_type()
         {
             base.AddColumnOperation_without_column_type();
@@ -131,6 +142,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 ");
         }
 
+        [Fact]
         public override void AddColumnOperation_with_column_type()
         {
             base.AddColumnOperation_with_column_type();
@@ -138,6 +150,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 ");
         }
 
+        [Fact]
         public override void AddColumnOperation_with_maxLength()
         {
             base.AddColumnOperation_with_maxLength();
@@ -145,6 +158,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 ");
         }
 
+        [Fact]
         public override void AddColumnOperation_with_maxLength_no_model()
         {
             base.AddColumnOperation_with_maxLength_no_model();
@@ -152,6 +166,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 ");
         }
 
+        [Fact]
         public override void AddColumnOperation_with_maxLength_overridden()
         {
             base.AddColumnOperation_with_maxLength_overridden();
@@ -159,6 +174,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 ");
         }
 
+        [Fact]
         public override void AddColumnOperation_with_maxLength_on_derived()
         {
             base.AddColumnOperation_with_maxLength_on_derived();
@@ -166,6 +182,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 ");
         }
 
+        [Fact]
         public override void AddColumnOperation_with_shared_column()
         {
             base.AddColumnOperation_with_shared_column();
@@ -173,6 +190,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 ");
         }
 
+        [Fact]
         public override void AddForeignKeyOperation_with_name()
         {
             base.AddForeignKeyOperation_with_name();
@@ -180,6 +198,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 ");
         }
 
+        [Fact]
         public override void AddForeignKeyOperation_with_multiple_column()
         {
             base.AddForeignKeyOperation_with_multiple_column();
@@ -222,6 +241,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
                 }));
         }
 
+        [Fact]
         public override void CreateCheckConstraintOperation_with_name()
         {
             base.CreateCheckConstraintOperation_with_name();
@@ -229,6 +249,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 ");
         }
 
+        [Fact]
         public override void DropColumnOperation()
         {
             base.DropColumnOperation();
@@ -236,6 +257,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 ");
         }
 
+        [Fact]
         public override void DropForeignKeyOperation()
         {
             base.DropForeignKeyOperation();
@@ -243,12 +265,14 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 ");
         }
 
+        [Fact]
         public override void DropIndexOperation()
         {
             base.DropIndexOperation();
             AssertSql(@" DROP INDEX IX_Singer_FullName");
         }
 
+        [Fact]
         public override void DropTableOperation()
         {
             base.DropTableOperation();
@@ -256,6 +280,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 ");
         }
 
+        [Fact]
         public override void DropCheckConstraintOperation()
         {
             base.DropCheckConstraintOperation();
@@ -302,6 +327,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
                 }));
         }
 
+        [Fact]
         public override void RenameColumnOperation()
         {
             Assert.Throws<NotSupportedException>(() => base.RenameColumnOperation());
@@ -340,6 +366,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
                 }));
         }
 
+        [Fact]
         public override void AddUniqueConstraintOperation()
         {
             base.AddUniqueConstraintOperation();
@@ -347,6 +374,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
 ");
         }
 
+        [Fact]
         public override void DropUniqueConstraintOperation()
         {
             base.DropUniqueConstraintOperation();
