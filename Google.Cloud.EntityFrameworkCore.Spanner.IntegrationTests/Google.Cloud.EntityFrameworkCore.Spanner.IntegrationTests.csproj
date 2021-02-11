@@ -7,10 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="SampleDataModel - Emulator.sql" />
     <None Remove="SampleDataModel.sql" />
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="SampleDataModel - Emulator.sql">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="SampleDataModel.sql">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -43,6 +47,10 @@
 
   <ItemGroup>
     <Resource Include="SpannerFixtureBase.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

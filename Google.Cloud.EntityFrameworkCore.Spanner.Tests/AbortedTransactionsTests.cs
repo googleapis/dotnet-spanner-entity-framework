@@ -32,6 +32,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public AbortedTransactionsTests(SpannerMockServerFixture service)
         {
             _fixture = service;
+            _fixture.SpannerMock.Reset();
         }
 
         private SpannerRetriableConnection CreateConnection()

@@ -22,7 +22,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     ColSbyte = table.Column<sbyte>(nullable: true),
                     ColULong = table.Column<ulong>(nullable: true),
                     ColUShort = table.Column<ushort>(nullable: true),
-                    ColDecimal = table.Column<SpannerNumeric>(nullable: true),
+                    ColDecimal = table.Column<SpannerNumeric>(type: SpannerFixtureBase.IsEmulator ? "FLOAT64" : "NUMERIC", nullable: true),
                     ColUint = table.Column<uint>(nullable: true),
                     ColBool = table.Column<bool>(nullable: true),
                     ColDate = table.Column<DateTime>(nullable: true),
@@ -34,8 +34,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     ColString = table.Column<string>(nullable: true),
                     ColGuid = table.Column<Guid>(nullable: true),
                     ColBytes = table.Column<byte[]>(nullable: true),
-                    ColDecimalArray = table.Column<SpannerNumeric[]>(nullable: true),
-                    ColDecimalList = table.Column<List<SpannerNumeric>>(nullable: true),
+                    ColDecimalArray = table.Column<SpannerNumeric[]>(type: "ARRAY<" + (SpannerFixtureBase.IsEmulator ? "FLOAT64" : "NUMERIC") + ">", nullable: true),
+                    ColDecimalList = table.Column<List<SpannerNumeric>>(type: "ARRAY<" + (SpannerFixtureBase.IsEmulator ? "FLOAT64" : "NUMERIC") + ">", nullable: true),
                     ColStringArray = table.Column<string[]>(nullable: true),
                     ColStringList = table.Column<List<string>>(nullable: true),
                     ColBoolArray = table.Column<bool[]>(nullable: true),
@@ -63,7 +63,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     AuthorId = table.Column<long>(nullable: false),
                     FirstName = table.Column<string>(nullable: true),
                     LastName = table.Column<string>(nullable: true),
-                    FullName = table.Column<string>(nullable: true, computedColumnSql: "(ARRAY_TO_STRING([FirstName, LastName], ' ')) STORED")
+                    FullName = table.Column<string>(nullable: true, computedColumnSql: SpannerFixtureBase.IsEmulator ? null : "(ARRAY_TO_STRING([FirstName, LastName], ' ')) STORED")
                 },
                 constraints: table =>
                 {
