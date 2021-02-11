@@ -27,5 +27,9 @@
     <ProjectReference Include="..\Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests\Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.csproj" />
     <ProjectReference Include="..\Google.Cloud.EntityFrameworkCore.Spanner\Google.Cloud.EntityFrameworkCore.Spanner.csproj" />
   </ItemGroup>
-
+  
+  <ItemGroup>
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  
 </Project>

@@ -38,7 +38,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             {
                 optionsBuilder
                     .UseLazyLoadingProxies()
-                    .UseSpanner($"Data Source={_databaseName}");
+                    .UseSpanner($"Data Source={_databaseName};emulatordetection=EmulatorOrProduction");
             }
         }
     }

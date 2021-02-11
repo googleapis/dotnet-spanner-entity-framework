@@ -10,6 +10,12 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    services:
+      emulator:
+        image: gcr.io/cloud-spanner-emulator/emulator:1.1.1
+        ports:
+          - 9010:9010
+          - 9020:9020
 
     steps:
     - uses: actions/checkout@v2
@@ -24,3 +30,15 @@ jobs:
     - name: Unit Tests
       working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.Tests
       run: dotnet test --no-build --verbosity normal
+    - name: Integration Tests on Emulator
+      working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
+      # The emulator requires the integration tests to be ran serially, so we temporarily
+      # overwrite the default test configuration.
+      run: |
+        echo "{ \"parallelizeTestCollections\": false }" > xunit.runner.json
+        dotnet test --verbosity normal
+      env:
+        JOB_TYPE: test
+        SPANNER_EMULATOR_HOST: localhost:9010
+        TEST_PROJECT: emulator-test-project
+        TEST_SPANNER_INSTANCE: test-instance

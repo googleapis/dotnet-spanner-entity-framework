@@ -302,6 +302,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public void Reset()
         {
             _requests = new ConcurrentQueue<IMessage>();
+            _executionTimes.Clear();
+            _results.Clear();
         }
 
         public override Task<Transaction> BeginTransaction(BeginTransactionRequest request, ServerCallContext context)

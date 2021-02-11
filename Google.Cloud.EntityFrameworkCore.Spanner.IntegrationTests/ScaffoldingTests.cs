@@ -21,6 +21,7 @@ using System.Text;
 using System.Linq;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.V1;
+using Microsoft.EntityFrameworkCore;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -30,9 +31,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         public ScaffoldingTests(SpannerSampleFixture fixture) => _fixture = fixture;
 
-        [Fact]
+        [SkippableFact]
         public async void AllTablesAreGenerated()
         {
+            Skip.If(SpannerFixtureBase.IsEmulator, "The query in this test crashes the emulator");
             using var connection = _fixture.GetConnection();
             var tableNames = new string[] {
                 "Singers", "Albums", "Tracks", "Venues", "Concerts", "Performances", "TableWithAllColumnTypes"
@@ -143,7 +145,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal("Morrison - Chine", singer.LastName);
                 Assert.Equal(new SpannerDate(2002, 10, 15), singer.BirthDate);
                 Assert.Equal(new byte[] { 3, 2, 1 }, singer.Picture);
-                Assert.Equal("Alice Morrison - Chine", singer.FullName);
+                if (!SpannerFixtureBase.IsEmulator)
+                {
+                    // The emulator does not support generated columns, and the simulation in the
+                    // test setup only works for INSERT and not for UPDATE.
+                    Assert.Equal("Alice Morrison - Chine", singer.FullName);
+                }
             }
         }
 
@@ -397,9 +404,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             }
         }
 
-        [Fact]
+        [SkippableFact]
         public async void CanInsertAndUpdateRowWithAllDataTypes()
         {
+            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support NUMERIC");
             var id = _fixture.RandomLong();
             var today = SpannerDate.FromDateTime(DateTime.SpecifyKind(DateTime.Today, DateTimeKind.Unspecified));
             var now = DateTime.UtcNow;
@@ -524,9 +532,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             }
         }
 
-        [Fact]
+        [SkippableFact]
         public async void CanInsertAndUpdateNullValues()
         {
+            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support NUMERIC");
             var id = _fixture.RandomLong();
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
@@ -661,9 +670,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             }
         }
 
-        [Fact]
+        [SkippableFact]
         public async void CanInsertAndUpdateNullValuesInArrays()
         {
+            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support NUMERIC");
             var id = _fixture.RandomLong();
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
@@ -809,7 +819,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Null(await db.Venues.FindAsync(venue.Code));
             Assert.Null(await db.Concerts.FindAsync(concert.VenueCode, concert.StartTime, concert.SingerId));
             Assert.Null(await db.Performances.FindAsync(performance.VenueCode, performance.SingerId, performance.StartTime));
-            Assert.Null(await db.TableWithAllColumnTypes.FindAsync(row.ColInt64));
+            // Getting this row the normal way does not work on the emulator because of the ARRAY<NUMERIC> column.
+            if (SpannerFixtureBase.IsEmulator)
+            {
+                Assert.Equal(0, await db.TableWithAllColumnTypes
+                    .Where(r => r.ColInt64 == row.ColInt64)
+                    .Select(r => r.ColInt64)
+                    .FirstOrDefaultAsync());
+            }
+            else
+            {
+                Assert.Null(await db.TableWithAllColumnTypes.FindAsync(row.ColInt64));
+            }
         }
     }
 }

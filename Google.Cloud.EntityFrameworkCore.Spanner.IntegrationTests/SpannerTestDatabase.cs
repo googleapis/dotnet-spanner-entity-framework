@@ -108,18 +108,29 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 }
                 if (existing == null)
                 {
-                    instanceAdminClient.CreateInstance(new CreateInstanceRequest
+                    try
                     {
-                        InstanceId = instanceName.InstanceId,
-                        Parent = $"projects/{instanceName.ProjectId}",
-                        Instance = new Instance
+                        var operation = instanceAdminClient.CreateInstance(new CreateInstanceRequest
                         {
-                            InstanceName = instanceName,
-                            ConfigAsInstanceConfigName = new InstanceConfigName(projectId, "emulator-config"),
-                            DisplayName = "Test Instance",
-                            NodeCount = 1,
-                        },
-                    });
+                            InstanceId = instanceName.InstanceId,
+                            Parent = $"projects/{instanceName.ProjectId}",
+                            Instance = new Instance
+                            {
+                                InstanceName = instanceName,
+                                ConfigAsInstanceConfigName = new InstanceConfigName(projectId, "emulator-config"),
+                                DisplayName = "Test Instance",
+                                NodeCount = 1,
+                            },
+                        });
+                    }
+                    catch (RpcException e)
+                    {
+                        // Ignore if the instance was already created by a parallel test.
+                        if (e.StatusCode != StatusCode.AlreadyExists)
+                        {
+                            throw e;
+                        }
+                    }
                 }
             }
             NoDbConnectionString = builder.ConnectionString;

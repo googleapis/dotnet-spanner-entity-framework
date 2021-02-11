@@ -12,18 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.Spanner.Data;
-using System;
-using System.Collections.Generic;
-using Xunit;
-using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
-using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
+using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -145,6 +143,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             await Assert.ThrowsAsync<SpannerException>(() =>
                 db.TableWithAllColumnTypes
                     .Where(r => r.ColInt64 == id)
+                    .Select(r => new { r.ColInt64, r.ColCommitTs })
                     .FirstOrDefaultAsync());
             // Commit the transaction. This will generate a commit timestamp.
             await transaction.CommitAsync();
@@ -159,9 +158,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             // Detaching the entity from the context and re-getting it will give us the most recent commit timestamp.
             db.Entry(rowUpdated).State = EntityState.Detached;
-            var rowRefreshed = await db.TableWithAllColumnTypes.FindAsync(id);
-            Assert.NotNull(rowRefreshed);
-            Assert.NotNull(rowRefreshed.ColCommitTs);
+            if (SpannerFixtureBase.IsEmulator)
+            {
+                // The emulator does not support getting the enitire entity because of the ARRAY<NUMERIC> column.
+                var rowRefreshed = await db.TableWithAllColumnTypes
+                    .Where(r => r.ColInt64 == id)
+                    .Select(r => new { r.ColInt64, r.ColCommitTs })
+                    .FirstOrDefaultAsync();
+                Assert.NotNull(rowRefreshed);
+                Assert.NotNull(rowRefreshed.ColCommitTs);
+            }
+            else
+            {
+                var rowRefreshed = await db.TableWithAllColumnTypes.FindAsync(id);
+                Assert.NotNull(rowRefreshed);
+                Assert.NotNull(rowRefreshed.ColCommitTs);
+            }
         }
 
         [Fact]
@@ -226,11 +238,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Null(result);
         }
 
-        [Theory]
+        [SkippableTheory]
         [InlineData(false)]
         [InlineData(true)]
         public void TransactionRetry(bool disableInternalRetries)
         {
+            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support multiple simultanous transactions");
             const int transactions = 8;
             var aborted = new List<Exception>();
             var res = Parallel.For(0, transactions, (i, state) =>
