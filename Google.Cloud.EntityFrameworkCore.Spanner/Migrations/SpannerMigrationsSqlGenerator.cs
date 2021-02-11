@@ -102,11 +102,11 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         {
             if (operation is SpannerCreateDatabaseOperation createDatabaseOperation)
             {
-                GenerateCreateDatabase(createDatabaseOperation.Name, model, builder);
+                GenerateCreateDatabase(createDatabaseOperation.Name, builder);
             }
             else if (operation is SpannerDropDatabaseOperation dropDatabaseOperation)
             {
-                GenerateDropDatabase(dropDatabaseOperation.Name, model, builder);
+                GenerateDropDatabase(dropDatabaseOperation.Name, builder);
             }
             else
             {
@@ -114,7 +114,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             }
         }
 
-        private void GenerateDropDatabase(string name, IModel model, MigrationCommandListBuilder builder)
+        private void GenerateDropDatabase(string name, MigrationCommandListBuilder builder)
         {
             builder
                 .Append("DROP DATABASE ")
@@ -123,7 +123,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             EndStatement(builder, true);
         }
 
-        private void GenerateCreateDatabase(string name, IModel model, MigrationCommandListBuilder builder)
+        private void GenerateCreateDatabase(string name, MigrationCommandListBuilder builder)
         {
             builder
                 .Append("CREATE DATABASE ")

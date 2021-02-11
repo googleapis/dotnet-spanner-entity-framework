@@ -35,7 +35,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
 
         protected virtual string Sql { get; set; }
 
-        [Fact]
         public virtual void CreateTableOperation()
         {
             Generate(new CreateTableOperation
@@ -87,7 +86,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
             });
         }
 
-        [Fact]
         public virtual void CreateTableWithAllColTypes()
         {
             Generate(new CreateTableOperation
@@ -339,7 +337,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
             });
         }
 
-        [Fact]
         public virtual void CreateTableOperation_no_key()
             => Generate(new CreateTableOperation
             {
@@ -356,7 +353,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     }
             });
 
-        [Fact]
         public virtual void CreateIndexOperation()
             => Generate(
                 modelBuilder => modelBuilder.Entity("Singer").Property<string>("FullName").IsRequired(),
@@ -367,7 +363,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     Columns = new[] { "FullName" },
                 });
 
-        [Fact]
         public virtual void CreateIndexOperation_is_null_filtered()
             => Generate(
                 modelBuilder => modelBuilder.Entity("Singer").Property<string>("FullName"),
@@ -379,7 +374,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     [SpannerAnnotationNames.IsNullFilteredIndex] = true
                 });
 
-        [Fact]
         public virtual void CreateIndexOperation_is_unique()
         {
             Generate(
@@ -393,7 +387,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                 });
         }
 
-        [Fact]
         public virtual void AddColumOperation()
             => Generate(new AddColumnOperation
             {
@@ -404,7 +397,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                 IsNullable = false
             });
 
-        [Fact]
         public virtual void AddColumnOperation_with_computedSql()
             => Generate(new AddColumnOperation
             {
@@ -414,7 +406,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                 ComputedColumnSql = "(COALESCE(FirstName || ' ', '') || LastName) STORED"
             });
 
-        [Fact]
         public virtual void AddColumnOperation_with_update_commit_timestamp()
             => Generate(new AddColumnOperation
             {
@@ -424,7 +415,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                 [SpannerAnnotationNames.UpdateCommitTimestamp] = SpannerUpdateCommitTimestamp.OnInsertAndUpdate
             });
 
-        [Fact]
         public virtual void AddColumnOperation_without_column_type()
             => Generate(new AddColumnOperation
             {
@@ -433,7 +423,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                 ClrType = typeof(string)
             });
 
-        [Fact]
         public virtual void AddColumnOperation_with_column_type()
             => Generate(new AddColumnOperation
             {
@@ -443,7 +432,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                 ColumnType = "ARRAY<STRING(200)>"
             });
 
-        [Fact]
         public virtual void AddColumnOperation_with_maxLength()
             => Generate(
                 modelBuilder => modelBuilder.Entity("Singer").Property<string>("FullName").HasMaxLength(30),
@@ -456,7 +444,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     IsNullable = true
                 });
 
-        [Fact]
         public virtual void AddColumnOperation_with_maxLength_overridden()
             => Generate(
                 modelBuilder => modelBuilder.Entity("Singer").Property<string>("FullName").HasMaxLength(30),
@@ -469,7 +456,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     IsNullable = true
                 });
 
-        [Fact]
         public virtual void AddColumnOperation_with_maxLength_no_model()
             => Generate(
                 new AddColumnOperation
@@ -481,7 +467,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     IsNullable = true
                 });
 
-        [Fact]
         public virtual void AddColumnOperation_with_maxLength_on_derived()
             => Generate(
                 modelBuilder =>
@@ -504,7 +489,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     IsNullable = true
                 });
 
-        [Fact]
         public virtual void AddColumnOperation_with_shared_column()
             => Generate(
                 modelBuilder =>
@@ -521,7 +505,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     IsNullable = true
                 });
 
-        [Fact]
         public virtual void AddForeignKeyOperation_with_name()
             => Generate(
                 new AddForeignKeyOperation
@@ -534,7 +517,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     OnDelete = ReferentialAction.Cascade
                 });
 
-        [Fact]
         public virtual void AddForeignKeyOperation_with_multiple_column()
             => Generate(new AddForeignKeyOperation
             {
@@ -545,7 +527,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                 PrincipalColumns = new[] { "VenueCode", "StartTime", "SingerId" }
             });
 
-        [Fact]
         public virtual void CreateCheckConstraintOperation_with_name()
             => Generate(
                 new CreateCheckConstraintOperation
@@ -555,7 +536,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     Sql = "CHARACTER_LENGTH(Title) > 0"
                 });
 
-        [Fact]
         public virtual void DropColumnOperation()
             => Generate(
                 new DropColumnOperation
@@ -564,7 +544,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     Name = "FullName"
                 });
 
-        [Fact]
         public virtual void DropForeignKeyOperation()
             => Generate(
                 new DropForeignKeyOperation
@@ -573,7 +552,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     Name = "FK_Album_Singers"
                 });
 
-        [Fact]
         public virtual void DropIndexOperation()
             => Generate(new DropIndexOperation
             {
@@ -581,11 +559,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                 Table = "Singer",
             });
 
-        [Fact]
         public virtual void DropTableOperation()
             => Generate(new DropTableOperation { Name = "Singer" });
 
-        [Fact]
         public virtual void DropCheckConstraintOperation()
             => Generate(
                 new DropCheckConstraintOperation
@@ -594,7 +570,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     Name = "CK_Singer_FullName"
                 });
 
-        [Fact]
         public virtual void RenameColumnOperation()
             => Generate(
                 new RenameColumnOperation
@@ -604,7 +579,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     NewName = "FullName"
                 });
 
-        [Fact]
         public virtual void AddUniqueConstraintOperation()
             => Generate(
                 new AddUniqueConstraintOperation
@@ -614,7 +588,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     Columns = new[] { "FirstName", "LastName" }
                 });
 
-        [Fact]
         public virtual void DropUniqueConstraintOperation()
             => Generate(
                 new DropUniqueConstraintOperation
@@ -623,7 +596,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     Name = "Unique_Name",
                 });
 
-        [Fact]
         public virtual void InsertDataOperation()
             => Generate(
                 new InsertDataOperation
@@ -635,7 +607,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     }
                 });
 
-        [Fact]
         public virtual void DeleteDataOperation_simple_key()
             => Generate(
                 new DeleteDataOperation
@@ -645,7 +616,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     KeyValues = new object[,] { { 1 }, { 3 } }
                 });
 
-        [Fact]
         public virtual void DeleteDataOperation_composite_key()
             => Generate(
                 new DeleteDataOperation
@@ -655,7 +625,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     KeyValues = new object[,] { { "Dorothy", null }, { "Curt", "Lee" } }
                 });
 
-        [Fact]
         public virtual void UpdateDataOperation_simple_key()
             => Generate(
                 new UpdateDataOperation
@@ -667,7 +636,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     Values = new object[,] { { "Christopher" }, { "Lisa" } }
                 });
 
-        [Fact]
         public virtual void UpdateDataOperation_composite_key()
             => Generate(
                 new UpdateDataOperation
@@ -679,7 +647,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     Values = new object[,] { { "Total Junk" }, { "Terrified" } }
                 });
 
-        [Fact]
         public virtual void UpdateDataOperation_multiple_columns()
             => Generate(
                 new UpdateDataOperation
