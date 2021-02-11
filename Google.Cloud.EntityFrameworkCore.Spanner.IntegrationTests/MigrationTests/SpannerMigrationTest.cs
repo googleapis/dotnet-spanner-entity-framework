@@ -477,7 +477,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     ArticleId = 1,
                     Author = new Author
                     {
-                        AuthorId = 1,
+                        AuthorId = 3,
                         FirstName = "Calvin",
                         LastName = "Saunders"
                     },
@@ -495,7 +495,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 // Delete Author Should delete the Article's as well.
                 var author = new Author
                 {
-                    AuthorId = 1,
+                    AuthorId = 3,
                     FirstName = "Calvin",
                     LastName = "Saunders"
                 };
@@ -504,7 +504,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 await context.SaveChangesAsync();
 
                 // Find Article with deleted Author
-                var article = context.Articles.FirstOrDefault(c => c.ArticleId == 1 && c.AuthorId == 1);
+                var article = context.Articles.FirstOrDefault(c => c.ArticleId == 1 && c.AuthorId == 3);
                 Assert.Null(article);
             }
         }
@@ -542,6 +542,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             author = await context.Authors.FindAsync(10L);
             Assert.Equal("Loren Ritchie", author.FullName);
+        }
+
+        [SkippableFact]
+        public async Task CanSeedData()
+        {
+            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support Computed columns");
+            using var context = new TestMigrationDbContext(_fixture.DatabaseName);
+            var authors = await context.Authors.Where(c => c.AuthorId == 1 || c.AuthorId == 2).ToListAsync();
+            Assert.Collection(authors,
+                s => Assert.Equal("Belinda Stiles", s.FullName),
+                s => Assert.Equal("Kelly Houser", s.FullName));
         }
     }
 }

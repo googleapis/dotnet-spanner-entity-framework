@@ -399,6 +399,67 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
                 }));
         }
 
+        public override void InsertDataOperation()
+        {
+            base.InsertDataOperation();
+            AssertSql(@"INSERT INTO Singer (SingerId, FirstName, LastName)
+VALUES (1, 'Marc', 'Richards'),
+(2, 'Catalina', 'Smith'),
+(3, 'Alice', 'Trentor'),
+(4, 'Lea', 'Martin');
+");
+        }
+
+        public override void DeleteDataOperation_simple_key()
+        {
+            base.DeleteDataOperation_simple_key();
+            AssertSql(@"DELETE FROM Singer
+WHERE SingerId = 1;
+DELETE FROM Singer
+WHERE SingerId = 3;
+");
+        }
+
+        public override void DeleteDataOperation_composite_key()
+        {
+            base.DeleteDataOperation_composite_key();
+            AssertSql(@"DELETE FROM Singer
+WHERE FirstName = 'Dorothy' AND LastName IS NULL;
+DELETE FROM Singer
+WHERE FirstName = 'Curt' AND LastName = 'Lee';
+");
+        }
+
+        public override void UpdateDataOperation_simple_key()
+        {
+            base.UpdateDataOperation_simple_key();
+            AssertSql(@"UPDATE Singer SET FirstName = 'Christopher'
+WHERE SingerId = 1;
+UPDATE Singer SET FirstName = 'Lisa'
+WHERE SingerId = 4;
+");
+        }
+
+        public override void UpdateDataOperation_composite_key()
+        {
+            base.UpdateDataOperation_composite_key();
+            AssertSql(@"UPDATE Album SET Title = 'Total Junk'
+WHERE SingerId = 1 AND AlbumId = 1;
+UPDATE Album SET Title = 'Terrified'
+WHERE SingerId = 1 AND AlbumId = 2;
+");
+        }
+
+        public override void UpdateDataOperation_multiple_columns()
+        {
+            base.UpdateDataOperation_multiple_columns();
+            AssertSql(@"UPDATE Singer SET FirstName = 'Gregory', LastName = 'Davis'
+WHERE SingerId = 1;
+UPDATE Singer SET FirstName = 'Katherine', LastName = 'Palmer'
+WHERE SingerId = 4;
+");
+        }
+
         public SpannerMigrationSqlGeneratorTest()
             : base(SpannerTestHelpers.Instance)
         {
