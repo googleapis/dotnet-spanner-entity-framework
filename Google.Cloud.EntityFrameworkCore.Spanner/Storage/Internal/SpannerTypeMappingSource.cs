@@ -86,10 +86,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bytes), typeof(List<byte[]>));
 
         private static readonly SpannerComplexTypeMapping s_stringArray
-            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String), typeof(string[]));
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String), typeof(string[]), true);
 
         private static readonly SpannerComplexTypeMapping s_stringList
-            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String), typeof(List<string>));
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String), typeof(List<string>), true);
 
         private static readonly SpannerComplexTypeMapping s_nullableBoolArray
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bool), typeof(bool?[]));

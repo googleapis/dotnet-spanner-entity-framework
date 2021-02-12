@@ -346,6 +346,48 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
             Assert.Equal("ARRAY<BYTES>", GetTypeMapping(typeof(List<byte[]>)).StoreType);
         }
 
+        [Theory]
+        [InlineData("BOOL", typeof(bool))]
+        [InlineData("INT64", typeof(long))]
+        [InlineData("FLOAT64", typeof(double))]
+        [InlineData("NUMERIC", typeof(SpannerNumeric))]
+        [InlineData("STRING(MAX)", typeof(string), null, true)]
+        [InlineData("STRING(200)", typeof(string), 200, true)]
+        [InlineData("BYTES(MAX)", typeof(byte[]))]
+        [InlineData("BYTES(100)", typeof(byte[]), 100)]
+        [InlineData("DATE", typeof(SpannerDate))]
+        [InlineData("TIMESTAMP", typeof(DateTime))]
+        public void Can_map_by_type_name(string typeName, System.Type clrType, int? size = null, bool unicode = false, string expectedType = null)
+        {
+            var mapping = CreateTypeMapper().FindMapping(typeName);
+
+            Assert.Equal(clrType, mapping.ClrType);
+            Assert.Equal(size, mapping.Size);
+            Assert.Equal(unicode, mapping.IsUnicode);
+            Assert.Equal(expectedType ?? typeName, mapping.StoreType);
+        }
+
+        [Theory]
+        [InlineData("ARRAY<BOOL>", typeof(List<bool?>))]
+        [InlineData("ARRAY<INT64>", typeof(List<long?>))]
+        [InlineData("ARRAY<FLOAT64>", typeof(List<double?>))]
+        [InlineData("ARRAY<NUMERIC>", typeof(List<SpannerNumeric?>))]
+        [InlineData("ARRAY<STRING(MAX)>", typeof(List<string>), null, true, "ARRAY<STRING>")]
+        [InlineData("ARRAY<STRING(200)>", typeof(List<string>), 200, true, "ARRAY<STRING>")]
+        [InlineData("ARRAY<BYTES(MAX)>", typeof(List<byte[]>), null, false, "ARRAY<BYTES>")]
+        [InlineData("ARRAY<BYTES(100)>", typeof(List<byte[]>), 100, false, "ARRAY<BYTES>")]
+        [InlineData("ARRAY<DATE>", typeof(List<SpannerDate?>))]
+        [InlineData("ARRAY<TIMESTAMP>", typeof(List<DateTime?>))]
+        public void Can_map_by_array_type_name(string typeName, System.Type clrType, int? size = null, bool unicode = false, string expectedType = null)
+        {
+            var mapping = CreateTypeMapper().FindMapping(typeName);
+
+            Assert.Equal(clrType, mapping.ClrType);
+            Assert.Equal(size, mapping.Size);
+            Assert.Equal(unicode, mapping.IsUnicode);
+            Assert.Equal(expectedType ?? typeName, mapping.StoreType);
+        }
+
         private RelationalTypeMapping GetTypeMapping(
            System.Type propertyType,
            bool? nullable = null,
