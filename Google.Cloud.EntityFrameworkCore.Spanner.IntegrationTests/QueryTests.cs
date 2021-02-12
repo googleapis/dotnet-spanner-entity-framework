@@ -1075,6 +1075,23 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
+        public async Task CanFilterOnArrayLength()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id, ColStringArray = new List<string> { "1", "2" } }
+            );
+            await db.SaveChangesAsync();
+
+            var selectedId = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id && t.ColStringArray.Count == 2)
+                .Select(t => t.ColInt64)
+                .FirstOrDefaultAsync();
+            Assert.Equal(id, selectedId);
+        }
+
+        [Fact]
         public async Task CanQueryRawSqlWithParameters()
         {
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
