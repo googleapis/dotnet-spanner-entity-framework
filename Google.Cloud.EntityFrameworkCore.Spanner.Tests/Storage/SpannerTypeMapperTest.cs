@@ -357,14 +357,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
         [InlineData("BYTES(100)", typeof(byte[]), 100)]
         [InlineData("DATE", typeof(SpannerDate))]
         [InlineData("TIMESTAMP", typeof(DateTime))]
-        public void Can_map_by_type_name(string typeName, System.Type clrType, int? size = null, bool unicode = false, string expectedType = null)
+        public void Can_map_by_type_name(string typeName, System.Type clrType, int? size = null, bool unicode = false)
         {
             var mapping = CreateTypeMapper().FindMapping(typeName);
 
             Assert.Equal(clrType, mapping.ClrType);
             Assert.Equal(size, mapping.Size);
             Assert.Equal(unicode, mapping.IsUnicode);
-            Assert.Equal(expectedType ?? typeName, mapping.StoreType);
+            Assert.Equal(typeName, mapping.StoreType);
         }
 
         [Theory]

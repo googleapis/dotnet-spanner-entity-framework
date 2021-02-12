@@ -33,7 +33,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.TestUtilities
         private readonly ConcurrentDictionary<System.Type, IServiceProvider> _factories
             = new ConcurrentDictionary<System.Type, IServiceProvider>();
 
-
         public TService Create<TService>(params (System.Type Type, object Implementation)[] specialCases)
             where TService : class
         {
