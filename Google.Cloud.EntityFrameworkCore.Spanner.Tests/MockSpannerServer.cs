@@ -274,11 +274,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             );
         }
 
-        public void AddOrUpdateExecutionTime(string method, ExecutionTime executionTime)
+        public void AddOrUpdateExecutionTime(string method, string sql, ExecutionTime executionTime)
         {
-            _executionTimes.AddOrUpdate(method,
+            _executionTimes.AddOrUpdate(method + sql,
                 executionTime,
-                (string method, ExecutionTime existing) => executionTime
+                (string methodAndSql, ExecutionTime existing) => executionTime
             );
         }
 
@@ -526,7 +526,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public override async Task ExecuteStreamingSql(ExecuteSqlRequest request, IServerStreamWriter<PartialResultSet> responseStream, ServerCallContext context)
         {
             _requests.Enqueue(request);
-            _executionTimes.TryGetValue(nameof(ExecuteStreamingSql), out ExecutionTime executionTime);
+            _executionTimes.TryGetValue(nameof(ExecuteStreamingSql) + request.Sql, out ExecutionTime executionTime);
             Session session = TryFindSession(request.SessionAsSessionName);
             Transaction tx = FindOrBeginTransaction(request.SessionAsSessionName, request.Transaction);
             if (_results.TryGetValue(request.Sql, out StatementResult result))
