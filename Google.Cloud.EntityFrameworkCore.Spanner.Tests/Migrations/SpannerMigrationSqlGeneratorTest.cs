@@ -399,6 +399,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
                 }));
         }
 
+        [Fact]
         public override void InsertDataOperation()
         {
             base.InsertDataOperation();
@@ -410,6 +411,7 @@ VALUES (1, 'Marc', 'Richards'),
 ");
         }
 
+        [Fact]
         public override void DeleteDataOperation_simple_key()
         {
             base.DeleteDataOperation_simple_key();
@@ -420,6 +422,7 @@ WHERE SingerId = 3;
 ");
         }
 
+        [Fact]
         public override void DeleteDataOperation_composite_key()
         {
             base.DeleteDataOperation_composite_key();
@@ -430,6 +433,7 @@ WHERE FirstName = 'Curt' AND LastName = 'Lee';
 ");
         }
 
+        [Fact]
         public override void UpdateDataOperation_simple_key()
         {
             base.UpdateDataOperation_simple_key();
@@ -440,6 +444,7 @@ WHERE SingerId = 4;
 ");
         }
 
+        [Fact]
         public override void UpdateDataOperation_composite_key()
         {
             base.UpdateDataOperation_composite_key();
@@ -450,6 +455,7 @@ WHERE SingerId = 1 AND AlbumId = 2;
 ");
         }
 
+        [Fact]
         public override void UpdateDataOperation_multiple_columns()
         {
             base.UpdateDataOperation_multiple_columns();
