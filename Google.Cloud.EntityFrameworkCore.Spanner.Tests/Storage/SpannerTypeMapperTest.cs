@@ -22,7 +22,7 @@ using System;
 using System.Collections.Generic;
 using Xunit;
 
-namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
 {
 #pragma warning disable EF1001 // Internal EF Core API usage.
     public class SpannerTypeMapperTest : RelationalTypeMapperTestBase

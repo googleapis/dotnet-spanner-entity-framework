@@ -16,7 +16,7 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Tests.TestUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 
-namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
 {
     public abstract class RelationalTypeMapperTestBase
     {
