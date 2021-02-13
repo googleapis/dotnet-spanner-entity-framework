@@ -21,6 +21,7 @@ using Xunit;
 using System.Threading.Tasks;
 using System;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
+using System.Collections.Concurrent;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 {
@@ -635,7 +636,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1, 2));
             // The following will cause the ExecuteStreamingSql method on the mock server to return an Aborted error on stream index 1 (i.e. before the row with value 2 is returned).
             // This simulates a transaction that is aborted while a streaming result set is still being returned to the client.
-            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), sql, ExecutionTime.StreamException(MockSpannerService.CreateAbortedException(sql), 1));
+            var streamWritePermissions = new BlockingCollection<int>
+            {
+                1
+            };
+            var executionTime = ExecutionTime.StreamException(MockSpannerService.CreateAbortedException(sql), 1, streamWritePermissions);
+            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), sql, executionTime);
+
             using var connection = CreateConnection();
             await connection.OpenAsync();
             using var transaction = await connection.BeginTransactionAsync();
@@ -646,8 +653,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             // Only the first row of the reader.
             Assert.True(await reader.ReadAsync());
             Assert.Equal(1, reader.GetInt64(reader.GetOrdinal("Id")));
+
             // Try to get the second row of the result. This should succeed, even though the transaction
             // was aborted, retried and the reader was re-initialized under the hood.
+            executionTime.AlwaysAllowWrite();
             if (enableInternalRetries)
             {
                 Assert.True(await reader.ReadAsync());
@@ -674,7 +683,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 10, 20));
             // The following will cause the ExecuteStreamingSql method on the mock server to return an Aborted error on stream index 1 (i.e. before the row with value 2 is returned).
             // This simulates a transaction that is aborted while a streaming result set is still being returned to the client.
-            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), sql, ExecutionTime.StreamException(MockSpannerService.CreateAbortedException(sql), 1));
+            var streamWritePermissions = new BlockingCollection<int>
+            {
+                1
+            };
+            var executionTime = ExecutionTime.StreamException(MockSpannerService.CreateAbortedException(sql), 1, streamWritePermissions);
+            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), sql, executionTime);
+
             using var connection = CreateConnection();
             await connection.OpenAsync();
             using var transaction = await connection.BeginTransactionAsync();
@@ -692,6 +707,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             // Try to get the second row of the result. This should succeed, even though the transaction
             // was aborted, retried and the reader was re-initialized under the hood. The retry succeeds
             // because only data that had not yet been seen by this transaction was changed.
+            executionTime.AlwaysAllowWrite();
             if (enableInternalRetries)
             {
                 Assert.True(await reader.ReadAsync());
@@ -716,7 +732,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1, 2));
             // The following will cause the ExecuteStreamingSql method on the mock server to return an Aborted error on stream index 1 (i.e. before the row with value 2 is returned).
             // This simulates a transaction that is aborted while a streaming result set is still being returned to the client.
-            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), sql, ExecutionTime.StreamException(MockSpannerService.CreateAbortedException(sql), 1));
+            var streamWritePermissions = new BlockingCollection<int>
+            {
+                1
+            };
+            var executionTime = ExecutionTime.StreamException(MockSpannerService.CreateAbortedException(sql), 1, streamWritePermissions);
+            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), sql, executionTime);
+
             using var connection = CreateConnection();
             await connection.OpenAsync();
             using var transaction = await connection.BeginTransactionAsync();
@@ -729,6 +751,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             // Now change the result of the query for the record that has already been seen.
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 3, 2));
+            executionTime.AlwaysAllowWrite();
             // Try to get the second row of the result. This will now fail.
             await Assert.ThrowsAsync<SpannerAbortedDueToConcurrentModificationException>(() => reader.ReadAsync());
             Assert.Equal(1, transaction.RetryCount);

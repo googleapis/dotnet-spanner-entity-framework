@@ -148,6 +148,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         // TODO: Support multiple exceptions
         private Exception _exception;
         private readonly int _exceptionStreamIndex;
+        private readonly BlockingCollection<int> _streamWritePermissions;
+        private bool _alwaysAllowWrite;
 
         internal bool HasExceptionAtIndex(int index)
         {
@@ -164,16 +166,32 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             return res;
         }
 
-        internal static ExecutionTime StreamException(Exception exception, int streamIndex)
+        public void AlwaysAllowWrite()
         {
-            return new ExecutionTime(0, exception, streamIndex);
+            _alwaysAllowWrite = true;
+            _streamWritePermissions.Add(int.MaxValue);
         }
 
-        private ExecutionTime(int executionTime, Exception exception, int exceptionStreamIndex)
+        internal int TakeWritePermission()
+        {
+            if (_alwaysAllowWrite || _streamWritePermissions == null)
+            {
+                return int.MaxValue;
+            }
+            return _streamWritePermissions.Take();
+        }
+
+        internal static ExecutionTime StreamException(Exception exception, int streamIndex, BlockingCollection<int> streamWritePermissions)
+        {
+            return new ExecutionTime(0, exception, streamIndex, streamWritePermissions);
+        }
+
+        private ExecutionTime(int executionTime, Exception exception, int exceptionStreamIndex, BlockingCollection<int> streamWritePermissions)
         {
             _executionTime = executionTime;
             _exception = exception;
             _exceptionStreamIndex = exceptionStreamIndex;
+            _streamWritePermissions = streamWritePermissions;
         }
     }
 
@@ -555,6 +573,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             int index = 0;
             PartialResultSetsEnumerable enumerator = new PartialResultSetsEnumerable(resultSet);
+            int writePermissions = executionTime?.TakeWritePermission() ?? int.MaxValue;
             foreach (PartialResultSet prs in enumerator)
             {
                 Exception e = executionTime?.PopExceptionAtIndex(index);
@@ -563,8 +582,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     throw e;
                 }
                 await responseStream.WriteAsync(prs);
-                Thread.Sleep(100);
                 index++;
+                writePermissions--;
+                if (writePermissions == 0)
+                {
+                    writePermissions = executionTime?.TakeWritePermission() ?? int.MaxValue;
+                }
             }
         }
 
