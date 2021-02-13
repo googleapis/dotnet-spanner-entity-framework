@@ -671,7 +671,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             string sql = $"SELECT Id FROM Foo6 WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
             // Create a result set with 2 rows.
-            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1, 2));
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 10, 20));
             // The following will cause the ExecuteStreamingSql method on the mock server to return an Aborted error on stream index 1 (i.e. before the row with value 2 is returned).
             // This simulates a transaction that is aborted while a streaming result set is still being returned to the client.
             _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), sql, ExecutionTime.StreamException(MockSpannerService.CreateAbortedException(), 1));
@@ -684,18 +684,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var reader = await cmd.ExecuteReaderAsync();
             // Only the first row of the reader.
             Assert.True(await reader.ReadAsync());
-            Assert.Equal(1, reader.GetInt64(reader.GetOrdinal("Id")));
+            Assert.Equal(10, reader.GetInt64(reader.GetOrdinal("Id")));
 
             // Now change the result of the query, but only for the second row which has not yet been
             // seen by this transaction.
-            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1, 3));
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 10, 30));
             // Try to get the second row of the result. This should succeed, even though the transaction
             // was aborted, retried and the reader was re-initialized under the hood. The retry succeeds
             // because only data that had not yet been seen by this transaction was changed.
             if (enableInternalRetries)
             {
                 Assert.True(await reader.ReadAsync());
-                Assert.Equal(3, reader.GetInt64(reader.GetOrdinal("Id")));
+                Assert.Equal(30, reader.GetInt64(reader.GetOrdinal("Id")));
                 // Ensure that there are no more rows in the results.
                 Assert.False(await reader.ReadAsync());
                 // Check that the transaction really retried.
