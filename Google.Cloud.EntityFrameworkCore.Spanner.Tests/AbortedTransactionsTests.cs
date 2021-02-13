@@ -630,7 +630,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [InlineData(false)]
         public async Task ReadWriteTransaction_QueryAbortsHalfway_WithSameResults_CanBeRetried(bool enableInternalRetries)
         {
-            string sql = $"SELECT Id FROM Foo5 WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
+            string sql = $"SELECT Id FROM Foo5{enableInternalRetries} WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
             // Create a result set with 2 rows.
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1, 2));
             // The following will cause the ExecuteStreamingSql method on the mock server to return an Aborted error on stream index 1 (i.e. before the row with value 2 is returned).
@@ -669,7 +669,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [InlineData(false)]
         public async Task ReadWriteTransaction_QueryAbortsHalfway_WithDifferentUnseenResults_CanBeRetried(bool enableInternalRetries)
         {
-            string sql = $"SELECT Id FROM Foo6 WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
+            string sql = $"SELECT Id FROM Foo6{enableInternalRetries} WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
             // Create a result set with 2 rows.
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 10, 20));
             // The following will cause the ExecuteStreamingSql method on the mock server to return an Aborted error on stream index 1 (i.e. before the row with value 2 is returned).
