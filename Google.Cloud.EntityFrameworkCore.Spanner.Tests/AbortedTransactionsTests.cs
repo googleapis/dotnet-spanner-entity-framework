@@ -33,6 +33,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public AbortedTransactionsTests(SpannerMockServerFixture service)
         {
             _fixture = service;
+            _fixture.SpannerMock.Reset();
         }
 
         private SpannerRetriableConnection CreateConnection()
@@ -448,7 +449,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task ReadWriteTransaction_QueryFullyConsumed_WithModifiedResultsAfterLastRow_FailsRetry()
         {
-            string sql = $"SELECT Id FROM Foo2 WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
+            string sql = $"SELECT Id FROM Foo WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1));
             using var connection = CreateConnection();
             await connection.OpenAsync();
@@ -561,7 +562,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [InlineData(false)]
         public async Task ReadWriteTransaction_QueryHalfConsumed_WithSameResults_CanBeRetried(bool enableInternalRetries)
         {
-            string sql = $"SELECT Id FROM Foo3 WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
+            string sql = $"SELECT Id FROM Foo WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
             // Create a result set with 2 rows.
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1, 2));
             using var connection = CreateConnection();
@@ -595,7 +596,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [InlineData(false)]
         public async Task ReadWriteTransaction_QueryHalfConsumed_WithDifferentUnseenResults_CanBeRetried(bool enableInternalRetries)
         {
-            string sql = $"SELECT Id FROM Foo4 WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
+            string sql = $"SELECT Id FROM Foo WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
             // Create a result set with 2 rows.
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1, 2));
             using var connection = CreateConnection();
@@ -631,7 +632,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [InlineData(false)]
         public async Task ReadWriteTransaction_QueryAbortsHalfway_WithSameResults_CanBeRetried(bool enableInternalRetries)
         {
-            string sql = $"SELECT Id FROM Foo5{enableInternalRetries} WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
+            string sql = $"SELECT Id FROM Foo WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
             // Create a result set with 2 rows.
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1, 2));
             // The following will cause the ExecuteStreamingSql method on the mock server to return an Aborted error on stream index 1 (i.e. before the row with value 2 is returned).
@@ -641,7 +642,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 1
             };
             var executionTime = ExecutionTime.StreamException(MockSpannerService.CreateAbortedException(sql), 1, streamWritePermissions);
-            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), sql, executionTime);
+            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), executionTime);
 
             using var connection = CreateConnection();
             await connection.OpenAsync();
@@ -678,9 +679,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [InlineData(false)]
         public async Task ReadWriteTransaction_QueryAbortsHalfway_WithDifferentUnseenResults_CanBeRetried(bool enableInternalRetries)
         {
-            string sql = $"SELECT Id FROM Foo6{enableInternalRetries} WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
+            string sql = $"SELECT Id FROM Foo WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
             // Create a result set with 2 rows.
-            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 10, 20));
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1, 2));
             // The following will cause the ExecuteStreamingSql method on the mock server to return an Aborted error on stream index 1 (i.e. before the row with value 2 is returned).
             // This simulates a transaction that is aborted while a streaming result set is still being returned to the client.
             var streamWritePermissions = new BlockingCollection<int>
@@ -688,7 +689,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 1
             };
             var executionTime = ExecutionTime.StreamException(MockSpannerService.CreateAbortedException(sql), 1, streamWritePermissions);
-            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), sql, executionTime);
+            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), executionTime);
 
             using var connection = CreateConnection();
             await connection.OpenAsync();
@@ -699,11 +700,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var reader = await cmd.ExecuteReaderAsync();
             // Only the first row of the reader.
             Assert.True(await reader.ReadAsync());
-            Assert.Equal(10, reader.GetInt64(reader.GetOrdinal("Id")));
+            Assert.Equal(1, reader.GetInt64(reader.GetOrdinal("Id")));
 
             // Now change the result of the query, but only for the second row which has not yet been
             // seen by this transaction.
-            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 10, 30));
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1, 3));
             // Try to get the second row of the result. This should succeed, even though the transaction
             // was aborted, retried and the reader was re-initialized under the hood. The retry succeeds
             // because only data that had not yet been seen by this transaction was changed.
@@ -711,7 +712,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             if (enableInternalRetries)
             {
                 Assert.True(await reader.ReadAsync());
-                Assert.Equal(30, reader.GetInt64(reader.GetOrdinal("Id")));
+                Assert.Equal(3, reader.GetInt64(reader.GetOrdinal("Id")));
                 // Ensure that there are no more rows in the results.
                 Assert.False(await reader.ReadAsync());
                 // Check that the transaction really retried.
@@ -727,7 +728,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task ReadWriteTransaction_QueryAbortsHalfway_WithDifferentResults_FailsRetry()
         {
-            string sql = $"SELECT Id FROM Foo1 WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
+            string sql = $"SELECT Id FROM Foo WHERE Id IN ({_fixture.RandomLong()}, {_fixture.RandomLong()})";
             // Create a result set with 2 rows.
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1, 2));
             // The following will cause the ExecuteStreamingSql method on the mock server to return an Aborted error on stream index 1 (i.e. before the row with value 2 is returned).
@@ -737,7 +738,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 1
             };
             var executionTime = ExecutionTime.StreamException(MockSpannerService.CreateAbortedException(sql), 1, streamWritePermissions);
-            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), sql, executionTime);
+            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), executionTime);
 
             using var connection = CreateConnection();
             await connection.OpenAsync();

@@ -20,7 +20,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 {
     public class SpannerMockServerFixture : IDisposable
     {
-        private readonly object _lock = new object();
         private readonly Random _random = new Random();
 
         private readonly Server _server;
@@ -59,10 +58,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public long RandomLong(long min, long max)
         {
             byte[] buf = new byte[8];
-            lock (_lock)
-            {
-                _random.NextBytes(buf);
-            }
+            _random.NextBytes(buf);
             long longRand = BitConverter.ToInt64(buf, 0);
             return (Math.Abs(longRand % (max - min)) + min);
         }
