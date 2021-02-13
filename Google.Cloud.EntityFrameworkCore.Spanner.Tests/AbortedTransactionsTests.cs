@@ -635,7 +635,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1, 2));
             // The following will cause the ExecuteStreamingSql method on the mock server to return an Aborted error on stream index 1 (i.e. before the row with value 2 is returned).
             // This simulates a transaction that is aborted while a streaming result set is still being returned to the client.
-            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), sql, ExecutionTime.StreamException(MockSpannerService.CreateAbortedException(), 1));
+            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), sql, ExecutionTime.StreamException(MockSpannerService.CreateAbortedException(sql), 1));
             using var connection = CreateConnection();
             await connection.OpenAsync();
             using var transaction = await connection.BeginTransactionAsync();
@@ -674,7 +674,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 10, 20));
             // The following will cause the ExecuteStreamingSql method on the mock server to return an Aborted error on stream index 1 (i.e. before the row with value 2 is returned).
             // This simulates a transaction that is aborted while a streaming result set is still being returned to the client.
-            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), sql, ExecutionTime.StreamException(MockSpannerService.CreateAbortedException(), 1));
+            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), sql, ExecutionTime.StreamException(MockSpannerService.CreateAbortedException(sql), 1));
             using var connection = CreateConnection();
             await connection.OpenAsync();
             using var transaction = await connection.BeginTransactionAsync();
@@ -716,7 +716,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1, 2));
             // The following will cause the ExecuteStreamingSql method on the mock server to return an Aborted error on stream index 1 (i.e. before the row with value 2 is returned).
             // This simulates a transaction that is aborted while a streaming result set is still being returned to the client.
-            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), sql, ExecutionTime.StreamException(MockSpannerService.CreateAbortedException(), 1));
+            _fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), sql, ExecutionTime.StreamException(MockSpannerService.CreateAbortedException(sql), 1));
             using var connection = CreateConnection();
             await connection.OpenAsync();
             using var transaction = await connection.BeginTransactionAsync();

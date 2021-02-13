@@ -342,7 +342,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             return session;
         }
 
-        static internal RpcException CreateAbortedException()
+        static internal RpcException CreateAbortedException(string message)
         {
             // Add a 100 nanosecond retry delay to the error to ensure that the delay is used, but does not slow
             // down the tests unnecessary (100ns == 1 Tick is the smallest possible measurable timespan in .NET).
@@ -350,7 +350,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var entry = new Grpc.Core.Metadata.Entry(key, new RetryInfo { RetryDelay = new Duration { Nanos = 100 } }.ToByteArray());
             var trailers = new Grpc.Core.Metadata { entry };
 
-            var status = new Grpc.Core.Status(StatusCode.Aborted, "Transaction aborted");
+            var status = new Grpc.Core.Status(StatusCode.Aborted, $"Transaction aborted: {message}");
             var rpc = new RpcException(status, trailers);
 
             return rpc;
@@ -360,14 +360,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             if (_abortedTransactions.TryGetValue(id, out bool aborted) && aborted)
             {
-                throw CreateAbortedException();
+                throw CreateAbortedException("Transaction marked as aborted");
             }
             lock (_lock)
             {
                 if (_abortNextStatement)
                 {
                     _abortNextStatement = false;
-                    throw CreateAbortedException();
+                    throw CreateAbortedException("Next statement was aborted");
                 }
             }
             if (remove ? _transactions.TryRemove(id, out Transaction tx) : _transactions.TryGetValue(id, out tx))
