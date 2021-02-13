@@ -563,6 +563,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     throw e;
                 }
                 await responseStream.WriteAsync(prs);
+                Thread.Sleep(100);
                 index++;
             }
         }
