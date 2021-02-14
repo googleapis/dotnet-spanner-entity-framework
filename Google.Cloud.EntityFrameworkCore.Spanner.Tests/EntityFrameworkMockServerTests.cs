@@ -1627,6 +1627,118 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task CanUseLongListCount()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT t.ColInt64{Environment.NewLine}FROM TableWithAllColumnTypes AS t{Environment.NewLine}WHERE ARRAY_LENGTH(t.ColInt64Array) = 2{Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSelect1ResultSet());
+
+            var id = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64Array.Count == 2)
+                .Select(t => t.ColInt64)
+                .FirstOrDefaultAsync();
+            Assert.Equal(1L, id);
+        }
+
+        [Fact]
+        public async Task CanUseDoubleListCount()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT t.ColInt64{Environment.NewLine}FROM TableWithAllColumnTypes AS t{Environment.NewLine}WHERE ARRAY_LENGTH(t.ColFloat64Array) = 2{Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSelect1ResultSet());
+
+            var id = await db.TableWithAllColumnTypes
+                .Where(t => t.ColFloat64Array.Count == 2)
+                .Select(t => t.ColInt64)
+                .FirstOrDefaultAsync();
+            Assert.Equal(1L, id);
+        }
+
+        [Fact]
+        public async Task CanUseSpannerNumericListCount()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT t.ColInt64{Environment.NewLine}FROM TableWithAllColumnTypes AS t{Environment.NewLine}WHERE ARRAY_LENGTH(t.ColNumericArray) = 2{Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSelect1ResultSet());
+
+            var id = await db.TableWithAllColumnTypes
+                .Where(t => t.ColNumericArray.Count == 2)
+                .Select(t => t.ColInt64)
+                .FirstOrDefaultAsync();
+            Assert.Equal(1L, id);
+        }
+
+        [Fact]
+        public async Task CanUseBoolListCount()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT t.ColInt64{Environment.NewLine}FROM TableWithAllColumnTypes AS t{Environment.NewLine}WHERE ARRAY_LENGTH(t.ColBoolArray) = 2{Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSelect1ResultSet());
+
+            var id = await db.TableWithAllColumnTypes
+                .Where(t => t.ColBoolArray.Count == 2)
+                .Select(t => t.ColInt64)
+                .FirstOrDefaultAsync();
+            Assert.Equal(1L, id);
+        }
+
+        [Fact]
+        public async Task CanUseStringListCount()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT t.ColInt64{Environment.NewLine}FROM TableWithAllColumnTypes AS t{Environment.NewLine}WHERE ARRAY_LENGTH(t.ColStringArray) = 2{Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSelect1ResultSet());
+
+            var id = await db.TableWithAllColumnTypes
+                .Where(t => t.ColStringArray.Count == 2)
+                .Select(t => t.ColInt64)
+                .FirstOrDefaultAsync();
+            Assert.Equal(1L, id);
+        }
+
+        [Fact]
+        public async Task CanUseSByteArrayListCount()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT t.ColInt64{Environment.NewLine}FROM TableWithAllColumnTypes AS t{Environment.NewLine}WHERE ARRAY_LENGTH(t.ColBytesArray) = 2{Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSelect1ResultSet());
+
+            var id = await db.TableWithAllColumnTypes
+                .Where(t => t.ColBytesArray.Count == 2)
+                .Select(t => t.ColInt64)
+                .FirstOrDefaultAsync();
+            Assert.Equal(1L, id);
+        }
+
+        [Fact]
+        public async Task CanUseSpannerDateListCount()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT t.ColInt64{Environment.NewLine}FROM TableWithAllColumnTypes AS t{Environment.NewLine}WHERE ARRAY_LENGTH(t.ColDateArray) = 2{Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSelect1ResultSet());
+
+            var id = await db.TableWithAllColumnTypes
+                .Where(t => t.ColDateArray.Count == 2)
+                .Select(t => t.ColInt64)
+                .FirstOrDefaultAsync();
+            Assert.Equal(1L, id);
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeListCount()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT t.ColInt64{Environment.NewLine}FROM TableWithAllColumnTypes AS t{Environment.NewLine}WHERE ARRAY_LENGTH(t.ColTimestampArray) = 2{Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSelect1ResultSet());
+
+            var id = await db.TableWithAllColumnTypes
+                .Where(t => t.ColTimestampArray.Count == 2)
+                .Select(t => t.ColInt64)
+                .FirstOrDefaultAsync();
+            Assert.Equal(1L, id);
+        }
+
+        [Fact]
         public async Task CanInsertCommitTimestamp()
         {
             using var db = new MockServerSampleDbContext(ConnectionString);

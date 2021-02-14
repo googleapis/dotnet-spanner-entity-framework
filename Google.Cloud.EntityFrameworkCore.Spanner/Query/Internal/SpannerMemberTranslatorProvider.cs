@@ -36,6 +36,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                     new SpannerStringMemberTranslator(sqlExpressionFactory),
                     new SpannerDateTimeMemberTranslator(sqlExpressionFactory),
                     new SpannerDateMemberTranslator(sqlExpressionFactory),
+                    new SpannerListMemberTranslator(sqlExpressionFactory),
                 });
         }
     }
