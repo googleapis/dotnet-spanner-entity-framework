@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTests.Migrations
 {
     [DbContext(typeof(TestMigrationDbContext))]
-    [Migration("20210208095830_Initial")]
+    [Migration("20210215091428_Initial")]
     partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -47,6 +47,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
 
                     b.Property<List<byte[]>>("ColBytesList")
                         .HasColumnType("ARRAY<BYTES>");
+
+                    b.Property<char?>("ColChar")
+                        .HasColumnType("STRING(1)");
 
                     b.Property<DateTime?>("ColCommitTimestamp")
                         .HasColumnType("TIMESTAMP")
@@ -83,7 +86,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                         .HasColumnType("FLOAT64");
 
                     b.Property<Guid?>("ColGuid")
-                        .HasColumnType("STRING");
+                        .HasColumnType("STRING(36)");
 
                     b.Property<int?>("ColInt")
                         .HasColumnType("INT64");

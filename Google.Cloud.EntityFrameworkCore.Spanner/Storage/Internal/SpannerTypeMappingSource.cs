@@ -39,6 +39,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly StringTypeMapping s_defaultString
             = new SpannerStringTypeMapping(SpannerDbType.String.ToString(), unicode: true, sqlDbType: SpannerDbType.String);
 
+        private static readonly CharTypeMapping s_char
+            = new CharTypeMapping("STRING(1)", DbType.String);
+
         private static readonly SpannerComplexTypeMapping s_float =
             new SpannerComplexTypeMapping(SpannerDbType.Float64, typeof(float));
 
@@ -174,6 +177,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(float), s_float},
                     {typeof(double), s_double},
                     {typeof(string), s_defaultString},
+                    {typeof(char), s_char},
                     {typeof(Guid), s_guid},
                     {typeof(Regex), s_defaultString },
                     {typeof(byte), s_byte},

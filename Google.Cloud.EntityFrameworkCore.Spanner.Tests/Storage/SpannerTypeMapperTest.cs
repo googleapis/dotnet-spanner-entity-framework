@@ -110,6 +110,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
         }
 
         [Fact]
+        public void Does_char_mapping()
+        {
+            var typeMapping = GetTypeMapping(typeof(char));
+            Assert.Equal("STRING(1)", typeMapping.StoreType);
+        }
+
+        [Fact]
         public void Does_guid_mapping()
         {
             var typeMapping = GetTypeMapping(typeof(Guid));

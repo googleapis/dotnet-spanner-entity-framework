@@ -13,6 +13,7 @@ CREATE TABLE TableWithAllColumnTypes (
     ColBool BOOL,
     ColString STRING(100),
     ColStringMax STRING(MAX),
+    ColChar STRING(1),
     ColBytes BYTES(100),
     ColBytesMax BYTES(MAX),
     ColDate DATE,

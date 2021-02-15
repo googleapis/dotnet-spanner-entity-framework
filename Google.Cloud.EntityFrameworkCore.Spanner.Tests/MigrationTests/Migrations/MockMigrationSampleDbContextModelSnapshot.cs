@@ -152,6 +152,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                     b.Property<List<byte[]>>("ColBytesMaxArray")
                         .HasColumnType("ARRAY<BYTES>");
 
+                    b.Property<char?>("ColChar")
+                        .HasColumnType("STRING(1)");
+
                     b.Property<DateTime?>("ColCommitTs")
                         .HasColumnName("ColCommitTS")
                         .HasColumnType("TIMESTAMP")
