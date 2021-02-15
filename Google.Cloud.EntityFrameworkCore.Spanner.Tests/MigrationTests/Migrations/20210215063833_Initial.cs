@@ -52,6 +52,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                     ColBytesMaxArray = table.Column<List<byte[]>>(nullable: true),
                     ColDateArray = table.Column<List<Nullable<DateTime>>>(nullable: true),
                     ColTimestampArray = table.Column<List<Nullable<DateTime>>>(nullable: true),
+                    ColGuid = table.Column<Guid>(nullable: true),
                     ColComputed = table.Column<string>(nullable: true, computedColumnSql: "(ARRAY_TO_STRING(ColStringArray, ',')) STORED")
                 },
                 constraints: table =>

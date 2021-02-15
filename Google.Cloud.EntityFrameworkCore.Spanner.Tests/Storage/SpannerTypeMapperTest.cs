@@ -113,7 +113,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
         public void Does_guid_mapping()
         {
             var typeMapping = GetTypeMapping(typeof(Guid));
-            Assert.Equal("STRING", typeMapping.StoreType);
+            Assert.Equal("STRING(36)", typeMapping.StoreType);
+            Assert.Equal(36, typeMapping.Size);
         }
 
         [Fact]

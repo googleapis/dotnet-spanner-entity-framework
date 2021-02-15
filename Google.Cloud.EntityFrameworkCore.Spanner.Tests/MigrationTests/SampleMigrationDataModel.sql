@@ -28,6 +28,7 @@ CREATE TABLE TableWithAllColumnTypes (
     ColBytesMaxArray ARRAY<BYTES(MAX)>,
     ColDateArray ARRAY<DATE>,
     ColTimestampArray ARRAY<TIMESTAMP>,
+    ColGuid STRING(36),
     ColComputed STRING(MAX) AS (ARRAY_TO_STRING(ColStringArray, ',')) STORED
 )PRIMARY KEY (ColInt64)
 CREATE TABLE Venues (

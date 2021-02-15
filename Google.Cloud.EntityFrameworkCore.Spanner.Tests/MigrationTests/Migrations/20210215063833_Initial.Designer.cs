@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migrations
 {
     [DbContext(typeof(MockMigrationSampleDbContext))]
-    [Migration("20210128120812_Initial")]
+    [Migration("20210215063833_Initial")]
     partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -175,6 +175,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
 
                     b.Property<List<Nullable<double>>>("ColFloat64Array")
                         .HasColumnType("ARRAY<FLOAT64>");
+
+                    b.Property<Guid?>("ColGuid")
+                        .HasColumnType("STRING(36)");
 
                     b.Property<List<Nullable<long>>>("ColInt64Array")
                         .HasColumnType("ARRAY<INT64>");
