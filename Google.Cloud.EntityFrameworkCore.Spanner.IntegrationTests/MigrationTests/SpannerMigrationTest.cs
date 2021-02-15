@@ -550,9 +550,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support Computed columns");
             using var context = new TestMigrationDbContext(_fixture.DatabaseName);
             var authors = await context.Authors.Where(c => c.AuthorId == 1 || c.AuthorId == 2).ToListAsync();
-            Assert.Collection(authors,
-                s => Assert.Equal("Belinda Stiles", s.FullName),
-                s => Assert.Equal("Kelly Houser", s.FullName));
+            if (_fixture.Database.Fresh)
+            {
+                Assert.Collection(authors,
+                    s => Assert.Equal("Belinda Stiles", s.FullName),
+                    s => Assert.Equal("Kelly Houser", s.FullName));
+            }
+            else
+            {
+                Assert.Empty(authors);
+            }
+
         }
     }
 }

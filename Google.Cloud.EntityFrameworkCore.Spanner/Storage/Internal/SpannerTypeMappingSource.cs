@@ -58,8 +58,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         private static readonly SpannerNumericTypeMapping s_numeric = new SpannerNumericTypeMapping();
 
-        private static readonly GuidTypeMapping s_guid
-            = new GuidTypeMapping(SpannerDbType.String.ToString(), DbType.String);
+        private static readonly SpannerGuidTypeMapping s_guid
+            = new SpannerGuidTypeMapping("STRING(36)", DbType.String);
 
         private static readonly SpannerComplexTypeMapping s_byte
             = new SpannerComplexTypeMapping(SpannerDbType.Int64, typeof(byte));

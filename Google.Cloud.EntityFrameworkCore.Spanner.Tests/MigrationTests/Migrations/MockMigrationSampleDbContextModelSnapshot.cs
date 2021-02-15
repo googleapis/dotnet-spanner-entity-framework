@@ -174,6 +174,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                     b.Property<List<Nullable<double>>>("ColFloat64Array")
                         .HasColumnType("ARRAY<FLOAT64>");
 
+                    b.Property<Guid?>("ColGuid")
+                        .HasColumnType("STRING(36)");
+
                     b.Property<List<Nullable<long>>>("ColInt64Array")
                         .HasColumnType("ARRAY<INT64>");
 

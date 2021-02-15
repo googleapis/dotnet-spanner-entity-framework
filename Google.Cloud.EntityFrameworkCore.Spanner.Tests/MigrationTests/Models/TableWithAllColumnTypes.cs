@@ -42,6 +42,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
         public List<byte[]> ColBytesMaxArray { get; set; }
         public List<SpannerDate?> ColDateArray { get; set; }
         public List<DateTime?> ColTimestampArray { get; set; }
+        public Guid? ColGuid { get; set; }
         public string ColComputed { get; set; }
     }
 }
