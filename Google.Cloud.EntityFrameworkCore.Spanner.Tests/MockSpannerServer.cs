@@ -148,6 +148,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         // TODO: Support multiple exceptions
         private Exception _exception;
         private readonly int _exceptionStreamIndex;
+        private readonly BlockingCollection<int> _streamWritePermissions;
+        private bool _alwaysAllowWrite;
 
         internal bool HasExceptionAtIndex(int index)
         {
@@ -164,16 +166,32 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             return res;
         }
 
-        internal static ExecutionTime StreamException(Exception exception, int streamIndex)
+        public void AlwaysAllowWrite()
         {
-            return new ExecutionTime(0, exception, streamIndex);
+            _alwaysAllowWrite = true;
+            _streamWritePermissions.Add(int.MaxValue);
         }
 
-        private ExecutionTime(int executionTime, Exception exception, int exceptionStreamIndex)
+        internal int TakeWritePermission()
+        {
+            if (_alwaysAllowWrite || _streamWritePermissions == null)
+            {
+                return int.MaxValue;
+            }
+            return _streamWritePermissions.Take();
+        }
+
+        internal static ExecutionTime StreamException(Exception exception, int streamIndex, BlockingCollection<int> streamWritePermissions)
+        {
+            return new ExecutionTime(0, exception, streamIndex, streamWritePermissions);
+        }
+
+        private ExecutionTime(int executionTime, Exception exception, int exceptionStreamIndex, BlockingCollection<int> streamWritePermissions)
         {
             _executionTime = executionTime;
             _exception = exception;
             _exceptionStreamIndex = exceptionStreamIndex;
+            _streamWritePermissions = streamWritePermissions;
         }
     }
 
@@ -342,7 +360,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             return session;
         }
 
-        static internal RpcException CreateAbortedException()
+        static internal RpcException CreateAbortedException(string message)
         {
             // Add a 100 nanosecond retry delay to the error to ensure that the delay is used, but does not slow
             // down the tests unnecessary (100ns == 1 Tick is the smallest possible measurable timespan in .NET).
@@ -350,7 +368,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var entry = new Grpc.Core.Metadata.Entry(key, new RetryInfo { RetryDelay = new Duration { Nanos = 100 } }.ToByteArray());
             var trailers = new Grpc.Core.Metadata { entry };
 
-            var status = new Grpc.Core.Status(StatusCode.Aborted, "Transaction aborted");
+            var status = new Grpc.Core.Status(StatusCode.Aborted, $"Transaction aborted: {message}");
             var rpc = new RpcException(status, trailers);
 
             return rpc;
@@ -360,14 +378,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             if (_abortedTransactions.TryGetValue(id, out bool aborted) && aborted)
             {
-                throw CreateAbortedException();
+                throw CreateAbortedException("Transaction marked as aborted");
             }
             lock (_lock)
             {
                 if (_abortNextStatement)
                 {
                     _abortNextStatement = false;
-                    throw CreateAbortedException();
+                    throw CreateAbortedException("Next statement was aborted");
                 }
             }
             if (remove ? _transactions.TryRemove(id, out Transaction tx) : _transactions.TryGetValue(id, out tx))
@@ -555,6 +573,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             int index = 0;
             PartialResultSetsEnumerable enumerator = new PartialResultSetsEnumerable(resultSet);
+            int writePermissions = executionTime?.TakeWritePermission() ?? int.MaxValue;
             foreach (PartialResultSet prs in enumerator)
             {
                 Exception e = executionTime?.PopExceptionAtIndex(index);
@@ -564,6 +583,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
                 await responseStream.WriteAsync(prs);
                 index++;
+                writePermissions--;
+                if (writePermissions == 0)
+                {
+                    writePermissions = executionTime?.TakeWritePermission() ?? int.MaxValue;
+                }
             }
         }
 
