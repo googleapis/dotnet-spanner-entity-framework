@@ -159,6 +159,10 @@ public class Article
 * Cloud Spanner does not have database value generators or constraints.
 Instead, you may use a client side Guid generator for a primary key.
 
+## Licensing
+
+* See [LICENSE](LICENSE)
+
 [projects]: https://console.cloud.google.com/project
 [billing]: https://support.google.com/cloud/answer/6293499#enable-billing
 [enable_api]: https://console.cloud.google.com/flows/enableapi?apiid=spanner.googleapis.com
