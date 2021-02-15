@@ -22,6 +22,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     ColSbyte = table.Column<sbyte>(nullable: true),
                     ColULong = table.Column<ulong>(nullable: true),
                     ColUShort = table.Column<ushort>(nullable: true),
+                    ColChar = table.Column<char>(nullable: true),
                     ColDecimal = table.Column<SpannerNumeric>(type: SpannerFixtureBase.IsEmulator ? "FLOAT64" : "NUMERIC", nullable: true),
                     ColUint = table.Column<uint>(nullable: true),
                     ColBool = table.Column<bool>(nullable: true),

@@ -183,7 +183,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     ColByte = 10,
                     ColSbyte = -120,
                     ColULong = 1000000,
-                    ColUShort = 2
+                    ColUShort = 2,
+                    ColChar = 'a'
                 };
                 context.AllColTypes.Add(row);
                 var rowCount = await context.SaveChangesAsync();
@@ -228,6 +229,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal((sbyte)-120, row.ColSbyte);
                 Assert.Equal((ulong)1000000, row.ColULong);
                 Assert.Equal((ushort)2, row.ColUShort);
+                Assert.Equal('a', row.ColChar);
 
                 // The commit timestamp was automatically set by Cloud Spanner.
                 Assert.NotEqual(new DateTime(), row.ColCommitTimestamp);
@@ -267,6 +269,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row.ColSbyte = -101;
                 row.ColULong = 2000000;
                 row.ColUShort = 5;
+                row.ColChar = 'b';
                 await context.SaveChangesAsync();
             }
 
@@ -306,6 +309,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal((sbyte)-101, row.ColSbyte);
                 Assert.Equal((ulong)2000000, row.ColULong);
                 Assert.Equal((ushort)5, row.ColUShort);
+                Assert.Equal('b', row.ColChar);
             }
         }
 

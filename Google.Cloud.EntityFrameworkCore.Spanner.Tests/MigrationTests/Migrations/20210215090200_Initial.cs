@@ -36,6 +36,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                     ColBool = table.Column<bool>(nullable: true),
                     ColString = table.Column<string>(maxLength: 100, nullable: true),
                     ColStringMax = table.Column<string>(nullable: true),
+                    ColChar = table.Column<string>(nullable: true),
                     ColBytes = table.Column<byte[]>(type: "BYTES(100)", nullable: true),
                     ColBytesMax = table.Column<byte[]>(nullable: true),
                     ColDate = table.Column<DateTime>(nullable: true),

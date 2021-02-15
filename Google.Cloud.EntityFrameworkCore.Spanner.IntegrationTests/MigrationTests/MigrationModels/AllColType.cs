@@ -29,6 +29,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public sbyte? ColSbyte { get; set; }
         public ulong? ColULong { get; set; }
         public ushort? ColUShort { get; set; }
+        public char? ColChar { get; set; }
         public SpannerNumeric? ColDecimal { get; set; }
         public uint? ColUint { get; set; }
         public bool? ColBool { get; set; }

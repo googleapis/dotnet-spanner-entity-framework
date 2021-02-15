@@ -46,6 +46,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     b.Property<List<byte[]>>("ColBytesList")
                         .HasColumnType("ARRAY<BYTES>");
 
+                    b.Property<char?>("ColChar")
+                        .HasColumnType("STRING(1)");
+
                     b.Property<DateTime?>("ColCommitTimestamp")
                         .HasColumnType("TIMESTAMP")
                         .HasAnnotation("UpdateCommitTimestamp", SpannerUpdateCommitTimestamp.OnInsertAndUpdate);
@@ -81,7 +84,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                         .HasColumnType("FLOAT64");
 
                     b.Property<Guid?>("ColGuid")
-                        .HasColumnType("STRING");
+                        .HasColumnType("STRING(36)");
 
                     b.Property<int?>("ColInt")
                         .HasColumnType("INT64");

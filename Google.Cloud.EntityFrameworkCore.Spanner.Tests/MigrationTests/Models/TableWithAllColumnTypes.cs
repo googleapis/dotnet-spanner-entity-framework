@@ -27,6 +27,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
         public bool? ColBool { get; set; }
         public string ColString { get; set; }
         public string ColStringMax { get; set; }
+        public char? ColChar { get; set; }
         public byte[] ColBytes { get; set; }
         public byte[] ColBytesMax { get; set; }
         public SpannerDate? ColDate { get; set; }
