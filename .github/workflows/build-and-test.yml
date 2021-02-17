@@ -16,6 +16,7 @@ jobs:
         ports:
           - 9010:9010
           - 9020:9020
+    environment: "GitHub Actions"
 
     steps:
     - uses: actions/checkout@v2
