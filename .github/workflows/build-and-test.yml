@@ -9,7 +9,8 @@ on:
 jobs:
   build:
 
-    environment: GitHub Actions
+    environment:
+      name: GitHub Actions
     runs-on: ubuntu-latest
     services:
       emulator:
