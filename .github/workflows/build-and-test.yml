@@ -9,8 +9,7 @@ on:
 jobs:
   build:
 
-    environment:
-      name: GitHub Actions
+    environment: github_actions
     runs-on: ubuntu-latest
     services:
       emulator:
@@ -31,31 +30,3 @@ jobs:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
         service_account_key: ${{ secrets.GCP_SA_KEY }}
         export_default_credentials: true
-    - name: Restore dependencies
-      run: dotnet restore
-    - name: Build
-      run: dotnet build --no-restore
-    - name: Unit Tests
-      working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.Tests
-      run: dotnet test --no-build --verbosity normal
-    - name: Integration Tests on Emulator
-      working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
-      # The emulator requires the integration tests to be ran serially, so we temporarily
-      # overwrite the default test configuration.
-      run: |
-        echo "{ \"parallelizeTestCollections\": false }" > xunit.runner.json
-        dotnet test --verbosity normal
-      env:
-        JOB_TYPE: test
-        SPANNER_EMULATOR_HOST: localhost:9010
-        TEST_PROJECT: emulator-test-project
-        TEST_SPANNER_INSTANCE: test-instance
-    - name: Integration Tests on Production
-      working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
-      run: |
-        echo "{ \"parallelizeTestCollections\": true, \"maxParallelThreads\": 8 }" > xunit.runner.json
-        dotnet test --verbosity normal
-      env:
-        JOB_TYPE: test
-        TEST_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
-        TEST_SPANNER_INSTANCE: test-instance
