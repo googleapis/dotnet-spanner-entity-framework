@@ -11,26 +11,11 @@ jobs:
 
     environment: GitHub Actions
     runs-on: ubuntu-latest
-    services:
-      emulator:
-        image: gcr.io/cloud-spanner-emulator/emulator:1.1.1
-        ports:
-          - 9010:9010
-          - 9020:9020
 
     steps:
     - uses: actions/checkout@v2
     - name: Test env
-      run: echo $TEST_PROJECT
+      run: |
+        echo $TEST_PROJECT
       env:
         TEST_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: 3.1.x
-    - name: Setup GCloud
-      uses: google-github-actions/setup-gcloud@master
-      with:
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
-        service_account_key: ${{ secrets.GCP_SA_KEY }}
-        export_default_credentials: true
