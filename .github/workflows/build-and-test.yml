@@ -20,6 +20,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Test env
+      run: echo $TEST_PROJECT
+      env:
+        TEST_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
     - name: Setup .NET
       uses: actions/setup-dotnet@v1
       with:
