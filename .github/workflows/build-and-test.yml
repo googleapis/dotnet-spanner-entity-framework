@@ -9,6 +9,7 @@ on:
 jobs:
   build:
 
+    environment: GitHub Actions
     runs-on: ubuntu-latest
     services:
       emulator:
@@ -16,7 +17,6 @@ jobs:
         ports:
           - 9010:9010
           - 9020:9020
-    environment: "GitHub Actions"
 
     steps:
     - uses: actions/checkout@v2
