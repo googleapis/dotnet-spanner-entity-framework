@@ -25,9 +25,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
     /// </summary>
     public struct SpannerDate : IEquatable<SpannerDate>, IConvertible, IComparable<SpannerDate>
     {
-        public int Year { get; set; }
-        public int Month { get; set; }
-        public int Day { get; set; }
+        public int Year { get; }
+        public int Month { get; }
+        public int Day { get; }
 
         public SpannerDate(int year, int month, int day)
         {
@@ -36,7 +36,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
             Day = day;
         }
 
-        public static SpannerDate FromDateTime(DateTime dateTime) => new SpannerDate { Year = dateTime.Year, Month = dateTime.Month, Day = dateTime.Day };
+        public static SpannerDate FromDateTime(DateTime dateTime) => new SpannerDate(dateTime.Year, dateTime.Month, dateTime.Day);
 
         public static SpannerDate Today => FromDateTime(DateTime.SpecifyKind(DateTime.Today, DateTimeKind.Unspecified));
 
