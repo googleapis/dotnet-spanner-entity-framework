@@ -69,7 +69,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
     {
         public override bool GeneratesTemporaryValues => false;
 
-        public override string Next([NotNull] EntityEntry entry)
+        public override string Next(EntityEntry entry)
         {
             var author = entry.Entity as Author;
             return (author.FirstName ?? "") + " " + (author.LastName ?? "");
