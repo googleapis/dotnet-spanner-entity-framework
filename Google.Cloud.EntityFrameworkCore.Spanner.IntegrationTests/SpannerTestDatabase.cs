@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using Google.Api.Gax.ResourceNames;
 using Google.Cloud.Spanner.Admin.Instance.V1;
 using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
@@ -91,46 +92,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 var instanceAdminClient = adminClientBuilder.Build();
 
                 InstanceName instanceName = InstanceName.FromProjectInstance(projectId, SpannerInstance);
-                Instance existing = null;
                 try
                 {
-                    existing = instanceAdminClient.GetInstance(new GetInstanceRequest
+                    instanceAdminClient.CreateInstance(new CreateInstanceRequest
                     {
-                        InstanceName = instanceName,
-                    });
-                }
-                catch (RpcException e)
-                {
-                    if (e.StatusCode != StatusCode.NotFound)
-                    {
-                        throw e;
-                    }
-                }
-                if (existing == null)
-                {
-                    try
-                    {
-                        var operation = instanceAdminClient.CreateInstance(new CreateInstanceRequest
+                        InstanceId = instanceName.InstanceId,
+                        ParentAsProjectName = ProjectName.FromProject(projectId),
+                        Instance = new Instance
                         {
-                            InstanceId = instanceName.InstanceId,
-                            Parent = $"projects/{instanceName.ProjectId}",
-                            Instance = new Instance
-                            {
-                                InstanceName = instanceName,
-                                ConfigAsInstanceConfigName = new InstanceConfigName(projectId, "emulator-config"),
-                                DisplayName = "Test Instance",
-                                NodeCount = 1,
-                            },
-                        });
-                    }
-                    catch (RpcException e)
-                    {
-                        // Ignore if the instance was already created by a parallel test.
-                        if (e.StatusCode != StatusCode.AlreadyExists)
-                        {
-                            throw e;
-                        }
-                    }
+                            InstanceName = instanceName,
+                            ConfigAsInstanceConfigName = new InstanceConfigName(projectId, "emulator-config"),
+                            DisplayName = "Test Instance",
+                            NodeCount = 1,
+                        },
+                    }).PollUntilCompleted();
+                }
+                catch (RpcException e) when (e.StatusCode == StatusCode.AlreadyExists)
+                {
+                    // Ignore
                 }
             }
             NoDbConnectionString = builder.ConnectionString;

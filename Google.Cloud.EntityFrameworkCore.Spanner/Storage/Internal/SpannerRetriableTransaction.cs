@@ -189,7 +189,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 catch (SpannerException e)
                 {
                     _retriableStatements.Add(new FailedBatchDmlStatement(command, e));
-                    throw e;
+                    throw;
                 }
             }
         }

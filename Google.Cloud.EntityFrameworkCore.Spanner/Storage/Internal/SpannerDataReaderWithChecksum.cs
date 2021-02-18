@@ -91,7 +91,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                         _firstException = e;
                     }
                     _numberOfReadCalls++;
-                    throw e;
+                    throw;
                 }
             };
         }
