@@ -20,58 +20,62 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.Snippets
+/// <summary>
+/// Sample for executing a read-only transaction on Spanner through Entity Framework.
+/// Prefer read-only transactions over read/write transactions if you need to execute
+/// multiple consistent reads and no write operations.
+/// 
+/// Run from the command line with `dotnet run ReadOnlyTransactionSample`
+/// </summary>
+public static class ReadOnlyTransactionSample
 {
-    public static class ReadOnlyTransactionSample
+    public static async Task Run(string connectionString)
     {
-        public static async Task Run(string connectionString)
+        using var context = new SpannerSampleDbContext(connectionString);
+
+        // Start a read-only transaction with strong timestamp bound (i.e. read everything that has been committed up until now).
+        // This transaction will be assigned a read-timestamp at the first read that it executes and all
+        // following read operations will also use the same read timestamp. Any changes that are made after
+        // this read timestamp will not be visible to the transaction.
+        // NOTE: Although read-only transaction cannot be committed or rollbacked, they still need to be disposed.
+        using var transaction = await context.Database.BeginReadOnlyTransactionAsync(TimestampBound.Strong);
+
+        // Search for a singer with a new id. This will establish a read timestamp for the read-only transaction.
+        var singerId = Guid.NewGuid();
+        var count = await context.Singers
+            .Where(s => s.SingerId == singerId)
+            .CountAsync();
+        Console.WriteLine($"Searching for singer with id {singerId} yielded {count} result(s)");
+
+        // Create a new database context and insert a singer with the given id. This singer will not be visible
+        // to the read-only transaction.
+        using (var writeContext = new SpannerSampleDbContext(connectionString))
         {
-            using var context = new SpannerSampleDbContext(connectionString);
-
-            // Start a read-only transaction with strong timestamp bound (i.e. read everything that has been committed up until now).
-            // This transaction will be assigned a read-timestamp at the first read that it executes and all
-            // following read operations will also use the same read timestamp. Any changes that are made after
-            // this read timestamp will not be visible to the transaction.
-            // NOTE: Although read-only transaction cannot be committed or rollbacked, they still need to be disposed.
-            using var transaction = await context.Database.BeginReadOnlyTransactionAsync(TimestampBound.Strong);
-
-            // Search for a singer with a new id. This will establish a read timestamp for the read-only transaction.
-            var singerId = Guid.NewGuid();
-            var count = await context.Singers
-                .Where(s => s.SingerId == singerId)
-                .CountAsync();
-            Console.WriteLine($"Searching for singer with id {singerId} yielded {count} result(s)");
-
-            // Create a new database context and insert a singer with the given id. This singer will not be visible
-            // to the read-only transaction.
-            using (var writeContext = new SpannerSampleDbContext(connectionString))
+            writeContext.Singers.Add(new Singer
             {
-                writeContext.Singers.Add(new Singer
-                {
-                    SingerId = singerId,
-                    FirstName = "Alice",
-                    LastName = "Goldberg",
-                });
-                await writeContext.SaveChangesAsync();
-            }
-
-            // The count should not have changed, as the read-only transaction will continue to use
-            // the read timestamp assigned during the first read.
-            count = await context.Singers
-                .Where(s => s.SingerId == singerId)
-                .CountAsync();
-            Console.WriteLine($"Searching for singer with id {singerId} yielded {count} result(s)");
-
-            // Now 'commit' the read-only transaction. This will close the transaction and allow us to start
-            // a new one on the context.
-            await transaction.CommitAsync();
-
-            // Start a new read-only transaction. TimestampBound.Strong is default so we don't have to specify it.
-            using var newTransaction = await context.Database.BeginReadOnlyTransactionAsync();
-            count = await context.Singers
-                .Where(s => s.SingerId == singerId)
-                .CountAsync();
-            Console.WriteLine($"Searching for singer with id {singerId} yielded {count} result(s)");
+                SingerId = singerId,
+                FirstName = "Alice",
+                LastName = "Goldberg",
+            });
+            await writeContext.SaveChangesAsync();
         }
+
+        // The count should not have changed, as the read-only transaction will continue to use
+        // the read timestamp assigned during the first read.
+        count = await context.Singers
+            .Where(s => s.SingerId == singerId)
+            .CountAsync();
+        Console.WriteLine($"Searching for singer with id {singerId} yielded {count} result(s)");
+
+        // Now 'commit' the read-only transaction. This will close the transaction and allow us to start
+        // a new one on the context.
+        await transaction.CommitAsync();
+
+        // Start a new read-only transaction. TimestampBound.Strong is default so we don't have to specify it.
+        using var newTransaction = await context.Database.BeginReadOnlyTransactionAsync();
+        count = await context.Singers
+            .Where(s => s.SingerId == singerId)
+            .CountAsync();
+        Console.WriteLine($"Searching for singer with id {singerId} yielded {count} result(s)");
     }
 }

@@ -13,9 +13,15 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using Google.Api.Gax.ResourceNames;
+using Google.Cloud.Spanner.Admin.Database.V1;
+using Google.Cloud.Spanner.Admin.Instance.V1;
+using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
+using Grpc.Core;
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 
@@ -23,67 +29,178 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
 {
     /// <summary>
     /// Main class for running a sample from the Snippets directory.
-    /// Usage: `SampleRunner <DataSource> <SampleName>`
-    /// Example: `SampleRunner projects/my-project/instances/my-instance/databases/my-database AddEntity`
+    /// Usage: `dotnet run <SampleName>`
+    /// Example: `dotnet run AddEntitySample`
     /// 
-    /// The samples assume that the data model in 'SampleModel/SampleDataModel.sql' has already been created
-    /// in the database. You can also execute `SampleRunner <DataSource> CreateDataModel` on an empty database
-    /// to create all sample tables.
+    /// The SampleRunner will automatically start a docker container with a Spanner emulator and execute
+    /// the sample on that emulator instance. No further setup or configuration is required.
     /// </summary>
     public static class SampleRunner
     {
         static void Main(string[] args)
         {
-            if (args == null || args.Length < 2)
+            if (args == null || args.Length < 1)
             {
-                Console.Error.WriteLine("Not enough arguments.\r\nUsage: RunSample <DataSource> <SampleName>\r\nExample: RunSample projects/my-project/instances/my-instance/databases/my-database AddEntity");
+                Console.Error.WriteLine("Not enough arguments.\r\nUsage: dotnet run <SampleName>\r\nExample: dotnet run AddEntitySample");
+                PrintValidSampleNames();
                 return;
             }
-
-            var dataSource = $"Data Source={args[0]}";
-            var sampleName = args[1];
-            RunSampleAsync(dataSource, sampleName).WaitWithUnwrappedExceptions();
-        }
-
-        private static async Task RunSampleAsync(string connectionString, string sampleName)
-        {
-            if (sampleName == "CreateSampleDataModel")
+            var sampleName = args[0];
+            if (sampleName.EndsWith("Sample"))
             {
-                Console.WriteLine("Creating sample data model...");
-                CreateSampleDataModel(connectionString);
-                return;
+                sampleName = sampleName.Substring(0, sampleName.Length - "Sample".Length);
             }
-
-            Console.WriteLine($"Running sample {sampleName}");
             try
             {
-                var sampleClass = System.Type.GetType($"Google.Cloud.EntityFrameworkCore.Spanner.Samples.Snippets.{sampleName}Sample");
+                var sampleMethod = GetSampleMethod(sampleName);
+                if (sampleMethod != null)
+                {
+                    Console.WriteLine($"Running sample {sampleName}");
+                    RunSampleAsync((connectionString) =>
+                    {
+                        return (Task)sampleMethod.Invoke(null, new object[] { connectionString });
+                    }).WaitWithUnwrappedExceptions();
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Running sample failed: {e.Message}");
+            }
+        }
+
+        internal static async Task RunSampleAsync(Func<string, Task> sampleMethod)
+        {
+            Environment.SetEnvironmentVariable("SPANNER_EMULATOR_HOST", "localhost:9010");
+            var emulatorRunner = new EmulatorRunner();
+            try
+            {
+                Console.WriteLine("");
+                Console.WriteLine("Starting emulator...");
+                emulatorRunner.StartEmulator().WaitWithUnwrappedExceptions();
+                Console.WriteLine("");
+
+                var projectId = "sample-project";
+                var instanceId = "sample-instance";
+                var databaseId = "sample-database";
+                DatabaseName databaseName = DatabaseName.FromProjectInstanceDatabase(projectId, instanceId, databaseId);
+                var dataSource = $"Data Source={databaseName}";
+                var connectionStringBuilder = new SpannerConnectionStringBuilder(dataSource)
+                {
+                    EmulatorDetection = EmulatorDetection.EmulatorOnly,
+                };
+                await MaybeCreateInstanceOnEmulatorAsync(databaseName.ProjectId, databaseName.InstanceId);
+                await MaybeCreateDatabaseOnEmulatorAsync(databaseName);
+
+                await sampleMethod.Invoke(connectionStringBuilder.ConnectionString);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Running sample failed: {e.Message}");
+            }
+            finally
+            {
+                Console.WriteLine("");
+                Console.WriteLine("Stopping emulator...");
+                emulatorRunner.StopEmulator().WaitWithUnwrappedExceptions();
+                Console.WriteLine("");
+            }
+        }
+
+        private static MethodInfo GetSampleMethod(string sampleName)
+        {
+            try
+            {
+                var sampleClass = System.Type.GetType($"{sampleName}Sample");
                 if (sampleClass == null)
                 {
-                    throw new ArgumentException($"Unknown sample name: {sampleName}");
+                    Console.Error.WriteLine($"Unknown sample name: {sampleName}");
+                    PrintValidSampleNames();
+                    return null;
                 }
                 var sampleMethod = sampleClass.GetMethod("Run");
                 if (sampleMethod == null)
                 {
-                    throw new ArgumentException($"{sampleName} is not a valid sample as it does not contain a Run method");
+                    Console.Error.WriteLine($"{sampleName} is not a valid sample as it does not contain a Run method");
+                    PrintValidSampleNames();
+                    return null;
                 }
-                var task = (Task) sampleMethod.Invoke(null, new[] { connectionString });
-                await task.ConfigureAwait(false);
+                return sampleMethod;
             }
             catch (Exception e)
             {
-                throw new ArgumentException($"Could not load sample {sampleName}. Please check that the sample name is a valid sample name.\r\nException: {e.Message}");
+                Console.Error.WriteLine($"Could not load sample {sampleName}. Please check that the sample name is a valid sample name.\r\nException: {e.Message}");
+                PrintValidSampleNames();
+                return null;
             }
         }
 
-        private static void CreateSampleDataModel(string connectionString)
+        private static async Task MaybeCreateInstanceOnEmulatorAsync(string projectId, string instanceId)
+        {
+            // Try to create an instance on the emulator and ignore any AlreadyExists error.
+            var adminClientBuilder = new InstanceAdminClientBuilder
+            {
+                EmulatorDetection = EmulatorDetection.EmulatorOnly
+            };
+            var instanceAdminClient = adminClientBuilder.Build();
+
+            var instanceName = InstanceName.FromProjectInstance(projectId, instanceId);
+            try
+            {
+                await instanceAdminClient.CreateInstance(new CreateInstanceRequest
+                {
+                    InstanceId = instanceName.InstanceId,
+                    ParentAsProjectName = ProjectName.FromProject(projectId),
+                    Instance = new Instance
+                    {
+                        InstanceName = instanceName,
+                        ConfigAsInstanceConfigName = new InstanceConfigName(projectId, "emulator-config"),
+                        DisplayName = "Sample Instance",
+                        NodeCount = 1,
+                    },
+                }).PollUntilCompletedAsync();
+            }
+            catch (RpcException e) when (e.StatusCode == StatusCode.AlreadyExists)
+            {
+                // Ignore
+            }
+        }
+
+        private static async Task MaybeCreateDatabaseOnEmulatorAsync(DatabaseName databaseName)
+        {
+            // Try to create a database on the emulator and ignore any AlreadyExists error.
+            var adminClientBuilder = new DatabaseAdminClientBuilder
+            {
+                EmulatorDetection = EmulatorDetection.EmulatorOnly
+            };
+            var databaseAdminClient = adminClientBuilder.Build();
+
+            var instanceName = InstanceName.FromProjectInstance(databaseName.ProjectId, databaseName.InstanceId);
+            try
+            {
+                await databaseAdminClient.CreateDatabase(new CreateDatabaseRequest
+                {
+                    ParentAsInstanceName = instanceName,
+                    CreateStatement = $"CREATE DATABASE `{databaseName.DatabaseId}`",
+                }).PollUntilCompletedAsync();
+                var connectionStringBuilder = new SpannerConnectionStringBuilder($"Data Source={databaseName}")
+                {
+                    EmulatorDetection = EmulatorDetection.EmulatorOnly,
+                };
+                await CreateSampleDataModel(connectionStringBuilder.ConnectionString);
+            }
+            catch (RpcException e) when (e.StatusCode == StatusCode.AlreadyExists)
+            {
+                // Ignore
+            }
+        }
+
+        private static async Task CreateSampleDataModel(string connectionString)
         {
             var codeBaseUrl = new Uri(Assembly.GetExecutingAssembly().CodeBase);
             var codeBasePath = Uri.UnescapeDataString(codeBaseUrl.AbsolutePath);
             var dirPath = Path.GetDirectoryName(codeBasePath);
             var fileName = Path.Combine(dirPath, "SampleModel/SampleDataModel.sql");
-            Console.WriteLine(fileName);
-            var script = File.ReadAllText(fileName);
+            var script = await File.ReadAllTextAsync(fileName);
             var statements = script.Split(";");
             for (var i = 0; i < statements.Length; i++)
             {
@@ -94,15 +211,26 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
             {
                 length--;
             }
-            ExecuteDdl(connectionString, statements, length);
+            await ExecuteDdlAsync(connectionString, statements, length);
         }
 
-        private static void ExecuteDdl(string connectionString, string[] ddl, int length)
+        private static async Task ExecuteDdlAsync(string connectionString, string[] ddl, int length)
         {
             string[] extraStatements = new string[length - 1];
             Array.Copy(ddl, 1, extraStatements, 0, extraStatements.Length);
             using var connection = new SpannerConnection(connectionString);
-            connection.CreateDdlCommand(ddl[0].Trim(), extraStatements).ExecuteNonQuery();
+            await connection.CreateDdlCommand(ddl[0].Trim(), extraStatements).ExecuteNonQueryAsync();
+        }
+
+        private static void PrintValidSampleNames()
+        {
+            string nspace = null;
+            var sampleClasses = from t in Assembly.GetExecutingAssembly().GetTypes()
+                                where t.IsClass && t.Namespace == nspace && t.Name.EndsWith("Sample")
+                                select t;
+            Console.Error.WriteLine("");
+            Console.Error.WriteLine("Supported samples:");
+            sampleClasses.ToList().ForEach(t => Console.Error.WriteLine($"  * {t.Name}"));
         }
     }
 }

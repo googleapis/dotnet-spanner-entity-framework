@@ -13,64 +13,70 @@
 // limitations under the License.
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.Snippets
+/// <summary>
+/// Linq can be used to query entities from Cloud Spanner.
+/// Commonly used properties and methods are mapped to the corresponding functions in Cloud Spanner.
+/// 
+/// Run from the command line with `dotnet run QueryWithLinqSample`
+/// </summary>
+public static class QueryWithLinqSample
 {
-    /// <summary>
-    /// Linq can be used to query entities from Cloud Spanner.
-    /// Commonly used properties and methods are mapped to the corresponding functions in Cloud Spanner.
-    /// </summary>
-    public static class QueryWithLinqSample
+    public static async Task Run(string connectionString)
     {
-        public static async Task Run(string connectionString)
+        using var context = new SpannerSampleDbContext(connectionString);
+        await Setup(context);
+
+        var singersBornBefore2000 = context.Singers
+            .Where(s => s.BirthDate.GetValueOrDefault().Year < 2000)
+            .OrderBy(s => s.BirthDate)
+            .AsAsyncEnumerable();
+        Console.WriteLine("Singers born before 2000:");
+        await foreach(var singer in singersBornBefore2000)
         {
-            using var context = new SpannerSampleDbContext(connectionString);
-            await Setup(context);
-
-            var singersBornBefore2000 = await context.Singers
-                .Where(s => s.BirthDate.GetValueOrDefault().Year < 2000)
-                .OrderBy(s => s.BirthDate)
-                .ToListAsync();
-            Console.WriteLine("Singers born before 2000:");
-            singersBornBefore2000.ForEach(s => Console.WriteLine($"{s.FullName}, born at {s.BirthDate}"));
-
-            var singersStartingWithAl = await context.Singers
-                .Where(s => s.FullName.StartsWith("Al"))
-                .OrderBy(s => s.LastName)
-                .ToListAsync();
-            Console.WriteLine("Singers with a name starting with 'Al':");
-            singersStartingWithAl.ForEach(s => Console.WriteLine($"{s.FullName}"));
+            Console.WriteLine($"{singer.FullName}, born at {singer.BirthDate}");
         }
 
-        private static async Task Setup(SpannerSampleDbContext context)
+        var singersStartingWithAl = context.Singers
+            .Where(s => s.FullName.StartsWith("Al"))
+            .OrderBy(s => s.LastName)
+            .AsAsyncEnumerable();
+        Console.WriteLine("Singers with a name starting with 'Al':");
+        await foreach(var singer in singersStartingWithAl)
         {
-            context.Singers.AddRange(
-            new Singer
-            {
-                SingerId = Guid.NewGuid(),
-                FirstName = "Alice",
-                LastName = "Henderson",
-                BirthDate = new Storage.SpannerDate(1983, 10, 19),
-            },
-            new Singer
-            {
-                SingerId = Guid.NewGuid(),
-                FirstName = "Peter",
-                LastName = "Allison",
-                BirthDate = new Storage.SpannerDate(2000, 5, 2),
-            },
-            new Singer
-            {
-                SingerId = Guid.NewGuid(),
-                FirstName = "Mike",
-                LastName = "Nicholson",
-                BirthDate = new Storage.SpannerDate(1976, 8, 31),
-            });
-            await context.SaveChangesAsync();
+            Console.WriteLine($"{singer.FullName}");
         }
+    }
+
+    private static async Task Setup(SpannerSampleDbContext context)
+    {
+        context.Singers.AddRange(
+        new Singer
+        {
+            SingerId = Guid.NewGuid(),
+            FirstName = "Alice",
+            LastName = "Henderson",
+            BirthDate = new SpannerDate(1983, 10, 19),
+        },
+        new Singer
+        {
+            SingerId = Guid.NewGuid(),
+            FirstName = "Peter",
+            LastName = "Allison",
+            BirthDate = new SpannerDate(2000, 5, 2),
+        },
+        new Singer
+        {
+            SingerId = Guid.NewGuid(),
+            FirstName = "Mike",
+            LastName = "Nicholson",
+            BirthDate = new SpannerDate(1976, 8, 31),
+        });
+        await context.SaveChangesAsync();
     }
 }
