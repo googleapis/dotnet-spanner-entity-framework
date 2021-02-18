@@ -2,7 +2,7 @@
   SingerId  INT64 NOT NULL,
   FirstName STRING(200),
   LastName  STRING(200) NOT NULL,
-  FullName  STRING(400),
+  FullName  STRING(400) NOT NULL AS (COALESCE(FirstName || ' ', '') || LastName) STORED,
   BirthDate DATE,
   Picture   BYTES(MAX),
 ) PRIMARY KEY (SingerId);
@@ -21,7 +21,7 @@ CREATE TABLE Tracks (
   AlbumId         INT64 NOT NULL,
   TrackId         INT64 NOT NULL,
   Title           STRING(200) NOT NULL,
-  Duration        FLOAT64,
+  Duration        NUMERIC,
   LyricsLanguages ARRAY<STRING(2)>,
   Lyrics          ARRAY<STRING(MAX)>,
 ) PRIMARY KEY (AlbumId, TrackId), INTERLEAVE IN PARENT Albums;
@@ -61,7 +61,7 @@ CREATE TABLE Performances (
 CREATE TABLE TableWithAllColumnTypes (
 	ColInt64 INT64 NOT NULL,
 	ColFloat64 FLOAT64,
-	ColNumeric FLOAT64,
+	ColNumeric NUMERIC,
 	ColBool BOOL,
 	ColString STRING(100),
 	ColStringMax STRING(MAX),
@@ -72,7 +72,7 @@ CREATE TABLE TableWithAllColumnTypes (
 	ColCommitTS TIMESTAMP OPTIONS (allow_commit_timestamp=true),
 	ColInt64Array ARRAY<INT64>,
 	ColFloat64Array ARRAY<FLOAT64>,
-	ColNumericArray ARRAY<FLOAT64>,
+	ColNumericArray ARRAY<NUMERIC>,
 	ColBoolArray ARRAY<BOOL>,
 	ColStringArray ARRAY<STRING(100)>,
 	ColStringMaxArray ARRAY<STRING(MAX)>,

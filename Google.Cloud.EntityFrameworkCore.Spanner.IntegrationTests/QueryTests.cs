@@ -839,10 +839,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Equal(new DateTime(2021, 1, 21, 11, 40, 10, DateTimeKind.Utc).AddTicks(20), date);
         }
 
-        [SkippableFact]
+        [Fact]
         public async Task CanUseNumericValueOrDefaultAsDecimal_ThenRoundWithDigits()
         {
-            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support NUMERIC");
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
             var id = _fixture.RandomLong();
             db.TableWithAllColumnTypes.Add(
@@ -1146,15 +1145,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Equal(1, updateCount2);
             Assert.Equal(1, updateCount3);
 
-            if (SpannerFixtureBase.IsEmulator)
-            {
-                // Simulate the automatic update of the computed column if we are testing against the emulator, as it
-                // does not support computed columns.
-                await db.Database.ExecuteSqlRawAsync(
-                    "UPDATE Singers SET FullName=(COALESCE(FirstName || ' ', '') || LastName) WHERE SingerId IN UNNEST(@id)",
-                    new SpannerParameter("id", SpannerDbType.ArrayOf(SpannerDbType.Int64), new List<long> { singerId1, singerId2, singerId3 })
-                );
-            }
             var singers = await db.Singers
                 .FromSqlRaw("SELECT * FROM Singers WHERE SingerId IN UNNEST(@id)", new SpannerParameter("id", SpannerDbType.ArrayOf(SpannerDbType.Int64), new List<long> { singerId1, singerId2, singerId3 }))
                 .OrderBy(s => s.LastName)
@@ -1166,10 +1156,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             );
         }
 
-        [SkippableFact]
+        [Fact]
         public async Task CanInsertRowWithAllColumnTypesUsingRawSql()
         {
-            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support NUMERIC");
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
             var id1 = _fixture.RandomLong();
             var today = SpannerDate.FromDateTime(DateTime.SpecifyKind(DateTime.Today, DateTimeKind.Unspecified));

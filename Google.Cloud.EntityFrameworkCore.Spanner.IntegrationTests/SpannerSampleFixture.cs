@@ -54,48 +54,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     .UseLazyLoadingProxies();
             }
         }
-
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            base.OnModelCreating(modelBuilder);
-            // Override some settings if the tests are executed against the emulator, as the emulator does
-            // not support all features of Spanner.
-            if (SpannerFixtureBase.IsEmulator)
-            {
-                // Simulate a generated column when testing against the emulator.
-                modelBuilder.Entity<Singers>(entity =>
-                {
-                    entity.Property(e => e.FullName)
-                        .HasValueGenerator<FullNameGenerator>()
-                        .ValueGeneratedNever();
-                });
-
-                modelBuilder.Entity<Tracks>(entity =>
-                {
-                    // Configure the numeric columns for automatic conversion to/from FLOAT64 as the emulator does not support NUMERIC.
-                    entity.Property(e => e.Duration)
-                        .HasConversion(
-                            v => v.HasValue ? (double)v.Value.ToDecimal(LossOfPrecisionHandling.Truncate) : 0d,
-                            v => new SpannerNumeric?(SpannerNumeric.FromDecimal((decimal)v, LossOfPrecisionHandling.Truncate))
-                        ).HasDefaultValue(new SpannerNumeric());
-                });
-
-                    modelBuilder.Entity<TableWithAllColumnTypes>(entity =>
-                {
-                    // Configure the numeric columns for automatic conversion to/from FLOAT64 as the emulator does not support NUMERIC.
-                    entity.Property(e => e.ColNumeric)
-                        .HasConversion(
-                            v => v.HasValue ? (double) v.Value.ToDecimal(LossOfPrecisionHandling.Truncate) : 0d,
-                            v => new SpannerNumeric?(SpannerNumeric.FromDecimal((decimal) v, LossOfPrecisionHandling.Truncate))
-                        ).HasDefaultValue(new SpannerNumeric());
-                    entity.Property(e => e.ColNumericArray)
-                        .HasConversion(
-                            v => v == null ? new List<double?>() : v.Select(element => new double?((double) element.GetValueOrDefault().ToDecimal(LossOfPrecisionHandling.Truncate))).ToList(),
-                            v => v == null ? new List<SpannerNumeric?>() : v.Select(element => new SpannerNumeric?(SpannerNumeric.FromDecimal((decimal)element, LossOfPrecisionHandling.Truncate))).ToList()
-                        );
-                });
-            }
-        }
     }
 
     internal class FullNameGenerator : ValueGenerator<string>
