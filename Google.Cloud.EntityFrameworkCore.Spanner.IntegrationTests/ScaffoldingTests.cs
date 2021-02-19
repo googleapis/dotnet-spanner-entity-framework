@@ -403,10 +403,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             }
         }
 
-        [SkippableFact]
+        [Fact]
         public async void CanInsertAndUpdateRowWithAllDataTypes()
         {
-            // Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support NUMERIC");
             var id = _fixture.RandomLong();
             var today = SpannerDate.FromDateTime(DateTime.SpecifyKind(DateTime.Today, DateTimeKind.Unspecified));
             var now = DateTime.UtcNow;
@@ -535,10 +534,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             }
         }
 
-        [SkippableFact]
+        [Fact]
         public async void CanInsertAndUpdateNullValues()
         {
-            // Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support NUMERIC");
             var id = _fixture.RandomLong();
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
@@ -676,10 +674,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             }
         }
 
-        [SkippableFact]
+        [Fact]
         public async void CanInsertAndUpdateNullValuesInArrays()
         {
-            // Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support NUMERIC");
             var id = _fixture.RandomLong();
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {

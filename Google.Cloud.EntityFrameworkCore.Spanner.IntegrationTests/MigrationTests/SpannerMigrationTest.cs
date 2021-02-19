@@ -31,10 +31,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         public SpannerMigrationTest(MigrationTestFixture fixture) => _fixture = fixture;
 
-        [SkippableFact]
+        [Fact]
         public async Task AllTablesAreGenerated()
         {
-            // Skip.If(SpannerFixtureBase.IsEmulator, "The query in this test crashes the emulator");
             using var connection = _fixture.GetConnection();
             var tableNames = new string[] { "Products", "Categories", "Orders", "OrderDetails", "Articles", "Authors" };
             var tables = new SpannerParameterCollection
@@ -140,10 +139,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Null(row.ColTimestampList);
         }
 
-        [SkippableFact]
+        [Fact]
         public async Task CanInsertAndUpdateRowWithAllDataTypes()
         {
-            // Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support NUMERIC");
             var now = DateTime.UtcNow;
             var guid = Guid.NewGuid();
             using (var context = new TestMigrationDbContext(_fixture.DatabaseName))
