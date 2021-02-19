@@ -131,7 +131,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Instance existing = null;
             try
             {
-                await instanceAdminClient.DeleteInstanceAsync(instanceName);
                 existing = await instanceAdminClient.GetInstanceAsync(instanceName);
             }
             catch (RpcException e) when (e.StatusCode == StatusCode.NotFound)
@@ -163,17 +162,27 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                             NodeCount = 1,
                         },
                     }).PollUntilCompletedAsync()).Result;
-                    while (instance.State == Instance.Types.State.Creating)
-                    {
-                        Thread.Sleep(1000);
-                        instance = await instanceAdminClient.GetInstanceAsync(instanceName);
-                    }
+                    await WaitUntilCreated(instanceName, instanceAdminClient);
                     OwnedInstance = true;
                 }
                 catch (RpcException e) when (e.StatusCode == StatusCode.AlreadyExists)
                 {
-                    // Ignore
+                    await WaitUntilCreated(instanceName, instanceAdminClient);
                 }
+            }
+            else
+            {
+                await WaitUntilCreated(instanceName, instanceAdminClient);
+            }
+        }
+
+        private async Task WaitUntilCreated(InstanceName instanceName, InstanceAdminClient instanceAdminClient)
+        {
+            var instance = await instanceAdminClient.GetInstanceAsync(instanceName);
+            while (instance.State == Instance.Types.State.Creating)
+            {
+                Thread.Sleep(1000);
+                instance = await instanceAdminClient.GetInstanceAsync(instanceName);
             }
         }
 

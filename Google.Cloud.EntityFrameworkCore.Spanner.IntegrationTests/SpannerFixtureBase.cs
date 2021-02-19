@@ -55,16 +55,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         public async Task DisposeAsync()
         {
-            if (Database.OwnedInstance)
-            {
-                var adminClientBuilder = new InstanceAdminClientBuilder
-                {
-                    EmulatorDetection = EmulatorDetection.EmulatorOrProduction
-                };
-                var instanceAdminClient = adminClientBuilder.Build();
-                await instanceAdminClient.DeleteInstanceAsync(InstanceName.FromProjectInstance(ProjectId, Database.SpannerInstance));
-            }
-            else if (Database.Fresh)
+            if (Database.Fresh)
             {
                 using var connection = new SpannerConnection(Database.NoDbConnectionString);
                 var dropCommand = connection.CreateDdlCommand($"DROP DATABASE {DatabaseName.DatabaseId}");
