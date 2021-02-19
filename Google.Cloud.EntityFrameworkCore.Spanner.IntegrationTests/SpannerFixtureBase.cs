@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Api.Gax;
+using Google.Cloud.Spanner.Admin.Instance.V1;
 using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1.Internal.Logging;
@@ -53,7 +55,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         public async Task DisposeAsync()
         {
-            if (Database.Fresh)
+            if (Database.OwnedInstance)
+            {
+                var adminClientBuilder = new InstanceAdminClientBuilder
+                {
+                    EmulatorDetection = EmulatorDetection.EmulatorOrProduction
+                };
+                var instanceAdminClient = adminClientBuilder.Build();
+                await instanceAdminClient.DeleteInstanceAsync(InstanceName.FromProjectInstance(ProjectId, Database.SpannerInstance));
+            }
+            else if (Database.Fresh)
             {
                 using var connection = new SpannerConnection(Database.NoDbConnectionString);
                 var dropCommand = connection.CreateDdlCommand($"DROP DATABASE {DatabaseName.DatabaseId}");
