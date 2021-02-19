@@ -262,7 +262,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 useValue == UseValue.Original ? columnModification.OriginalParameterName : columnModification.ParameterName,
                 useValue == UseValue.Original ? columnModification.OriginalValue : columnModification.Value,
                 columnModification.Property.IsNullable);
-            if (param is SpannerParameter spannerParameter && spannerParameter.SpannerDbType == SpannerDbType.Unspecified)
+            if (param is SpannerParameter spannerParameter && SpannerDbType.Unspecified.Equals(spannerParameter.SpannerDbType))
             {
                 spannerParameter.SpannerDbType = SpannerDbType.FromClrType(GetUnderlyingTypeOrSelf(columnModification.Property.ClrType));
             }

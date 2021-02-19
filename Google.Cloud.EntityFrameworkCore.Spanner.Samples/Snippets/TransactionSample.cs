@@ -17,63 +17,62 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Threading.Tasks;
 
-namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.Snippets
+/// <summary>
+/// By default all changes in a single call to SaveChanges are applied in a transaction.
+/// 
+/// You can also manually control transactions if you want to group multiple SaveChanges
+/// in a single transaction.
+/// 
+/// See https://docs.microsoft.com/en-us/ef/core/saving/transactions for more information
+/// on how to control transactions with Entity Framework Core.
+/// 
+/// NOTE: Cloud Spanner does not support Savepoints.
+/// 
+/// Run from the command line with `dotnet run TransactionSample`
+/// </summary>
+public static class TransactionSample
 {
-    /// <summary>
-    /// By default all changes in a single call to SaveChanges are applied in a transaction.
-    /// 
-    /// You can also manually control transactions if you want to group multiple SaveChanges
-    /// in a single transaction.
-    /// 
-    /// See https://docs.microsoft.com/en-us/ef/core/saving/transactions for more information
-    /// on how to control transactions with Entity Framework Core.
-    /// 
-    /// NOTE: Cloud Spanner does not support Savepoints.
-    /// </summary>
-    public static class TransactionSample
+    public static async Task Run(string connectionString)
     {
-        public static async Task Run(string connectionString)
+        using var context = new SpannerSampleDbContext(connectionString);
+
+        // Start a read/write transaction that will be used with the database context.
+        using var transaction = await context.Database.BeginTransactionAsync();
+
+        // Create a new Singer, add it to the context and save the changes.
+        // These changes have not yet been committed to the database and are
+        // therefore not readable for other processes.
+        var singerId = Guid.NewGuid();
+        context.Singers.Add(new Singer
         {
-            using var context = new SpannerSampleDbContext(connectionString);
+            SingerId = singerId,
+            FirstName = "Bernhard",
+            LastName = "Bennet"
+        });
+        var count = await context.SaveChangesAsync();
+        Console.WriteLine($"Added {count} singer in a transaction.");
 
-            // Start a read/write transaction that will be used with the database context.
-            using var transaction = await context.Database.BeginTransactionAsync();
+        // Now try to read the singer in a different context which will use a different transaction.
+        // This will return null pending changes from other transactions cannot read.
+        using var contextWithoutTransaction = new SpannerSampleDbContext(connectionString);
+        var exists = await contextWithoutTransaction.Singers
+            .FromSqlInterpolated($"SELECT * FROM Singers WHERE SingerId={singerId}")
+            .FirstOrDefaultAsync();
+        Console.WriteLine($"Can read singer outside of transaction: {exists != null}");
 
-            // Create a new Singer, add it to the context and save the changes.
-            // These changes have not yet been committed to the database and are
-            // therefore not readable for other processes.
-            var singerId = Guid.NewGuid();
-            context.Singers.Add(new Singer
-            {
-                SingerId = singerId,
-                FirstName = "Bernhard",
-                LastName = "Bennet"
-            });
-            var count = await context.SaveChangesAsync();
-            Console.WriteLine($"Added {count} singer in a transaction.");
+        // Now try to read the same using the context with the transaction. This will return true as
+        // a transaction can read its own writes.
+        exists = await context.Singers
+            .FromSqlInterpolated($"SELECT * FROM Singers WHERE SingerId={singerId}")
+            .FirstOrDefaultAsync();
+        Console.WriteLine($"Can read singer inside transaction: {exists != null}");
 
-            // Now try to read the singer in a different context which will use a different transaction.
-            // This will return null pending changes from other transactions cannot read.
-            using var contextWithoutTransaction = new SpannerSampleDbContext(connectionString);
-            var exists = await contextWithoutTransaction.Singers
-                .FromSqlInterpolated($"SELECT * FROM Singers WHERE SingerId={singerId}")
-                .FirstOrDefaultAsync();
-            Console.WriteLine($"Can read singer outside of transaction: {exists != null}");
+        // Commit the transaction. The singer is now also readable in a context without the transaction.
+        await transaction.CommitAsync();
 
-            // Now try to read the same using the context with the transaction. This will return true as
-            // a transaction can read its own writes.
-            exists = await context.Singers
-                .FromSqlInterpolated($"SELECT * FROM Singers WHERE SingerId={singerId}")
-                .FirstOrDefaultAsync();
-            Console.WriteLine($"Can read singer inside transaction: {exists != null}");
-
-            // Commit the transaction. The singer is now also readable in a context without the transaction.
-            await transaction.CommitAsync();
-
-            exists = await contextWithoutTransaction.Singers
-                .FromSqlInterpolated($"SELECT * FROM Singers WHERE SingerId={singerId}")
-                .FirstOrDefaultAsync();
-            Console.WriteLine($"Can read singer after commit: {exists != null}");
-        }
+        exists = await contextWithoutTransaction.Singers
+            .FromSqlInterpolated($"SELECT * FROM Singers WHERE SingerId={singerId}")
+            .FirstOrDefaultAsync();
+        Console.WriteLine($"Can read singer after commit: {exists != null}");
     }
 }
