@@ -178,7 +178,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 var spannerCommand = command.CreateSpannerBatchCommand();
                 try
                 {
-                    IReadOnlyList<long> res = await spannerCommand.ExecuteNonQueryAsync();
+                    IReadOnlyList<long> res = await spannerCommand.ExecuteNonQueryAsync(cancellationToken);
                     _retriableStatements.Add(new RetriableBatchDmlStatement(command, res));
                     return res;
                 }
@@ -189,7 +189,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 catch (SpannerException e)
                 {
                     _retriableStatements.Add(new FailedBatchDmlStatement(command, e));
-                    throw e;
+                    throw;
                 }
             }
         }
@@ -201,7 +201,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
             using (var reader = await ExecuteDbDataReaderWithRetryAsync(command, cancellationToken))
             {
-                if (await reader.ReadAsync())
+                if (await reader.ReadAsync(cancellationToken))
                 {
                     return reader.GetValue(0);
                 }

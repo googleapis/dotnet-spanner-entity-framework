@@ -13,12 +13,14 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using Google.Api.Gax.ResourceNames;
 using Google.Cloud.Spanner.Admin.Instance.V1;
 using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1.Internal.Logging;
 using Grpc.Core;
 using System;
+using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -85,59 +87,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             {
                 builder.Port = int.Parse(SpannerPort);
             }
-            if (Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST") != null)
-            {
-                // Switch to emulator config.
-                // Check if the instance exists and if not create it on the emulator.
-                var adminClientBuilder = new InstanceAdminClientBuilder
-                {
-                    EmulatorDetection = EmulatorDetection.EmulatorOnly
-                };
-                var instanceAdminClient = adminClientBuilder.Build();
+            MaybeCreateInstanceAsync().WaitWithUnwrappedExceptions();
 
-                InstanceName instanceName = InstanceName.FromProjectInstance(projectId, SpannerInstance);
-                Instance existing = null;
-                try
-                {
-                    existing = instanceAdminClient.GetInstance(new GetInstanceRequest
-                    {
-                        InstanceName = instanceName,
-                    });
-                }
-                catch (RpcException e)
-                {
-                    if (e.StatusCode != StatusCode.NotFound)
-                    {
-                        throw e;
-                    }
-                }
-                if (existing == null)
-                {
-                    try
-                    {
-                        var operation = instanceAdminClient.CreateInstance(new CreateInstanceRequest
-                        {
-                            InstanceId = instanceName.InstanceId,
-                            Parent = $"projects/{instanceName.ProjectId}",
-                            Instance = new Instance
-                            {
-                                InstanceName = instanceName,
-                                ConfigAsInstanceConfigName = new InstanceConfigName(projectId, "emulator-config"),
-                                DisplayName = "Test Instance",
-                                NodeCount = 1,
-                            },
-                        });
-                    }
-                    catch (RpcException e)
-                    {
-                        // Ignore if the instance was already created by a parallel test.
-                        if (e.StatusCode != StatusCode.AlreadyExists)
-                        {
-                            throw e;
-                        }
-                    }
-                }
-            }
             NoDbConnectionString = builder.ConnectionString;
             var databaseBuilder = builder.WithDatabase(SpannerDatabase);
             ConnectionString = databaseBuilder.ConnectionString;
@@ -153,6 +104,69 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             else
             {
                 Logger.DefaultLogger.Debug($"Using existing database {SpannerDatabase}");
+            }
+        }
+
+        private async Task MaybeCreateInstanceAsync()
+        {
+            var builder = new SpannerConnectionStringBuilder
+            {
+                Host = SpannerHost,
+                DataSource = $"projects/{ProjectId}/instances/{SpannerInstance}",
+                EmulatorDetection = EmulatorDetection.EmulatorOrProduction
+            };
+            if (SpannerPort != null)
+            {
+                builder.Port = int.Parse(SpannerPort);
+            }
+            // Check if the instance exists and if not create it.
+            var adminClientBuilder = new InstanceAdminClientBuilder
+            {
+                EmulatorDetection = EmulatorDetection.EmulatorOrProduction
+            };
+            var instanceAdminClient = adminClientBuilder.Build();
+
+            InstanceName instanceName = InstanceName.FromProjectInstance(ProjectId, SpannerInstance);
+            Instance existing = null;
+            try
+            {
+                existing = await instanceAdminClient.GetInstanceAsync(instanceName);
+            }
+            catch (RpcException e) when (e.StatusCode == StatusCode.NotFound)
+            {
+                // Ignore
+            }
+            if (existing == null)
+            {
+                var config = new InstanceConfigName(ProjectId, "emulator-config");
+                if (Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST") == null)
+                {
+                    var enumerator = instanceAdminClient.ListInstanceConfigsAsync(ProjectName.FromProject(ProjectId)).GetAsyncEnumerator();
+                    if (await enumerator.MoveNextAsync())
+                    {
+                        config = enumerator.Current.InstanceConfigName;
+                    }
+                }
+                try
+                {
+                    await instanceAdminClient.CreateInstance(new CreateInstanceRequest
+                    {
+                        InstanceId = instanceName.InstanceId,
+                        ParentAsProjectName = ProjectName.FromProject(ProjectId),
+                        Instance = new Instance
+                        {
+                            InstanceName = instanceName,
+                            ConfigAsInstanceConfigName = config,
+                            DisplayName = "Test Instance",
+                            NodeCount = 1,
+                        },
+                    }).PollUntilCompletedAsync();
+                    OwnedInstance = true;
+                }
+                catch (RpcException e) when (e.StatusCode == StatusCode.AlreadyExists)
+                {
+                    // Ignore
+                }
             }
         }
 
