@@ -20,6 +20,7 @@ using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1.Internal.Logging;
 using Grpc.Core;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
@@ -130,6 +131,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Instance existing = null;
             try
             {
+                await instanceAdminClient.DeleteInstanceAsync(instanceName);
                 existing = await instanceAdminClient.GetInstanceAsync(instanceName);
             }
             catch (RpcException e) when (e.StatusCode == StatusCode.NotFound)
@@ -149,7 +151,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 }
                 try
                 {
-                    await instanceAdminClient.CreateInstance(new CreateInstanceRequest
+                    var instance = (await instanceAdminClient.CreateInstance(new CreateInstanceRequest
                     {
                         InstanceId = instanceName.InstanceId,
                         ParentAsProjectName = ProjectName.FromProject(ProjectId),
@@ -160,7 +162,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                             DisplayName = "Test Instance",
                             NodeCount = 1,
                         },
-                    }).PollUntilCompletedAsync();
+                    }).PollUntilCompletedAsync()).Result;
+                    while (instance.State == Instance.Types.State.Creating)
+                    {
+                        Thread.Sleep(1000);
+                        instance = await instanceAdminClient.GetInstanceAsync(instanceName);
+                    }
                     OwnedInstance = true;
                 }
                 catch (RpcException e) when (e.StatusCode == StatusCode.AlreadyExists)
