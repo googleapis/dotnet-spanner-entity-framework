@@ -54,11 +54,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             get => env_databaseName == "" ? s_generatedDatabaseName : env_databaseName;
         }
 
-        /// <summary>
-        /// Returns true if the Spanner Instance that is used for the test run was created by this test run.
-        /// </summary>
-        public bool OwnedInstance { get; private set; }
-
         // This is the simplest way of checking whether the environment variable was specified or not.
         // It's a little ugly, but simpler than the alternatives.
 
@@ -163,7 +158,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                         },
                     }).PollUntilCompletedAsync()).Result;
                     await WaitUntilCreated(instanceName, instanceAdminClient);
-                    OwnedInstance = true;
                 }
                 catch (RpcException e) when (e.StatusCode == StatusCode.AlreadyExists)
                 {
