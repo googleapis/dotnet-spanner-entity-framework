@@ -13,7 +13,6 @@
 // limitations under the License.
 
 using Google.Api.Gax;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -49,7 +48,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             }
             if (otherStatements.Count() > 0)
             {
-                using var transaction = await spannerConnection.BeginTransactionAsync();
+                using var transaction = await spannerConnection.BeginTransactionAsync(cancellationToken);
                 var cmd = spannerConnection.CreateBatchDmlCommand();
                 cmd.Transaction = transaction;
                 foreach (var statement in otherStatements)
@@ -57,7 +56,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                     cmd.Add(statement);
                 }
                 await cmd.ExecuteNonQueryAsync(cancellationToken);
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(cancellationToken);
             }
         }
 

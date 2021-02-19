@@ -16,6 +16,7 @@ using Google.Api.Gax;
 using Google.Cloud.Spanner.Data;
 using System.Data;
 using System.Data.Common;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
@@ -67,18 +68,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <summary>
         /// Wraps a DML command in a Spanner retriable transaction to retry Aborted errors.
         /// </summary>
-        private async Task<int> ExecuteNonQueryWithRetryAsync(SpannerCommand spannerCommand)
+        private async Task<int> ExecuteNonQueryWithRetryAsync(SpannerCommand spannerCommand, CancellationToken cancellationToken = default)
         {
             var builder = SpannerCommandTextBuilder.FromCommandText(spannerCommand.CommandText);
             if (builder.SpannerCommandType == SpannerCommandType.Ddl)
             {
-                return await spannerCommand.ExecuteNonQueryAsync();
+                return await spannerCommand.ExecuteNonQueryAsync(cancellationToken);
             }
             return await _connection.SpannerConnection.RunWithRetriableTransactionAsync(async transaction =>
             {
                 spannerCommand.Transaction = transaction;
-                return await spannerCommand.ExecuteNonQueryAsync();
-            });
+                return await spannerCommand.ExecuteNonQueryAsync(cancellationToken);
+            }, cancellationToken);
         }
 
         public override object ExecuteScalar() =>
