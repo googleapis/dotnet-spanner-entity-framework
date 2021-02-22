@@ -31,10 +31,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         public ScaffoldingTests(SpannerSampleFixture fixture) => _fixture = fixture;
 
-        [SkippableFact]
+        [Fact]
         public async void AllTablesAreGenerated()
         {
-            Skip.If(SpannerFixtureBase.IsEmulator, "The query in this test crashes the emulator");
             using var connection = _fixture.GetConnection();
             var tableNames = new string[] {
                 "Singers", "Albums", "Tracks", "Venues", "Concerts", "Performances", "TableWithAllColumnTypes"
@@ -404,10 +403,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             }
         }
 
-        [SkippableFact]
+        [Fact]
         public async void CanInsertAndUpdateRowWithAllDataTypes()
         {
-            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support NUMERIC");
             var id = _fixture.RandomLong();
             var today = SpannerDate.FromDateTime(DateTime.SpecifyKind(DateTime.Today, DateTimeKind.Unspecified));
             var now = DateTime.UtcNow;
@@ -469,7 +467,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 // The commit timestamp was automatically set by Cloud Spanner.
                 Assert.NotEqual(new DateTime(), row.ColCommitTs);
                 // This assumes that the local time does not differ more than 10 minutes with TrueTime.
-                Assert.True(Math.Abs(DateTime.UtcNow.Subtract(row.ColCommitTs.GetValueOrDefault()).TotalMinutes) < 10, $"Commit timestamp {row.ColCommitTs} differs with more than 10 minutes from now ({DateTime.UtcNow})");
+                if (!SpannerFixtureBase.IsEmulator)
+                {
+                    // The emulator seems to return a commit timestamp that is skewed by 1 hour compared to what Cloud Spanner returns.
+                    Assert.True(Math.Abs(DateTime.UtcNow.Subtract(row.ColCommitTs.GetValueOrDefault()).TotalMinutes) < 10, $"Commit timestamp {row.ColCommitTs} differs with more than 10 minutes from now ({DateTime.UtcNow})");
+                }
                 insertedCommitTimestamp = row.ColCommitTs;
 
                 // Update the row.
@@ -532,10 +534,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             }
         }
 
-        [SkippableFact]
+        [Fact]
         public async void CanInsertAndUpdateNullValues()
         {
-            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support NUMERIC");
             var id = _fixture.RandomLong();
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
@@ -605,7 +606,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.NotNull(row.ColBytesMax);
                 Assert.NotNull(row.ColBytesMaxArray);
                 Assert.NotNull(row.ColCommitTs);
-                Assert.NotNull(row.ColComputed);
+                if (!SpannerFixtureBase.IsEmulator)
+                {
+                    Assert.NotNull(row.ColComputed);
+                }
                 Assert.NotNull(row.ColDate);
                 Assert.NotNull(row.ColDateArray);
                 Assert.NotNull(row.ColFloat64);
@@ -670,10 +674,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             }
         }
 
-        [SkippableFact]
+        [Fact]
         public async void CanInsertAndUpdateNullValuesInArrays()
         {
-            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support NUMERIC");
             var id = _fixture.RandomLong();
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {

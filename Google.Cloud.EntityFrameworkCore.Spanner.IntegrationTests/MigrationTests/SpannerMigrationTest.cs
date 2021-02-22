@@ -31,10 +31,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         public SpannerMigrationTest(MigrationTestFixture fixture) => _fixture = fixture;
 
-        [SkippableFact]
+        [Fact]
         public async Task AllTablesAreGenerated()
         {
-            Skip.If(SpannerFixtureBase.IsEmulator, "The query in this test crashes the emulator");
             using var connection = _fixture.GetConnection();
             var tableNames = new string[] { "Products", "Categories", "Orders", "OrderDetails", "Articles", "Authors" };
             var tables = new SpannerParameterCollection
@@ -140,10 +139,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Null(row.ColTimestampList);
         }
 
-        [SkippableFact]
+        [Fact]
         public async Task CanInsertAndUpdateRowWithAllDataTypes()
         {
-            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support NUMERIC");
             var now = DateTime.UtcNow;
             var guid = Guid.NewGuid();
             using (var context = new TestMigrationDbContext(_fixture.DatabaseName))
@@ -234,7 +232,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 // The commit timestamp was automatically set by Cloud Spanner.
                 Assert.NotEqual(new DateTime(), row.ColCommitTimestamp);
                 // This assumes that the local time does not differ more than 10 minutes with TrueTime.
-                Assert.True(Math.Abs(DateTime.UtcNow.Subtract(row.ColCommitTimestamp.GetValueOrDefault()).TotalMinutes) < 10, $"Commit timestamp {row.ColCommitTimestamp} differs with more than 10 minutes from now ({DateTime.UtcNow})");
+                if (!SpannerFixtureBase.IsEmulator)
+                {
+                    Assert.True(Math.Abs(DateTime.UtcNow.Subtract(row.ColCommitTimestamp.GetValueOrDefault()).TotalMinutes) < 10, $"Commit timestamp {row.ColCommitTimestamp} differs with more than 10 minutes from now ({DateTime.UtcNow})");
+                }
 
                 // Update rows
                 row.ColBool = false;
@@ -422,17 +423,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Null(await context.Products.FindAsync(product.ProductId));
             Assert.Null(await context.Orders.FindAsync(order.OrderId));
             Assert.Null(await context.OrderDetails.FindAsync(orderDetail.OrderId, orderDetail.ProductId));
-            if (SpannerFixtureBase.IsEmulator)
-            {
-                Assert.Equal(0, await context.AllColTypes
-                    .Where(row => row.Id == allColType.Id)
-                    .Select(row => row.Id)
-                    .FirstOrDefaultAsync());
-            }
-            else
-            {
-                Assert.Null(await context.AllColTypes.FindAsync(allColType.Id));
-            }
+            Assert.Null(await context.AllColTypes.FindAsync(allColType.Id));
         }
 
         [Fact]

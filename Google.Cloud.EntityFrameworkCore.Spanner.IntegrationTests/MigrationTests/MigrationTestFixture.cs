@@ -61,29 +61,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                         .HasValueGenerator<AuthorFullNameGenerator>()
                         .ValueGeneratedNever();
                 });
-
-                modelBuilder.Entity<AllColType>(entity =>
-                {
-                    entity.Ignore(e => e.ColDecimal);
-
-                    // Configure the numeric columns for automatic conversion to/from FLOAT64 as the emulator does not support NUMERIC.
-                    entity.Property(e => e.ColDecimal)
-                        .HasConversion(
-                            v => v.HasValue ? (double)v.Value.ToDecimal(LossOfPrecisionHandling.Truncate) : 0d,
-                            v => new SpannerNumeric?(SpannerNumeric.FromDecimal((decimal)v, LossOfPrecisionHandling.Truncate))
-                        )
-                        .HasDefaultValue(new SpannerNumeric());
-                    entity.Property(e => e.ColDecimalList)
-                        .HasConversion(
-                            v => v == null ? new List<double>() : v.Select(element => (double)element.ToDecimal(LossOfPrecisionHandling.Truncate)).ToList(),
-                            v => v == null ? new List<SpannerNumeric>() : v.Select(element => SpannerNumeric.FromDecimal((decimal)element, LossOfPrecisionHandling.Truncate)).ToList()
-                        );
-                    entity.Property(e => e.ColDecimalArray)
-                        .HasConversion(
-                            v => v == null ? new double[0] : v.Select(element => (double)element.ToDecimal(LossOfPrecisionHandling.Truncate)).ToArray(),
-                            v => v == null ? new SpannerNumeric[0] : v.Select(element => SpannerNumeric.FromDecimal((decimal)element, LossOfPrecisionHandling.Truncate)).ToArray()
-                        );
-                });
             }
         }
     }
