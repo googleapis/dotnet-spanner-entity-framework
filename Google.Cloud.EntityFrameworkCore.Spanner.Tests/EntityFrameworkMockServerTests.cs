@@ -1782,6 +1782,31 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             );
         }
 
+        [Fact]
+        public async Task CanUseAsAsyncEnumerable()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture{Environment.NewLine}FROM Singers AS s{Environment.NewLine}WHERE STRPOS(s.FirstName, @__firstName_0) > 0";
+            AddFindSingerResult(sql);
+
+            var firstName = "Alice";
+            var singers = db.Singers
+                .Where(s => s.FirstName.Contains(firstName))
+                .AsAsyncEnumerable();
+            await foreach (var singer in singers)
+            {
+                Assert.Equal("Morrison", singer.LastName);
+            }
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal("Alice", request.Params.Fields["__firstName_0"].StringValue);
+                }
+            );
+        }
+
         private string AddFindSingerResult(string sql)
         {
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
