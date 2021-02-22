@@ -20,6 +20,8 @@ using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1.Internal.Logging;
 using Grpc.Core;
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -81,37 +83,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             {
                 builder.Port = int.Parse(SpannerPort);
             }
-            if (Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST") != null)
-            {
-                // Switch to emulator config.
-                // Check if the instance exists and if not create it on the emulator.
-                var adminClientBuilder = new InstanceAdminClientBuilder
-                {
-                    EmulatorDetection = EmulatorDetection.EmulatorOnly
-                };
-                var instanceAdminClient = adminClientBuilder.Build();
+            MaybeCreateInstanceAsync().WaitWithUnwrappedExceptions();
 
-                InstanceName instanceName = InstanceName.FromProjectInstance(projectId, SpannerInstance);
-                try
-                {
-                    instanceAdminClient.CreateInstance(new CreateInstanceRequest
-                    {
-                        InstanceId = instanceName.InstanceId,
-                        ParentAsProjectName = ProjectName.FromProject(projectId),
-                        Instance = new Instance
-                        {
-                            InstanceName = instanceName,
-                            ConfigAsInstanceConfigName = new InstanceConfigName(projectId, "emulator-config"),
-                            DisplayName = "Test Instance",
-                            NodeCount = 1,
-                        },
-                    }).PollUntilCompleted();
-                }
-                catch (RpcException e) when (e.StatusCode == StatusCode.AlreadyExists)
-                {
-                    // Ignore
-                }
-            }
             NoDbConnectionString = builder.ConnectionString;
             var databaseBuilder = builder.WithDatabase(SpannerDatabase);
             ConnectionString = databaseBuilder.ConnectionString;
@@ -127,6 +100,83 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             else
             {
                 Logger.DefaultLogger.Debug($"Using existing database {SpannerDatabase}");
+            }
+        }
+
+        private async Task MaybeCreateInstanceAsync()
+        {
+            var builder = new SpannerConnectionStringBuilder
+            {
+                Host = SpannerHost,
+                DataSource = $"projects/{ProjectId}/instances/{SpannerInstance}",
+                EmulatorDetection = EmulatorDetection.EmulatorOrProduction
+            };
+            if (SpannerPort != null)
+            {
+                builder.Port = int.Parse(SpannerPort);
+            }
+            // Check if the instance exists and if not create it.
+            var adminClientBuilder = new InstanceAdminClientBuilder
+            {
+                EmulatorDetection = EmulatorDetection.EmulatorOrProduction
+            };
+            var instanceAdminClient = adminClientBuilder.Build();
+
+            InstanceName instanceName = InstanceName.FromProjectInstance(ProjectId, SpannerInstance);
+            Instance existing = null;
+            try
+            {
+                existing = await instanceAdminClient.GetInstanceAsync(instanceName);
+            }
+            catch (RpcException e) when (e.StatusCode == StatusCode.NotFound)
+            {
+                // Ignore
+            }
+            if (existing == null)
+            {
+                var config = new InstanceConfigName(ProjectId, "emulator-config");
+                if (Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST") == null)
+                {
+                    var enumerator = instanceAdminClient.ListInstanceConfigsAsync(ProjectName.FromProject(ProjectId)).GetAsyncEnumerator();
+                    if (await enumerator.MoveNextAsync())
+                    {
+                        config = enumerator.Current.InstanceConfigName;
+                    }
+                }
+                try
+                {
+                    var instance = (await instanceAdminClient.CreateInstance(new CreateInstanceRequest
+                    {
+                        InstanceId = instanceName.InstanceId,
+                        ParentAsProjectName = ProjectName.FromProject(ProjectId),
+                        Instance = new Instance
+                        {
+                            InstanceName = instanceName,
+                            ConfigAsInstanceConfigName = config,
+                            DisplayName = "Test Instance",
+                            NodeCount = 1,
+                        },
+                    }).PollUntilCompletedAsync()).Result;
+                    await WaitUntilCreated(instanceName, instanceAdminClient);
+                }
+                catch (RpcException e) when (e.StatusCode == StatusCode.AlreadyExists)
+                {
+                    await WaitUntilCreated(instanceName, instanceAdminClient);
+                }
+            }
+            else
+            {
+                await WaitUntilCreated(instanceName, instanceAdminClient);
+            }
+        }
+
+        private async Task WaitUntilCreated(InstanceName instanceName, InstanceAdminClient instanceAdminClient)
+        {
+            var instance = await instanceAdminClient.GetInstanceAsync(instanceName);
+            while (instance.State == Instance.Types.State.Creating)
+            {
+                Thread.Sleep(1000);
+                instance = await instanceAdminClient.GetInstanceAsync(instanceName);
             }
         }
 
