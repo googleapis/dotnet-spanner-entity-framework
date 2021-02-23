@@ -1,0 +1,54 @@
+﻿// Copyright 2021 Google Inc. All Rights Reserved.
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// 
+//     http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+using Microsoft.EntityFrameworkCore;
+
+namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.ShadowPropertiesModel
+{
+    public partial class SpannerShadowPropertiesDbContext : DbContext
+    {
+        public SpannerShadowPropertiesDbContext()
+        {
+        }
+
+        public SpannerShadowPropertiesDbContext(DbContextOptions<SpannerShadowPropertiesDbContext> options)
+            : base(options)
+        {
+        }
+
+        public virtual DbSet<Singer> Singers { get; set; }
+        public virtual DbSet<Album> Albums { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Singer>(entity =>
+            {
+                entity.HasKey(e => e.SingerId).HasName("PRIMARY_KEY");
+
+                entity.Property(e => e.SingerId).ValueGeneratedNever();
+                entity.Property(e => e.FirstName);
+                entity.Property(e => e.LastName);
+            });
+
+            modelBuilder.Entity<Album>(entity =>
+            {
+                entity.Property(e => e.AlbumId).ValueGeneratedNever();
+            });
+
+            OnModelCreatingPartial(modelBuilder);
+        }
+
+        partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
+    }
+}
