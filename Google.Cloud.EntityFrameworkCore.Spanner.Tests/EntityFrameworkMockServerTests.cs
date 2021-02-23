@@ -1807,6 +1807,38 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             );
         }
 
+        [Fact]
+        public async Task CanInsertRowWithCommitTimestampAndComputedColumn()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"INSERT INTO TableWithAllColumnTypes (ColCommitTS, ColInt64, ColBool, ColBoolArray, ColBytes, ColBytesArray, ColBytesMax, ColBytesMaxArray, ColDate, ColDateArray, ColFloat64, ColFloat64Array, ColInt64Array, ColNumeric, ColNumericArray, ColString, ColStringArray, ColStringMax, ColStringMaxArray, ColTimestamp, ColTimestampArray){Environment.NewLine}VALUES (PENDING_COMMIT_TIMESTAMP(), @p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1L));
+            var selectSql = $"{Environment.NewLine}SELECT ColComputed{Environment.NewLine}FROM TableWithAllColumnTypes{Environment.NewLine}WHERE  TRUE  AND ColInt64 = @p0";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(selectSql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
+
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = 1L }
+            );
+            await db.SaveChangesAsync();
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest).Select(request => (ExecuteBatchDmlRequest)request),
+                request => Assert.Collection(request.Statements, statement => Assert.Equal(sql, statement.Sql))
+            );
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                request => Assert.Equal(selectSql, request.Sql)
+            );
+            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
+            // Verify the order of the requests (that is, the Select statement should be inside the transaction).
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest || request is CommitRequest || request is ExecuteSqlRequest).Select(request => request.GetType()),
+                requestType => Assert.Equal(typeof(ExecuteBatchDmlRequest), requestType),
+                requestType => Assert.Equal(typeof(ExecuteSqlRequest), requestType),
+                requestType => Assert.Equal(typeof(CommitRequest), requestType)
+            );
+        }
+
         private string AddFindSingerResult(string sql)
         {
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(

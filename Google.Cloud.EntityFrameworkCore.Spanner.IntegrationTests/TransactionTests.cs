@@ -238,6 +238,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Null(result);
         }
 
+        [SkippableFact]
+        public async Task CanUseComputedColumnAndCommitTimestamp()
+        {
+            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support inserting multiple rows in one table with a commit timestamp column in one transaction");
+            var id1 = _fixture.RandomLong();
+            var id2 = _fixture.RandomLong();
+
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            db.TableWithAllColumnTypes.AddRange(
+                new TableWithAllColumnTypes { ColInt64 = id1, ColStringArray = new List<string> { "1", "2", "3" } },
+                new TableWithAllColumnTypes { ColInt64 = id2, ColStringArray = new List<string> { "4", "5", "6" } }
+            );
+            await db.SaveChangesAsync();
+        }
+
         [SkippableTheory]
         [InlineData(false)]
         [InlineData(true)]
