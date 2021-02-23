@@ -99,6 +99,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         private static readonly MethodInfo _formatVarArgMethodInfo
             = typeof(string).GetMethod(nameof(string.Format), new[] { typeof(string), typeof(object[]) });
 
+        private static readonly MethodInfo _joinMethodInfo
+            = typeof(string).GetRuntimeMethod(nameof(string.Join), new[] { typeof(string), typeof(IEnumerable<string>) });
+
         private readonly ISqlExpressionFactory _sqlExpressionFactory;
 
         public SpannerStringMethodTranslator([NotNull] ISqlExpressionFactory sqlExpressionFactory)
@@ -189,6 +192,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             if (_formatOneArgMethodInfo.Equals(method) || _formatTwoArgMethodInfo.Equals(method) || _formatThreeArgMethodInfo.Equals(method) || _formatVarArgMethodInfo.Equals(method))
             {
                 return TranslateStaticFunction("FORMAT", arguments, typeof(string));
+            }
+            if (_joinMethodInfo.Equals(method))
+            {
+                return TranslateTwoArgFunction("ARRAY_TO_STRING", arguments[1], arguments[0], _sqlExpressionFactory.Constant(""), typeof(string));
             }
 
             return null;

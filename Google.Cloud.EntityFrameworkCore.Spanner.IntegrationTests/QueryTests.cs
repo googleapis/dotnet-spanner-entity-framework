@@ -91,7 +91,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             var albums = await db.Albums
                 .Include(a => a.Singer)
-                .Where(a => a.Singer.LastName == "Allison")
+                .Where(a => a.Singer.LastName == "Allison" && new long[] { singerId1, singerId2 }.Contains(a.SingerId))
                 .OrderBy(a => a.Title)
                 .ToListAsync();
             Assert.Collection(albums,
@@ -664,6 +664,30 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 .Select(s => string.Format("%025d: %s, born on %t", s.SingerId, s.FullName, s.BirthDate))
                 .FirstOrDefaultAsync();
             Assert.Equal($"{singerId.ToString().PadLeft(25, '0')}: Alice Morrison, born on {new SpannerDate(1973, 10, 9)}", formattedName);
+        }
+
+        [Fact]
+        public async Task CanUseStringJoin()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+
+            var singerId = _fixture.RandomLong();
+            var albumId = _fixture.RandomLong();
+            var id1 = _fixture.RandomLong();
+            var id2 = _fixture.RandomLong();
+            db.AddRange(
+                new Singers { SingerId = singerId, LastName = "Allison" },
+                new Albums { AlbumId = albumId, SingerId = singerId, Title = "Test Title" },
+                new Tracks { AlbumId = albumId, TrackId = id1, Title = "Track 1", Lyrics = new List<string> { "Test 1", null, "Test 2" }, LyricsLanguages = new List<string> { "en", "en", "en" } },
+                new Tracks { AlbumId = albumId, TrackId = id2, Title = "Track 2", Lyrics = new List<string> { null, "Test 3", null, "Test 4" }, LyricsLanguages = new List<string> { "en", "en", "en", "en" } }
+            );
+            await db.SaveChangesAsync();
+
+            var rows = await db.Tracks
+                .Where(row => new long[] { id1, id2 }.Contains(row.TrackId) && string.Join(", ", row.Lyrics) == ", Test 3, , Test 4")
+                .ToListAsync();
+
+            Assert.Collection(rows, row => Assert.Equal(id2, row.TrackId));
         }
 
         [Fact]
