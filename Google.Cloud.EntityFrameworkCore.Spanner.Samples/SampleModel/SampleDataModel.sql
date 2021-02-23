@@ -2,10 +2,10 @@
   SingerId  STRING(36) NOT NULL,
   FirstName STRING(200),
   LastName  STRING(200) NOT NULL,
-  FullName  STRING(400) NOT NULL AS (COALESCE(FirstName || ' ', '') || LastName) STORED,
   BirthDate DATE,
   Picture   BYTES(MAX),
   Version   INT64 NOT NULL,
+  FullName  STRING(400) NOT NULL AS (COALESCE(FirstName || ' ', '') || LastName) STORED,
 ) PRIMARY KEY (SingerId);
 
 CREATE INDEX Idx_Singers_FullName ON Singers (FullName);
