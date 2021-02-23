@@ -20,7 +20,7 @@ using System.Linq;
 using System.Threading.Tasks;
 
 /// <summary>
-/// Shows how to use ToAsyncEnumerable with query results from Cloud Spanner.
+/// Shows how to use AsAsyncEnumerable with query results from Cloud Spanner.
 /// 
 /// Run from the command line with `dotnet run StreamingQuerySample`
 /// </summary>
