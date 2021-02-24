@@ -38,10 +38,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.InheritanceT
             modelBuilder.Entity<Singer>();
             modelBuilder.Entity<StageWorker>();
             modelBuilder.Entity<Album>();
-
-            OnModelCreatingPartial(modelBuilder);
         }
-
-        partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
     }
 }
