@@ -258,7 +258,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 .ToListAsync();
             Assert.Collection(rows,
                 row => Assert.Equal("1,2,3", row.ColComputed),
-                row => Assert.Equal("3,4,5", row.ColComputed)
+                row => Assert.Equal("4,5,6", row.ColComputed)
             );
             // The rows were inserted in the same transaction and should therefore have the same commit timestamp.
             Assert.Equal(rows[0].ColCommitTs, rows[1].ColCommitTs);
