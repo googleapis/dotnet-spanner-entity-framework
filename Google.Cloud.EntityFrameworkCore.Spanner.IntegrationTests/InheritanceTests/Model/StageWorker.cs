@@ -14,15 +14,12 @@
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.InheritanceTests.Model
 {
-    public partial class Album
+    public partial class StageWorker : Person
     {
-        public Album()
+        public StageWorker()
         {
         }
 
-        public long AlbumId { get; set; }
-        public string Title { get; set; }
-
-        public virtual Singer Singer { get; set; }
+        public virtual Singer WorksFor { get; set; }
     }
 }
