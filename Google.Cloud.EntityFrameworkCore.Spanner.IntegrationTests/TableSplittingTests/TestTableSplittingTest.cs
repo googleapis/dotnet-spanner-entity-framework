@@ -38,5 +38,41 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.TableSplitti
             Assert.Equal(1, reader.GetInt64(0));
             Assert.False(await reader.ReadAsync());
         }
+
+        [Fact]
+        public async Task ShouldNotGenerateAForeignKey()
+        {
+            using var connection = _fixture.GetConnection();
+            var cmd = connection.CreateSelectCommand(
+                "SELECT COUNT(*) " +
+                "FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS");
+            using var reader = await cmd.ExecuteReaderAsync();
+            Assert.True(await reader.ReadAsync());
+            Assert.Equal(0, reader.GetInt64(0));
+            Assert.False(await reader.ReadAsync());
+        }
+
+        [Fact]
+        public async Task CanInsertOrders()
+        {
+            using var db = new TestTableSplittingDbContext(_fixture.DatabaseName);
+            var orderId = _fixture.RandomLong();
+            var order = new Models.Order
+            {
+                Id = orderId.GetHashCode(),
+                Status = "Processing",
+                OrderDetail = new Models.OrderDetail
+                {
+                    Id = orderId.GetHashCode(),
+                    Status = "Processing",
+                    ShippingAddress = "Some address",
+                    BillingAddress = "Some other address",
+                },
+            };
+            db.Orders.Add(order);
+            var rowCount = await db.SaveChangesAsync();
+            Assert.Equal(1, rowCount);
+        }
+
     }
 }
