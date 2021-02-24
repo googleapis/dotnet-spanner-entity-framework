@@ -36,10 +36,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.ShadowProper
         {
             modelBuilder.Entity<Singer>(entity =>
             {
-                entity.HasKey(e => e.SingerId).HasName("PRIMARY_KEY");
-
-                entity.Property(e => e.SingerId).ValueGeneratedNever();
-                entity.Property(e => e.Name);
                 entity
                     .Property<DateTime>("LastModified")
                     .HasAnnotation("UpdateCommitTimestamp", SpannerUpdateCommitTimestamp.OnInsertAndUpdate);
@@ -47,7 +43,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.ShadowProper
 
             modelBuilder.Entity<Album>(entity =>
             {
-                entity.Property(e => e.AlbumId).ValueGeneratedNever();
                 entity
                     .Property<DateTime>("LastModified")
                     .HasAnnotation("UpdateCommitTimestamp", SpannerUpdateCommitTimestamp.OnInsertAndUpdate);
