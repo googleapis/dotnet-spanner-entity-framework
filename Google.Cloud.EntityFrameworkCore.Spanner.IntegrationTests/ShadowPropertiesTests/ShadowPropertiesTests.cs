@@ -14,6 +14,7 @@
 
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.ShadowPropertiesModel;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
@@ -36,8 +37,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.ShadowProper
                 var singer = new Singer
                 {
                     SingerId = singerId,
-                    FirstName = "Joe",
-                    LastName = "Elliot",
+                    Name = "Joe Elliot",
                 };
                 db.AddRange(singer, new Album
                 {
@@ -52,8 +52,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.ShadowProper
             {
                 var singer = await db.Singers.FindAsync(singerId);
                 Assert.Collection(singer.Albums, album => Assert.Equal("Some title", album.Title));
+                Assert.NotNull(db.Entry(singer).Property("LastModified").CurrentValue);
+
                 var album = await db.Albums.FindAsync(albumId);
-                Assert.Equal("Joe", album.Singer.FirstName);
+                Assert.Equal("Joe Elliot", album.Singer.Name);
+                Assert.NotNull(db.Entry(album).Property("LastModified").CurrentValue);
             }
         }
 
@@ -66,8 +69,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.ShadowProper
             var singer = new Singer
             {
                 SingerId = singerId,
-                FirstName = "Zeke",
-                LastName = "Pieterson",
+                Name = "Zeke Pieterson",
             };
             var album = new Album
             {
@@ -80,6 +82,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.ShadowProper
 
             var albums = await db.Albums.Where(album => album.Singer.SingerId == singerId).ToListAsync();
             Assert.Collection(albums, album => Assert.Equal("My title", album.Title));
+
+            var singerId2 = _fixture.RandomLong();
+            db.Singers.Add(new Singer
+            {
+                SingerId = singerId2,
+                Name = "Alice Wendelson",
+            });
+            await db.SaveChangesAsync();
+
+            var singers = await db.Singers
+                .Where(s => new[] { singerId, singerId2 }.Contains(s.SingerId))
+                .OrderByDescending(singer => EF.Property<DateTime>(singer, "LastModified")).ToListAsync();
+            Assert.Collection(singers,
+                singer => Assert.Equal("Alice Wendelson", singer.Name),
+                singer => Assert.Equal("Zeke Pieterson", singer.Name)
+            );
         }
     }
 }

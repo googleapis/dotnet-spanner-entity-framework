@@ -77,13 +77,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.ShadowProper
             connection.CreateDdlCommand(
                 @"CREATE TABLE Singers (
                     SingerId INT64,
-                    FirstName STRING(MAX),
-                    LastName STRING(MAX),
+                    Name STRING(MAX),
+                    LastModified TIMESTAMP OPTIONS (allow_commit_timestamp = true),
                  ) PRIMARY KEY (SingerId)",
                 @"CREATE TABLE Albums (
                     AlbumId INT64,
                     Title STRING(MAX),
                     SingerId INT64,
+                    LastModified TIMESTAMP OPTIONS (allow_commit_timestamp = true),
                     CONSTRAINT FK_Albums_Singers FOREIGN KEY (SingerId) REFERENCES Singers (SingerId),
                  ) PRIMARY KEY (AlbumId)"
             ).ExecuteNonQuery();

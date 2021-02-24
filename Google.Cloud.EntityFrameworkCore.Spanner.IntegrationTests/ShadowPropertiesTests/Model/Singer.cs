@@ -24,8 +24,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.ShadowProper
         }
 
         public long SingerId { get; set; }
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
+        public string Name { get; set; }
 
         public virtual ICollection<Album> Albums { get; set; }
     }
