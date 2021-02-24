@@ -251,6 +251,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 new TableWithAllColumnTypes { ColInt64 = id2, ColStringArray = new List<string> { "4", "5", "6" } }
             );
             await db.SaveChangesAsync();
+
+            var rows = await db.TableWithAllColumnTypes
+                .Where(row => new[] { id1, id2 }.Contains(row.ColInt64))
+                .OrderBy(row => row.ColInt64 == id1 ? 1 : 2) // This ensures that the row with id1 is returned as the first result.
+                .ToListAsync();
+            Assert.Collection(rows,
+                row => Assert.Equal("1, 2, 3", row.ColComputed),
+                row => Assert.Equal("3, 4, 5", row.ColComputed)
+            );
+            // The rows were inserted in the same transaction and should therefore have the same commit timestamp.
+            Assert.Equal(rows[0].ColCommitTs, rows[1].ColCommitTs);
         }
 
         [SkippableTheory]
