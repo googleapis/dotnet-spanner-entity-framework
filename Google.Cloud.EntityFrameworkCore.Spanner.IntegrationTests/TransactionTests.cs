@@ -238,6 +238,32 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Null(result);
         }
 
+        [SkippableFact]
+        public async Task CanUseComputedColumnAndCommitTimestamp()
+        {
+            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support inserting multiple rows in one table with a commit timestamp column in one transaction");
+            var id1 = _fixture.RandomLong();
+            var id2 = _fixture.RandomLong();
+
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            db.TableWithAllColumnTypes.AddRange(
+                new TableWithAllColumnTypes { ColInt64 = id1, ColStringArray = new List<string> { "1", "2", "3" } },
+                new TableWithAllColumnTypes { ColInt64 = id2, ColStringArray = new List<string> { "4", "5", "6" } }
+            );
+            await db.SaveChangesAsync();
+
+            var rows = await db.TableWithAllColumnTypes
+                .Where(row => new[] { id1, id2 }.Contains(row.ColInt64))
+                .OrderBy(row => row.ColInt64 == id1 ? 1 : 2) // This ensures that the row with id1 is returned as the first result.
+                .ToListAsync();
+            Assert.Collection(rows,
+                row => Assert.Equal("1,2,3", row.ColComputed),
+                row => Assert.Equal("4,5,6", row.ColComputed)
+            );
+            // The rows were inserted in the same transaction and should therefore have the same commit timestamp.
+            Assert.Equal(rows[0].ColCommitTs, rows[1].ColCommitTs);
+        }
+
         [SkippableTheory]
         [InlineData(false)]
         [InlineData(true)]
