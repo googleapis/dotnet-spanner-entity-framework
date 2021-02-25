@@ -35,11 +35,9 @@ public static class CommitTimestampSample
 {
     public static async Task Run(string connectionString)
     {
-        Concert concert = null;
         var startTime = new DateTime(2021, 1, 27, 19, 0, 0, DateTimeKind.Utc);
         using var context = new SpannerSampleDbContext(connectionString);
-        Track track;
-        (concert, track) = await GetConcertAndTrackAsync(context);
+        (Concert concert, Track track) = await GetConcertAndTrackAsync(context);
 
         // Create a new performance and save it.
         // This will automatically fill the CreatedAt property with the commit timestamp of the transaction.
