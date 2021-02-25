@@ -1,6 +1,8 @@
 # Google.Cloud.EntityFrameworkCore.Spanner
 [Google Cloud Spanner](https://cloud.google.com/spanner/docs/) database provider for [Entity Framework Core](https://docs.microsoft.com/en-us/ef/core/).
 
+__NOTE: This project is still in DEVELOPMENT. It may make breaking changes without prior notice and should not yet be used for production purposes.__
+
 # Getting started
 The Entity Framework Core provider allows you to use the Entity Framework to create your database, query and update data.
 To get started, install the NuGet package for `Google.Cloud.EntityFrameworkCore.Spanner` and call the "UseSpanner" method
