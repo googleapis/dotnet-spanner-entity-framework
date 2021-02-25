@@ -1,76 +1,80 @@
 # Google.Cloud.EntityFrameworkCore.Spanner
-[Google Cloud Spanner](https://cloud.google.com/spanner/docs/) database provider for Entity Framework Core.
+[Google Cloud Spanner](https://cloud.google.com/spanner/docs/) database provider for [Entity Framework Core](https://docs.microsoft.com/en-us/ef/core/).
+
+__NOTE: This project is still in DEVELOPMENT. It may make breaking changes without prior notice and should not yet be used for production purposes.__
 
 # Getting started
-The Entity Framework Core provider allows you to use the Entity Framework
-to create your database, query and update data. To get started, install
-the nuget package for EntityFrameworkCore Spanner and call the "UseSpanner"
-method extension to configure your DbContext with Spanner support.
+The Entity Framework Core provider allows you to use the Entity Framework to create your database, query and update data.
+To get started, install the NuGet package for `Google.Cloud.EntityFrameworkCore.Spanner` and call the "UseSpanner" method
+extension to configure your DbContext with Spanner support.
 
-## Before you begin
+## Ready to run Samples
+The [Google.Cloud.EntityFrameworkCore.Spanner.Samples](Google.Cloud.EntityFrameworkCore.Spanner.Samples) project contains a number of ready to run samples.
 
-1.  [Select or create a Cloud Platform project][projects].
-1.  [Enable billing for your project][billing].
-1.  [Enable the Cloud Spanner API][enable_api].
-1.  [Set up authentication with a service account][auth] so you can access the
-    API from your local workstation.
+Follow these simple steps to run a sample:
+1. Clone or download this repository to your local computer.
+2. Open a command prompt of your choice and navigate to the Google.Cloud.EntityFrameworkCore.Spanner.Samples project folder.
+3. Execute the command `dotnet run <SampleName>`. Execute `dotnet run` to get a list of available sample names.
 
-# Create Model for an Existing Database
+Browse the [Google.Cloud.EntityFrameworkCore.Spanner.Samples/Snippets](Google.Cloud.EntityFrameworkCore.Spanner.Samples/Snippets) directory to view the source code of each sample.
 
-1. Create Instance using [Create Instance Sample](https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/master/spanner/api/Spanner.Samples/CreateInstance.cs).
+## Example Usage
+First [set up a .NET development environment](https://cloud.google.com/dotnet/docs/setup) for Google Cloud Spanner.
 
-2. Create Database using [Create Database Sample](https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/master/spanner/api/Spanner.Samples/CreateDatabaseAsync.cs).
+The following code snippet shows how to create a DbContext for a Spanner database.
 
-3. `Install-Package Microsoft.EntityFrameworkCore.Tools -Version 3.1.0`
+```cs
+public class BloggingContext : DbContext
+{
+    public DbSet<Blog> Blogs { get; set; }
+    public DbSet<Post> Posts { get; set; }
 
-4. `Install-Package Google.Cloud.EntityFrameworkCore.Spanner`
+    protected override void OnConfiguring(DbContextOptionsBuilder options)
+        => options.UseSpanner("Data Source=projects/my-project/instances/my-instance/databases/my-database");
+}
 
-5. Select `Google.Cloud.EntityFrameworkCore.Spanner` as the Default project in the Package Manager Console.
+public class Blog
+{
+    public int BlogId { get; set; }
+    public string Url { get; set; }
 
-6. `Scaffold-DbContext "Data Source=projects/project-id/instances/instance-id/databases/database-name" Google.Cloud.EntityFrameworkCore.Spanner -o Model -Force -Context SpannerSampleDbContext`
+    public List<Post> Posts { get; } = new List<Post>();
+}
 
-# Running Sample Integration Tests
-The sample integration tests require a valid sample database to be executed. This sample database can be automatically
-created by the integration tests, or the integration tests can be executed against an already existing database. The
-latter will make the integration tests significantly faster and is the recommended way of working if you intend to
-execute the tests several times. Letting the integration tests generate the database requires less manual setup, but
-will make the execution time longer.
+public class Post
+{
+    public int PostId { get; set; }
+    public string Title { get; set; }
+    public string Content { get; set; }
 
-## Letting the Integration Tests Generate the Database
-In order to execute the integration tests without an existing database you will need to setup a couple of environment
-variables, and you need an existing Cloud Spanner instance (not database). Configure the following:
-1. Setup default authentication: https://cloud.google.com/spanner/docs/getting-started/set-up#set_up_authentication_and_authorization
-2. Create an environment variable TEST_PROJECT that references your Google Cloud Project.
-3. Create an environment variable SPANNER_TEST_INSTANCE that references your existing Cloud Spanner instance. Only include the instance id (i.e. something like 'test-instance' and NOT 'projects/project-id/instances/test-instance')
+    public int BlogId { get; set; }
+    public Blog Blog { get; set; }
+}
+```
 
-Run the integration tests. The tests will automatically create a database for the test run and drop this database after the tests have finished.
+See the [Google Cloud Spanner documentation](https://cloud.google.com/spanner/docs) for more information on how to get
+started with Cloud Spanner in general, how to create an instance and a database, and how to set up authentication.
 
-## Using an Existing Database for the Integration Tests
-In order to use an existing database that can be reused for the integration tests you need to setup the following in addition to the steps above:
-1. Setup everything described above for 'Letting the Integration Tests Generate the Database'
-2. Create a Cloud Spanner database and create the data model that can be found in the SampleDataModel.sql file in the root of the integration tests project.
-3. Create an environment variable SPANNER_TEST_DATABASE that references this database. Only include the database id (i.e. something like 'test-database' and not 'projects/project-id/instances/test-instance/databases/test-database').
+# Create Model for an Existing Database (Database-First / Scaffolding)
+The Cloud Spanner EF Core provider supports [scaffolding](https://docs.microsoft.com/en-us/ef/core/managing-schemas/scaffolding?tabs=vs)
+to generate a model from an existing database (database-first approach).
 
-Run the integration tests. The tests will use the existing database and **not** drop it after the tests have finished. **Any data in the test tables will be lost**.
+Use the following command to generate a model for a Cloud Spanner database:
 
-## Running the Integration Tests Agains the Emulator
-**NOTE:** The sample integration tests can currently **NOT** be executed on the emulator as these use several features that are not yet supported
-on the emulator:
-* Computed columns
-* Numeric data type
-* Foreign keys
+`Scaffold-DbContext "Data Source=projects/my-project/instances/my-instance/databases/my-database" Google.Cloud.EntityFrameworkCore.Spanner`
 
-The SpannerFixtureBase class **does support** the emulator. That means that any other integration tests that extend SpannerFixtureBase
-can be executed on the emulator. A simple example of an integration test that does work with the emulator can be found in BasicsTest.cs.
+# Database Migrations
+The Cloud Spanner EF Core provider supports database migrations. See
+[Migrations overview](https://docs.microsoft.com/en-us/ef/core/managing-schemas/migrations/?tabs=dotnet-core-cli)
+for more background information on how to use migrations.
 
-The BasicsTests can be executed on the emulator by following these steps:
-1. Make sure that the environment variable SPANNER_TEST_DATABASE has **not** been set.
-2. Set the environment variable SPANNER_EMULATOR_HOST to `localhost:9010`.
-3. Start the Spanner emulator using the following command in Windows Power Shell: `gcloud beta emulators spanner start`
-4. Execute the integration test. The integration test environment will automatically create an instance and a database on the emulator.
+## Example Usage with Cloud Spanner
 
-# Migrations Overview
+Follow these steps to create a Cloud Spanner database from an entity model using migrations.
+
 ### 1. Create Models
+Create the entity model in code.
+
 ```cs
 public partial class Singer
 {
@@ -96,7 +100,9 @@ public partial class Album
     public virtual Singer Singer { get; set; }
 }
 ```
+
 ### 2. Configure `DbContext`
+Configure the `DbContext` to use Cloud Spanner by calling `DbContextOptionsBuilder.UseSpanner(string)` with a valid Cloud Spanner connection string.
 
 ```cs
 public partial class ArtistDbContext : DbContext
@@ -117,54 +123,151 @@ public partial class ArtistDbContext : DbContext
     {
         if (!optionsBuilder.IsConfigured)
         {
-            optionsBuilder.UseSpanner("Data Source=projects/project-id/instances/instance-id/databases/database-name");
+            optionsBuilder.UseSpanner("Data Source=projects/my-project/instances/my-instance-id/databases/my-database");
         }
     }
 }
 ```
 
 ### 3. Migration Command:
+Execute the migration commands:
 1. Add-Migration "migration name"
 2. Update-Database
 
-## Creating a hierarchy of interleaved tables
-Using `InterleaveInParent` Attribute you can create Hierarchy of [interleaved tables][inter-leaved-table].
-while declaring the Interleaved Table option it automatically ignore the foreign key referece.
+# Running Integration Tests
+
+The integration tests in [Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests](Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests)
+can be executed both on the Spanner emulator as well as on a real Spanner instance.
+
+## Running Integration Tests on the Emulator
+
+All integration tests can be executed on the emulator. Follow these steps to do so:
+1. Set the environment variable `SPANNER_EMULATOR_HOST=localhost:9010` (or any other valid value if you use a custom host/port for the emulator)
+2. Start a Spanner emulator. See https://cloud.google.com/spanner/docs/emulator#installing_and_running_the_emulator for more information on how to do this.
+3. Navigate to the project folder Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests and execute the command `dotnet test` or run the tests from your IDE.
+
+## Running Integration Tests on a real Spanner Instance
+
+The integration tests can also be executed on a real Spanner instance. The tests will automatically create test databases and drop these after finishing
+the tests. Follow these steps to execute the integration tests on a real Spanner instance.
+1. Make sure you have enabled the Spanner API in your Google Cloud project and have set up authentication. See the [Google Cloud Spanner documentation](https://cloud.google.com/spanner/docs) for more information on how to do this.
+2. Set the environment variable `TEST_SPANNER_INSTANCE` to a valid Spanner instance (e.g. `spanner-test-instance`).
+3. Navigate to the project folder Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests and execute the command `dotnet test` or run the tests from your IDE.
+
+# Specific Cloud Spanner Features
+
+Cloud Spanner has some specific features that are not supported by other relational databases. Using these with EF Core requires you to
+include some custom annotations in your model.
+
+## Interleaved Tables
+[Interleaved tables](https://cloud.google.com/spanner/docs/schema-and-data-model#creating-interleaved-tables) define a parent-child relationship
+between two tables where the rows of the child table are physically stored together with the parent rows.
+
+Use the `InterleavedInParent` attribute on a child table to create an interleaved table relationship between two tables.
+These relationships can be used in EF Core as if it was a foreign key relationship.
 
 ```cs
-public class Author
+public class Singer
 {
-    public long AuthorId { get; set; }
-    public string AutherName { get; set; }
+    public long SingerId { get; set; }
+    public string Name { get; set; }
 
-    public ICollection<Article> Articles { get; set; }
+    public virtual ICollection<Album> Albums { get; set; }
 }
 
-[InterleaveInParent(typeof(Author))]
-public class Article
+[InterleaveInParent(typeof(Singer))]
+public class Album
 {
-    public long AuthorId { get; set; }
-    public long ArticleId { get; set; }
-    public DateTime PublishDate { get; set; }
-    public string ArticleTitle { get; set; }
-    public string ArticleContent { get; set; }
-    public Author Author { get; set; }
+    public long SingerId { get; set; }
+    public long AlbumId { get; set; }
+    public string Title {get; set; }
+
+    public virtual Singer Singer { get; set; }
 }
 ```
-# Query Limitations
-* Operation on `ARRAY` types performs in memory.
-* Data Annotation Validation on `ARRAY` types might not work. 
 
-# Update Limitations
-* Cloud Spanner does not have database value generators or constraints.
-Instead, you may use a client side Guid generator for a primary key.
+## Commit Timestamps
+Cloud Spanner can write the [commit timestamp of a transaction](https://cloud.google.com/spanner/docs/commit-timestamp)
+to a column in a table. This can be used to keep track of a the creation and/or last update time of a row.
 
-## Licensing
+Use the `UpdateCommitTimestamp` annotation to set when a commit timestamp column should be filled. Possible values are:
+* Never,
+* OnUpdate,
+* OnInsert,
+* OnInsertAndUpdate
+
+```cs
+modelBuilder.Entity<Singer>(entity =>
+{
+    // Specify when the CreateAt and LastUpdatedAt columns should be updated.
+    entity.Property(e => e.CreatedAt)
+        .HasAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp, SpannerUpdateCommitTimestamp.OnInsert);
+    entity.Property(e => e.LastUpdatedAt)
+        .HasAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp, SpannerUpdateCommitTimestamp.OnUpdate);
+}
+```
+
+## Generated Columns
+Cloud Spanner [supports generated columns](https://cloud.google.com/spanner/docs/generated-column/how-to)
+that are calculated using a deterministic expression based on other columns in the same table. These columns may not be
+updated by client applications. To prevent the EF Core provider to write values to these columns, they must be marked
+with `.ValueGeneratedOnAddOrUpdate()`.
+
+Example:
+```cs
+modelBuilder.Entity<Singer>(entity =>
+{
+    // FullName is generated by Cloud Spanner on each add or update and should
+    // not be included in the DML statements that are generated by Entity Framework.
+    entity.Property(e => e.FullName).ValueGeneratedOnAddOrUpdate();
+});
+
+CREATE TABLE Singers (
+  SingerId  STRING(36) NOT NULL,
+  FirstName STRING(200),
+  LastName  STRING(200) NOT NULL,
+  FullName  STRING(400) NOT NULL AS (COALESCE(FirstName || ' ', '') || LastName) STORED,
+) PRIMARY KEY (SingerId);
+```
+
+NOTE: Do __NOT__ add `HasComputedColumnSql()` to your model. That will override
+the `ValueGeneratedOnAddOrUpdate()` and cause EF Core to try to insert a value into the generated column.
+
+# Limitations
+
+## Generated Values for Primary Keys
+Cloud Spanner does not support sequences, identity columns, or other value generators in the database that will
+generate a unique value that could be used as a primary key value. Instead, the best option is to use a client
+side Guid generator for a primary key if your table does not contain a natural primary key.
+
+## Default Values
+Cloud Spanner does not support default values for columns.
+
+## Commit Timestamps are not Visible in the Same DbContext
+Commit timestamps that are filled automatically using the `UpdateCommitTimestamp` annotation (see above) are not visible
+in the same `DbContext` that wrote it. The reason for this is that:
+1. A commit timestamp can only be read after the transaction has committed.
+2. EF Core will propagate values that are automatically updated by the database in the same transaction as the transaction that executed the update.
+
+The automatic propagation of commit timestamps is therefore disabled by the Spanner EF Core provider.
+
+A workaround for this problem is to force  refresh of the entity:
+
+```cs
+var singer = new Singer { SingerId = 1, ... };
+await context.SaveChangesAsync();
+// Refresh the singer entity to get the most recent commit timestamp.
+context.Entry(singer).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+singer = await context.Singers.FindAsync(1);
+Console.WriteLine($"Singer was created at {singer.CreatedAt}");
+```
+
+# Licensing
 
 * See [LICENSE](LICENSE)
 
+[setup]: https://cloud.google.com/dotnet/docs/setup
 [projects]: https://console.cloud.google.com/project
 [billing]: https://support.google.com/cloud/answer/6293499#enable-billing
 [enable_api]: https://console.cloud.google.com/flows/enableapi?apiid=spanner.googleapis.com
 [auth]: https://cloud.google.com/docs/authentication/getting-started
-[inter-leaved-table]: https://cloud.google.com/spanner/docs/schema-and-data-model#creating_a_hierarchy_of_interleaved_tables
