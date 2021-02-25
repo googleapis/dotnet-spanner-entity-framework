@@ -2,10 +2,9 @@
 [Google Cloud Spanner](https://cloud.google.com/spanner/docs/) database provider for [Entity Framework Core](https://docs.microsoft.com/en-us/ef/core/).
 
 # Getting started
-The Entity Framework Core provider allows you to use the Entity Framework
-to create your database, query and update data. To get started, install
-the nuget package for EntityFrameworkCore Spanner and call the "UseSpanner"
-method extension to configure your DbContext with Spanner support.
+The Entity Framework Core provider allows you to use the Entity Framework to create your database, query and update data.
+To get started, install the NuGet package for `Google.Cloud.EntityFrameworkCore.Spanner` and call the "UseSpanner" method
+extension to configure your DbContext with Spanner support.
 
 ## Ready to run Samples
 The [Google.Cloud.EntityFrameworkCore.Spanner.Samples](Google.Cloud.EntityFrameworkCore.Spanner.Samples) project contains a number of ready to run samples.
@@ -18,6 +17,8 @@ Follow these simple steps to run a sample:
 Browse the [Google.Cloud.EntityFrameworkCore.Spanner.Samples/Snippets](Google.Cloud.EntityFrameworkCore.Spanner.Samples/Snippets) directory to view the source code of each sample.
 
 ## Example Usage
+First [set up a .NET development environment](https://cloud.google.com/dotnet/docs/setup) for Google Cloud Spanner.
+
 The following code snippet shows how to create a DbContext for a Spanner database.
 
 ```cs
@@ -60,29 +61,9 @@ Use the following command to generate a model for a Cloud Spanner database:
 
 `Scaffold-DbContext "Data Source=projects/my-project/instances/my-instance/databases/my-database" Google.Cloud.EntityFrameworkCore.Spanner`
 
-# Running Integration Tests
-
-The integration tests in [Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests](Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests)
-can be executed both on the Spanner emulator as well as on a real Spanner instance.
-
-## Running Integration Tests on the Emulator
-
-All integration tests can be executed on the emulator. Follow these steps to do so:
-1. Set the environment variable `SPANNER_EMULATOR_HOST=localhost:9010` (or any other valid value if you use a custom host/port for the emulator)
-2. Start a Spanner emulator. See https://cloud.google.com/spanner/docs/emulator#installing_and_running_the_emulator for more information on how to do this.
-3. Navigate to the project folder Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests and execute the command `dotnet test` or run the tests from your IDE.
-
-## Running Integration Tests on a real Spanner Instance
-
-The integration tests can also be executed on a real Spanner instance. The tests will automatically create test databases and drop these after finishing
-the tests. Follow these steps to execute the integration tests on a real Spanner instance.
-1. Make sure you have enabled the Spanner API in your Google Cloud project and have set up authentication. See the [Google Cloud Spanner documentation](https://cloud.google.com/spanner/docs) for more information on how to do this.
-2. Set the environment variable `TEST_SPANNER_INSTANCE` to a valid Spanner instance (e.g. `spanner-test-instance`).
-3. Navigate to the project folder Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests and execute the command `dotnet test` or run the tests from your IDE.
-
-
 # Database Migrations
-The Cloud Spanner EF Core provider supports database migrations. See https://docs.microsoft.com/en-us/ef/core/managing-schemas/migrations/?tabs=dotnet-core-cli
+The Cloud Spanner EF Core provider supports database migrations. See
+[Migrations overview](https://docs.microsoft.com/en-us/ef/core/managing-schemas/migrations/?tabs=dotnet-core-cli)
 for more background information on how to use migrations.
 
 ## Example Usage with Cloud Spanner
@@ -151,6 +132,26 @@ Execute the migration commands:
 1. Add-Migration "migration name"
 2. Update-Database
 
+# Running Integration Tests
+
+The integration tests in [Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests](Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests)
+can be executed both on the Spanner emulator as well as on a real Spanner instance.
+
+## Running Integration Tests on the Emulator
+
+All integration tests can be executed on the emulator. Follow these steps to do so:
+1. Set the environment variable `SPANNER_EMULATOR_HOST=localhost:9010` (or any other valid value if you use a custom host/port for the emulator)
+2. Start a Spanner emulator. See https://cloud.google.com/spanner/docs/emulator#installing_and_running_the_emulator for more information on how to do this.
+3. Navigate to the project folder Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests and execute the command `dotnet test` or run the tests from your IDE.
+
+## Running Integration Tests on a real Spanner Instance
+
+The integration tests can also be executed on a real Spanner instance. The tests will automatically create test databases and drop these after finishing
+the tests. Follow these steps to execute the integration tests on a real Spanner instance.
+1. Make sure you have enabled the Spanner API in your Google Cloud project and have set up authentication. See the [Google Cloud Spanner documentation](https://cloud.google.com/spanner/docs) for more information on how to do this.
+2. Set the environment variable `TEST_SPANNER_INSTANCE` to a valid Spanner instance (e.g. `spanner-test-instance`).
+3. Navigate to the project folder Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests and execute the command `dotnet test` or run the tests from your IDE.
+
 # Specific Cloud Spanner Features
 
 Cloud Spanner has some specific features that are not supported by other relational databases. Using these with EF Core requires you to
@@ -205,13 +206,13 @@ modelBuilder.Entity<Singer>(entity =>
 ```
 
 ## Generated Columns
-Cloud Spanner [supports generated columns](https://cloud.google.com/spanner/docs/data-definition-language#description_2)
+Cloud Spanner [supports generated columns](https://cloud.google.com/spanner/docs/generated-column/how-to)
 that are calculated using a deterministic expression based on other columns in the same table. These columns may not be
 updated by client applications. To prevent the EF Core provider to write values to these columns, they must be marked
 with `.ValueGeneratedOnAddOrUpdate()`.
 
 Example:
-```
+```cs
 modelBuilder.Entity<Singer>(entity =>
 {
     // FullName is generated by Cloud Spanner on each add or update and should
@@ -263,6 +264,7 @@ Console.WriteLine($"Singer was created at {singer.CreatedAt}");
 
 * See [LICENSE](LICENSE)
 
+[setup]: https://cloud.google.com/dotnet/docs/setup
 [projects]: https://console.cloud.google.com/project
 [billing]: https://support.google.com/cloud/answer/6293499#enable-billing
 [enable_api]: https://console.cloud.google.com/flows/enableapi?apiid=spanner.googleapis.com
