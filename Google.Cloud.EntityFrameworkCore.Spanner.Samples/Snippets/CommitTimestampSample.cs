@@ -35,53 +35,45 @@ public static class CommitTimestampSample
 {
     public static async Task Run(string connectionString)
     {
-        Concert concert = null;
         var startTime = new DateTime(2021, 1, 27, 19, 0, 0, DateTimeKind.Utc);
-        using (var context = new SpannerSampleDbContext(connectionString))
+        using var context = new SpannerSampleDbContext(connectionString);
+        (Concert concert, Track track) = await GetConcertAndTrackAsync(context);
+
+        // Create a new performance and save it.
+        // This will automatically fill the CreatedAt property with the commit timestamp of the transaction.
+        var performance = new Performance
         {
-            Track track;
-            (concert, track) = await GetConcertAndTrackAsync(context);
+            VenueCode = concert.VenueCode,
+            SingerId = concert.SingerId,
+            ConcertStartTime = concert.StartTime,
+            AlbumId = track.AlbumId,
+            TrackId = track.TrackId,
+            StartTime = startTime,
+            Rating = 7.5,
+        };
+        context.Performances.Add(performance);
+        var count = await context.SaveChangesAsync();
+        Console.WriteLine($"Saved {count} performance");
 
-            // Create a new performance and save it.
-            // This will automatically fill the CreatedAt property with the commit timestamp of the transaction.
-            var performance = new Performance
-            {
-                VenueCode = concert.VenueCode,
-                SingerId = concert.SingerId,
-                ConcertStartTime = concert.StartTime,
-                AlbumId = track.AlbumId,
-                TrackId = track.TrackId,
-                StartTime = startTime,
-                Rating = 7.5,
-            };
-            context.Performances.Add(performance);
-            var count = await context.SaveChangesAsync();
-            Console.WriteLine($"Saved {count} performance");
-        }
 
-        // A generated commit timestamp is not readable within the same database context.
-        // We there need to create a new context to read it back.
-        using (var context = new SpannerSampleDbContext(connectionString))
-        {
-            // Read the performance from the database and check the CreatedAt value.
-            var performance = await context.Performances.FindAsync(concert.VenueCode, concert.SingerId, startTime);
-            Console.WriteLine($"Performance was created at {performance.CreatedAt}");
+        // A generated commit timestamp is normally not readable within the same database context.
+        // We therefore need to force a refresh and read it back.
+        context.Entry(performance).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+        performance = await context.Performances.FindAsync(concert.VenueCode, concert.SingerId, startTime);
+        Console.WriteLine($"Performance was created at {performance.CreatedAt}");
 
-            var lastUpdated = performance.LastUpdatedAt == null ? "<never>" : performance.LastUpdatedAt.ToString();
-            Console.WriteLine($"Performance was last updated at {lastUpdated}");
+        var lastUpdated = performance.LastUpdatedAt == null ? "<never>" : performance.LastUpdatedAt.ToString();
+        Console.WriteLine($"Performance was last updated at {lastUpdated}");
 
-            // Update the performance. This will also fill the LastUpdatedAt property.
-            performance.Rating = 8.5;
-            var count = await context.SaveChangesAsync();
-            Console.WriteLine($"Updated {count} performance");
-        }
+        // Update the performance. This will also fill the LastUpdatedAt property.
+        performance.Rating = 8.5;
+        count = await context.SaveChangesAsync();
+        Console.WriteLine($"Updated {count} performance");
 
-        using (var context = new SpannerSampleDbContext(connectionString))
-        {
-            var performance = await context.Performances.FindAsync(concert.VenueCode, concert.SingerId, startTime);
-            Console.WriteLine($"Performance was created at {performance.CreatedAt}");
-            Console.WriteLine($"Performance was updated at {performance.LastUpdatedAt}");
-        }
+        context.Entry(performance).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+        performance = await context.Performances.FindAsync(concert.VenueCode, concert.SingerId, startTime);
+        Console.WriteLine($"Performance was created at {performance.CreatedAt}");
+        Console.WriteLine($"Performance was updated at {performance.LastUpdatedAt}");
     }
 
     private static async Task<(Concert, Track)> GetConcertAndTrackAsync(SpannerSampleDbContext context)
