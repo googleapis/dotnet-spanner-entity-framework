@@ -191,6 +191,21 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         }
 
         [Fact]
+        public virtual void AddColumnOperation_with_defaultValue()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new AddColumnOperation
+                {
+                    Table = "Album",
+                    Name = "CreatedDate",
+                    ClrType = typeof(DateTime),
+                    ColumnType = "TIMESTAMP",
+                    IsNullable = false,
+                    DefaultValue = DateTime.UtcNow
+                }));
+        }
+
+        [Fact]
         public override void AddForeignKeyOperation_with_name()
         {
             base.AddForeignKeyOperation_with_name();
