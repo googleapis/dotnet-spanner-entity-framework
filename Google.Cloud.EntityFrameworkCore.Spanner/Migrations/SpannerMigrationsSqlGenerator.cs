@@ -291,7 +291,10 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 builder.Append(" NOT NULL");
             }
 
-            DefaultValue(operation.DefaultValue, operation.DefaultValueSql, columnType, builder);
+            if (operation.DefaultValue != null || operation.DefaultValueSql != null)
+            {
+                DefaultValue(operation.DefaultValue, operation.DefaultValueSql, columnType, builder);
+            }
 
             var commitTimestampAnnotation = operation.FindAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp);
             if (commitTimestampAnnotation != null)
@@ -344,7 +347,10 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             }
         }
 
-        protected override void DefaultValue(object defaultValue, string defaultValueSql, string columnType, MigrationCommandListBuilder builder)
+        protected override void DefaultValue(
+            object defaultValue,
+            string defaultValueSql,
+            string columnType, MigrationCommandListBuilder builder)
         {
             throw new NotSupportedException($"Cloud Spanner does not support default column values.");
         }
