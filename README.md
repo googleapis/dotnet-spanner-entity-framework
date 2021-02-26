@@ -134,6 +134,38 @@ Execute the migration commands:
 1. Add-Migration "migration name"
 2. Update-Database
 
+# Type Mapping
+The table below shows the mapping of Cloud Spanner data types to Clr types. It is recommended to use the default type mapping,
+unless you know that the values in the database will never exceed the maximum range of another chosen Clr type. Failure to do
+so for numeric types will lead to an overflow exception for `INT64` and `NUMERIC` types, and to silent loss of precision for
+`FLOAT64` types.
+
+Non-nullable primitive types can be replaced by the corresponding nullable type. That is, `bool?` can be used instead of `bool` etc.
+
+| Spanner Type | Default Clr Type | Other Possible Clr Types |
+|--------------|------------------|--------------------------|
+| BOOL         | bool             |                          |
+| BYTES        | byte[]           |                          |
+| STRING       | string           | char, Guid, Regex        |
+| INT64        | long             | int, short, byte, ulong, uint, ushort, sbyte |
+| FLOAT64      | double           | float                    |
+| NUMERIC      | SpannerNumeric   | decimal                  |
+| DATE         | SpannerDate      |                          |
+| TIMESTAMP    | DateTime         |                          |
+
+Array types are mapped to lists by default. The corresponding Clr array type of the default base type can also be used.
+
+| Array Type         | Default Clr Type       | Other Possible Clr Types |
+|--------------------|------------------------|---------------------------
+| ARRAY\<BOOL\>      | List\<bool\>           | bool[]                   |
+| ARRAY\<BYTES\>     | List\<byte[]\>         | byte[][]                 |
+| ARRAY\<STRING\>    | List\<string\>         | string[]                 |
+| ARRAY\<INT64\>     | List\<long\>           | long[]                   |
+| ARRAY\<FLOAT64\>   | List\<double\>         | double[]                 |
+| ARRAY\<NUMERIC\>   | List\<SpannerNumeric\> | List\<decimal\>, SpannerNumeric[], decimal[] |
+| ARRAY\<DATE\>      | List\<SpannerDate\>    | SpannerDate[]            |
+| ARRAY\<TIMESTAMP\> | List\<DateTime\>       | DateTime[]               |
+
 # Running Integration Tests
 
 The integration tests in [Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests](Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests)
