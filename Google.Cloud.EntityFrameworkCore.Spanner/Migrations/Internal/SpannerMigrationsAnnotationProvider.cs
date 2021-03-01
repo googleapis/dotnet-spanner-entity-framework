@@ -68,7 +68,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                 indexAnnotations = indexAnnotations.Concat(new[] { nullFilteredIndexAnnotation });
             }
 
-            var storingIndexAnnotation = index.FindAnnotation(SpannerAnnotationNames.IsStoringIndex);
+            var storingIndexAnnotation = index.FindAnnotation(SpannerAnnotationNames.Storing);
             if (storingIndexAnnotation != null)
             {
                 indexAnnotations = indexAnnotations.Concat(new[] { storingIndexAnnotation });

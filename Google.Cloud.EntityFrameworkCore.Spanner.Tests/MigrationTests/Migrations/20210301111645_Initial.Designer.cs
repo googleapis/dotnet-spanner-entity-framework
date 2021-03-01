@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migrations
 {
     [DbContext(typeof(MockMigrationSampleDbContext))]
-    [Migration("20210301062658_Initial")]
+    [Migration("20210301111645_Initial")]
     partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -45,7 +45,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
 
                     b.HasIndex("Title")
                         .HasName("AlbumsByAlbumTitle2")
-                        .HasAnnotation("Spanner:IsStoringIndex", "MarketingBudget");
+                        .HasAnnotation("Spanner:Storing", new[] { "MarketingBudget", "ReleaseDate" });
 
                     b.ToTable("Albums");
                 });

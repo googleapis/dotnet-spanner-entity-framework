@@ -395,7 +395,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     Name = "AlbumsByAlbumTitle2",
                     Table = "Albums",
                     Columns = new[] { "AlbumTitle" },
-                    [SpannerAnnotationNames.IsStoringIndex] = "MarketingBudget"
+                    [SpannerAnnotationNames.Storing] = new string[] { "MarketingBudget" }
                 });
 
         public virtual void AddColumOperation()

@@ -72,13 +72,21 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 .Append(ColumnList(operation.Columns))
                 .Append(")");
 
-            var storingIndexAnnotation = operation.FindAnnotation(SpannerAnnotationNames.IsStoringIndex);
-            if (storingIndexAnnotation != null && !string.IsNullOrWhiteSpace(storingIndexAnnotation.Value.ToString()))
+            if (operation[SpannerAnnotationNames.Storing] is IReadOnlyList<string> storingColumns
+                            && storingColumns.Count > 0)
             {
-                builder.Append(" STORING ")
-                    .Append("(")
-                    .Append(storingIndexAnnotation.Value.ToString())
-                     .Append(")");
+                builder.Append(" STORING (");
+                for (var i = 0; i < storingColumns.Count; i++)
+                {
+                    builder.Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(storingColumns[i]));
+
+                    if (i != storingColumns.Count - 1)
+                    {
+                        builder.Append(", ");
+                    }
+                }
+
+                builder.Append(")");
             }
 
             if (terminate)

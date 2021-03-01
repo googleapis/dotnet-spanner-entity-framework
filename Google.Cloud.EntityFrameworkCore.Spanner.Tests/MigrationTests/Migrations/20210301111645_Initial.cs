@@ -187,7 +187,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                 name: "AlbumsByAlbumTitle2",
                 table: "Albums",
                 column: "Title")
-                .Annotation("Spanner:IsStoringIndex", "MarketingBudget");
+                .Annotation("Spanner:Storing", new[] { "MarketingBudget", "ReleaseDate" });
 
             migrationBuilder.CreateIndex(
                 name: "Idx_Singers_FullName",

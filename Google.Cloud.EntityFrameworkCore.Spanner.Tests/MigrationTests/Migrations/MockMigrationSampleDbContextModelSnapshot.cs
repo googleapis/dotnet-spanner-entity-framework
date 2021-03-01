@@ -43,7 +43,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
 
                     b.HasIndex("Title")
                         .HasName("AlbumsByAlbumTitle2")
-                        .HasAnnotation("Spanner:IsStoringIndex", "MarketingBudget");
+                        .HasAnnotation("Spanner:Storing", new[] { "MarketingBudget", "ReleaseDate" });
 
                     b.ToTable("Albums");
                 });

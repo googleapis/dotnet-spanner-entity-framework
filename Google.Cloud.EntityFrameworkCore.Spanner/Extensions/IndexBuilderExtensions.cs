@@ -30,18 +30,13 @@ namespace Microsoft.EntityFrameworkCore
             return indexBuilder;
         }
 
-        public static IndexBuilder<TEntity> IsStoring<TEntity>(
+        public static IndexBuilder<TEntity> Storing<TEntity>(
             this IndexBuilder<TEntity> indexBuilder,
             Expression<Func<TEntity, object>> indexExpression)
             where TEntity : class
         {
-            var storingColumns = indexExpression.GetPropertyAccessList();
-            if (storingColumns.Count != 1)
-            {
-                throw new ArgumentException($"STORING clause is defined with a single key property, but {storingColumns.Count} values were passed to the 'IsStoring' method.");
-            }
-
-            indexBuilder.Metadata.AddAnnotation(SpannerAnnotationNames.IsStoringIndex, storingColumns.Select(c => c.Name).First());
+            indexBuilder.Metadata.AddAnnotation(SpannerAnnotationNames.Storing,
+                indexExpression.GetPropertyAccessList().Select(c => c.Name).ToArray());
             return indexBuilder;
         }
     }

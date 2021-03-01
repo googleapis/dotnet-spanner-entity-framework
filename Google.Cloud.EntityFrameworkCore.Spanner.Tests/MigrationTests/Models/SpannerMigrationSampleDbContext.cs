@@ -51,7 +51,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
 
                 entity.HasIndex(e => e.Title)
                     .HasName("AlbumsByAlbumTitle2")
-                    .IsStoring(a => a.MarketingBudget);
+                    .Storing(a => new { a.MarketingBudget, a.ReleaseDate });
 
                 entity.HasOne(d => d.Singer)
                     .WithMany(p => p.Albums)
