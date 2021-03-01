@@ -398,6 +398,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     [SpannerAnnotationNames.Storing] = new string[] { "MarketingBudget" }
                 });
 
+        public virtual void CreateIndexOperation_is_storing_with_multiple_column()
+            => Generate(
+                modelBuilder => modelBuilder.Entity("Albums").Property<string>("AlbumTitle"),
+                new CreateIndexOperation
+                {
+                    Name = "AlbumsByAlbumTitle2",
+                    Table = "Albums",
+                    Columns = new[] { "AlbumTitle" },
+                    [SpannerAnnotationNames.Storing] = new string[] { "MarketingBudget", "ReleaseDate" }
+                });
+
         public virtual void AddColumOperation()
             => Generate(new AddColumnOperation
             {
