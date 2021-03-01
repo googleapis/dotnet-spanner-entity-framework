@@ -387,6 +387,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                 });
         }
 
+        public virtual void CreateIndexOperation_is_storing()
+            => Generate(
+                modelBuilder => modelBuilder.Entity("Albums").Property<string>("AlbumTitle"),
+                new CreateIndexOperation
+                {
+                    Name = "AlbumsByAlbumTitle2",
+                    Table = "Albums",
+                    Columns = new[] { "AlbumTitle" },
+                    [SpannerAnnotationNames.IsStoringIndex] = "MarketingBudget"
+                });
+
         public virtual void AddColumOperation()
             => Generate(new AddColumnOperation
             {

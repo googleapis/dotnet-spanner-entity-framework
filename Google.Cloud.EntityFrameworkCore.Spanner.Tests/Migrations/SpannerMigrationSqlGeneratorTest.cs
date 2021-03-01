@@ -111,6 +111,13 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         }
 
         [Fact]
+        public override void CreateIndexOperation_is_storing()
+        {
+            base.CreateIndexOperation_is_storing();
+            AssertSql(@"CREATE INDEX AlbumsByAlbumTitle2 ON Albums (AlbumTitle) STORING (MarketingBudget)");
+        }
+
+        [Fact]
         public override void AddColumOperation()
         {
             base.AddColumOperation();

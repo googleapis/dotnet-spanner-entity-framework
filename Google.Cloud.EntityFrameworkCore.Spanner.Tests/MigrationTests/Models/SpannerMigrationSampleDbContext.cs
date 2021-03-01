@@ -49,6 +49,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
                     .IsRequired()
                     .HasMaxLength(100);
 
+                entity.HasIndex(e => e.Title)
+                .HasName("AlbumsByAlbumTitle2")
+                .IsStoring(a => a.MarketingBudget);
+
                 entity.HasOne(d => d.Singer)
                     .WithMany(p => p.Albums)
                     .HasForeignKey(d => d.SingerId)

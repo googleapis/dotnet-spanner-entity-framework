@@ -72,6 +72,15 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 .Append(ColumnList(operation.Columns))
                 .Append(")");
 
+            var storingIndexAnnotation = operation.FindAnnotation(SpannerAnnotationNames.IsStoringIndex);
+            if (storingIndexAnnotation != null && !string.IsNullOrWhiteSpace(storingIndexAnnotation.Value.ToString()))
+            {
+                builder.Append(" STORING ")
+                    .Append("(")
+                    .Append(storingIndexAnnotation.Value.ToString())
+                     .Append(")");
+            }
+
             if (terminate)
             {
                 EndStatement(builder, true);

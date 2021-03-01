@@ -13,8 +13,12 @@
 // limitations under the License.
 
 using JetBrains.Annotations;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using System;
+using System.Linq;
+using System.Linq.Expressions;
 
 namespace Microsoft.EntityFrameworkCore
 {
@@ -23,6 +27,20 @@ namespace Microsoft.EntityFrameworkCore
         public static IndexBuilder<TEntity> IsNullFiltered<TEntity>([NotNull] this IndexBuilder<TEntity> indexBuilder, bool isNullFiltered = true)
         {
             indexBuilder.Metadata.AddAnnotation(SpannerAnnotationNames.IsNullFilteredIndex, isNullFiltered);
+            return indexBuilder;
+        }
+
+        public static IndexBuilder<TEntity> IsStoring<TEntity>(
+            this IndexBuilder<TEntity> indexBuilder,
+            Expression<Func<TEntity, object>> indexExpression)
+            where TEntity : class
+        {
+            var storingColumns = indexExpression.GetPropertyAccessList();
+            if (storingColumns.Count != 1)
+            {
+                throw new ArgumentException($"STORING clause is defined with single property, but  {storingColumns.Count} values where pass to the 'IsStoring' method.");
+            }
+            indexBuilder.Metadata.AddAnnotation(SpannerAnnotationNames.IsStoringIndex, storingColumns.Select(c => c.Name).First());
             return indexBuilder;
         }
     }

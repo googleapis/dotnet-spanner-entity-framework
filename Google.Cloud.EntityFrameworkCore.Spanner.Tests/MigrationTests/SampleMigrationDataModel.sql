@@ -44,6 +44,7 @@ CREATE TABLE Albums (
     Title STRING(100) NOT NULL,
     ReleaseDate DATE,
     SingerId INT64 NOT NULL,
+    MarketingBudget INT64,
  CONSTRAINT FK_Albums_Singers FOREIGN KEY (SingerId) REFERENCES Singers (SingerId),
 )PRIMARY KEY (AlbumId)
 CREATE TABLE Concerts (
@@ -77,6 +78,7 @@ CREATE TABLE Performances (
  CONSTRAINT FK_Performances_Tracks FOREIGN KEY (AlbumId, TrackId) REFERENCES Tracks (AlbumId, TrackId),
  CONSTRAINT FK_Performances_Concerts FOREIGN KEY (VenueCode, ConcertStartTime, SingerId) REFERENCES Concerts (VenueCode, StartTime, SingerId),
 )PRIMARY KEY (VenueCode, SingerId, StartTime)
+CREATE INDEX AlbumsByAlbumTitle2 ON Albums (Title) STORING (MarketingBudget)
 CREATE INDEX Idx_Singers_FullName ON Singers (FullName)
 CREATE NULL_FILTERED INDEX IDX_TableWithAllColumnTypes_ColDate_ColCommitTS ON TableWithAllColumnTypes (ColDate, ColCommitTS)
 CREATE UNIQUE INDEX Idx_Tracks_AlbumId_Title ON Tracks (TrackId, Title)

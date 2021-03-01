@@ -61,11 +61,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 
         public override IEnumerable<IAnnotation> For(IIndex index)
         {
-            var baseAnnotations = base.For(index);
+            var indexAnnotations = base.For(index);
             var nullFilteredIndexAnnotation = index.FindAnnotation(SpannerAnnotationNames.IsNullFilteredIndex);
-            return nullFilteredIndexAnnotation == null ? baseAnnotations : baseAnnotations.Concat(new[] {
-                nullFilteredIndexAnnotation
-            });
+            if (nullFilteredIndexAnnotation != null)
+            {
+                indexAnnotations = indexAnnotations.Concat(new[] { nullFilteredIndexAnnotation });
+            }
+
+            var storingIndexAnnotation = index.FindAnnotation(SpannerAnnotationNames.IsStoringIndex);
+            if (storingIndexAnnotation != null)
+            {
+                indexAnnotations = indexAnnotations.Concat(new[] { storingIndexAnnotation });
+            }
+
+            return indexAnnotations;
         }
 
         private static TAttribute GetAttribute<TAttribute>(MemberInfo memberInfo)

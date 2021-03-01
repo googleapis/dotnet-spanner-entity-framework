@@ -20,6 +20,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         public const string InterleaveInParent = "Spanner:InterleaveInParent";
         public const string InterleaveInParentOnDelete = "Spanner:InterleaveInParentOnDelete";
         public const string IsNullFilteredIndex = "Spanner:IsNullFiltered";
+        public const string IsStoringIndex = "Spanner:IsStoringIndex";
     }
 
     public enum SpannerUpdateCommitTimestamp

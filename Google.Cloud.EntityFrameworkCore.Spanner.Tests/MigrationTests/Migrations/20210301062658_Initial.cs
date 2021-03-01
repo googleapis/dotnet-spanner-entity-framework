@@ -36,7 +36,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                     ColBool = table.Column<bool>(nullable: true),
                     ColString = table.Column<string>(maxLength: 100, nullable: true),
                     ColStringMax = table.Column<string>(nullable: true),
-                    ColChar = table.Column<string>(nullable: true),
+                    ColChar = table.Column<char>(nullable: true),
                     ColBytes = table.Column<byte[]>(type: "BYTES(100)", nullable: true),
                     ColBytesMax = table.Column<byte[]>(nullable: true),
                     ColDate = table.Column<DateTime>(nullable: true),
@@ -83,7 +83,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                     AlbumId = table.Column<long>(nullable: false),
                     Title = table.Column<string>(maxLength: 100, nullable: false),
                     ReleaseDate = table.Column<DateTime>(nullable: true),
-                    SingerId = table.Column<long>(nullable: false)
+                    SingerId = table.Column<long>(nullable: false),
+                    MarketingBudget = table.Column<long>(nullable: true)
                 },
                 constraints: table =>
                 {
@@ -181,6 +182,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                         principalColumns: new[] { "VenueCode", "StartTime", "SingerId" },
                         onDelete: ReferentialAction.Restrict);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "AlbumsByAlbumTitle2",
+                table: "Albums",
+                column: "Title")
+                .Annotation("Spanner:IsStoringIndex", "MarketingBudget");
 
             migrationBuilder.CreateIndex(
                 name: "Idx_Singers_FullName",

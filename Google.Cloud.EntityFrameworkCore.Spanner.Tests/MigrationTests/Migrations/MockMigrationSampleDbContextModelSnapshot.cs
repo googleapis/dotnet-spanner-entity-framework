@@ -24,6 +24,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                     b.Property<long>("AlbumId")
                         .HasColumnType("INT64");
 
+                    b.Property<long?>("MarketingBudget")
+                        .HasColumnType("INT64");
+
                     b.Property<DateTime?>("ReleaseDate")
                         .HasColumnType("DATE");
 
@@ -37,6 +40,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
 
                     b.HasKey("AlbumId")
                         .HasName("PRIMARY_KEY");
+
+                    b.HasIndex("Title")
+                        .HasName("AlbumsByAlbumTitle2")
+                        .HasAnnotation("Spanner:IsStoringIndex", "MarketingBudget");
 
                     b.ToTable("Albums");
                 });
