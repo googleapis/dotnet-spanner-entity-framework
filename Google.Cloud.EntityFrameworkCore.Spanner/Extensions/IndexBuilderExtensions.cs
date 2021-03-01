@@ -38,8 +38,9 @@ namespace Microsoft.EntityFrameworkCore
             var storingColumns = indexExpression.GetPropertyAccessList();
             if (storingColumns.Count != 1)
             {
-                throw new ArgumentException($"STORING clause is defined with single property, but  {storingColumns.Count} values where pass to the 'IsStoring' method.");
+                throw new ArgumentException($"STORING clause is defined with a single key property, but {storingColumns.Count} values were passed to the 'IsStoring' method.");
             }
+
             indexBuilder.Metadata.AddAnnotation(SpannerAnnotationNames.IsStoringIndex, storingColumns.Select(c => c.Name).First());
             return indexBuilder;
         }
