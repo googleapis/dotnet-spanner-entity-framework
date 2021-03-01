@@ -72,6 +72,14 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 .Append(ColumnList(operation.Columns))
                 .Append(")");
 
+            if (operation[SpannerAnnotationNames.Storing] is string[] storingColumns
+                            && storingColumns.Length > 0)
+            {
+                builder.Append(" STORING (")
+                    .Append(ColumnList(storingColumns))
+                    .Append(")");
+            }
+
             if (terminate)
             {
                 EndStatement(builder, true);

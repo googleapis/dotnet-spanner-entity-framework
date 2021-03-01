@@ -28,6 +28,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
         public string Title { get; set; }
         public SpannerDate? ReleaseDate { get; set; }
         public long SingerId { get; set; }
+        public long? MarketingBudget { get; set; }
 
         public virtual Singers Singer { get; set; }
         public virtual ICollection<Tracks> Tracks { get; set; }

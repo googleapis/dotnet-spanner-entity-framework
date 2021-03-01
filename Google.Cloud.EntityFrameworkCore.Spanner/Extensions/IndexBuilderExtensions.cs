@@ -13,8 +13,12 @@
 // limitations under the License.
 
 using JetBrains.Annotations;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using System;
+using System.Linq;
+using System.Linq.Expressions;
 
 namespace Microsoft.EntityFrameworkCore
 {
@@ -23,6 +27,16 @@ namespace Microsoft.EntityFrameworkCore
         public static IndexBuilder<TEntity> IsNullFiltered<TEntity>([NotNull] this IndexBuilder<TEntity> indexBuilder, bool isNullFiltered = true)
         {
             indexBuilder.Metadata.AddAnnotation(SpannerAnnotationNames.IsNullFilteredIndex, isNullFiltered);
+            return indexBuilder;
+        }
+
+        public static IndexBuilder<TEntity> Storing<TEntity>(
+            this IndexBuilder<TEntity> indexBuilder,
+            Expression<Func<TEntity, object>> indexExpression)
+            where TEntity : class
+        {
+            indexBuilder.Metadata.AddAnnotation(SpannerAnnotationNames.Storing,
+                indexExpression.GetPropertyAccessList().Select(c => c.Name).ToArray());
             return indexBuilder;
         }
     }
