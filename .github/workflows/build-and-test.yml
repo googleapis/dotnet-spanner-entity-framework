@@ -52,7 +52,7 @@ jobs:
       working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
       run: |
         echo "{ \"parallelizeTestCollections\": true, \"maxParallelThreads\": 8 }" > xunit.runner.json
-        dotnet test --verbosity normal
+        dotnet test --test-adapter-path:. --logger:junit 2>&1 | %{ "$_" } --verbosity normal
       env:
         JOB_TYPE: test
         TEST_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
