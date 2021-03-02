@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    timeout-minutes: 50
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     services:
       emulator:
@@ -52,7 +52,7 @@ jobs:
       working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
       run: |
         echo "{ \"parallelizeTestCollections\": true, \"maxParallelThreads\": 8 }" > xunit.runner.json
-        dotnet test --test-adapter-path:. --logger:junit 2>&1 | %{ "$_" } --verbosity normal
+        dotnet test --verbosity normal
       env:
         JOB_TYPE: test
         TEST_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
