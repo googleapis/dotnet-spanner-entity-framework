@@ -19,7 +19,6 @@ using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Text;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 {
