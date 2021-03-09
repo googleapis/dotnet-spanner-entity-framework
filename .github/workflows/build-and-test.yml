@@ -51,7 +51,7 @@ jobs:
     - name: Integration Tests on Production
       working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
       run: |
-        echo "{ \"parallelizeTestCollections\": true, \"maxParallelThreads\": 4 }" > xunit.runner.json
+        echo "{ \"parallelizeTestCollections\": true, \"maxParallelThreads\": 1 }" > xunit.runner.json
         dotnet test --verbosity normal
       env:
         JOB_TYPE: test
