@@ -46,12 +46,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public long UpdateCount { get; }
         public Exception Exception { get; }
 
-        internal static StatementResult CreateQuery(ResultSet resultSet)
+        public static StatementResult CreateQuery(ResultSet resultSet)
         {
             return new StatementResult(resultSet);
         }
 
-        internal static StatementResult CreateUpdateCount(long count)
+        public static StatementResult CreateUpdateCount(long count)
         {
             return new StatementResult(count);
         }
@@ -89,10 +89,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             return CreateQuery(rs);
         }
 
-        internal static StatementResult CreateResultSet(IEnumerable<Tuple<V1.TypeCode, string>> columns, IEnumerable<object[]> rows) =>
+        public static StatementResult CreateResultSet(IEnumerable<Tuple<V1.TypeCode, string>> columns, IEnumerable<object[]> rows) =>
             CreateResultSet(columns.Select(x => Tuple.Create(new V1.Type { Code = x.Item1 }, x.Item2)).ToList(), rows);
 
-        internal static StatementResult CreateResultSet(IEnumerable<Tuple<V1.Type, string>> columns, IEnumerable<object[]> rows)
+        public static StatementResult CreateResultSet(IEnumerable<Tuple<V1.Type, string>> columns, IEnumerable<object[]> rows)
         {
             var rs = new ResultSet
             {
@@ -144,7 +144,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
     public class ExecutionTime
     {
-        private readonly int _executionTime;
+        private readonly int _minimumExecutionTime;
+        private readonly int _randomExecutionTime;
+        private readonly Random _random;
+
         // TODO: Support multiple exceptions
         private Exception _exception;
         private readonly int _exceptionStreamIndex;
@@ -181,14 +184,34 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             return _streamWritePermissions.Take();
         }
 
-        internal static ExecutionTime StreamException(Exception exception, int streamIndex, BlockingCollection<int> streamWritePermissions)
+        internal void SimulateExecutionTime()
         {
-            return new ExecutionTime(0, exception, streamIndex, streamWritePermissions);
+            if (_minimumExecutionTime > 0 || _randomExecutionTime > 0)
+            {
+                int totalWaitTime = _minimumExecutionTime;
+                if (_randomExecutionTime > 0)
+                {
+                    totalWaitTime += _random.Next(_randomExecutionTime);
+                }
+                Thread.Sleep(totalWaitTime);
+            }
         }
 
-        private ExecutionTime(int executionTime, Exception exception, int exceptionStreamIndex, BlockingCollection<int> streamWritePermissions)
+        public static ExecutionTime FromMillis(int minimumExecutionTime, int randomExecutionTime)
         {
-            _executionTime = executionTime;
+            return new ExecutionTime(minimumExecutionTime, randomExecutionTime, null, -1, null);
+        }
+
+        internal static ExecutionTime StreamException(Exception exception, int streamIndex, BlockingCollection<int> streamWritePermissions)
+        {
+            return new ExecutionTime(0, 0, exception, streamIndex, streamWritePermissions);
+        }
+
+        private ExecutionTime(int minimumExecutionTime, int randomExecutionTime, Exception exception, int exceptionStreamIndex, BlockingCollection<int> streamWritePermissions)
+        {
+            _minimumExecutionTime = minimumExecutionTime;
+            _randomExecutionTime = randomExecutionTime;
+            _random = _randomExecutionTime > 0 ? new Random() : null;
             _exception = exception;
             _exceptionStreamIndex = exceptionStreamIndex;
             _streamWritePermissions = streamWritePermissions;
@@ -431,6 +454,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public override Task<BatchCreateSessionsResponse> BatchCreateSessions(BatchCreateSessionsRequest request, ServerCallContext context)
         {
             _requests.Enqueue(request);
+            _executionTimes.TryGetValue(nameof(ExecuteStreamingSql), out ExecutionTime executionTime);
+            executionTime?.SimulateExecutionTime();
             var database = request.DatabaseAsDatabaseName;
             BatchCreateSessionsResponse response = new BatchCreateSessionsResponse();
             for (int i = 0; i < request.SessionCount; i++)
@@ -483,6 +508,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public override Task<ExecuteBatchDmlResponse> ExecuteBatchDml(ExecuteBatchDmlRequest request, ServerCallContext context)
         {
             _requests.Enqueue(request);
+            _executionTimes.TryGetValue(nameof(ExecuteBatchDml), out ExecutionTime executionTime);
+            executionTime?.SimulateExecutionTime();
             _ = TryFindSession(request.SessionAsSessionName);
             _ = FindOrBeginTransaction(request.SessionAsSessionName, request.Transaction);
             ExecuteBatchDmlResponse response = new ExecuteBatchDmlResponse
@@ -505,6 +532,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                         case StatementResult.StatementResultType.RESULT_SET:
                             throw new RpcException(new Grpc.Core.Status(StatusCode.InvalidArgument, $"ResultSet is not a valid result type for BatchDml"));
                         case StatementResult.StatementResultType.UPDATE_COUNT:
+                            if (_executionTimes.TryGetValue(nameof(ExecuteBatchDml) + statement.Sql, out executionTime))
+                            {
+                                executionTime.SimulateExecutionTime();
+                            }
                             response.ResultSets.Add(CreateUpdateCountResultSet(result.UpdateCount));
                             break;
                         case StatementResult.StatementResultType.EXCEPTION:
@@ -544,7 +575,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public override async Task ExecuteStreamingSql(ExecuteSqlRequest request, IServerStreamWriter<PartialResultSet> responseStream, ServerCallContext context)
         {
             _requests.Enqueue(request);
-            _executionTimes.TryGetValue(nameof(ExecuteStreamingSql), out ExecutionTime executionTime);
+            _executionTimes.TryGetValue(nameof(ExecuteStreamingSql) + request.Sql, out ExecutionTime executionTime);
+            if (executionTime == null)
+            {
+                _executionTimes.TryGetValue(nameof(ExecuteStreamingSql), out executionTime);
+            }
+            executionTime?.SimulateExecutionTime();
             Session session = TryFindSession(request.SessionAsSessionName);
             Transaction tx = FindOrBeginTransaction(request.SessionAsSessionName, request.Transaction);
             if (_results.TryGetValue(request.Sql, out StatementResult result))

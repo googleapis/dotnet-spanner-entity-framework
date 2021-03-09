@@ -1,0 +1,185 @@
+// Validating benchmarks:
+// ***** BenchmarkRunner: Start   *****
+// ***** Found 1 benchmark(s) in total *****
+// ***** Building 1 exe(s) in Parallel: Start   *****
+// start dotnet restore  /p:UseSharedCompilation=false /p:BuildInParallel=false /m:1 in C:\Users\koloi\source\repos\dotnet-spanner-entity-framework\Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks\bin\Debug\netcoreapp3.1\3b5451da-7a66-4823-a459-eedb16d2870f
+// command took 2,13s and exited with 0
+// start dotnet build -c Release  --no-restore /p:UseSharedCompilation=false /p:BuildInParallel=false /m:1 in C:\Users\koloi\source\repos\dotnet-spanner-entity-framework\Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks\bin\Debug\netcoreapp3.1\3b5451da-7a66-4823-a459-eedb16d2870f
+// command took 4,21s and exited with 0
+// ***** Done, took 00:00:06 (6.48 sec)   *****
+// Found 1 benchmarks:
+//   SpannerEFCoreBenchmarks.SaveMultipleRowsSpanner: DefaultJob
+
+// **************************
+// Benchmark: SpannerEFCoreBenchmarks.SaveMultipleRowsSpanner: DefaultJob
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet "3b5451da-7a66-4823-a459-eedb16d2870f.dll" --benchmarkName "Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks.SpannerEFCoreBenchmarks.SaveMultipleRowsSpanner" --job "Default" --benchmarkId 0 in C:\Users\koloi\source\repos\dotnet-spanner-entity-framework\Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks\bin\Debug\netcoreapp3.1\3b5451da-7a66-4823-a459-eedb16d2870f\bin\Release\netcoreapp3.1
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// Runtime=.NET Core 3.1.9 (CoreCLR 4.700.20.47201, CoreFX 4.700.20.47203), X64 RyuJIT
+// GC=Concurrent Workstation
+// Job: DefaultJob
+
+Creating sample database model...
+Finished creating sample database model
+Running benchmarks using connection data source=projects/appdev-soda-spanner-staging/instances/test-instance/databases/testdb_66d12b4d_bb14_4caa_bd62;emulatordetection=EmulatorOrProduction
+OverheadJitting  1: 1 op, 375400.00 ns, 375.4000 us/op
+Writing 10 albums
+WorkloadJitting  1: 1 op, 12292936200.00 ns, 12.2929 s/op
+
+Writing 10 albums
+WorkloadWarmup   1: 1 op, 4479310300.00 ns, 4.4793 s/op
+Writing 10 albums
+WorkloadWarmup   2: 1 op, 4224688000.00 ns, 4.2247 s/op
+Writing 10 albums
+WorkloadWarmup   3: 1 op, 4229262700.00 ns, 4.2293 s/op
+Writing 10 albums
+WorkloadWarmup   4: 1 op, 4372624500.00 ns, 4.3726 s/op
+Writing 10 albums
+WorkloadWarmup   5: 1 op, 4246565100.00 ns, 4.2466 s/op
+Writing 10 albums
+WorkloadWarmup   6: 1 op, 4478601300.00 ns, 4.4786 s/op
+Writing 10 albums
+WorkloadWarmup   7: 1 op, 4458686400.00 ns, 4.4587 s/op
+
+// BeforeActualRun
+Writing 10 albums
+WorkloadActual   1: 1 op, 4446256900.00 ns, 4.4463 s/op
+Writing 10 albums
+WorkloadActual   2: 1 op, 4354050100.00 ns, 4.3541 s/op
+Writing 10 albums
+WorkloadActual   3: 1 op, 4444834400.00 ns, 4.4448 s/op
+Writing 10 albums
+WorkloadActual   4: 1 op, 4427424500.00 ns, 4.4274 s/op
+Writing 10 albums
+WorkloadActual   5: 1 op, 4320666300.00 ns, 4.3207 s/op
+Writing 10 albums
+WorkloadActual   6: 1 op, 4633480500.00 ns, 4.6335 s/op
+Writing 10 albums
+WorkloadActual   7: 1 op, 4384141900.00 ns, 4.3841 s/op
+Writing 10 albums
+WorkloadActual   8: 1 op, 4360913400.00 ns, 4.3609 s/op
+Writing 10 albums
+WorkloadActual   9: 1 op, 4516862500.00 ns, 4.5169 s/op
+Writing 10 albums
+WorkloadActual  10: 1 op, 8997005100.00 ns, 8.9970 s/op
+Writing 10 albums
+WorkloadActual  11: 1 op, 4444755800.00 ns, 4.4448 s/op
+Writing 10 albums
+WorkloadActual  12: 1 op, 4213760000.00 ns, 4.2138 s/op
+Writing 10 albums
+WorkloadActual  13: 1 op, 4573726900.00 ns, 4.5737 s/op
+Writing 10 albums
+WorkloadActual  14: 1 op, 4348381100.00 ns, 4.3484 s/op
+Writing 10 albums
+WorkloadActual  15: 1 op, 4444980000.00 ns, 4.4450 s/op
+Writing 10 albums
+WorkloadActual  16: 1 op, 4321594100.00 ns, 4.3216 s/op
+Writing 10 albums
+WorkloadActual  17: 1 op, 4235108300.00 ns, 4.2351 s/op
+Writing 10 albums
+WorkloadActual  18: 1 op, 4380925200.00 ns, 4.3809 s/op
+Writing 10 albums
+WorkloadActual  19: 1 op, 4525506200.00 ns, 4.5255 s/op
+Writing 10 albums
+WorkloadActual  20: 1 op, 4449636500.00 ns, 4.4496 s/op
+Writing 10 albums
+WorkloadActual  21: 1 op, 4660732400.00 ns, 4.6607 s/op
+Writing 10 albums
+WorkloadActual  22: 1 op, 4225588900.00 ns, 4.2256 s/op
+Writing 10 albums
+WorkloadActual  23: 1 op, 4334009600.00 ns, 4.3340 s/op
+Writing 10 albums
+WorkloadActual  24: 1 op, 4328778300.00 ns, 4.3288 s/op
+Writing 10 albums
+WorkloadActual  25: 1 op, 4432328700.00 ns, 4.4323 s/op
+
+// AfterActualRun
+WorkloadResult   1: 1 op, 4446256900.00 ns, 4.4463 s/op
+WorkloadResult   2: 1 op, 4354050100.00 ns, 4.3541 s/op
+WorkloadResult   3: 1 op, 4444834400.00 ns, 4.4448 s/op
+WorkloadResult   4: 1 op, 4427424500.00 ns, 4.4274 s/op
+WorkloadResult   5: 1 op, 4320666300.00 ns, 4.3207 s/op
+WorkloadResult   6: 1 op, 4384141900.00 ns, 4.3841 s/op
+WorkloadResult   7: 1 op, 4360913400.00 ns, 4.3609 s/op
+WorkloadResult   8: 1 op, 4516862500.00 ns, 4.5169 s/op
+WorkloadResult   9: 1 op, 4444755800.00 ns, 4.4448 s/op
+WorkloadResult  10: 1 op, 4213760000.00 ns, 4.2138 s/op
+WorkloadResult  11: 1 op, 4573726900.00 ns, 4.5737 s/op
+WorkloadResult  12: 1 op, 4348381100.00 ns, 4.3484 s/op
+WorkloadResult  13: 1 op, 4444980000.00 ns, 4.4450 s/op
+WorkloadResult  14: 1 op, 4321594100.00 ns, 4.3216 s/op
+WorkloadResult  15: 1 op, 4235108300.00 ns, 4.2351 s/op
+WorkloadResult  16: 1 op, 4380925200.00 ns, 4.3809 s/op
+WorkloadResult  17: 1 op, 4525506200.00 ns, 4.5255 s/op
+WorkloadResult  18: 1 op, 4449636500.00 ns, 4.4496 s/op
+WorkloadResult  19: 1 op, 4225588900.00 ns, 4.2256 s/op
+WorkloadResult  20: 1 op, 4334009600.00 ns, 4.3340 s/op
+WorkloadResult  21: 1 op, 4328778300.00 ns, 4.3288 s/op
+WorkloadResult  22: 1 op, 4432328700.00 ns, 4.4323 s/op
+
+// AfterAll
+// Benchmark Process 6128 has exited with code 0
+
+Mean = 4.387 s, StdErr = 0.020 s (0.46%), N = 22, StdDev = 0.095 s
+Min = 4.214 s, Q1 = 4.330 s, Median = 4.383 s, Q3 = 4.445 s, Max = 4.574 s
+IQR = 0.115 s, LowerFence = 4.158 s, UpperFence = 4.617 s
+ConfidenceInterval = [4.310 s; 4.464 s] (CI 99.9%), Margin = 0.077 s (1.76% of Mean)
+Skewness = -0.07, Kurtosis = 2.3, MValue = 2
+
+// ***** BenchmarkRunner: Finish  *****
+
+// * Export *
+  BenchmarkDotNet.Artifacts\results\Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks.SpannerEFCoreBenchmarks-report.csv
+  BenchmarkDotNet.Artifacts\results\Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks.SpannerEFCoreBenchmarks-report-github.md
+  BenchmarkDotNet.Artifacts\results\Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks.SpannerEFCoreBenchmarks-report.html
+
+// * Detailed results *
+SpannerEFCoreBenchmarks.SaveMultipleRowsSpanner: DefaultJob
+Runtime = .NET Core 3.1.9 (CoreCLR 4.700.20.47201, CoreFX 4.700.20.47203), X64 RyuJIT; GC = Concurrent Workstation
+Mean = 4.387 s, StdErr = 0.020 s (0.46%), N = 22, StdDev = 0.095 s
+Min = 4.214 s, Q1 = 4.330 s, Median = 4.383 s, Q3 = 4.445 s, Max = 4.574 s
+IQR = 0.115 s, LowerFence = 4.158 s, UpperFence = 4.617 s
+ConfidenceInterval = [4.310 s; 4.464 s] (CI 99.9%), Margin = 0.077 s (1.76% of Mean)
+Skewness = -0.07, Kurtosis = 2.3, MValue = 2
+-------------------- Histogram --------------------
+[4.180 s ; 4.269 s) | @@@
+[4.269 s ; 4.361 s) | @@@@@@
+[4.361 s ; 4.591 s) | @@@@@@@@@@@@@
+---------------------------------------------------
+
+// * Summary *
+
+BenchmarkDotNet=v0.12.1, OS=Windows 10.0.18363.1379 (1909/November2018Update/19H2)
+Intel Core i7-8705G CPU 3.10GHz (Kaby Lake G), 1 CPU, 8 logical and 4 physical cores
+.NET Core SDK=3.1.403
+  [Host]     : .NET Core 3.1.9 (CoreCLR 4.700.20.47201, CoreFX 4.700.20.47203), X64 RyuJIT DEBUG
+  DefaultJob : .NET Core 3.1.9 (CoreCLR 4.700.20.47201, CoreFX 4.700.20.47203), X64 RyuJIT
+
+
+|                  Method |    Mean |    Error |   StdDev |
+|------------------------ |--------:|---------:|---------:|
+| SaveMultipleRowsSpanner | 4.387 s | 0.0773 s | 0.0950 s |
+
+// * Warnings *
+Environment
+  SpannerEFCoreBenchmarks.SaveMultipleRowsSpanner: Default -> Benchmark was built without optimization enabled (most probably a DEBUG configuration). Please, build it in RELEASE.
+
+// * Hints *
+Outliers
+  SpannerEFCoreBenchmarks.SaveMultipleRowsSpanner: Default -> 3 outliers were removed (4.63 s..9.00 s)
+
+// * Legends *
+  Mean   : Arithmetic mean of all measurements
+  Error  : Half of 99.9% confidence interval
+  StdDev : Standard deviation of all measurements
+  1 s    : 1 Second (1 sec)
+
+// ***** BenchmarkRunner: End *****
+// ** Remained 0 benchmark(s) to run **
+Run time: 00:03:22 (202.86 sec), executed benchmarks: 1
+
+Global total time: 00:03:29 (209.35 sec), executed benchmarks: 1
+// * Artifacts cleanup *

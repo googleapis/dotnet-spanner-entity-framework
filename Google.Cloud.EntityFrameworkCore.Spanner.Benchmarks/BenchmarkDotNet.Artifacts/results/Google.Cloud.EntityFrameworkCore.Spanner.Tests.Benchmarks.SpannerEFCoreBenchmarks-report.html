@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks.SpannerEFCoreBenchmarks-20210309-174616</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet=v0.12.1, OS=Windows 10.0.18363.1379 (1909/November2018Update/19H2)
+Intel Core i7-8705G CPU 3.10GHz (Kaby Lake G), 1 CPU, 8 logical and 4 physical cores
+.NET Core SDK=3.1.403
+  [Host]     : .NET Core 3.1.9 (CoreCLR 4.700.20.47201, CoreFX 4.700.20.47203), X64 RyuJIT DEBUG
+  DefaultJob : .NET Core 3.1.9 (CoreCLR 4.700.20.47201, CoreFX 4.700.20.47203), X64 RyuJIT
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>                                      Method</th><th>Mean</th><th>Error</th><th>StdDev</th>
+</tr>
+</thead><tbody><tr><td>ReadOneRowSpanner</td><td>4.208 ms</td><td>0.2471 ms</td><td>0.7170 ms</td>
+</tr><tr><td>ReadOneRowEF</td><td>5.918 ms</td><td>0.3596 ms</td><td>1.0261 ms</td>
+</tr><tr><td>SaveOneRowWithFetchAfterSpanner</td><td>9.221 ms</td><td>0.4109 ms</td><td>1.1921 ms</td>
+</tr><tr><td>SaveOneRowWithFetchAfterEF</td><td>10.259 ms</td><td>0.3708 ms</td><td>1.0759 ms</td>
+</tr><tr><td>SaveMultipleRowsSpanner</td><td>3.582 ms</td><td>0.2123 ms</td><td>0.6091 ms</td>
+</tr><tr><td>SaveMultipleRowsEF</td><td>4.710 ms</td><td>0.2471 ms</td><td>0.7011 ms</td>
+</tr><tr><td>SelectMultipleSingersSpanner</td><td>15.756 ms</td><td>0.4517 ms</td><td>1.3177 ms</td>
+</tr><tr><td>SelectMultipleSingersEF</td><td>14.818 ms</td><td>0.4098 ms</td><td>1.1559 ms</td>
+</tr><tr><td>SelectMultipleSingersInReadOnlyTransactionSpanner</td><td>15.778 ms</td><td>0.3648 ms</td><td>1.0525 ms</td>
+</tr><tr><td>SelectMultipleSingersInReadOnlyTransactionEF</td><td>16.181 ms</td><td>0.4693 ms</td><td>1.3314 ms</td>
+</tr><tr><td>SelectMultipleSingersInReadWriteTransactionSpanner</td><td>15.374 ms</td><td>0.3861 ms</td><td>1.0891 ms</td>
+</tr><tr><td>SelectMultipleSingersInReadWriteTransactionEF</td><td>18.413 ms</td><td>0.5058 ms</td><td>1.4349 ms</td>
+</tr></tbody></table>
+</body>
+</html>

@@ -1,0 +1,130 @@
+// Validating benchmarks:
+// ***** BenchmarkRunner: Start   *****
+// ***** Found 1 benchmark(s) in total *****
+// ***** Building 1 exe(s) in Parallel: Start   *****
+// start dotnet restore  /p:UseSharedCompilation=false /p:BuildInParallel=false /m:1 in C:\Users\koloi\source\repos\dotnet-spanner-entity-framework\Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks\bin\Debug\netcoreapp3.1\eaa662b1-5149-4451-a364-5ed277757eab
+// command took 2,17s and exited with 0
+// start dotnet build -c Release  --no-restore /p:UseSharedCompilation=false /p:BuildInParallel=false /m:1 in C:\Users\koloi\source\repos\dotnet-spanner-entity-framework\Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks\bin\Debug\netcoreapp3.1\eaa662b1-5149-4451-a364-5ed277757eab
+// command took 4,26s and exited with 0
+// ***** Done, took 00:00:06 (6.57 sec)   *****
+// Found 1 benchmarks:
+//   SpannerEFCoreBenchmarks.SaveMultipleRowsSpanner: DefaultJob
+
+// **************************
+// Benchmark: SpannerEFCoreBenchmarks.SaveMultipleRowsSpanner: DefaultJob
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet "eaa662b1-5149-4451-a364-5ed277757eab.dll" --benchmarkName "Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks.SpannerEFCoreBenchmarks.SaveMultipleRowsSpanner" --job "Default" --benchmarkId 0 in C:\Users\koloi\source\repos\dotnet-spanner-entity-framework\Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks\bin\Debug\netcoreapp3.1\eaa662b1-5149-4451-a364-5ed277757eab\bin\Release\netcoreapp3.1
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// Runtime=.NET Core 3.1.9 (CoreCLR 4.700.20.47201, CoreFX 4.700.20.47203), X64 RyuJIT
+// GC=Concurrent Workstation
+// Job: DefaultJob
+
+Creating sample database model...
+Finished creating sample database model
+Running benchmarks using connection data source=projects/appdev-soda-spanner-staging/instances/test-instance/databases/testdb_f3610ce1_aa48_4e55_ac33;emulatordetection=EmulatorOrProduction
+OverheadJitting  1: 1 op, 358800.00 ns, 358.8000 us/op
+WorkloadJitting  1: 1 op, 9452453100.00 ns, 9.4525 s/op
+
+WorkloadWarmup   1: 1 op, 604168300.00 ns, 604.1683 ms/op
+WorkloadWarmup   2: 1 op, 589400000.00 ns, 589.4000 ms/op
+WorkloadWarmup   3: 1 op, 597558400.00 ns, 597.5584 ms/op
+WorkloadWarmup   4: 1 op, 598839300.00 ns, 598.8393 ms/op
+WorkloadWarmup   5: 1 op, 594827200.00 ns, 594.8272 ms/op
+WorkloadWarmup   6: 1 op, 597326000.00 ns, 597.3260 ms/op
+WorkloadWarmup   7: 1 op, 589285000.00 ns, 589.2850 ms/op
+
+// BeforeActualRun
+WorkloadActual   1: 1 op, 590504600.00 ns, 590.5046 ms/op
+WorkloadActual   2: 1 op, 699176100.00 ns, 699.1761 ms/op
+WorkloadActual   3: 1 op, 1122631500.00 ns, 1.1226 s/op
+WorkloadActual   4: 1 op, 585919100.00 ns, 585.9191 ms/op
+WorkloadActual   5: 1 op, 594111700.00 ns, 594.1117 ms/op
+WorkloadActual   6: 1 op, 582477300.00 ns, 582.4773 ms/op
+WorkloadActual   7: 1 op, 587628400.00 ns, 587.6284 ms/op
+WorkloadActual   8: 1 op, 584044300.00 ns, 584.0443 ms/op
+WorkloadActual   9: 1 op, 583579800.00 ns, 583.5798 ms/op
+WorkloadActual  10: 1 op, 584503700.00 ns, 584.5037 ms/op
+WorkloadActual  11: 1 op, 588931000.00 ns, 588.9310 ms/op
+WorkloadActual  12: 1 op, 592847600.00 ns, 592.8476 ms/op
+WorkloadActual  13: 1 op, 693587200.00 ns, 693.5872 ms/op
+WorkloadActual  14: 1 op, 591686100.00 ns, 591.6861 ms/op
+WorkloadActual  15: 1 op, 591078100.00 ns, 591.0781 ms/op
+
+// AfterActualRun
+WorkloadResult   1: 1 op, 590504600.00 ns, 590.5046 ms/op
+WorkloadResult   2: 1 op, 585919100.00 ns, 585.9191 ms/op
+WorkloadResult   3: 1 op, 594111700.00 ns, 594.1117 ms/op
+WorkloadResult   4: 1 op, 582477300.00 ns, 582.4773 ms/op
+WorkloadResult   5: 1 op, 587628400.00 ns, 587.6284 ms/op
+WorkloadResult   6: 1 op, 584044300.00 ns, 584.0443 ms/op
+WorkloadResult   7: 1 op, 583579800.00 ns, 583.5798 ms/op
+WorkloadResult   8: 1 op, 584503700.00 ns, 584.5037 ms/op
+WorkloadResult   9: 1 op, 588931000.00 ns, 588.9310 ms/op
+WorkloadResult  10: 1 op, 592847600.00 ns, 592.8476 ms/op
+WorkloadResult  11: 1 op, 591686100.00 ns, 591.6861 ms/op
+WorkloadResult  12: 1 op, 591078100.00 ns, 591.0781 ms/op
+
+// AfterAll
+// Benchmark Process 22340 has exited with code 0
+
+Mean = 588.109 ms, StdErr = 1.146 ms (0.19%), N = 12, StdDev = 3.969 ms
+Min = 582.477 ms, Q1 = 584.389 ms, Median = 588.280 ms, Q3 = 591.230 ms, Max = 594.112 ms
+IQR = 6.841 ms, LowerFence = 574.127 ms, UpperFence = 601.492 ms
+ConfidenceInterval = [583.026 ms; 593.193 ms] (CI 99.9%), Margin = 5.084 ms (0.86% of Mean)
+Skewness = 0.02, Kurtosis = 1.33, MValue = 2
+
+// ***** BenchmarkRunner: Finish  *****
+
+// * Export *
+  BenchmarkDotNet.Artifacts\results\Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks.SpannerEFCoreBenchmarks-report.csv
+  BenchmarkDotNet.Artifacts\results\Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks.SpannerEFCoreBenchmarks-report-github.md
+  BenchmarkDotNet.Artifacts\results\Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks.SpannerEFCoreBenchmarks-report.html
+
+// * Detailed results *
+SpannerEFCoreBenchmarks.SaveMultipleRowsSpanner: DefaultJob
+Runtime = .NET Core 3.1.9 (CoreCLR 4.700.20.47201, CoreFX 4.700.20.47203), X64 RyuJIT; GC = Concurrent Workstation
+Mean = 588.109 ms, StdErr = 1.146 ms (0.19%), N = 12, StdDev = 3.969 ms
+Min = 582.477 ms, Q1 = 584.389 ms, Median = 588.280 ms, Q3 = 591.230 ms, Max = 594.112 ms
+IQR = 6.841 ms, LowerFence = 574.127 ms, UpperFence = 601.492 ms
+ConfidenceInterval = [583.026 ms; 593.193 ms] (CI 99.9%), Margin = 5.084 ms (0.86% of Mean)
+Skewness = 0.02, Kurtosis = 1.33, MValue = 2
+-------------------- Histogram --------------------
+[580.202 ms ; 596.387 ms) | @@@@@@@@@@@@
+---------------------------------------------------
+
+// * Summary *
+
+BenchmarkDotNet=v0.12.1, OS=Windows 10.0.18363.1379 (1909/November2018Update/19H2)
+Intel Core i7-8705G CPU 3.10GHz (Kaby Lake G), 1 CPU, 8 logical and 4 physical cores
+.NET Core SDK=3.1.403
+  [Host]     : .NET Core 3.1.9 (CoreCLR 4.700.20.47201, CoreFX 4.700.20.47203), X64 RyuJIT DEBUG
+  DefaultJob : .NET Core 3.1.9 (CoreCLR 4.700.20.47201, CoreFX 4.700.20.47203), X64 RyuJIT
+
+
+|                  Method |     Mean |   Error |  StdDev |
+|------------------------ |---------:|--------:|--------:|
+| SaveMultipleRowsSpanner | 588.1 ms | 5.08 ms | 3.97 ms |
+
+// * Warnings *
+Environment
+  SpannerEFCoreBenchmarks.SaveMultipleRowsSpanner: Default -> Benchmark was built without optimization enabled (most probably a DEBUG configuration). Please, build it in RELEASE.
+
+// * Hints *
+Outliers
+  SpannerEFCoreBenchmarks.SaveMultipleRowsSpanner: Default -> 3 outliers were removed (693.59 ms..1.12 s)
+
+// * Legends *
+  Mean   : Arithmetic mean of all measurements
+  Error  : Half of 99.9% confidence interval
+  StdDev : Standard deviation of all measurements
+  1 ms   : 1 Millisecond (0.001 sec)
+
+// ***** BenchmarkRunner: End *****
+// ** Remained 0 benchmark(s) to run **
+Run time: 00:01:07 (67.09 sec), executed benchmarks: 1
+
+Global total time: 00:01:13 (73.67 sec), executed benchmarks: 1
+// * Artifacts cleanup *

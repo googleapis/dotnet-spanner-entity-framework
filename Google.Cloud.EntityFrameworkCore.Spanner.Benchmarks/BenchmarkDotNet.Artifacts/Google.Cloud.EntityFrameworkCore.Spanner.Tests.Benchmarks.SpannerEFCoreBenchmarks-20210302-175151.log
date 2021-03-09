@@ -1,0 +1,13 @@
+// Validating benchmarks:
+Assembly Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks which defines benchmarks references non-optimized Google.Cloud.EntityFrameworkCore.Spanner.Tests
+	If you own this dependency, please, build it in RELEASE.
+	If you don't, you can disable this policy by using 'config.With(ConfigOptions.DisableOptimizationsValidator)'.
+Assembly Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks which defines benchmarks references non-optimized Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
+	If you own this dependency, please, build it in RELEASE.
+	If you don't, you can disable this policy by using 'config.With(ConfigOptions.DisableOptimizationsValidator)'.
+Assembly Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks which defines benchmarks references non-optimized Google.Cloud.EntityFrameworkCore.Spanner
+	If you own this dependency, please, build it in RELEASE.
+	If you don't, you can disable this policy by using 'config.With(ConfigOptions.DisableOptimizationsValidator)'.
+Assembly Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks which defines benchmarks is non-optimized
+Benchmark was built without optimization enabled (most probably a DEBUG configuration). Please, build it in RELEASE.
+If you want to debug the benchmarks, please see https://benchmarkdotnet.org/articles/guides/troubleshooting.html#debugging-benchmarks.
