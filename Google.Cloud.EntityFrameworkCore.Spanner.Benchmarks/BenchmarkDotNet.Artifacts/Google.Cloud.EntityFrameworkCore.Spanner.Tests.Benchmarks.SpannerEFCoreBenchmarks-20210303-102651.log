@@ -1,2 +1,0 @@
-// Validating benchmarks:
-Benchmark SpannerEFCoreBenchmarks.SaveOneRowSpanner returns a deferred execution result (IEnumerable<Int64>). You need to either change the method declaration to return a materialized result or consume it on your own. You can use .Consume() extension method to do that.
