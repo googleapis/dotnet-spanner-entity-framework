@@ -116,9 +116,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         /// </summary>
         private void CreateTables()
         {
-            // var codeBaseUrl = new Uri(Assembly.GetExecutingAssembly().Location);
-            // var codeBasePath = Uri.UnescapeDataString(codeBaseUrl.AbsolutePath);
-            // var dirPath = Path.GetDirectoryName(codeBasePath);
             var dirPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             // We must use a slightly edited sample data model for the emulator, as the emulator does not support:
             // 1. NUMERIC data type.
