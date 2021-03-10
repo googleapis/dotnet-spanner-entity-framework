@@ -13,7 +13,6 @@
 // limitations under the License.
 
 using Google.Cloud.Spanner.V1.Internal.Logging;
-using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {

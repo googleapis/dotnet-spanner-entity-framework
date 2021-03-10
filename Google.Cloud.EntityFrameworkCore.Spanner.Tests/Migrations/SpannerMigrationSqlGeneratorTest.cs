@@ -111,6 +111,20 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         }
 
         [Fact]
+        public override void CreateIndexOperation_storing()
+        {
+            base.CreateIndexOperation_storing();
+            AssertSql(@"CREATE INDEX AlbumsByAlbumTitle2 ON Albums (AlbumTitle) STORING (MarketingBudget)");
+        }
+
+        [Fact]
+        public override void CreateIndexOperation_storing_with_multiple_columns()
+        {
+            base.CreateIndexOperation_storing_with_multiple_columns();
+            AssertSql(@"CREATE INDEX AlbumsByAlbumTitle2 ON Albums (AlbumTitle) STORING (MarketingBudget, ReleaseDate)");
+        }
+
+        [Fact]
         public override void AddColumOperation()
         {
             base.AddColumOperation();
@@ -188,6 +202,21 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
             base.AddColumnOperation_with_shared_column();
             AssertSql(@"ALTER TABLE VersionedEntity ADD Version INT64
 ");
+        }
+
+        [Fact]
+        public virtual void AddColumnOperation_with_defaultValue()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new AddColumnOperation
+                {
+                    Table = "Album",
+                    Name = "CreatedDate",
+                    ClrType = typeof(DateTime),
+                    ColumnType = "TIMESTAMP",
+                    IsNullable = false,
+                    DefaultValue = DateTime.UtcNow
+                }));
         }
 
         [Fact]

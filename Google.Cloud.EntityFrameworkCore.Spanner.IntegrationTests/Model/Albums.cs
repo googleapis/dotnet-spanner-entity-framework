@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model

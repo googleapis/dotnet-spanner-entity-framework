@@ -13,7 +13,6 @@
 // limitations under the License.
 
 using Google.Api.Gax;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore;
