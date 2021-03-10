@@ -13,10 +13,8 @@
 // limitations under the License.
 
 using Google.Cloud.Spanner.V1;
-using Microsoft.EntityFrameworkCore.Metadata;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
 {
@@ -27,7 +25,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
     /// 
     /// This relationship is seen as a foreign key by Entity Framework, although it technically is not.
     /// </summary>
-    [InterleaveInParent(typeof(Album), OnDelete.Cascade)]
     public partial class Track : VersionedEntity
     {
         public Track()

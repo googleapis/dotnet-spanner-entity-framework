@@ -159,6 +159,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     b.HasKey("AuthorId", "ArticleId");
 
                     b.ToTable("Articles");
+
+                    b.HasAnnotation("Spanner:InterleaveInParent", "Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Author");
+
+                    b.HasAnnotation("Spanner:InterleaveInParentOnDelete", OnDelete.Cascade);
                 });
 
             modelBuilder.Entity("Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Author", b =>

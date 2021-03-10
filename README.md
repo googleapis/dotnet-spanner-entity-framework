@@ -195,7 +195,7 @@ include some custom annotations in your model.
 [Interleaved tables](https://cloud.google.com/spanner/docs/schema-and-data-model#creating-interleaved-tables) define a parent-child relationship
 between two tables where the rows of the child table are physically stored together with the parent rows.
 
-Use the `InterleavedInParent` attribute on a child table to create an interleaved table relationship between two tables.
+Use the `InterleaveInParent` extension on a child table to create an interleaved table relationship between two tables.
 These relationships can be used in EF Core as if it was a foreign key relationship.
 
 ```cs
@@ -207,7 +207,6 @@ public class Singer
     public virtual ICollection<Album> Albums { get; set; }
 }
 
-[InterleaveInParent(typeof(Singer))]
 public class Album
 {
     public long SingerId { get; set; }
@@ -215,6 +214,13 @@ public class Album
     public string Title {get; set; }
 
     public virtual Singer Singer { get; set; }
+}
+
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    modelBuilder.Entity<Album>()
+        .InterleaveInParent(typeof(Singer), OnDelete.Cascade)
+        .HasKey(c => new { c.SingerId, c.AlbumId });
 }
 ```
 

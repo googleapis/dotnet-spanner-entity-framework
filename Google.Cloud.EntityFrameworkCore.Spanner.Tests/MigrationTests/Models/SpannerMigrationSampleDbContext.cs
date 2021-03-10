@@ -171,7 +171,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
 
             modelBuilder.Entity<Tracks>(entity =>
             {
-                entity.HasKey(e => new { e.AlbumId, e.TrackId })
+                entity.InterleaveInParent(typeof(Albums))
+                    .HasKey(e => new { e.AlbumId, e.TrackId })
                     .HasName("PRIMARY_KEY");
 
                 entity.HasCheckConstraint("Chk_Languages_Lyrics_Length_Equal", "ARRAY_LENGTH(LyricsLanguages) = ARRAY_LENGTH(Lyrics)");

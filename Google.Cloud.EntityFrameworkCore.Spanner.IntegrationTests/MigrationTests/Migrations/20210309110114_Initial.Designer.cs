@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTests.Migrations
 {
     [DbContext(typeof(TestMigrationDbContext))]
-    [Migration("20210215091428_Initial")]
+    [Migration("20210309110114_Initial")]
     partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -161,6 +161,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     b.HasKey("AuthorId", "ArticleId");
 
                     b.ToTable("Articles");
+
+                    b.HasAnnotation("Spanner:InterleaveInParent", "Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Author");
+
+                    b.HasAnnotation("Spanner:InterleaveInParentOnDelete", OnDelete.Cascade);
                 });
 
             modelBuilder.Entity("Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Author", b =>

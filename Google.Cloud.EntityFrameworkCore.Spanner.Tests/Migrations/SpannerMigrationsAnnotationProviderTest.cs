@@ -48,7 +48,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
         [Fact]
         public void Resolves_interleave_in_parent_entity()
         {
-            var entity = _modelBuilder.Entity<Entity>().Metadata;
+            var entity = _modelBuilder
+                .Entity<Entity>()
+                .InterleaveInParent(typeof(ParentEntity)).Metadata;
             var migrationAnnotations = _annotations.For(entity).ToList();
             Assert.Contains(migrationAnnotations,
                 a => a.Name == SpannerAnnotationNames.InterleaveInParent
@@ -56,7 +58,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
         }
 
 
-        [InterleaveInParent(typeof(ParentEntity))]
         private class Entity
         {
             public int EntityId { get; set; }

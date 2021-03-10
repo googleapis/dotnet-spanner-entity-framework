@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migrations
 {
     [DbContext(typeof(MockMigrationSampleDbContext))]
-    [Migration("20210301111645_Initial")]
+    [Migration("20210309110233_Initial")]
     partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -257,6 +257,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                         .HasName("Idx_Tracks_AlbumId_Title");
 
                     b.ToTable("Tracks");
+
+                    b.HasAnnotation("Spanner:InterleaveInParent", "Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models.Albums");
+
+                    b.HasAnnotation("Spanner:InterleaveInParentOnDelete", OnDelete.NoAction);
 
                     b.HasCheckConstraint("Chk_Languages_Lyrics_Length_Equal", "ARRAY_LENGTH(LyricsLanguages) = ARRAY_LENGTH(Lyrics)");
                 });

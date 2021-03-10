@@ -51,6 +51,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 .HasKey(c => new { c.OrderId, c.ProductId });
 
             modelBuilder.Entity<Article>()
+                .InterleaveInParent(typeof(Author), OnDelete.Cascade)
                 .HasKey(c => new { c.AuthorId, c.ArticleId });
 
             modelBuilder.Entity<Author>()

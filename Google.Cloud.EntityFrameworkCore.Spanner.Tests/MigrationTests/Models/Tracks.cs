@@ -18,7 +18,6 @@ using Google.Cloud.Spanner.V1;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
 {
-    [InterleaveInParent(typeof(Albums))]
     public partial class Tracks
     {
         public Tracks()
