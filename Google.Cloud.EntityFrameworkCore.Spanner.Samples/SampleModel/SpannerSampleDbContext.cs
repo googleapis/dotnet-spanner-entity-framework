@@ -78,8 +78,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
             modelBuilder.Entity<Track>(entity =>
             {
                 entity
-                .InterleaveInParent(typeof(Album), OnDelete.Cascade)
-                .HasKey(entity => new { entity.AlbumId, entity.TrackId });
+                    .InterleaveInParent(typeof(Album), OnDelete.Cascade)
+                    .HasKey(entity => new { entity.AlbumId, entity.TrackId });
                 entity.Property(e => e.Version).IsConcurrencyToken();
             });
 

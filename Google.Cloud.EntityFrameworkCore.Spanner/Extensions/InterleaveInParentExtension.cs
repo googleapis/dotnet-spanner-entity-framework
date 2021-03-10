@@ -21,11 +21,11 @@ namespace Microsoft.EntityFrameworkCore
     public static class InterleaveInParentExtension
     {
         public static EntityTypeBuilder<TEntity> InterleaveInParent<TEntity>(
-            this EntityTypeBuilder<TEntity> builder, Type parentType,
+            this EntityTypeBuilder<TEntity> builder, Type parentEntity,
             OnDelete onDelete = OnDelete.NoAction)
             where TEntity : class
         {
-            builder.Metadata.AddAnnotation(SpannerAnnotationNames.InterleaveInParent, parentType.FullName);
+            builder.Metadata.AddAnnotation(SpannerAnnotationNames.InterleaveInParent, parentEntity.FullName);
             builder.Metadata.AddAnnotation(SpannerAnnotationNames.InterleaveInParentOnDelete, onDelete);
             return builder;
         }
