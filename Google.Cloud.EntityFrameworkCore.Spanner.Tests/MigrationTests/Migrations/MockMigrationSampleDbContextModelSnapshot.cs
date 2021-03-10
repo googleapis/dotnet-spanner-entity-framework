@@ -256,6 +256,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
 
                     b.ToTable("Tracks");
 
+                    b.HasAnnotation("Spanner:InterleaveInParent", "Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models.Albums");
+
+                    b.HasAnnotation("Spanner:InterleaveInParentOnDelete", OnDelete.NoAction);
+
                     b.HasCheckConstraint("Chk_Languages_Lyrics_Length_Equal", "ARRAY_LENGTH(LyricsLanguages) = ARRAY_LENGTH(Lyrics)");
                 });
 

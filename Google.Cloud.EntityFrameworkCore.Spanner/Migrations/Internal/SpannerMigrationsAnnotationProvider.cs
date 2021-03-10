@@ -51,11 +51,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
         public override IEnumerable<IAnnotation> For(IEntityType entityType)
         {
             var baseAnnotations = base.For(entityType);
-            var interleaveInParentAttribute = GetAttribute<InterleaveInParentAttribute>(entityType.ClrType);
-            return interleaveInParentAttribute == null ? baseAnnotations
-              : baseAnnotations.Concat(new[] {
-                  new Annotation(SpannerAnnotationNames.InterleaveInParent, interleaveInParentAttribute.ParentEntity.FullName),
-                  new Annotation(SpannerAnnotationNames.InterleaveInParentOnDelete, interleaveInParentAttribute.OnDelete)
+            var interleaveInParentAnnotation = entityType.FindAnnotation(SpannerAnnotationNames.InterleaveInParent);
+            return interleaveInParentAnnotation == null ? baseAnnotations
+                : baseAnnotations.Concat(new[] {
+                  interleaveInParentAnnotation,
+                  entityType.FindAnnotation(SpannerAnnotationNames.InterleaveInParentOnDelete)
               });
         }
 
@@ -75,18 +75,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             }
 
             return indexAnnotations;
-        }
-
-        private static TAttribute GetAttribute<TAttribute>(MemberInfo memberInfo)
-            where TAttribute : Attribute
-        {
-            if (memberInfo == null
-                || !Attribute.IsDefined(memberInfo, typeof(TAttribute), inherit: true))
-            {
-                return null;
-            }
-
-            return memberInfo.GetCustomAttribute<TAttribute>(inherit: true);
         }
     }
 }

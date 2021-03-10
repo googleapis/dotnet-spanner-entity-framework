@@ -15,6 +15,7 @@
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.VersioningTests.Model;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -63,6 +64,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
             {
                 entity
                     .ToTable("AlbumsWithVersion")
+                    .InterleaveInParent(typeof(SingersWithVersion), OnDelete.Cascade)
                     .HasKey(entity => new { entity.SingerId, entity.AlbumId });
                 entity.Property(e => e.SingerId).ValueGeneratedNever();
                 entity.Property(e => e.AlbumId).ValueGeneratedNever();
