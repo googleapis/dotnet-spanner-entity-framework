@@ -13,7 +13,8 @@
 // limitations under the License.
 
 using Google.Api.Gax;
-using Google.Cloud.Spanner.Data;
+using Google.Cloud.Spanner.Admin.Database.V1;
+using Grpc.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
@@ -118,19 +119,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <inheritdoc />
         public override async Task<bool> ExistsAsync(CancellationToken cancellationToken = default)
         {
-            //TODO: this should be fixed up to call an admin method instead of looking for an error code.
             try
             {
-                await CreateHasTablesCommand().ExecuteReaderAsync(new RelationalCommandParameterObject(
-                                        _connection,
-                                        null,
-                                        null,
-                                        Dependencies.CurrentContext.Context,
-                                        Dependencies.CommandLogger), cancellationToken)
-                    .ConfigureAwait(false);
+                DatabaseAdminClient databaseAdminClient = DatabaseAdminClient.Create();
+                await databaseAdminClient.GetDatabaseAsync(_connection.DbConnection.DataSource, cancellationToken);
             }
-            catch (SpannerException e) when (e.ErrorCode == ErrorCode.NotFound ||
-                                             e.ErrorCode == ErrorCode.InvalidArgument)
+            catch (RpcException e) when (e.StatusCode == StatusCode.NotFound)
             {
                 return false;
             }
