@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.EntityFrameworkCore.Update.Internal;
+using OpenTelemetry.Trace;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -38,7 +40,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         {
             // Convert the list of batches to a list to prevent it from being re-generated each time that we iterate over the enumerator.
             var batchesList = commandBatches.ToList();
-            base.Execute(batchesList, connection);
+            var tracer = TracerProviderExtension.GetTracer();
+            using var span = tracer.StartActiveSpan(TracerProviderExtension.SPAN_NAME_SAVECHANGES);
+            try
+            {
+                base.Execute(batchesList, connection);
+                span.SetStatus(Status.Ok);
+            }
+            catch (System.Exception ex)
+            {
+                span.SetStatus(Status.Error.WithDescription(ex.Message));
+                throw;
+            }
+            finally
+            {
+                span.End();
+            }
             return SpannerCount(batchesList);
         }
 
