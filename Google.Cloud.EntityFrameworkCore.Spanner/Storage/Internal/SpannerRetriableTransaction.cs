@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.Spanner.Data;
 using Grpc.Core;
 using System;
@@ -123,7 +124,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// The commit timestamp of this transaction. Only available after the transaction has committed.
         /// </summary>
         /// <exception cref="InvalidOperationException">If the transaction has not committed</exception>
-        public DateTime CommitTimestamp {
+        public DateTime CommitTimestamp
+        {
             get
             {
                 GaxPreconditions.CheckState(_commitTimestamp != null, "Transaction has not committed");
@@ -286,16 +288,27 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <returns>Returns the UTC timestamp when the data was written to the database.</returns>
         public async Task<DateTime> CommitAsync(CancellationToken cancellationToken = default)
         {
+            var tracer = TracerProviderExtension.GetTracer();
+            using var span = tracer.StartActiveSpan(TracerProviderExtension.SPAN_NAME_COMMIT);
             while (true)
             {
                 try
                 {
                     _commitTimestamp = await SpannerTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    span.SetStatus(OpenTelemetry.Trace.Status.Ok);
+                    span.End();
                     return (DateTime)_commitTimestamp;
                 }
                 catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
                 {
+                    span.SetAttribute(TracerProviderExtension.ATTRIBUTE_NAME_RETRYING, e.Message);
                     await RetryAsync(e, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    span.SetStatus(OpenTelemetry.Trace.Status.Error.WithDescription(e.Message));
+                    span.End();
+                    throw;
                 }
             }
         }
