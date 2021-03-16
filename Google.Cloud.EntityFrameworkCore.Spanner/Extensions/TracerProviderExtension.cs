@@ -22,8 +22,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         {
         }
 
-        public static readonly string SPAN_NAME_COMMIT = "SpannerEFCore.commit";
-        public static readonly string SPAN_NAME_SAVECHANGES = "SpannerEFCore.savechanges";
+        public static readonly string SPAN_NAME_COMMIT = "SpannerEFCore.Commit";
+        public static readonly string SPAN_NAME_SAVECHANGES = "SpannerEFCore.SaveChanges";
+        public static readonly string ATTRIBUTE_NAME_RETRYING = "SpannerEFCore.Retrying";
         public static Tracer GetTracer() => TracerProvider.Default.GetTracer("Google.Cloud.EntityFrameworkCore.Spanner");
     }
 }

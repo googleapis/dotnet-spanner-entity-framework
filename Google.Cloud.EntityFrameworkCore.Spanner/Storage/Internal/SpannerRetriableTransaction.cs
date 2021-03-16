@@ -296,20 +296,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {
                     _commitTimestamp = await SpannerTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
                     span.SetStatus(OpenTelemetry.Trace.Status.Ok);
+                    span.End();
                     return (DateTime)_commitTimestamp;
                 }
                 catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
                 {
+                    span.SetAttribute(TracerProviderExtension.ATTRIBUTE_NAME_RETRYING, e.Message);
                     await RetryAsync(e, cancellationToken).ConfigureAwait(false);
+                    span.SetStatus(OpenTelemetry.Trace.Status.Ok);
+                    span.End();
                 }
                 catch (Exception e)
                 {
                     span.SetStatus(OpenTelemetry.Trace.Status.Error.WithDescription(e.Message));
-                    throw;
-                }
-                finally
-                {
                     span.End();
+                    throw;
                 }
             }
         }

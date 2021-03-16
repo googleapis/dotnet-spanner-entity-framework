@@ -19,6 +19,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.EntityFrameworkCore.Update.Internal;
 using OpenTelemetry.Trace;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -47,7 +48,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 base.Execute(batchesList, connection);
                 span.SetStatus(Status.Ok);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 span.SetStatus(Status.Error.WithDescription(ex.Message));
                 throw;
@@ -63,7 +64,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         {
             // Convert the list of batches to a list to prevent it from being re-generated each time that we iterate over the enumerator.
             var batchesList = commandBatches.ToList();
-            await base.ExecuteAsync(batchesList, connection, cancellationToken);
+            var tracer = TracerProviderExtension.GetTracer();
+            using var span = tracer.StartActiveSpan(TracerProviderExtension.SPAN_NAME_SAVECHANGES);
+            try
+            {
+                await base.ExecuteAsync(batchesList, connection, cancellationToken);
+                span.SetStatus(Status.Ok);
+            }
+            catch (Exception ex)
+            {
+                span.SetStatus(Status.Error.WithDescription(ex.Message));
+                throw;
+            }
+            finally
+            {
+                span.End();
+            }
             return SpannerCount(batchesList);
         }
 
