@@ -303,8 +303,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {
                     span.SetAttribute(TracerProviderExtension.ATTRIBUTE_NAME_RETRYING, e.Message);
                     await RetryAsync(e, cancellationToken).ConfigureAwait(false);
-                    span.SetStatus(OpenTelemetry.Trace.Status.Ok);
-                    span.End();
                 }
                 catch (Exception e)
                 {
