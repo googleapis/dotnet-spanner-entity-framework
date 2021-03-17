@@ -272,17 +272,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                         || mapping.Converter?.ProviderClrType == clrType)
                     {
                         return mapping;
-                    };
+                    }
 
                     if (_arrayTypeMappings.TryGetValue(storeTypeName, out var arrayMapping)
                     || _arrayTypeMappings.TryGetValue(storeTypeNameBase, out arrayMapping))
                     {
-                        if (clrType == null
-                            || arrayMapping.ClrType == clrType
+                        if (arrayMapping.ClrType == clrType
                             || arrayMapping.Converter?.ProviderClrType == clrType)
                         {
                             return arrayMapping;
-                        };
+                        }
                     }
                 }
 

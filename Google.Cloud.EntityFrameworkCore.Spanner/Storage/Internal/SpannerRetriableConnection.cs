@@ -95,6 +95,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// Begins a read-only transaction with the specified <see cref="TimestampBound"/>
         /// </summary>
         /// <param name="timestampBound">The read timestamp to use for the read-only transaction.</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken" /> cancellation token to monitor for the asynchronous operation.</param>
         /// <returns>A new read-only transaction with the specified <see cref="TimestampBound"/></returns>
         public async Task<SpannerReadOnlyTransaction> BeginReadOnlyTransactionAsync(TimestampBound timestampBound, CancellationToken cancellationToken = default) =>
             new SpannerReadOnlyTransaction(this, await SpannerConnection.BeginReadOnlyTransactionAsync(timestampBound, cancellationToken));

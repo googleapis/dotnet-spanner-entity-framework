@@ -24,7 +24,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         private readonly string _intervalName;
         private readonly SqlExpression _intervalFragment;
         private readonly SqlExpression _intervalNameFragment;
-        private SqlExpression _value;
+        private readonly SqlExpression _value;
 
         internal SpannerIntervalExpression(ISqlExpressionFactory sqlExpressionFactory, SqlExpression value, string intervalName) : base(value.Type, value.TypeMapping)
         {

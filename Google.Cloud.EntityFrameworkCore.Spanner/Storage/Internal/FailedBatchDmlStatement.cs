@@ -13,7 +13,6 @@
 // limitations under the License.
 
 using Google.Cloud.Spanner.Data;
-using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;

@@ -68,7 +68,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <inheritdoc />
         public override bool Read() => Task.Run(() => ReadAsync(CancellationToken.None)).ResultWithUnwrappedExceptions();
 
-        public async override Task<bool> ReadAsync(CancellationToken cancellationToken)
+        public override async Task<bool> ReadAsync(CancellationToken cancellationToken)
         {
             while (true)
             {
@@ -93,7 +93,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     _numberOfReadCalls++;
                     throw;
                 }
-            };
+            }
         }
 
         internal static async Task<T> Execute<T>(Func<Task<T>> t)

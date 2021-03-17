@@ -201,13 +201,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         internal async Task<object> ExecuteScalarWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken)
         {
-            using (var reader = await ExecuteDbDataReaderWithRetryAsync(command, cancellationToken))
+            using var reader = await ExecuteDbDataReaderWithRetryAsync(command, cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
             {
-                if (await reader.ReadAsync(cancellationToken))
-                {
-                    return reader.GetValue(0);
-                }
+                return reader.GetValue(0);
             }
+
             return null;
         }
 

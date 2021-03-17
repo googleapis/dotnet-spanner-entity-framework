@@ -50,7 +50,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             builder.Append(GenerateParameterName(name));
         }
 
-        //Note we remove the shema because spanner does not support schema based names.
+        // Note we remove the schema because spanner does not support schema based names.
         /// <inheritdoc />
         public override string DelimitIdentifier(string name, string schema)
             => DelimitIdentifier(name);

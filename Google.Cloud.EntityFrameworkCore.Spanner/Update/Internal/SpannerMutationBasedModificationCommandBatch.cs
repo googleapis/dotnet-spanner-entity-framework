@@ -103,8 +103,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 EntityState.Added => spannerConnection.SpannerConnection.CreateInsertCommand(modificationCommand.TableName),
                 _ => throw new NotSupportedException($"Modification type {modificationCommand.EntityState} is not supported."),
             };
-        // TODO: Integrate with Spanner logging
-        cmd.Transaction = transaction.SpannerTransaction;
+            // TODO: Integrate with Spanner logging
+            cmd.Transaction = transaction.SpannerTransaction;
             foreach (var columnModification in modificationCommand.ColumnModifications)
             {
                 if (string.IsNullOrEmpty(columnModification.Property.GetComputedColumnSql()))
@@ -116,7 +116,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                                 ? columnModification.OriginalValue
                                 : columnModification.Value, columnModification.Property.IsNullable));
                 }
-}
+            }
             return cmd;
         }
     }

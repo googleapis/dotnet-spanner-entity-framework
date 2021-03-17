@@ -38,15 +38,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             {
                 return;
             }
-            var ddlStatements = statements.Where(x => IsDdlStatement(x)).ToArray();
+            var ddlStatements = statements.Where(IsDdlStatement).ToArray();
             var otherStatements = statements.Where(x => !IsDdlStatement(x));
-            var spannerConnection = ((connection as SpannerRelationalConnection).DbConnection as SpannerRetriableConnection);
-            if (ddlStatements.Count() > 0)
+            var spannerConnection = ((SpannerRelationalConnection) connection).DbConnection as SpannerRetriableConnection;
+            if (ddlStatements.Any())
             {
                 var cmd = spannerConnection.CreateDdlCommand(ddlStatements[0], ddlStatements.Skip(1).ToArray());
                 await cmd.ExecuteNonQueryAsync(cancellationToken);
             }
-            if (otherStatements.Count() > 0)
+            if (otherStatements.Any())
             {
                 using var transaction = await spannerConnection.BeginTransactionAsync(cancellationToken);
                 var cmd = spannerConnection.CreateBatchDmlCommand();

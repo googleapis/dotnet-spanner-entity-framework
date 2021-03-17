@@ -125,7 +125,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {
                     EmulatorDetection = EmulatorDetection.EmulatorOrProduction
                 };
-                var databaseAdminClient = adminClientBuilder.Build();
+                var databaseAdminClient = await adminClientBuilder.BuildAsync(cancellationToken);
                 await databaseAdminClient.GetDatabaseAsync(_connection.DbConnection.DataSource, cancellationToken);
             }
             catch (RpcException e) when (e.StatusCode == StatusCode.NotFound)

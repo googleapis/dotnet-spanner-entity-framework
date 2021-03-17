@@ -88,15 +88,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 returnType));
         }
 
-        private SqlExpression TranslateNoArgFunction(string function, SqlExpression instance, System.Type returnType)
-        {
-            return _sqlExpressionFactory.ApplyDefaultTypeMapping(
-                _sqlExpressionFactory.Function(
-                function,
-                new[] { instance },
-                returnType));
-        }
-
         private SqlExpression TranslateOneArgFunction(string function, SqlExpression instance, SqlExpression arg, System.Type returnType)
         {
             return _sqlExpressionFactory.ApplyDefaultTypeMapping(

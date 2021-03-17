@@ -21,7 +21,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     internal class SpannerDoubleTypeMapping : DoubleTypeMapping
     {
         public SpannerDoubleTypeMapping()
-            : base(SpannerDbType.Float64.ToString(), null)
+            : base(SpannerDbType.Float64.ToString())
         {
         }
 
