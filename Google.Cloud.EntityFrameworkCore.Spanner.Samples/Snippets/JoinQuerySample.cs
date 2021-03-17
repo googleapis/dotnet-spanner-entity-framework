@@ -52,25 +52,25 @@ public static class JoinQuerySample
             LastName = "Henderson",
             BirthDate = new SpannerDate(1983, 10, 19),
         };
-        context.Singers.Add(singer);
-        context.Albums.AddRange(new Album
-        {
-            AlbumId = Guid.NewGuid(),
-            SingerId = singer.SingerId,
-            Title = "Henderson's first",
-        },
-        new Album
-        {
-            AlbumId = Guid.NewGuid(),
-            SingerId = singer.SingerId,
-            Title = "Henderson's second",
-        },
-        new Album
-        {
-            AlbumId = Guid.NewGuid(),
-            SingerId = singer.SingerId,
-            Title = "Henderson's third",
-        });
+        await context.Singers.AddAsync(singer);
+        await context.Albums.AddRangeAsync(new Album
+            {
+                AlbumId = Guid.NewGuid(),
+                SingerId = singer.SingerId,
+                Title = "Henderson's first",
+            },
+            new Album
+            {
+                AlbumId = Guid.NewGuid(),
+                SingerId = singer.SingerId,
+                Title = "Henderson's second",
+            },
+            new Album
+            {
+                AlbumId = Guid.NewGuid(),
+                SingerId = singer.SingerId,
+                Title = "Henderson's third",
+            });
         await context.SaveChangesAsync();
     }
 }

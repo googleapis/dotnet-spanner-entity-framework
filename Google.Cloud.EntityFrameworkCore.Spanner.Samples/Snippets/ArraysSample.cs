@@ -58,7 +58,7 @@ public static class ArraysSample
             Lyrics = null,
             LyricsLanguages = null,
         };
-        context.Tracks.AddRange(track1, track2, track3);
+        await context.Tracks.AddRangeAsync(track1, track2, track3);
         var count = await context.SaveChangesAsync();
 
         Console.WriteLine($"Added {count} tracks.");
@@ -74,14 +74,14 @@ public static class ArraysSample
             FirstName = "Hannah",
             LastName = "Polansky"
         };
-        context.Singers.Add(singer);
+        await context.Singers.AddAsync(singer);
         var album = new Album
         {
             AlbumId = Guid.NewGuid(),
             SingerId = singer.SingerId,
             Title = "Somewhere",
         };
-        context.Albums.Add(album);
+        await context.Albums.AddAsync(album);
         await context.SaveChangesAsync();
 
         return (singer, album);

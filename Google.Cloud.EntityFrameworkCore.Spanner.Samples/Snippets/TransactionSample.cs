@@ -43,7 +43,7 @@ public static class TransactionSample
         // These changes have not yet been committed to the database and are
         // therefore not readable for other processes.
         var singerId = Guid.NewGuid();
-        context.Singers.Add(new Singer
+        await context.Singers.AddAsync(new Singer
         {
             SingerId = singerId,
             FirstName = "Bernhard",

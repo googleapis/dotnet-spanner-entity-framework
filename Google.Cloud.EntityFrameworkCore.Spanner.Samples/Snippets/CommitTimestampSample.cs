@@ -51,7 +51,7 @@ public static class CommitTimestampSample
             StartTime = startTime,
             Rating = 7.5,
         };
-        context.Performances.Add(performance);
+        await context.Performances.AddAsync(performance);
         var count = await context.SaveChangesAsync();
         Console.WriteLine($"Saved {count} performance");
 
@@ -84,24 +84,24 @@ public static class CommitTimestampSample
             FirstName = "Alice",
             LastName = "Jameson",
         };
-        context.Singers.Add(singer);
+        await context.Singers.AddAsync(singer);
         var album = new Album
         {
             AlbumId = Guid.NewGuid(),
             Title = "Rainforest",
             SingerId = singer.SingerId,
         };
-        context.Albums.Add(album);
+        await context.Albums.AddAsync(album);
         var track = new Track
         {
             AlbumId = album.AlbumId,
             TrackId = 1,
             Title = "Butterflies",
         };
-        context.Tracks.Add(track);
+        await context.Tracks.AddAsync(track);
         if (await context.Venues.FindAsync("CON") == null)
         {
-            context.Venues.Add(new Venue
+            await context.Venues.AddAsync(new Venue
             {
                 Code = "CON",
                 Name = "Concert Hall",
@@ -115,7 +115,7 @@ public static class CommitTimestampSample
             StartTime = new DateTime(2021, 1, 27, 18, 0, 0, DateTimeKind.Utc),
             Title = "Alice Jameson - LIVE in Concert Hall",
         };
-        context.Add(concert);
+        await context.AddAsync(concert);
 
         await context.SaveChangesAsync();
         return (concert, track);

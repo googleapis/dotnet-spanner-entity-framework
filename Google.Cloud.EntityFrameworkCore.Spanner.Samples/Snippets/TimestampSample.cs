@@ -43,7 +43,7 @@ public static class TimestampSample
             StartTime = new DateTime(2021, 2, 1, 19, 30, 0, DateTimeKind.Utc),
             Title = "Theodore in Concert Hall",
         };
-        context.Concerts.Add(concert);
+        await context.Concerts.AddAsync(concert);
         await context.SaveChangesAsync();
 
         // Commonly used methods and properties of DateTime are mapped to the equivalent Cloud Spanner functions and can be used in queries.
@@ -57,7 +57,7 @@ public static class TimestampSample
         }
     }
 
-    private async static Task<(Singer, Venue)> GetSingerAndVenueAsync(string connectionString)
+    private static async Task<(Singer, Venue)> GetSingerAndVenueAsync(string connectionString)
     {
         using var context = new SpannerSampleDbContext(connectionString);
         using var transaction = await context.Database.BeginTransactionAsync();
@@ -70,7 +70,7 @@ public static class TimestampSample
                 Name = "Concert Hall",
                 Active = true,
             };
-            context.Venues.Add(venue);
+            await context.Venues.AddAsync(venue);
         }
         var singer = new Singer
         {
@@ -78,7 +78,7 @@ public static class TimestampSample
             FirstName = "Theodore",
             LastName = "Walterson",
         };
-        context.Singers.Add(singer);
+        await context.Singers.AddAsync(singer);
         await context.SaveChangesAsync();
         await transaction.CommitAsync();
 

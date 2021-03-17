@@ -49,16 +49,14 @@ public static class ReadOnlyTransactionSample
 
         // Create a new database context and insert a singer with the given id. This singer will not be visible
         // to the read-only transaction.
-        using (var writeContext = new SpannerSampleDbContext(connectionString))
+        using var writeContext = new SpannerSampleDbContext(connectionString);
+        await writeContext.Singers.AddAsync(new Singer
         {
-            writeContext.Singers.Add(new Singer
-            {
-                SingerId = singerId,
-                FirstName = "Alice",
-                LastName = "Goldberg",
-            });
-            await writeContext.SaveChangesAsync();
-        }
+            SingerId = singerId,
+            FirstName = "Alice",
+            LastName = "Goldberg",
+        });
+        await writeContext.SaveChangesAsync();
 
         // The count should not have changed, as the read-only transaction will continue to use
         // the read timestamp assigned during the first read.

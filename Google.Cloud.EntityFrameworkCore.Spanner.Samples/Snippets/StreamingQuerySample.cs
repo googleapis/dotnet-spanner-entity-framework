@@ -43,28 +43,28 @@ public static class StreamingQuerySample
 
     private static async Task Setup(SpannerSampleDbContext context)
     {
-        context.Singers.AddRange(
-        new Singer
-        {
-            SingerId = Guid.NewGuid(),
-            FirstName = "Alice",
-            LastName = "Henderson",
-            BirthDate = new SpannerDate(1983, 10, 19),
-        },
-        new Singer
-        {
-            SingerId = Guid.NewGuid(),
-            FirstName = "Peter",
-            LastName = "Allison",
-            BirthDate = new SpannerDate(2000, 5, 2),
-        },
-        new Singer
-        {
-            SingerId = Guid.NewGuid(),
-            FirstName = "Mike",
-            LastName = "Nicholson",
-            BirthDate = new SpannerDate(1976, 8, 31),
-        });
+        await context.Singers.AddRangeAsync(
+            new Singer
+            {
+                SingerId = Guid.NewGuid(),
+                FirstName = "Alice",
+                LastName = "Henderson",
+                BirthDate = new SpannerDate(1983, 10, 19),
+            },
+            new Singer
+            {
+                SingerId = Guid.NewGuid(),
+                FirstName = "Peter",
+                LastName = "Allison",
+                BirthDate = new SpannerDate(2000, 5, 2),
+            },
+            new Singer
+            {
+                SingerId = Guid.NewGuid(),
+                FirstName = "Mike",
+                LastName = "Nicholson",
+                BirthDate = new SpannerDate(1976, 8, 31),
+            });
         await context.SaveChangesAsync();
     }
 }

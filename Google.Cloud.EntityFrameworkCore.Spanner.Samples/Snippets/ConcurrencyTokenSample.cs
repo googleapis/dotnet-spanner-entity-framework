@@ -73,14 +73,14 @@ public static class ConcurrencyTokenSample
         }
     }
 
-    private async static Task CreateSampleRow(string connectionString)
+    private static async Task CreateSampleRow(string connectionString)
     {
         using var context = new SpannerSampleDbContext(connectionString);
         if (await context.Venues.FindAsync("CON") != null)
         {
             return;
         }
-        context.Venues.Add(new Venue
+        await context.Venues.AddAsync(new Venue
         {
             Code = "CON",
             Name = "Concert Hall",

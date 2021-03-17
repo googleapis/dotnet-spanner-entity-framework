@@ -39,7 +39,7 @@ public static class InterleavedTableSample
             FirstName = "Brian",
             LastName = "Truman",
         };
-        context.Singers.Add(singer);
+        await context.Singers.AddAsync(singer);
 
         var album = new Album
         {
@@ -47,7 +47,7 @@ public static class InterleavedTableSample
             SingerId = singer.SingerId,
             Title = "Potatoes",
         };
-        context.Albums.Add(album);
+        await context.Albums.AddAsync(album);
 
         // Tracks are interleaved in Albums. This relationship is treated the same as FOREIGN KEYS in
         // Entity Framework Core, which means that we can traverse the relationship both ways, and any
