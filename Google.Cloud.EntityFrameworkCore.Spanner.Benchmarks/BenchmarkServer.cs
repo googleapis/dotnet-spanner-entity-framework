@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -59,7 +59,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks
 
             for (int row = 0; row < 100; row++)
             {
-                var insertAlbumEF = $"INSERT INTO Albums (AlbumId, ReleaseDate, SingerId, Title){Environment.NewLine}VALUES (@p{row*4}, @p{row*4+1}, @p{row*4+2}, @p{row*4+3})";
+                var insertAlbumEF = $"INSERT INTO Albums (AlbumId, ReleaseDate, SingerId, Title){Environment.NewLine}VALUES (@p{row * 4}, @p{row * 4 + 1}, @p{row * 4 + 2}, @p{row * 4 + 3})";
                 SpannerMock.AddOrUpdateStatementResult(insertAlbumEF, StatementResult.CreateUpdateCount(1L));
                 SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteBatchDml) + insertAlbumEF, ExecutionTime.FromMillis(0, 1));
             }
@@ -93,7 +93,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks
 
             _server = new Server
             {
-                Services = {V1.Spanner.BindService(SpannerMock) },
+                Services = { V1.Spanner.BindService(SpannerMock) },
                 Ports = { new ServerPort("localhost", 0, ServerCredentials.Insecure) }
             };
             _server.Start();

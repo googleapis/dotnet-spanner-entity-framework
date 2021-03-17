@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google Inc. All Rights Reserved.
+// Copyright 2021 Google Inc. All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,27 +43,27 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             SpannerCommand command)
         {
             Transaction = transaction;
-            SpannerDataReader = spannerDataReader;
+            _spannerDataReader = spannerDataReader;
             _spannerCommand = (SpannerCommand)command.Clone();
         }
 
         internal SpannerRetriableTransaction Transaction { get; private set; }
 
-        public override int Depth => SpannerDataReader.Depth;
+        public override int Depth => _spannerDataReader.Depth;
 
-        public override int FieldCount => SpannerDataReader.FieldCount;
+        public override int FieldCount => _spannerDataReader.FieldCount;
 
-        public override bool HasRows => SpannerDataReader.HasRows;
+        public override bool HasRows => _spannerDataReader.HasRows;
 
-        public override bool IsClosed => SpannerDataReader.IsClosed;
+        public override bool IsClosed => _spannerDataReader.IsClosed;
 
-        public override int RecordsAffected => SpannerDataReader.RecordsAffected;
+        public override int RecordsAffected => _spannerDataReader.RecordsAffected;
 
-        public override object this[string name] => SpannerDataReader[name];
+        public override object this[string name] => _spannerDataReader[name];
 
-        public override object this[int ordinal] => SpannerDataReader[ordinal];
+        public override object this[int ordinal] => _spannerDataReader[ordinal];
 
-        private SpannerDataReader SpannerDataReader;
+        private SpannerDataReader _spannerDataReader;
 
         /// <inheritdoc />
         public override bool Read() => Task.Run(() => ReadAsync(CancellationToken.None)).ResultWithUnwrappedExceptions();
@@ -74,8 +74,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             {
                 try
                 {
-                    bool res = await SpannerDataReader.ReadAsync(cancellationToken);
-                    _currentChecksum = CalculateNextChecksum(SpannerDataReader, _currentChecksum, res);
+                    bool res = await _spannerDataReader.ReadAsync(cancellationToken);
+                    _currentChecksum = CalculateNextChecksum(_spannerDataReader, _currentChecksum, res);
                     _numberOfReadCalls++;
                     return res;
                 }
@@ -171,7 +171,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 }
                 else
                 {
-                    SpannerDataReader = reader;
+                    _spannerDataReader = reader;
                 }
             }
             else
@@ -184,117 +184,117 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         public override bool GetBoolean(int ordinal)
         {
-            return SpannerDataReader.GetBoolean(ordinal);
+            return _spannerDataReader.GetBoolean(ordinal);
         }
 
         public override byte GetByte(int ordinal)
         {
-            return SpannerDataReader.GetByte(ordinal);
+            return _spannerDataReader.GetByte(ordinal);
         }
 
         public override long GetBytes(int ordinal, long dataOffset, byte[] buffer, int bufferOffset, int length)
         {
-            return SpannerDataReader.GetBytes(ordinal, dataOffset, buffer, bufferOffset, length);
+            return _spannerDataReader.GetBytes(ordinal, dataOffset, buffer, bufferOffset, length);
         }
 
         public override char GetChar(int ordinal)
         {
-            return SpannerDataReader.GetChar(ordinal);
+            return _spannerDataReader.GetChar(ordinal);
         }
 
         public override long GetChars(int ordinal, long dataOffset, char[] buffer, int bufferOffset, int length)
         {
-            return SpannerDataReader.GetChars(ordinal, dataOffset, buffer, bufferOffset, length);
+            return _spannerDataReader.GetChars(ordinal, dataOffset, buffer, bufferOffset, length);
         }
 
         public override string GetDataTypeName(int ordinal)
         {
-            return SpannerDataReader.GetDataTypeName(ordinal);
+            return _spannerDataReader.GetDataTypeName(ordinal);
         }
 
         public override DateTime GetDateTime(int ordinal)
         {
-            return SpannerDataReader.GetDateTime(ordinal);
+            return _spannerDataReader.GetDateTime(ordinal);
         }
 
         public override decimal GetDecimal(int ordinal)
         {
-            return SpannerDataReader.GetDecimal(ordinal);
+            return _spannerDataReader.GetDecimal(ordinal);
         }
 
         public override double GetDouble(int ordinal)
         {
-            return SpannerDataReader.GetDouble(ordinal);
+            return _spannerDataReader.GetDouble(ordinal);
         }
 
         public override IEnumerator GetEnumerator()
         {
-            return SpannerDataReader.GetEnumerator();
+            return _spannerDataReader.GetEnumerator();
         }
 
         public override System.Type GetFieldType(int ordinal)
         {
-            return SpannerDataReader.GetFieldType(ordinal);
+            return _spannerDataReader.GetFieldType(ordinal);
         }
 
         public override float GetFloat(int ordinal)
         {
-            return SpannerDataReader.GetFloat(ordinal);
+            return _spannerDataReader.GetFloat(ordinal);
         }
 
         public override Guid GetGuid(int ordinal)
         {
-            return SpannerDataReader.GetGuid(ordinal);
+            return _spannerDataReader.GetGuid(ordinal);
         }
 
         public override short GetInt16(int ordinal)
         {
-            return SpannerDataReader.GetInt16(ordinal);
+            return _spannerDataReader.GetInt16(ordinal);
         }
 
         public override int GetInt32(int ordinal)
         {
-            return SpannerDataReader.GetInt32(ordinal);
+            return _spannerDataReader.GetInt32(ordinal);
         }
 
         public override long GetInt64(int ordinal)
         {
-            return SpannerDataReader.GetInt64(ordinal);
+            return _spannerDataReader.GetInt64(ordinal);
         }
 
         public override string GetName(int ordinal)
         {
-            return SpannerDataReader.GetName(ordinal);
+            return _spannerDataReader.GetName(ordinal);
         }
 
         public override int GetOrdinal(string name)
         {
-            return SpannerDataReader.GetOrdinal(name);
+            return _spannerDataReader.GetOrdinal(name);
         }
 
         public override string GetString(int ordinal)
         {
-            return SpannerDataReader.GetString(ordinal);
+            return _spannerDataReader.GetString(ordinal);
         }
 
         public override object GetValue(int ordinal)
         {
-            return SpannerDataReader.GetValue(ordinal);
+            return _spannerDataReader.GetValue(ordinal);
         }
 
         public override int GetValues(object[] values)
         {
-            return SpannerDataReader.GetValues(values);
+            return _spannerDataReader.GetValues(values);
         }
 
         public override bool IsDBNull(int ordinal)
         {
-            return SpannerDataReader.IsDBNull(ordinal);
+            return _spannerDataReader.IsDBNull(ordinal);
         }
 
         public override bool NextResult()
         {
-            return SpannerDataReader.NextResult();
+            return _spannerDataReader.NextResult();
         }
     }
 }

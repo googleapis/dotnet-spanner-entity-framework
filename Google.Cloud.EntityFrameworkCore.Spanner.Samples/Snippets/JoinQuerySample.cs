@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google Inc. All Rights Reserved.
+// Copyright 2021 Google Inc. All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ public static class JoinQuerySample
                     select new { singer, album };
 
         Console.WriteLine("Singers and albums:");
-        await foreach(var row in query.AsAsyncEnumerable())
+        await foreach (var row in query.AsAsyncEnumerable())
         {
             Console.WriteLine($"Singer {row.singer.FullName} produced album {row.album.Title}");
         }

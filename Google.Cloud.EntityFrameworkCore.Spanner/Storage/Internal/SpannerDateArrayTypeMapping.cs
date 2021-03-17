@@ -1,4 +1,4 @@
-﻿// Copyright 2021, Google Inc. All rights reserved.
+// Copyright 2021, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,13 +23,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     public class SpannerDateArrayTypeMapping : RelationalTypeMapping
     {
-        private static readonly ValueConverter converter = new ValueConverter<SpannerDate[], DateTime[]>(
+        private static readonly ValueConverter s_converter = new ValueConverter<SpannerDate[], DateTime[]>(
             v => v.Select(sd => sd.ToDateTime()).ToArray(),
             v => v.Select(dt => SpannerDate.FromDateTime(dt)).ToArray());
 
         public SpannerDateArrayTypeMapping()
             : base(new RelationalTypeMappingParameters(
-                   new CoreTypeMappingParameters(typeof(SpannerDate[]), converter),
+                   new CoreTypeMappingParameters(typeof(SpannerDate[]), s_converter),
                    "ARRAY<DATE>", StoreTypePostfix.None, System.Data.DbType.Object))
         { }
 

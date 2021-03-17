@@ -1,4 +1,4 @@
-﻿// Copyright 2020, Google Inc. All rights reserved.
+// Copyright 2020, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -150,19 +150,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly SpannerComplexTypeMapping s_numericList
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric), typeof(List<SpannerNumeric>));
 
-        private readonly Dictionary<System.Type, RelationalTypeMapping> s_clrTypeMappings;
+        private readonly Dictionary<System.Type, RelationalTypeMapping> _clrTypeMappings;
 
-        private readonly Dictionary<string, RelationalTypeMapping> s_storeTypeMappings;
+        private readonly Dictionary<string, RelationalTypeMapping> _storeTypeMappings;
 
-        private readonly Dictionary<string, RelationalTypeMapping> s_arrayTypeMappings;
+        private readonly Dictionary<string, RelationalTypeMapping> _arrayTypeMappings;
 
         public SpannerTypeMappingSource(
             TypeMappingSourceDependencies dependencies,
             RelationalTypeMappingSourceDependencies relationalDependencies)
             : base(dependencies, relationalDependencies)
         {
-
-            s_clrTypeMappings
+            _clrTypeMappings
                 = new Dictionary<System.Type, RelationalTypeMapping>
                 {
                     {typeof(short), s_short},
@@ -220,7 +219,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(List<byte[]>), s_byteList},
                 };
 
-            s_storeTypeMappings = new Dictionary<string, RelationalTypeMapping>
+            _storeTypeMappings = new Dictionary<string, RelationalTypeMapping>
             {
                 {SpannerDbType.Bool.ToString(), s_bool},
                 {SpannerDbType.Bytes.ToString(), s_bytes},
@@ -240,7 +239,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {"ARRAY<NUMERIC>", s_nullableNumericList}
             };
 
-            s_arrayTypeMappings = new Dictionary<string, RelationalTypeMapping>
+            _arrayTypeMappings = new Dictionary<string, RelationalTypeMapping>
             {
                 {"ARRAY<BOOL>", s_nullableBoolArray},
                 {"ARRAY<BYTES", s_byteArray},
@@ -265,8 +264,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
             if (storeTypeName != null)
             {
-                if (s_storeTypeMappings.TryGetValue(storeTypeName, out var mapping)
-                    || s_storeTypeMappings.TryGetValue(storeTypeNameBase, out mapping))
+                if (_storeTypeMappings.TryGetValue(storeTypeName, out var mapping)
+                    || _storeTypeMappings.TryGetValue(storeTypeNameBase, out mapping))
                 {
                     if (clrType == null
                         || mapping.ClrType == clrType
@@ -275,8 +274,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                         return mapping;
                     };
 
-                    if (s_arrayTypeMappings.TryGetValue(storeTypeName, out var arrayMapping)
-                    || s_arrayTypeMappings.TryGetValue(storeTypeNameBase, out arrayMapping))
+                    if (_arrayTypeMappings.TryGetValue(storeTypeName, out var arrayMapping)
+                    || _arrayTypeMappings.TryGetValue(storeTypeNameBase, out arrayMapping))
                     {
                         if (clrType == null
                             || arrayMapping.ClrType == clrType
@@ -295,7 +294,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
             if (clrType != null)
             {
-                if (s_clrTypeMappings.TryGetValue(clrType, out var mapping))
+                if (_clrTypeMappings.TryGetValue(clrType, out var mapping))
                 {
                     return mapping;
                 }
@@ -306,7 +305,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         private bool TryFindConverterMapping(string storeType, System.Type clrType, out RelationalTypeMapping mapping)
         {
-            foreach (var m in s_clrTypeMappings.Values)
+            foreach (var m in _clrTypeMappings.Values)
             {
                 if (m.Converter?.ProviderClrType == clrType && m.StoreType == storeType)
                 {

@@ -1,4 +1,4 @@
-﻿// Copyright 2020, Google Inc. All rights reserved.
+// Copyright 2020, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     /// </summary>
     internal class SpannerComplexTypeMapping : RelationalTypeMapping
     {
-        private static readonly List<SpannerDbType> _arrayTypes = new List<SpannerDbType>
+        private static readonly List<SpannerDbType> s_arrayTypes = new List<SpannerDbType>
         {
             SpannerDbType.ArrayOf(SpannerDbType.Bool),
             SpannerDbType.ArrayOf(SpannerDbType.Bytes),
@@ -47,7 +47,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
             _complexType = complexType;
             _clrType = clrType;
-            _isArrayType = SpannerComplexTypeMapping._arrayTypes.Contains(complexType);
+            _isArrayType = SpannerComplexTypeMapping.s_arrayTypes.Contains(complexType);
         }
 
         public override RelationalTypeMapping Clone(string storeType, int? size) =>

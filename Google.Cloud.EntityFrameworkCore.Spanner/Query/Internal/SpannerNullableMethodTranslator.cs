@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+// Copyright 2021 Google LLC
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
     /// </summary>
     public class SpannerNullableMethodTranslator : IMethodCallTranslator
     {
-        private static readonly Dictionary<MethodInfo, object> _defaultMethods = new Dictionary<MethodInfo, object>
+        private static readonly Dictionary<MethodInfo, object> s_defaultMethods = new Dictionary<MethodInfo, object>
         {
             { typeof(bool?).GetRuntimeMethod(nameof(Nullable<bool>.GetValueOrDefault), Array.Empty<System.Type>()), false },
             { typeof(byte?).GetRuntimeMethod(nameof(Nullable<byte>.GetValueOrDefault), Array.Empty<System.Type>()), (byte) 0 },
@@ -47,7 +47,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             { typeof(SpannerDate?).GetRuntimeMethod(nameof(Nullable<SpannerDate>.GetValueOrDefault), Array.Empty<System.Type>()), new SpannerDate(1, 1, 1) },
             { typeof(DateTime?).GetRuntimeMethod(nameof(Nullable<DateTime>.GetValueOrDefault), Array.Empty<System.Type>()), new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
         };
-        private static readonly HashSet<MethodInfo> _defaultMethodsWithArgument = new HashSet<MethodInfo>
+        private static readonly HashSet<MethodInfo> s_defaultMethodsWithArgument = new HashSet<MethodInfo>
         {
             typeof(bool?).GetRuntimeMethod(nameof(Nullable<bool>.GetValueOrDefault), new[] { typeof(bool) }),
             typeof(byte?).GetRuntimeMethod(nameof(Nullable<byte>.GetValueOrDefault), new[] { typeof(byte) }),
@@ -73,11 +73,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 
         public virtual SqlExpression Translate(SqlExpression instance, MethodInfo method, IReadOnlyList<SqlExpression> arguments)
         {
-            if (_defaultMethods.TryGetValue(method, out var defaultValue))
+            if (s_defaultMethods.TryGetValue(method, out var defaultValue))
             {
                 return _sqlExpressionFactory.Coalesce(instance, _sqlExpressionFactory.Constant(defaultValue), instance.TypeMapping);
             }
-            if (_defaultMethodsWithArgument.Contains(method))
+            if (s_defaultMethodsWithArgument.Contains(method))
             {
                 return _sqlExpressionFactory.Coalesce(instance, arguments[0], instance.TypeMapping);
             }

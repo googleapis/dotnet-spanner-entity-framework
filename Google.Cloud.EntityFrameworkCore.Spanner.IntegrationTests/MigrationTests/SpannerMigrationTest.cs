@@ -555,7 +555,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             {
                 Assert.Empty(authors);
             }
-
         }
     }
 }

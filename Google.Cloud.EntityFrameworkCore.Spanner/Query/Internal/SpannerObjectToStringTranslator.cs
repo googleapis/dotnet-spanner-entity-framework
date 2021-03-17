@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+// Copyright 2021 Google LLC
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
     /// </summary>
     public class SpannerObjectToStringTranslator : IMethodCallTranslator
     {
-        private static readonly HashSet<System.Type> _typeMapping = new HashSet<System.Type>
+        private static readonly HashSet<System.Type> s_typeMapping = new HashSet<System.Type>
             {
                 typeof(bool),
                 typeof(byte),
@@ -86,7 +86,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             return method.Name == nameof(ToString)
                 && arguments.Count == 0
                 && instance != null
-                && _typeMapping.Contains(instance.Type)
+                && s_typeMapping.Contains(instance.Type)
                     ? ConvertToString(instance)
                     : null;
         }

@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+// Copyright 2021 Google LLC
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
     /// </summary>
     public class SpannerListMemberTranslator : IMemberTranslator
     {
-        private static readonly HashSet<MemberInfo> _countMethods = new HashSet<MemberInfo>
+        private static readonly HashSet<MemberInfo> s_countMethods = new HashSet<MemberInfo>
         {
             typeof(List<decimal>).GetRuntimeProperty(nameof(List<decimal>.Count)),
             typeof(List<decimal?>).GetRuntimeProperty(nameof(List<decimal?>.Count)),
@@ -61,7 +61,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 
         public SqlExpression Translate(SqlExpression instance, MemberInfo member, System.Type returnType)
         {
-            if (_countMethods.Contains(member))
+            if (s_countMethods.Contains(member))
             {
                 return TranslateNoArgFunction("ARRAY_LENGTH", instance, typeof(int));
             }

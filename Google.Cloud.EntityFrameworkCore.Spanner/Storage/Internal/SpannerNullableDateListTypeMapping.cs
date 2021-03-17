@@ -1,4 +1,4 @@
-﻿// Copyright 2021, Google Inc. All rights reserved.
+// Copyright 2021, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,13 +24,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     public class SpannerNullableDateListTypeMapping : RelationalTypeMapping
     {
-        private static readonly ValueConverter converter = new ValueConverter<List<SpannerDate?>, List<DateTime?>>(
+        private static readonly ValueConverter s_converter = new ValueConverter<List<SpannerDate?>, List<DateTime?>>(
             v => v.Select(sd => sd == null ? (DateTime?)null : sd.GetValueOrDefault().ToDateTime()).ToList(),
             v => v.Select(dt => dt == null ? (SpannerDate?)null : SpannerDate.FromDateTime(dt.GetValueOrDefault())).ToList());
 
         public SpannerNullableDateListTypeMapping()
             : base(new RelationalTypeMappingParameters(
-                   new CoreTypeMappingParameters(typeof(List<SpannerDate?>), converter),
+                   new CoreTypeMappingParameters(typeof(List<SpannerDate?>), s_converter),
                    "ARRAY<DATE>"))
         { }
 

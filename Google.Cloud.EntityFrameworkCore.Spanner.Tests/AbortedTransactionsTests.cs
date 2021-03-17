@@ -804,7 +804,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 cmd.Transaction = transaction;
                 var updateCount = await cmd.ExecuteNonQueryAsync();
                 Assert.Equal(1, updateCount);
-                Assert.Equal(i+1, transaction.RetryCount);
+                Assert.Equal(i + 1, transaction.RetryCount);
             }
             // The next statement that aborts will cause the transaction to fail.
             _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
@@ -814,7 +814,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
             Assert.Contains("Transaction was aborted because it aborted and retried too many times", e.Message);
         }
-
     }
 #pragma warning restore EF1001 // Internal EF Core API usage.
 }

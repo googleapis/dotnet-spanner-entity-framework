@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+// Copyright 2021 Google LLC
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ using System.Reflection;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 {
-
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
     ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
@@ -32,7 +31,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
     /// </summary>
     public class SpannerMathTranslator : IMethodCallTranslator
     {
-        private static readonly Dictionary<MethodInfo, string> _supportedMethods = new Dictionary<MethodInfo, string>
+        private static readonly Dictionary<MethodInfo, string> s_supportedMethods = new Dictionary<MethodInfo, string>
         {
             { typeof(Math).GetRuntimeMethod(nameof(Math.Abs), new[] { typeof(double) }), "ABS" },
             { typeof(Math).GetRuntimeMethod(nameof(Math.Abs), new[] { typeof(float) }), "ABS" },
@@ -71,7 +70,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             { typeof(Math).GetRuntimeMethod(nameof(Math.Floor), new[] { typeof(decimal) }), "FLOOR" },
         };
 
-        private static readonly MethodInfo _spannerNumericToDecimalMethodInfo
+        private static readonly MethodInfo s_spannerNumericToDecimalMethodInfo
             = typeof(SpannerNumeric).GetRuntimeMethod(nameof(SpannerNumeric.ToDecimal), new[] { typeof(LossOfPrecisionHandling) });
 
         private readonly ISqlExpressionFactory _sqlExpressionFactory;
@@ -86,7 +85,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
            MethodInfo method,
            IReadOnlyList<SqlExpression> arguments)
         {
-            if (_supportedMethods.TryGetValue(method, out var sqlFunctionName))
+            if (s_supportedMethods.TryGetValue(method, out var sqlFunctionName))
             {
                 if (sqlFunctionName == "ROUND")
                 {
@@ -109,7 +108,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                         arguments,
                         method.ReturnType));
             }
-            if (_spannerNumericToDecimalMethodInfo.Equals(method))
+            if (s_spannerNumericToDecimalMethodInfo.Equals(method))
             {
                 return instance;
             }

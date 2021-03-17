@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+// Copyright 2021 Google LLC
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,16 +29,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
     /// </summary>
     public class SpannerRegexMethodTranslator : IMethodCallTranslator
     {
-        private static readonly MethodInfo _isMatchMethodInfo
+        private static readonly MethodInfo s_isMatchMethodInfo
             = typeof(Regex).GetRuntimeMethod(nameof(Regex.IsMatch), new[] { typeof(string) });
 
-        private static readonly MethodInfo _isMatchStaticMethodInfo
+        private static readonly MethodInfo s_isMatchStaticMethodInfo
             = typeof(Regex).GetRuntimeMethod(nameof(Regex.IsMatch), new[] { typeof(string), typeof(string) });
 
-        private static readonly MethodInfo _replaceMethodInfo
+        private static readonly MethodInfo s_replaceMethodInfo
             = typeof(Regex).GetRuntimeMethod(nameof(Regex.Replace), new[] { typeof(string), typeof(string) });
 
-        private static readonly MethodInfo _replaceStaticMethodInfo
+        private static readonly MethodInfo s_replaceStaticMethodInfo
             = typeof(Regex).GetRuntimeMethod(nameof(Regex.Replace), new[] { typeof(string), typeof(string), typeof(string) });
 
         private readonly ISqlExpressionFactory _sqlExpressionFactory;
@@ -50,21 +50,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 
         public virtual SqlExpression Translate(SqlExpression instance, MethodInfo method, IReadOnlyList<SqlExpression> arguments)
         {
-            if (_isMatchMethodInfo.Equals(method))
+            if (s_isMatchMethodInfo.Equals(method))
             {
                 // Yes, this is the correct order. Cloud Spanner expects the input string as the first parameter, and then the pattern.
                 return TranslateOneArgFunction("REGEXP_CONTAINS", arguments[0], AddBeginAndEndOfText(instance), typeof(bool));
             }
-            if (_isMatchStaticMethodInfo.Equals(method))
+            if (s_isMatchStaticMethodInfo.Equals(method))
             {
                 return TranslateOneArgFunction("REGEXP_CONTAINS", AddBeginAndEndOfText(arguments[0]), arguments[1], typeof(bool));
             }
-            if (_replaceMethodInfo.Equals(method))
+            if (s_replaceMethodInfo.Equals(method))
             {
                 // Yes, this is the correct order. Cloud Spanner expects the input string as the first parameter, and then the pattern.
                 return TranslateTwoArgFunction("REGEXP_REPLACE", arguments[0], instance, arguments[1], typeof(string));
             }
-            if (_replaceStaticMethodInfo.Equals(method))
+            if (s_replaceStaticMethodInfo.Equals(method))
             {
                 return TranslateStaticFunction("REGEXP_REPLACE", arguments, typeof(string));
             }

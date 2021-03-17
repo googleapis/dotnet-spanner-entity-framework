@@ -11,7 +11,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Google.Cloud.EntityFramewor
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Google.Cloud.EntityFrameworkCore.Spanner.Samples", "Google.Cloud.EntityFrameworkCore.Spanner.Samples\Google.Cloud.EntityFrameworkCore.Spanner.Samples.csproj", "{E37C9685-BAA3-4A83-8259-3C25730E6E36}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks", "Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks\Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks.csproj", "{A1721F06-FE32-408E-BFAF-A6C94E28E9B0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks", "Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks\Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks.csproj", "{A1721F06-FE32-408E-BFAF-A6C94E28E9B0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,6 +35,10 @@ Global
 		{E37C9685-BAA3-4A83-8259-3C25730E6E36}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E37C9685-BAA3-4A83-8259-3C25730E6E36}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E37C9685-BAA3-4A83-8259-3C25730E6E36}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1721F06-FE32-408E-BFAF-A6C94E28E9B0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1721F06-FE32-408E-BFAF-A6C94E28E9B0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1721F06-FE32-408E-BFAF-A6C94E28E9B0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1721F06-FE32-408E-BFAF-A6C94E28E9B0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

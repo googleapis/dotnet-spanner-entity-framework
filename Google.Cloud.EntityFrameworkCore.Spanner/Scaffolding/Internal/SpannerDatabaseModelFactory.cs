@@ -1,4 +1,4 @@
-﻿// Copyright 2020, Google Inc. All rights reserved.
+// Copyright 2020, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -246,9 +246,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
                 var indexGroups = tableIndexGroup.Where(
                     ddr => ddr.GetValueOrDefault<string>("INDEX_TYPE") != "PRIMARY_KEY")
                         .GroupBy(ddr => (
-                            Name:           ddr.GetValueOrDefault<string>("INDEX_NAME"),
-                            TypeDesc:       ddr.GetValueOrDefault<string>("INDEX_TYPE"),
-                            IsUnique:       ddr.GetValueOrDefault<bool>("IS_UNIQUE"),
+                            Name: ddr.GetValueOrDefault<string>("INDEX_NAME"),
+                            TypeDesc: ddr.GetValueOrDefault<string>("INDEX_TYPE"),
+                            IsUnique: ddr.GetValueOrDefault<bool>("IS_UNIQUE"),
                             IsNullFiltered: ddr.GetValueOrDefault<bool>("IS_NULL_FILTERED")
                         )
                     ).ToArray();
@@ -282,7 +282,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
 
                     table.Indexes.Add(index);
                 }
-
             }
         }
 
