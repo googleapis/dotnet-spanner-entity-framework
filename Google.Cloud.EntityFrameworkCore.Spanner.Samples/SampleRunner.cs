@@ -146,7 +146,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
             var instanceName = InstanceName.FromProjectInstance(projectId, instanceId);
             try
             {
-                await instanceAdminClient.CreateInstanceAsync(new CreateInstanceRequest
+                await instanceAdminClient.CreateInstance(new CreateInstanceRequest
                 {
                     InstanceId = instanceName.InstanceId,
                     ParentAsProjectName = ProjectName.FromProject(projectId),
@@ -157,7 +157,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
                         DisplayName = "Sample Instance",
                         NodeCount = 1,
                     },
-                });
+                }).PollUntilCompletedAsync();
             }
             catch (RpcException e) when (e.StatusCode == StatusCode.AlreadyExists)
             {
@@ -177,11 +177,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
             var instanceName = InstanceName.FromProjectInstance(databaseName.ProjectId, databaseName.InstanceId);
             try
             {
-                await databaseAdminClient.CreateDatabaseAsync(new CreateDatabaseRequest
+                await databaseAdminClient.CreateDatabase(new CreateDatabaseRequest
                 {
                     ParentAsInstanceName = instanceName,
                     CreateStatement = $"CREATE DATABASE `{databaseName.DatabaseId}`",
-                });
+                }).PollUntilCompletedAsync();
                 var connectionStringBuilder = new SpannerConnectionStringBuilder($"Data Source={databaseName}")
                 {
                     EmulatorDetection = EmulatorDetection.EmulatorOnly,
