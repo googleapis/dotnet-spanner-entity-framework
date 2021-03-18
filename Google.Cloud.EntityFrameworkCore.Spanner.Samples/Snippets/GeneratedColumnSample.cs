@@ -37,7 +37,7 @@ public static class GeneratedColumnSample
             FirstName = "Alice",
             LastName = "Jameson"
         };
-        context.Singers.Add(singer);
+        await context.Singers.AddAsync(singer);
         await context.SaveChangesAsync();
 
         // Entity Framework will automatically fetch the computed value for FullName

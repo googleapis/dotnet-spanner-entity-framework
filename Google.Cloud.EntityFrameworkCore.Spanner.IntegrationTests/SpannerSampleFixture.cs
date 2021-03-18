@@ -122,7 +122,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             // 2. Computed columns.
             // 3. Check constraints.
             var sampleModel = IsEmulator ? "SampleDataModel - Emulator.sql" : "SampleDataModel.sql";
-            var fileName =  Path.Combine(dirPath, sampleModel);
+            var fileName = Path.Combine(dirPath, sampleModel);
             var script = File.ReadAllText(fileName);
             var statements = script.Split(";");
             for (var i = 0; i < statements.Length; i++)

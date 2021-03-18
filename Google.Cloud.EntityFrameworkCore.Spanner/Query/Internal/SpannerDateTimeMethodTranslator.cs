@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+// Copyright 2021 Google LLC
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,31 +30,31 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
     /// </summary>
     public class SpannerDateTimeMethodTranslator : IMethodCallTranslator
     {
-        private static readonly MethodInfo _addYearsMethodInfo
+        private static readonly MethodInfo s_addYearsMethodInfo
             = typeof(SpannerDate).GetRuntimeMethod(nameof(SpannerDate.AddYears), new[] { typeof(int) });
 
-        private static readonly MethodInfo _addMonthsMethodInfo
+        private static readonly MethodInfo s_addMonthsMethodInfo
             = typeof(SpannerDate).GetRuntimeMethod(nameof(SpannerDate.AddMonths), new[] { typeof(int) });
 
-        private static readonly MethodInfo _addDaysMethodInfo
+        private static readonly MethodInfo s_addDaysMethodInfo
             = typeof(SpannerDate).GetRuntimeMethod(nameof(SpannerDate.AddDays), new[] { typeof(int) });
 
-        private static readonly MethodInfo _dateTimeAddDaysMethodInfo
+        private static readonly MethodInfo s_dateTimeAddDaysMethodInfo
             = typeof(DateTime).GetRuntimeMethod(nameof(DateTime.AddDays), new[] { typeof(double) });
 
-        private static readonly MethodInfo _addHoursMethodInfo
+        private static readonly MethodInfo s_addHoursMethodInfo
             = typeof(DateTime).GetRuntimeMethod(nameof(DateTime.AddHours), new[] { typeof(double) });
 
-        private static readonly MethodInfo _addMinutesMethodInfo
+        private static readonly MethodInfo s_addMinutesMethodInfo
             = typeof(DateTime).GetRuntimeMethod(nameof(DateTime.AddMinutes), new[] { typeof(double) });
 
-        private static readonly MethodInfo _addSecondsMethodInfo
+        private static readonly MethodInfo s_addSecondsMethodInfo
             = typeof(DateTime).GetRuntimeMethod(nameof(DateTime.AddSeconds), new[] { typeof(double) });
 
-        private static readonly MethodInfo _addMillisecondsMethodInfo
+        private static readonly MethodInfo s_addMillisecondsMethodInfo
             = typeof(DateTime).GetRuntimeMethod(nameof(DateTime.AddMilliseconds), new[] { typeof(double) });
 
-        private static readonly MethodInfo _addTicksMethodInfo
+        private static readonly MethodInfo s_addTicksMethodInfo
             = typeof(DateTime).GetRuntimeMethod(nameof(DateTime.AddTicks), new[] { typeof(long) });
 
         private readonly ISqlExpressionFactory _sqlExpressionFactory;
@@ -66,40 +66,40 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 
         public virtual SqlExpression Translate(SqlExpression instance, MethodInfo method, IReadOnlyList<SqlExpression> arguments)
         {
-            if (_addYearsMethodInfo.Equals(method) && IsValidDate(instance))
+            if (s_addYearsMethodInfo.Equals(method) && IsValidDate(instance))
             {
                 return TranslateAddDateInterval(instance, arguments, "YEAR");
             }
-            if (_addMonthsMethodInfo.Equals(method) && IsValidDate(instance))
+            if (s_addMonthsMethodInfo.Equals(method) && IsValidDate(instance))
             {
                 return TranslateAddDateInterval(instance, arguments, "MONTH");
             }
             // Adding INTERVAL x DAY is allowed for both DATE and TIMESTAMP.
-            if (_addDaysMethodInfo.Equals(method) && IsValidDate(instance))
+            if (s_addDaysMethodInfo.Equals(method) && IsValidDate(instance))
             {
                 return TranslateAddDateInterval(instance, arguments, "DAY");
             }
-            if (_dateTimeAddDaysMethodInfo.Equals(method) && IsValidTimestamp(instance))
+            if (s_dateTimeAddDaysMethodInfo.Equals(method) && IsValidTimestamp(instance))
             {
                 return TranslateAddTimestampInterval(instance, arguments, "DAY");
             }
-            if (_addHoursMethodInfo.Equals(method) && IsValidTimestamp(instance))
+            if (s_addHoursMethodInfo.Equals(method) && IsValidTimestamp(instance))
             {
                 return TranslateAddTimestampInterval(instance, arguments, "HOUR");
             }
-            if (_addMinutesMethodInfo.Equals(method) && IsValidTimestamp(instance))
+            if (s_addMinutesMethodInfo.Equals(method) && IsValidTimestamp(instance))
             {
                 return TranslateAddTimestampInterval(instance, arguments, "MINUTE");
             }
-            if (_addSecondsMethodInfo.Equals(method) && IsValidTimestamp(instance))
+            if (s_addSecondsMethodInfo.Equals(method) && IsValidTimestamp(instance))
             {
                 return TranslateAddTimestampInterval(instance, arguments, "SECOND");
             }
-            if (_addMillisecondsMethodInfo.Equals(method) && IsValidTimestamp(instance))
+            if (s_addMillisecondsMethodInfo.Equals(method) && IsValidTimestamp(instance))
             {
                 return TranslateAddTimestampInterval(instance, arguments, "MILLISECOND");
             }
-            if (_addTicksMethodInfo.Equals(method) && IsValidTimestamp(instance))
+            if (s_addTicksMethodInfo.Equals(method) && IsValidTimestamp(instance))
             {
                 return TranslateAddTimestampInterval(instance, arguments, "NANOSECOND", 100L);
             }

@@ -51,6 +51,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         /// Begins a read-only transaction for a Cloud Spanner database.
         /// </summary>
         /// <param name="databaseFacade">The Cloud Spanner database to begin the transaction on</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken" /> cancellation token to monitor for the asynchronous operation.</param>
         /// <returns>A read-only transaction using <see cref="TimestampBoundMode.Strong"/></returns>
         /// <exception cref="InvalidOperationException">If the database is not a Cloud Spanner database.</exception>
         public static Task<IDbContextTransaction> BeginReadOnlyTransactionAsync([NotNull] this DatabaseFacade databaseFacade, CancellationToken cancellationToken = default) =>
@@ -61,6 +62,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         /// </summary>
         /// <param name="databaseFacade">The Cloud Spanner database to begin the transaction on</param>
         /// <param name="timestampBound">The timestamp to use for the read-only transaction</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken" /> cancellation token to monitor for the asynchronous operation.</param>
         /// <returns>A read-only transaction using the specified <see cref="TimestampBound"/></returns>
         /// <exception cref="InvalidOperationException">If the database is not a Cloud Spanner database.</exception>
         public static Task<IDbContextTransaction> BeginReadOnlyTransactionAsync([NotNull] this DatabaseFacade databaseFacade, [NotNull] TimestampBound timestampBound, CancellationToken cancellationToken = default)

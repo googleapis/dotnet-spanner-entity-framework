@@ -1,4 +1,4 @@
-﻿// Copyright 2020, Google Inc. All rights reserved.
+// Copyright 2020, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,7 +64,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         public override IReadOnlyList<ModificationCommand> ModificationCommands => _modificationCommands;
 
         /// <summary>
-        /// The affected rows per modication command in this batch. This property is only valid after the batch has been executed.
+        /// The affected rows per modification command in this batch. This property is only valid after the batch has been executed.
         /// </summary>
         internal List<long> UpdateCounts { get; private set; } = new List<long>();
 
@@ -199,20 +199,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         {
             var builder = new StringBuilder();
             ResultSetMapping res;
-            IEnumerable<ColumnModification> parameterColumns;
             switch (modificationCommand.EntityState)
             {
                 case EntityState.Deleted:
                     res = Dependencies.UpdateSqlGenerator.AppendDeleteOperation(builder, modificationCommand, commandPosition);
-                    parameterColumns = modificationCommand.ColumnModifications.Where(o => o.IsCondition);
                     break;
                 case EntityState.Modified:
                     res = Dependencies.UpdateSqlGenerator.AppendUpdateOperation(builder, modificationCommand, commandPosition);
-                    parameterColumns = modificationCommand.ColumnModifications.Where(o => o.IsWrite || o.IsCondition);
                     break;
                 case EntityState.Added:
                     res = Dependencies.UpdateSqlGenerator.AppendInsertOperation(builder, modificationCommand, commandPosition);
-                    parameterColumns = modificationCommand.ColumnModifications.Where(o => o.IsWrite);
                     break;
                 default:
                     throw new NotSupportedException(

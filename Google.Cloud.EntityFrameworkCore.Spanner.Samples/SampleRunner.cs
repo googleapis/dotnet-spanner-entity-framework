@@ -141,7 +141,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
             {
                 EmulatorDetection = EmulatorDetection.EmulatorOnly
             };
-            var instanceAdminClient = adminClientBuilder.Build();
+            var instanceAdminClient = await adminClientBuilder.BuildAsync();
 
             var instanceName = InstanceName.FromProjectInstance(projectId, instanceId);
             try
@@ -172,7 +172,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
             {
                 EmulatorDetection = EmulatorDetection.EmulatorOnly
             };
-            var databaseAdminClient = adminClientBuilder.Build();
+            var databaseAdminClient = await adminClientBuilder.BuildAsync();
 
             var instanceName = InstanceName.FromProjectInstance(databaseName.ProjectId, databaseName.InstanceId);
             try

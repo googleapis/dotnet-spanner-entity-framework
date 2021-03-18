@@ -1,4 +1,4 @@
-﻿// Copyright 2020, Google Inc. All rights reserved.
+// Copyright 2020, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -217,15 +217,8 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                     .Append(" INTERLEAVE IN PARENT ")
                     .Append(parentTableName)
                     .Append(" ON DELETE ");
-                var onDeleteAtrribute = operation.FindAnnotation(SpannerAnnotationNames.InterleaveInParentOnDelete);
-                if ((OnDelete)onDeleteAtrribute?.Value == OnDelete.Cascade)
-                {
-                    builder.AppendLine("CASCADE ");
-                }
-                else
-                {
-                    builder.AppendLine("NO ACTION ");
-                }
+                var onDeleteAttribute = operation.FindAnnotation(SpannerAnnotationNames.InterleaveInParentOnDelete);
+                builder.AppendLine(onDeleteAttribute != null && (OnDelete)onDeleteAttribute.Value == OnDelete.Cascade ? "CASCADE " : "NO ACTION ");
             }
 
             if (terminate)
@@ -340,7 +333,6 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             MigrationCommandListBuilder builder,
             bool terminate = true)
         {
-
             var sqlBuilder = new StringBuilder();
             ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).AppendBulkInsertOperation(
                 sqlBuilder,
@@ -360,62 +352,62 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             string defaultValueSql,
             string columnType, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException($"Cloud Spanner does not support default column values.");
+            throw new NotSupportedException("Cloud Spanner does not support default column values.");
         }
 
         protected override void Generate(CreateSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException($"Cloud Spanner does not support sequence generation feature.");
+            throw new NotSupportedException("Cloud Spanner does not support sequence generation feature.");
         }
 
         protected override void Generate(AlterSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException($"Cloud Spanner does not support sequence generation feature.");
+            throw new NotSupportedException("Cloud Spanner does not support sequence generation feature.");
         }
 
         protected override void Generate(RenameSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException($"Cloud Spanner does not support sequence generation feature.");
+            throw new NotSupportedException("Cloud Spanner does not support sequence generation feature.");
         }
 
         protected override void Generate(RestartSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException($"Cloud Spanner does not support sequence generation feature.");
+            throw new NotSupportedException("Cloud Spanner does not support sequence generation feature.");
         }
 
         protected override void Generate(DropSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException($"Cloud Spanner does not support sequence generation feature.");
+            throw new NotSupportedException("Cloud Spanner does not support sequence generation feature.");
         }
 
         protected override void Generate(RenameColumnOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException($"Cloud Spanner does not support renaming columns.");
+            throw new NotSupportedException("Cloud Spanner does not support renaming columns.");
         }
 
         protected override void Generate(AlterDatabaseOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException($"Cloud Spanner Entity Framework Provider does not support AlterDatabaseOperation.");
+            throw new NotSupportedException("Cloud Spanner Entity Framework Provider does not support AlterDatabaseOperation.");
         }
 
         protected override void Generate(RenameIndexOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException($"Cloud Spanner does not support renaming indexes.");
+            throw new NotSupportedException("Cloud Spanner does not support renaming indexes.");
         }
 
         protected override void Generate(RenameTableOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException($"Cloud Spanner does not support renaming tables.");
+            throw new NotSupportedException("Cloud Spanner does not support renaming tables.");
         }
 
         protected override void Generate(EnsureSchemaOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException($"Cloud Spanner does not support creating schema.");
+            throw new NotSupportedException("Cloud Spanner does not support creating schema.");
         }
 
         protected override void Generate(DropSchemaOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException($"Cloud Spanner does not support dropping schema.");
+            throw new NotSupportedException("Cloud Spanner does not support dropping schema.");
         }
     }
 }

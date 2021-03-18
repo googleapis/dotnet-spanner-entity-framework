@@ -71,9 +71,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
             {
             }
 
-            private new SpannerOptionsExtension Extension
-                => (SpannerOptionsExtension)base.Extension;
-
             public override bool IsDatabaseProvider => true;
 
             public override string LogFragment

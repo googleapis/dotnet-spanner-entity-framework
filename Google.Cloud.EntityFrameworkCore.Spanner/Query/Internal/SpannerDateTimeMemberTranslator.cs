@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+// Copyright 2021 Google LLC
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
     /// </summary>
     public class SpannerDateTimeMemberTranslator : IMemberTranslator
     {
-        private static readonly Dictionary<string, string> _datePartMapping
+        private static readonly Dictionary<string, string> s_datePartMapping
             = new Dictionary<string, string>
             {
                 { nameof(DateTime.Date), "DATE" },
@@ -62,7 +62,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             if (declaringType == typeof(DateTime))
             {
                 var memberName = member.Name;
-                if (_datePartMapping.TryGetValue(memberName, out var datePart))
+                if (s_datePartMapping.TryGetValue(memberName, out var datePart))
                 {
                     var extract = _sqlExpressionFactory.Function(
                         "EXTRACT",

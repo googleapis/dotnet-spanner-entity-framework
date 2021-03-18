@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+// Copyright 2021 Google LLC
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,77 +29,77 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
     /// </summary>
     public class SpannerStringMethodTranslator : IMethodCallTranslator
     {
-        private static readonly MethodInfo _containsMethodInfo
+        private static readonly MethodInfo s_containsMethodInfo
             = typeof(string).GetRuntimeMethod(nameof(string.Contains), new[] { typeof(string) });
 
-        private static readonly MethodInfo _startsWithMethodInfo
+        private static readonly MethodInfo s_startsWithMethodInfo
             = typeof(string).GetRuntimeMethod(nameof(string.StartsWith), new[] { typeof(string) });
 
-        private static readonly MethodInfo _endsWithMethodInfo
+        private static readonly MethodInfo s_endsWithMethodInfo
             = typeof(string).GetRuntimeMethod(nameof(string.EndsWith), new[] { typeof(string) });
 
-        private static readonly MethodInfo _indexOfMethodInfo
+        private static readonly MethodInfo s_indexOfMethodInfo
             = typeof(string).GetRuntimeMethod(nameof(string.IndexOf), new[] { typeof(string) });
 
-        private static readonly MethodInfo _replaceMethodInfo
+        private static readonly MethodInfo s_replaceMethodInfo
             = typeof(string).GetRuntimeMethod(nameof(string.Replace), new[] { typeof(string), typeof(string) });
 
-        private static readonly MethodInfo _toLowerMethodInfo
+        private static readonly MethodInfo s_toLowerMethodInfo
             = typeof(string).GetRuntimeMethod(nameof(string.ToLower), Array.Empty<System.Type>());
 
-        private static readonly MethodInfo _toUpperMethodInfo
+        private static readonly MethodInfo s_toUpperMethodInfo
             = typeof(string).GetRuntimeMethod(nameof(string.ToUpper), Array.Empty<System.Type>());
 
-        private static readonly MethodInfo _substringMethodInfo
+        private static readonly MethodInfo s_substringMethodInfo
             = typeof(string).GetRuntimeMethod(nameof(string.Substring), new[] { typeof(int) });
 
-        private static readonly MethodInfo _substringWithLengthMethodInfo
+        private static readonly MethodInfo s_substringWithLengthMethodInfo
             = typeof(string).GetRuntimeMethod(nameof(string.Substring), new[] { typeof(int), typeof(int) });
 
-        private static readonly MethodInfo _trimStartMethodInfoWithoutArgs
+        private static readonly MethodInfo s_trimStartMethodInfoWithoutArgs
             = typeof(string).GetRuntimeMethod(nameof(string.TrimStart), Array.Empty<System.Type>());
 
-        private static readonly MethodInfo _trimStartMethodInfoWithCharArg
+        private static readonly MethodInfo s_trimStartMethodInfoWithCharArg
             = typeof(string).GetRuntimeMethod(nameof(string.TrimStart), new[] { typeof(char) });
 
-        private static readonly MethodInfo _trimEndMethodInfoWithoutArgs
+        private static readonly MethodInfo s_trimEndMethodInfoWithoutArgs
             = typeof(string).GetRuntimeMethod(nameof(string.TrimEnd), Array.Empty<System.Type>());
 
-        private static readonly MethodInfo _trimEndMethodInfoWithCharArg
+        private static readonly MethodInfo s_trimEndMethodInfoWithCharArg
             = typeof(string).GetRuntimeMethod(nameof(string.TrimEnd), new[] { typeof(char) });
 
-        private static readonly MethodInfo _trimMethodInfoWithoutArgs
+        private static readonly MethodInfo s_trimMethodInfoWithoutArgs
             = typeof(string).GetRuntimeMethod(nameof(string.Trim), Array.Empty<System.Type>());
 
-        private static readonly MethodInfo _trimMethodInfoWithCharArg
+        private static readonly MethodInfo s_trimMethodInfoWithCharArg
             = typeof(string).GetRuntimeMethod(nameof(string.Trim), new[] { typeof(char) });
 
-        private static readonly MethodInfo _padLeftMethodInfo
+        private static readonly MethodInfo s_padLeftMethodInfo
             = typeof(string).GetRuntimeMethod(nameof(string.PadLeft), new[] { typeof(int) });
 
-        private static readonly MethodInfo _padLeftWithStringMethodInfo
+        private static readonly MethodInfo s_padLeftWithStringMethodInfo
             = typeof(string).GetRuntimeMethod(nameof(string.PadLeft), new[] { typeof(int), typeof(char) });
 
-        private static readonly MethodInfo _padRightMethodInfo
+        private static readonly MethodInfo s_padRightMethodInfo
             = typeof(string).GetRuntimeMethod(nameof(string.PadRight), new[] { typeof(int) });
 
-        private static readonly MethodInfo _padRightWithStringMethodInfo
+        private static readonly MethodInfo s_padRightWithStringMethodInfo
             = typeof(string).GetRuntimeMethod(nameof(string.PadRight), new[] { typeof(int), typeof(char) });
 
-        private static readonly MethodInfo _formatOneArgMethodInfo
+        private static readonly MethodInfo s_formatOneArgMethodInfo
             = typeof(string).GetMethod(nameof(string.Format), new[] { typeof(string), typeof(object) });
 
-        private static readonly MethodInfo _formatTwoArgMethodInfo
+        private static readonly MethodInfo s_formatTwoArgMethodInfo
             = typeof(string).GetMethod(nameof(string.Format), new[] { typeof(string), typeof(object), typeof(object) });
 
-        private static readonly MethodInfo _formatThreeArgMethodInfo
+        private static readonly MethodInfo s_formatThreeArgMethodInfo
             = typeof(string).GetMethod(nameof(string.Format), new[] { typeof(string), typeof(object), typeof(object), typeof(object) });
 
         // TODO(loite): This one is never picked up by EF Core.
-        private static readonly MethodInfo _formatVarArgMethodInfo
+        private static readonly MethodInfo s_formatVarArgMethodInfo
             = typeof(string).GetMethod(nameof(string.Format), new[] { typeof(string), typeof(object[]) });
 
-        private static readonly MethodInfo _joinMethodInfo
+        private static readonly MethodInfo s_joinMethodInfo
             = typeof(string).GetRuntimeMethod(nameof(string.Join), new[] { typeof(string), typeof(IEnumerable<string>) });
 
         private readonly ISqlExpressionFactory _sqlExpressionFactory;
@@ -111,89 +111,89 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 
         public virtual SqlExpression Translate(SqlExpression instance, MethodInfo method, IReadOnlyList<SqlExpression> arguments)
         {
-            if (_containsMethodInfo.Equals(method))
+            if (s_containsMethodInfo.Equals(method))
             {
                 var pos = TranslateOneArgFunction("STRPOS", instance, arguments[0], typeof(long));
                 return _sqlExpressionFactory.ApplyDefaultTypeMapping(_sqlExpressionFactory.GreaterThan(pos, _sqlExpressionFactory.Constant(0L)));
             }
-            if (_startsWithMethodInfo.Equals(method))
+            if (s_startsWithMethodInfo.Equals(method))
             {
                 return TranslateOneArgFunction("STARTS_WITH", instance, arguments[0], typeof(bool));
             }
-            if (_endsWithMethodInfo.Equals(method))
+            if (s_endsWithMethodInfo.Equals(method))
             {
                 return TranslateOneArgFunction("ENDS_WITH", instance, arguments[0], typeof(bool));
             }
-            if (_indexOfMethodInfo.Equals(method))
+            if (s_indexOfMethodInfo.Equals(method))
             {
                 var pos = TranslateOneArgFunction("STRPOS", instance, arguments[0], typeof(long));
                 return _sqlExpressionFactory.ApplyDefaultTypeMapping(_sqlExpressionFactory.Subtract(pos, _sqlExpressionFactory.Constant(1L)));
             }
-            if (_replaceMethodInfo.Equals(method))
+            if (s_replaceMethodInfo.Equals(method))
             {
                 return TranslateTwoArgFunction("REPLACE", instance, arguments[0], arguments[1], typeof(string));
             }
-            if (_toLowerMethodInfo.Equals(method))
+            if (s_toLowerMethodInfo.Equals(method))
             {
                 return TranslateNoArgFunction("LOWER", instance, typeof(string));
             }
-            if (_toUpperMethodInfo.Equals(method))
+            if (s_toUpperMethodInfo.Equals(method))
             {
                 return TranslateNoArgFunction("UPPER", instance, typeof(string));
             }
-            if (_substringMethodInfo.Equals(method))
+            if (s_substringMethodInfo.Equals(method))
             {
                 return TranslateOneArgFunction("SUBSTR", instance, _sqlExpressionFactory.Add(arguments[0], _sqlExpressionFactory.Constant(1L)), typeof(string));
             }
-            if (_substringWithLengthMethodInfo.Equals(method))
+            if (s_substringWithLengthMethodInfo.Equals(method))
             {
                 return TranslateTwoArgFunction("SUBSTR", instance, _sqlExpressionFactory.Add(arguments[0], _sqlExpressionFactory.Constant(1L)), arguments[1], typeof(string));
             }
-            if (_trimStartMethodInfoWithoutArgs.Equals(method))
+            if (s_trimStartMethodInfoWithoutArgs.Equals(method))
             {
                 return TranslateNoArgFunction("LTRIM", instance, typeof(string));
             }
-            if (_trimStartMethodInfoWithCharArg.Equals(method))
+            if (s_trimStartMethodInfoWithCharArg.Equals(method))
             {
                 return TranslateOneArgFunction("LTRIM", instance, arguments[0], typeof(string));
             }
-            if (_trimEndMethodInfoWithoutArgs.Equals(method))
+            if (s_trimEndMethodInfoWithoutArgs.Equals(method))
             {
                 return TranslateNoArgFunction("RTRIM", instance, typeof(string));
             }
-            if (_trimEndMethodInfoWithCharArg.Equals(method))
+            if (s_trimEndMethodInfoWithCharArg.Equals(method))
             {
                 return TranslateOneArgFunction("RTRIM", instance, arguments[0], typeof(string));
             }
-            if (_trimMethodInfoWithoutArgs.Equals(method))
+            if (s_trimMethodInfoWithoutArgs.Equals(method))
             {
                 return TranslateNoArgFunction("TRIM", instance, typeof(string));
             }
-            if (_trimMethodInfoWithCharArg.Equals(method))
+            if (s_trimMethodInfoWithCharArg.Equals(method))
             {
                 return TranslateOneArgFunction("TRIM", instance, arguments[0], typeof(string));
             }
-            if (_padLeftMethodInfo.Equals(method))
+            if (s_padLeftMethodInfo.Equals(method))
             {
                 return TranslateOneArgFunction("LPAD", instance, arguments[0], typeof(string));
             }
-            if (_padLeftWithStringMethodInfo.Equals(method))
+            if (s_padLeftWithStringMethodInfo.Equals(method))
             {
                 return TranslateTwoArgFunction("LPAD", instance, arguments[0], arguments[1], typeof(string));
             }
-            if (_padRightMethodInfo.Equals(method))
+            if (s_padRightMethodInfo.Equals(method))
             {
                 return TranslateOneArgFunction("RPAD", instance, arguments[0], typeof(string));
             }
-            if (_padRightWithStringMethodInfo.Equals(method))
+            if (s_padRightWithStringMethodInfo.Equals(method))
             {
                 return TranslateTwoArgFunction("RPAD", instance, arguments[0], arguments[1], typeof(string));
             }
-            if (_formatOneArgMethodInfo.Equals(method) || _formatTwoArgMethodInfo.Equals(method) || _formatThreeArgMethodInfo.Equals(method) || _formatVarArgMethodInfo.Equals(method))
+            if (s_formatOneArgMethodInfo.Equals(method) || s_formatTwoArgMethodInfo.Equals(method) || s_formatThreeArgMethodInfo.Equals(method) || s_formatVarArgMethodInfo.Equals(method))
             {
                 return TranslateStaticFunction("FORMAT", arguments, typeof(string));
             }
-            if (_joinMethodInfo.Equals(method))
+            if (s_joinMethodInfo.Equals(method))
             {
                 return TranslateTwoArgFunction("ARRAY_TO_STRING", arguments[1], arguments[0], _sqlExpressionFactory.Constant(""), typeof(string));
             }

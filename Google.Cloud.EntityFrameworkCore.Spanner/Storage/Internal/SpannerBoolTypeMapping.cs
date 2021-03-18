@@ -28,10 +28,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
         }
 
-        protected SpannerBoolTypeMapping(RelationalTypeMappingParameters parameters) : base(parameters)
-        {
-        }
-
         protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters)
         {
             return new SpannerBoolTypeMapping(parameters.StoreType, parameters.DbType);

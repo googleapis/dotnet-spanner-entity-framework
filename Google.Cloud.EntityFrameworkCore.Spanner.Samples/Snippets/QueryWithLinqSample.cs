@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google Inc. All Rights Reserved.
+// Copyright 2021 Google Inc. All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ public static class QueryWithLinqSample
             .OrderBy(s => s.BirthDate)
             .AsAsyncEnumerable();
         Console.WriteLine("Singers born before 2000:");
-        await foreach(var singer in singersBornBefore2000)
+        await foreach (var singer in singersBornBefore2000)
         {
             Console.WriteLine($"{singer.FullName}, born at {singer.BirthDate}");
         }
@@ -47,7 +47,7 @@ public static class QueryWithLinqSample
             .OrderBy(s => s.LastName)
             .AsAsyncEnumerable();
         Console.WriteLine("Singers with a name starting with 'Al':");
-        await foreach(var singer in singersStartingWithAl)
+        await foreach (var singer in singersStartingWithAl)
         {
             Console.WriteLine($"{singer.FullName}");
         }
@@ -55,28 +55,28 @@ public static class QueryWithLinqSample
 
     private static async Task Setup(SpannerSampleDbContext context)
     {
-        context.Singers.AddRange(
-        new Singer
-        {
-            SingerId = Guid.NewGuid(),
-            FirstName = "Alice",
-            LastName = "Henderson",
-            BirthDate = new SpannerDate(1983, 10, 19),
-        },
-        new Singer
-        {
-            SingerId = Guid.NewGuid(),
-            FirstName = "Peter",
-            LastName = "Allison",
-            BirthDate = new SpannerDate(2000, 5, 2),
-        },
-        new Singer
-        {
-            SingerId = Guid.NewGuid(),
-            FirstName = "Mike",
-            LastName = "Nicholson",
-            BirthDate = new SpannerDate(1976, 8, 31),
-        });
+        await context.Singers.AddRangeAsync(
+            new Singer
+            {
+                SingerId = Guid.NewGuid(),
+                FirstName = "Alice",
+                LastName = "Henderson",
+                BirthDate = new SpannerDate(1983, 10, 19),
+            },
+            new Singer
+            {
+                SingerId = Guid.NewGuid(),
+                FirstName = "Peter",
+                LastName = "Allison",
+                BirthDate = new SpannerDate(2000, 5, 2),
+            },
+            new Singer
+            {
+                SingerId = Guid.NewGuid(),
+                FirstName = "Mike",
+                LastName = "Nicholson",
+                BirthDate = new SpannerDate(1976, 8, 31),
+            });
         await context.SaveChangesAsync();
     }
 }

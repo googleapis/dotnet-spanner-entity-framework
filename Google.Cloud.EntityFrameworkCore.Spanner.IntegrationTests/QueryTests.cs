@@ -637,7 +637,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
             var singerId = _fixture.RandomLong();
             db.Singers.AddRange(
-                new Singers { SingerId = singerId, FirstName = "Alice", LastName = "Morrison", BirthDate = new SpannerDate(1973, 10, 9)}
+                new Singers { SingerId = singerId, FirstName = "Alice", LastName = "Morrison", BirthDate = new SpannerDate(1973, 10, 9) }
             );
             await db.SaveChangesAsync();
 
@@ -1254,10 +1254,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                                ColNumeric, ColNumericArray, ColString, ColStringArray, ColStringMax, ColStringMaxArray,
                                ColTimestamp, ColTimestampArray)
                               VALUES
-                              ({row.ColBool}, {row.ColBoolArray}, {row.ColBytes}, {row.ColBytesMax}, {row.ColBytesArray}, {row.ColBytesMaxArray},
-                               {row.ColDate}, {row.ColDateArray}, {row.ColFloat64}, {row.ColFloat64Array}, {row.ColInt64}, {row.ColInt64Array},
-                               {row.ColNumeric}, {row.ColNumericArray}, {row.ColString}, {row.ColStringArray}, {row.ColStringMax}, {row.ColStringMaxArray},
-                               {row.ColTimestamp}, {row.ColTimestampArray})"
+                              ({ row.ColBool}, { row.ColBoolArray}, { row.ColBytes}, { row.ColBytesMax}, { row.ColBytesArray}, { row.ColBytesMaxArray},
+                               { row.ColDate}, { row.ColDateArray}, { row.ColFloat64}, { row.ColFloat64Array}, { row.ColInt64}, { row.ColInt64Array},
+                               { row.ColNumeric}, { row.ColNumericArray}, { row.ColString}, { row.ColStringArray}, { row.ColStringMax}, { row.ColStringMaxArray},
+                               { row.ColTimestamp}, { row.ColTimestampArray})"
             );
             Assert.Equal(1, updateCount2);
 

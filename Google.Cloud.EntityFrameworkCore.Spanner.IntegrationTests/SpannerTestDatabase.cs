@@ -43,15 +43,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             return new SpannerTestDatabase(projectId);
         }
 
-        private readonly string env_databaseName = GetEnvironmentVariableOrDefault("TEST_SPANNER_DATABASE", "");
-        private readonly string s_generatedDatabaseName = $"testdb_{Guid.NewGuid().ToString().Substring(0, 23).Replace('-', '_')}";
+        private readonly string _env_databaseName = GetEnvironmentVariableOrDefault("TEST_SPANNER_DATABASE", "");
+        private readonly string _generatedDatabaseName = $"testdb_{Guid.NewGuid().ToString().Substring(0, 23).Replace('-', '_')}";
 
         public string SpannerHost { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_HOST", null);
         public string SpannerPort { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_PORT", null);
         public string SpannerInstance { get; } = GetEnvironmentVariableOrDefault("TEST_SPANNER_INSTANCE", "spannerintegration");
         public string SpannerDatabase
         {
-            get => env_databaseName == "" ? s_generatedDatabaseName : env_databaseName;
+            get => _env_databaseName == "" ? _generatedDatabaseName : _env_databaseName;
         }
 
         // This is the simplest way of checking whether the environment variable was specified or not.
@@ -61,7 +61,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         /// Returns true if the database was created just for this test, or false if the database was an existing one
         /// specified through an environment variable.
         /// </summary>
-        public bool Fresh => SpannerDatabase == s_generatedDatabaseName;
+        public bool Fresh => SpannerDatabase == _generatedDatabaseName;
 
         // Connection string including database, generated from the above properties
         public string ConnectionString { get; }

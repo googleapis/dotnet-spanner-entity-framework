@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+// Copyright 2021 Google LLC
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         private readonly string _intervalName;
         private readonly SqlExpression _intervalFragment;
         private readonly SqlExpression _intervalNameFragment;
-        private SqlExpression _value;
+        private readonly SqlExpression _value;
 
         internal SpannerIntervalExpression(ISqlExpressionFactory sqlExpressionFactory, SqlExpression value, string intervalName) : base(value.Type, value.TypeMapping)
         {
@@ -33,7 +33,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             _value = value;
             _intervalFragment = _sqlExpressionFactory.Fragment("INTERVAL ");
             _intervalNameFragment = _sqlExpressionFactory.Fragment($" {_intervalName}");
-
         }
 
         public override void Print(ExpressionPrinter expressionPrinter)

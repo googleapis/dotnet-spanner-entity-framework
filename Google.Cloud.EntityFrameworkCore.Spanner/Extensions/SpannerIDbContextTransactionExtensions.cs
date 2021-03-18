@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         public static void DisableInternalRetries([NotNull] this IDbContextTransaction dbContextTransaction)
         {
             GaxPreconditions.CheckArgument(dbContextTransaction.GetDbTransaction() is SpannerRetriableTransaction, nameof(dbContextTransaction), "Must be a read/write Spanner transaction");
-            (dbContextTransaction.GetDbTransaction() as SpannerRetriableTransaction).EnableInternalRetries = false;
+            ((SpannerRetriableTransaction) dbContextTransaction.GetDbTransaction()).EnableInternalRetries = false;
         }
 
         /// <summary>
@@ -47,7 +47,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         public static DateTime GetCommitTimestamp([NotNull] this IDbContextTransaction dbContextTransaction)
         {
             GaxPreconditions.CheckArgument(dbContextTransaction.GetDbTransaction() is SpannerRetriableTransaction, nameof(dbContextTransaction), "Must be a read/write Spanner transaction");
-            return (dbContextTransaction.GetDbTransaction() as SpannerRetriableTransaction).CommitTimestamp;
+            return ((SpannerRetriableTransaction) dbContextTransaction.GetDbTransaction()).CommitTimestamp;
         }
 
         // TODO: Add method for GetReadTimestamp for read-only transactions.

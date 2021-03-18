@@ -51,7 +51,7 @@ public static class ReadOnlyTransactionSample
         // to the read-only transaction.
         using (var writeContext = new SpannerSampleDbContext(connectionString))
         {
-            writeContext.Singers.Add(new Singer
+            await writeContext.Singers.AddAsync(new Singer
             {
                 SingerId = singerId,
                 FirstName = "Alice",

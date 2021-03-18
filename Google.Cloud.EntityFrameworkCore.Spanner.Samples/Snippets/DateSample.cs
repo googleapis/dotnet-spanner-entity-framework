@@ -41,7 +41,7 @@ public static class DateSample
             // mapped to TIMESTAMP columns.
             BirthDate = new SpannerDate(1980, 10, 17),
         };
-        context.Singers.Add(singer);
+        await context.Singers.AddAsync(singer);
         await context.SaveChangesAsync();
 
         // Commonly used properties and methods of SpannerDate are mapped to the equivalent Cloud Spanner functions.

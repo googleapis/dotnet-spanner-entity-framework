@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google Inc. All Rights Reserved.
+// Copyright 2021 Google Inc. All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
     /// </summary>
     internal class EmulatorRunner
     {
-        private static readonly string _emulatorImageName = "gcr.io/cloud-spanner-emulator/emulator";
+        private static readonly string s_emulatorImageName = "gcr.io/cloud-spanner-emulator/emulator";
         private readonly DockerClient _dockerClient;
         private string _containerId;
 
@@ -43,7 +43,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
             await PullEmulatorImage();
             var response = await _dockerClient.Containers.CreateContainerAsync(new CreateContainerParameters
             {
-                Image = _emulatorImageName,
+                Image = s_emulatorImageName,
                 ExposedPorts = new Dictionary<string, EmptyStruct>
                 {
                     {
@@ -77,10 +77,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
         private async Task PullEmulatorImage()
         {
             await _dockerClient.Images.CreateImageAsync(new ImagesCreateParameters
-                {
-                    FromImage = _emulatorImageName,
-                    Tag = "latest"
-                },
+            {
+                FromImage = s_emulatorImageName,
+                Tag = "latest"
+            },
                 new AuthConfig(),
                 new Progress<JSONMessage>());
         }

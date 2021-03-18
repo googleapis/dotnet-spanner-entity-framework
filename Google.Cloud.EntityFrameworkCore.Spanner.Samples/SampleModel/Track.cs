@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ using System.Collections.Generic;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
 {
-
     /// <summary>
     /// Tracks are INTERLEAVED in the parent table Albums. This means that each Track record
     /// will physically be stored together with its parent Album record.
