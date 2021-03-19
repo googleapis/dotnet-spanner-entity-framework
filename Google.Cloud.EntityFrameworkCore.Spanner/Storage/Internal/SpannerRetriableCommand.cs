@@ -13,7 +13,9 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.Spanner.Data;
+using System;
 using System.Data;
 using System.Data.Common;
 using System.Threading;
@@ -89,10 +91,30 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             : _transaction.ExecuteScalarWithRetry(_spannerCommand);
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
-            => _transaction == null
-            // These don't need retry protection as the ephemeral transaction used by the client library is a read-only transaction.
-            ? _spannerCommand.ExecuteReader()
-            : _transaction.ExecuteDbDataReaderWithRetry(_spannerCommand);
+        {
+            var tracer = TracerProviderExtension.GetTracer();
+            using var span = tracer.StartActiveSpan(TracerProviderExtension.SPAN_NAME_QUERY);
+            try
+            {
+                span.SetAttribute(TracerProviderExtension.SPAN_NAME_QUERY, _spannerCommand.CommandText);
+                var dataReader = _transaction == null
+                // These don't need retry protection as the ephemeral transaction used by the client library is a read-only transaction.
+                ? _spannerCommand.ExecuteReader()
+                : _transaction.ExecuteDbDataReaderWithRetry(_spannerCommand);
+                span.SetStatus(OpenTelemetry.Trace.Status.Ok);
+                span.End();
+                return dataReader;
+            }
+            catch (Exception e)
+            {
+                span.SetStatus(OpenTelemetry.Trace.Status.Error.WithDescription(e.Message));
+                throw;
+            }
+            finally
+            {
+                span.End();
+            }
+        }
 
         public override void Prepare() => _spannerCommand.Prepare();
     }
