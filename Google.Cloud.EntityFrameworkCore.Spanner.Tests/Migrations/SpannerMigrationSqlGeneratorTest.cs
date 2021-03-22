@@ -509,6 +509,13 @@ WHERE SingerId = 4;
             AssertSql(@"ALTER TABLE Singers ALTER COLUMN ColCommitTimestamp SET OPTIONS (allow_commit_timestamp=true) ");
         }
 
+        [Fact]
+        public override void AlterColumnOperation_Remove_Commit_Timestamp()
+        {
+            base.AlterColumnOperation_Remove_Commit_Timestamp();
+            AssertSql(@"ALTER TABLE Singers ALTER COLUMN ColCommitTimestamp SET OPTIONS (allow_commit_timestamp=null) ");
+        }
+
         public SpannerMigrationSqlGeneratorTest()
             : base(SpannerTestHelpers.Instance)
         {

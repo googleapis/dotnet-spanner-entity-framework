@@ -698,6 +698,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                 ["UpdateCommitTimestamp"] = SpannerUpdateCommitTimestamp.OnInsertAndUpdate
             });
 
+        public virtual void AlterColumnOperation_Remove_Commit_Timestamp()
+            => Generate(new AlterColumnOperation
+            {
+                Table = "Singers",
+                Name = "ColCommitTimestamp",
+                ClrType = typeof(DateTime),
+                ["UpdateCommitTimestamp"] = SpannerUpdateCommitTimestamp.Never
+            });
+
         private class VersionedEntity
         {
             public long Version { get; set; }

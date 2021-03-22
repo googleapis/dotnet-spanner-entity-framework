@@ -58,9 +58,18 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             var commitTimestampAnnotation = operation.FindAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp);
             if (commitTimestampAnnotation != null)
             {
-                builder
-                    .Append(operation.Name)
-                    .Append(" SET OPTIONS (allow_commit_timestamp=true) ");
+                if ((SpannerUpdateCommitTimestamp)commitTimestampAnnotation.Value == SpannerUpdateCommitTimestamp.Never)
+                {
+                    builder
+                        .Append(operation.Name)
+                        .Append(" SET OPTIONS (allow_commit_timestamp=null) ");
+                }
+                else
+                {
+                    builder
+                        .Append(operation.Name)
+                        .Append(" SET OPTIONS (allow_commit_timestamp=true) ");
+                }
             }
             else
             {
