@@ -530,6 +530,19 @@ WHERE SingerId = 4;
             AssertSql(@"ALTER TABLE Singers ALTER COLUMN ColLong INT64");
         }
 
+        [Fact]
+        public virtual void AlterColumnOperation_set_default_value()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new AlterColumnOperation
+                {
+                    Table = "Singers",
+                    Name = "Location",
+                    ClrType = typeof(string),
+                    DefaultValue = "London"
+                }));
+        }
+
         public SpannerMigrationSqlGeneratorTest()
             : base(SpannerTestHelpers.Instance)
         {
