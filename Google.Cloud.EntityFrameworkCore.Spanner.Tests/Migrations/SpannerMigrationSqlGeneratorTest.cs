@@ -516,6 +516,20 @@ WHERE SingerId = 4;
             AssertSql(@"ALTER TABLE Singers ALTER COLUMN ColCommitTimestamp SET OPTIONS (allow_commit_timestamp=null) ");
         }
 
+        [Fact]
+        public override void AlterColumnOperation_Make_type_not_null()
+        {
+            base.AlterColumnOperation_Make_type_not_null();
+            AssertSql(@"ALTER TABLE Singers ALTER COLUMN ColLong INT64 NOT NULL");
+        }
+
+        [Fact]
+        public override void AlterColumnOperation_Make_type_nullable()
+        {
+            base.AlterColumnOperation_Make_type_nullable();
+            AssertSql(@"ALTER TABLE Singers ALTER COLUMN ColLong INT64");
+        }
+
         public SpannerMigrationSqlGeneratorTest()
             : base(SpannerTestHelpers.Instance)
         {

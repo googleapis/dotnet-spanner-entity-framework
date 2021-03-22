@@ -707,6 +707,23 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                 ["UpdateCommitTimestamp"] = SpannerUpdateCommitTimestamp.Never
             });
 
+        public virtual void AlterColumnOperation_Make_type_not_null()
+            => Generate(new AlterColumnOperation
+            {
+                Table = "Singers",
+                Name = "ColLong",
+                ClrType = typeof(long),
+            });
+
+        public virtual void AlterColumnOperation_Make_type_nullable()
+            => Generate(new AlterColumnOperation
+            {
+                Table = "Singers",
+                Name = "ColLong",
+                ClrType = typeof(long),
+                IsNullable = true
+            });
+
         private class VersionedEntity
         {
             public long Version { get; set; }
