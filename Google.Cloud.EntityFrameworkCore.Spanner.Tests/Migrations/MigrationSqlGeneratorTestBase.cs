@@ -680,6 +680,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     Values = new object[,] { { "Gregory", "Davis" }, { "Katherine", "Palmer" } }
                 });
 
+        public virtual void AlterColumnOperation()
+            => Generate(new AlterColumnOperation
+            {
+                Table = "Singers",
+                Name = "CharColumn",
+                ClrType = typeof(string),
+                IsNullable = true
+            });
+
+        public virtual void AlterColumnOperation_Add_Commit_Timestamp()
+            => Generate(new AlterColumnOperation
+            {
+                Table = "Singers",
+                Name = "ColCommitTimestamp",
+                ClrType = typeof(DateTime),
+                ["UpdateCommitTimestamp"] = SpannerUpdateCommitTimestamp.OnInsertAndUpdate
+            });
+
         private class VersionedEntity
         {
             public long Version { get; set; }

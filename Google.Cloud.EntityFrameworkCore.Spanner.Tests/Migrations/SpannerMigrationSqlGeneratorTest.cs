@@ -495,6 +495,20 @@ WHERE SingerId = 4;
 ");
         }
 
+        [Fact]
+        public override void AlterColumnOperation()
+        {
+            base.AlterColumnOperation();
+            AssertSql(@"ALTER TABLE Singers ALTER COLUMN CharColumn STRING(MAX)");
+        }
+
+        [Fact]
+        public override void AlterColumnOperation_Add_Commit_Timestamp()
+        {
+            base.AlterColumnOperation_Add_Commit_Timestamp();
+            AssertSql(@"ALTER TABLE Singers ALTER COLUMN ColCommitTimestamp SET OPTIONS (allow_commit_timestamp=true) ");
+        }
+
         public SpannerMigrationSqlGeneratorTest()
             : base(SpannerTestHelpers.Instance)
         {
