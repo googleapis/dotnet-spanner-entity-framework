@@ -46,6 +46,58 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         }
 
         protected override void Generate(
+            AlterColumnOperation operation,
+            IModel model,
+            MigrationCommandListBuilder builder)
+        {
+            builder
+               .Append("ALTER TABLE ")
+               .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Table, operation.Schema))
+               .Append(" ALTER COLUMN ");
+
+            var commitTimestampAnnotation = operation.FindAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp);
+            if (commitTimestampAnnotation != null)
+            {
+                builder
+                    .Append(operation.Name)
+                    .Append(" SET OPTIONS (allow_commit_timestamp=true) ");
+            }
+            else
+            {
+                var definitionOperation = new AlterColumnOperation
+                {
+                    Schema = operation.Schema,
+                    Table = operation.Table,
+                    Name = operation.Name,
+                    ClrType = operation.ClrType,
+                    ColumnType = operation.ColumnType,
+                    IsUnicode = operation.IsUnicode,
+                    IsFixedLength = operation.IsFixedLength,
+                    MaxLength = operation.MaxLength,
+                    IsRowVersion = operation.IsRowVersion,
+                    IsNullable = operation.IsNullable,
+                    ComputedColumnSql = operation.ComputedColumnSql,
+                    OldColumn = operation.OldColumn
+                };
+
+                ColumnDefinition(
+                    operation.Schema,
+                    operation.Table,
+                    operation.Name,
+                    definitionOperation,
+                    model,
+                    builder);
+
+                if (operation.DefaultValue != null
+                   || operation.DefaultValueSql != null)
+                {
+                    DefaultValue(operation.DefaultValue, operation.DefaultValueSql, operation.ColumnType, builder);
+                }
+            }
+            builder.EndCommand();
+        }
+
+        protected override void Generate(
             [NotNull] CreateIndexOperation operation,
             [CanBeNull] IModel model,
             [NotNull] MigrationCommandListBuilder builder,
@@ -105,7 +157,9 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             }
         }
 
-        protected override void Generate(MigrationOperation operation, IModel model,
+        protected override void Generate(
+            MigrationOperation operation,
+            IModel model,
             MigrationCommandListBuilder builder)
         {
             if (operation is SpannerCreateDatabaseOperation createDatabaseOperation)
