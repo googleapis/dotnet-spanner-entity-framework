@@ -126,7 +126,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             }
 
             builder.Append("INDEX ")
-                .Append(operation.Name)
+                .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Name))
                 .Append(" ON ")
                 .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Table, operation.Schema))
                 .Append(" (")
@@ -278,7 +278,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 var parentTableName = model.FindEntityType(parentEntity).GetTableName();
                 builder.AppendLine(",")
                     .Append(" INTERLEAVE IN PARENT ")
-                    .Append(parentTableName)
+                    .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(parentTableName))
                     .Append(" ON DELETE ");
                 var onDeleteAttribute = operation.FindAnnotation(SpannerAnnotationNames.InterleaveInParentOnDelete);
                 builder.AppendLine(onDeleteAttribute != null && (OnDelete)onDeleteAttribute.Value == OnDelete.Cascade ? "CASCADE " : "NO ACTION ");
@@ -308,11 +308,11 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             MigrationCommandListBuilder builder)
         {
             builder.Append(" CONSTRAINT ")
-                .Append(operation.Name)
+                .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Name))
                 .Append(" FOREIGN KEY (")
                 .Append(ColumnList(operation.Columns))
                 .Append(") REFERENCES ")
-                .Append(operation.PrincipalTable)
+                .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.PrincipalTable, operation.PrincipalSchema))
                 .Append(" (")
                 .Append(ColumnList(operation.PrincipalColumns))
                 .Append(")");

@@ -54,7 +54,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 
                 var builder = new StringBuilder();
                 builder.Append("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_catalog = '' and table_schema = '' and table_name = ")
-                    .Append($"{stringTypeMapping.GenerateSqlLiteral(SqlGenerationHelper.DelimitIdentifier(TableName, TableSchema))})");
+                    .Append($"{stringTypeMapping.GenerateSqlLiteral(Dependencies.SqlGenerationHelper.DelimitIdentifier(TableName, TableSchema))})");
+                builder.Replace("`", "");
                 return builder.ToString();
             }
         }

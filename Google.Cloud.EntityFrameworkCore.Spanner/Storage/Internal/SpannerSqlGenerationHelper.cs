@@ -61,13 +61,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         /// <inheritdoc />
         public override string DelimitIdentifier(string identifier)
-            => $"{EscapeIdentifier(GaxPreconditions.CheckNotNullOrEmpty(identifier, nameof(identifier)))}";
+            => $"`{EscapeIdentifier(GaxPreconditions.CheckNotNullOrEmpty(identifier, nameof(identifier)))}`";
 
         /// <inheritdoc />
         public override void DelimitIdentifier(StringBuilder builder, string identifier)
         {
             GaxPreconditions.CheckNotNullOrEmpty(identifier, nameof(identifier));
+            builder.Append('`');
             EscapeIdentifier(builder, identifier);
+            builder.Append('`');
         }
     }
 }
