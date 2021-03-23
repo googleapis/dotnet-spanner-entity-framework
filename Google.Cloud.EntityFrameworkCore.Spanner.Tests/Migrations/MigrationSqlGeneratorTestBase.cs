@@ -437,6 +437,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                 [SpannerAnnotationNames.UpdateCommitTimestamp] = SpannerUpdateCommitTimestamp.OnInsertAndUpdate
             });
 
+        public virtual void AddColumnOperation_with_update_commit_timestamp_never()
+            => Generate(new AddColumnOperation
+            {
+                Table = "Album",
+                Name = "CreatedDate",
+                ClrType = typeof(DateTime),
+                [SpannerAnnotationNames.UpdateCommitTimestamp] = SpannerUpdateCommitTimestamp.Never
+            });
+
         public virtual void AddColumnOperation_without_column_type()
             => Generate(new AddColumnOperation
             {

@@ -149,6 +149,14 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         }
 
         [Fact]
+        public override void AddColumnOperation_with_update_commit_timestamp_never()
+        {
+            base.AddColumnOperation_with_update_commit_timestamp_never();
+            AssertSql(@"ALTER TABLE Album ADD CreatedDate TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=null) 
+");
+        }
+
+        [Fact]
         public override void AddColumnOperation_without_column_type()
         {
             base.AddColumnOperation_without_column_type();
