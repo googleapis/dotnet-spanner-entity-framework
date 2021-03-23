@@ -300,7 +300,14 @@ namespace Microsoft.EntityFrameworkCore.Migrations
             var commitTimestampAnnotation = operation.FindAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp);
             if (commitTimestampAnnotation != null)
             {
-                builder.Append(" OPTIONS (allow_commit_timestamp=true) ");
+                if ((SpannerUpdateCommitTimestamp)commitTimestampAnnotation.Value != SpannerUpdateCommitTimestamp.Never)
+                {
+                    builder.Append(" OPTIONS (allow_commit_timestamp=true) ");
+                }
+                else
+                {
+                    builder.Append(" OPTIONS (allow_commit_timestamp=null) ");
+                }
             }
         }
 
