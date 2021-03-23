@@ -495,6 +495,54 @@ WHERE SingerId = 4;
 ");
         }
 
+        [Fact]
+        public override void AlterColumnOperation()
+        {
+            base.AlterColumnOperation();
+            AssertSql(@"ALTER TABLE Singers ALTER COLUMN CharColumn STRING(MAX)");
+        }
+
+        [Fact]
+        public override void AlterColumnOperation_Add_Commit_Timestamp()
+        {
+            base.AlterColumnOperation_Add_Commit_Timestamp();
+            AssertSql(@"ALTER TABLE Singers ALTER COLUMN ColCommitTimestamp SET OPTIONS (allow_commit_timestamp=true) ");
+        }
+
+        [Fact]
+        public override void AlterColumnOperation_Remove_Commit_Timestamp()
+        {
+            base.AlterColumnOperation_Remove_Commit_Timestamp();
+            AssertSql(@"ALTER TABLE Singers ALTER COLUMN ColCommitTimestamp SET OPTIONS (allow_commit_timestamp=null) ");
+        }
+
+        [Fact]
+        public override void AlterColumnOperation_Make_type_not_null()
+        {
+            base.AlterColumnOperation_Make_type_not_null();
+            AssertSql(@"ALTER TABLE Singers ALTER COLUMN ColLong INT64 NOT NULL");
+        }
+
+        [Fact]
+        public override void AlterColumnOperation_Make_type_nullable()
+        {
+            base.AlterColumnOperation_Make_type_nullable();
+            AssertSql(@"ALTER TABLE Singers ALTER COLUMN ColLong INT64");
+        }
+
+        [Fact]
+        public virtual void AlterColumnOperation_set_default_value()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new AlterColumnOperation
+                {
+                    Table = "Singers",
+                    Name = "Location",
+                    ClrType = typeof(string),
+                    DefaultValue = "London"
+                }));
+        }
+
         public SpannerMigrationSqlGeneratorTest()
             : base(SpannerTestHelpers.Instance)
         {
