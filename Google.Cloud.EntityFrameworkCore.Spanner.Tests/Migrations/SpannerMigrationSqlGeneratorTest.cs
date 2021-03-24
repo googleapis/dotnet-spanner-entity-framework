@@ -26,14 +26,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
         {
             base.CreateTableOperation();
             AssertSql(
-                @"CREATE TABLE Albums (
-    AlbumId INT64 NOT NULL,
-    Title STRING(MAX) NOT NULL,
-    ReleaseDate DATE,
-    SingerId INT64 NOT NULL,
- CONSTRAINT FK_Albums_Singers FOREIGN KEY (SingerId) REFERENCES Singers (SingerId),
-CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
-)PRIMARY KEY (AlbumId)");
+                @"CREATE TABLE `Albums` (
+    `AlbumId` INT64 NOT NULL,
+    `Title` STRING(MAX) NOT NULL,
+    `ReleaseDate` DATE,
+    `SingerId` INT64 NOT NULL,
+ CONSTRAINT `FK_Albums_Singers` FOREIGN KEY (`SingerId`) REFERENCES `Singers` (`SingerId`),
+CONSTRAINT `Chk_Title_Length_Equal` CHECK (CHARACTER_LENGTH(Title) > 0),
+)PRIMARY KEY (`AlbumId`)");
         }
 
         [Fact]
@@ -41,42 +41,42 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         {
             base.CreateTableWithAllColTypes();
             AssertSql(
-                @"CREATE TABLE AllColTypes (
-    Id INT64 NOT NULL,
-    ColShort INT64,
-    ColLong INT64,
-    ColByte INT64,
-    ColSbyte INT64,
-    ColULong INT64,
-    ColUShort INT64,
-    ColDecimal NUMERIC,
-    ColUint INT64,
-    ColBool BOOL,
-    ColDate DATE,
-    ColTimestamp TIMESTAMP,
-    ColCommitTimestamp TIMESTAMP OPTIONS (allow_commit_timestamp=true) ,
-    ColFloat FLOAT64,
-    ColDouble FLOAT64,
-    ColString STRING(MAX),
-    ColGuid STRING(36),
-    ColBytes BYTES(MAX),
-    ColDecimalArray ARRAY<NUMERIC>,
-    ColDecimalList ARRAY<NUMERIC>,
-    ColStringArray ARRAY<STRING(MAX)>,
-    ColStringList ARRAY<STRING(MAX)>,
-    ColBoolArray ARRAY<BOOL>,
-    ColBoolList ARRAY<BOOL>,
-    ColDoubleArray ARRAY<FLOAT64>,
-    ColDoubleList ARRAY<FLOAT64>,
-    ColLongArray ARRAY<INT64>,
-    ColLongList ARRAY<INT64>,
-    ColDateArray ARRAY<DATE>,
-    ColDateList ARRAY<DATE>,
-    ColTimestampArray ARRAY<TIMESTAMP>,
-    ColTimestampList ARRAY<TIMESTAMP>,
-    ColBytesArray ARRAY<BYTES(MAX)>,
-    ColBytesList ARRAY<BYTES(MAX)>
-)PRIMARY KEY (AlbumId)");
+                @"CREATE TABLE `AllColTypes` (
+    `Id` INT64 NOT NULL,
+    `ColShort` INT64,
+    `ColLong` INT64,
+    `ColByte` INT64,
+    `ColSbyte` INT64,
+    `ColULong` INT64,
+    `ColUShort` INT64,
+    `ColDecimal` NUMERIC,
+    `ColUint` INT64,
+    `ColBool` BOOL,
+    `ColDate` DATE,
+    `ColTimestamp` TIMESTAMP,
+    `ColCommitTimestamp` TIMESTAMP OPTIONS (allow_commit_timestamp=true) ,
+    `ColFloat` FLOAT64,
+    `ColDouble` FLOAT64,
+    `ColString` STRING(MAX),
+    `ColGuid` STRING(36),
+    `ColBytes` BYTES(MAX),
+    `ColDecimalArray` ARRAY<NUMERIC>,
+    `ColDecimalList` ARRAY<NUMERIC>,
+    `ColStringArray` ARRAY<STRING(MAX)>,
+    `ColStringList` ARRAY<STRING(MAX)>,
+    `ColBoolArray` ARRAY<BOOL>,
+    `ColBoolList` ARRAY<BOOL>,
+    `ColDoubleArray` ARRAY<FLOAT64>,
+    `ColDoubleList` ARRAY<FLOAT64>,
+    `ColLongArray` ARRAY<INT64>,
+    `ColLongList` ARRAY<INT64>,
+    `ColDateArray` ARRAY<DATE>,
+    `ColDateList` ARRAY<DATE>,
+    `ColTimestampArray` ARRAY<TIMESTAMP>,
+    `ColTimestampList` ARRAY<TIMESTAMP>,
+    `ColBytesArray` ARRAY<BYTES(MAX)>,
+    `ColBytesList` ARRAY<BYTES(MAX)>
+)PRIMARY KEY (`AlbumId`)");
         }
 
         [Fact]
@@ -84,8 +84,8 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         {
             base.CreateTableOperation_no_key();
             AssertSql(
-                @"CREATE TABLE Anonymous (
-    Value INT64 NOT NULL
+                @"CREATE TABLE `Anonymous` (
+    `Value` INT64 NOT NULL
 )");
         }
 
@@ -93,42 +93,42 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void CreateIndexOperation()
         {
             base.CreateIndexOperation();
-            AssertSql(@"CREATE INDEX IX_Singer_FullName ON Singer (FullName)");
+            AssertSql(@"CREATE INDEX `IX_Singer_FullName` ON `Singer` (`FullName`)");
         }
 
         [Fact]
         public override void CreateIndexOperation_is_null_filtered()
         {
             base.CreateIndexOperation_is_null_filtered();
-            AssertSql(@"CREATE NULL_FILTERED INDEX IX_Singer_FullName ON Singer (FullName)");
+            AssertSql(@"CREATE NULL_FILTERED INDEX `IX_Singer_FullName` ON `Singer` (`FullName`)");
         }
 
         [Fact]
         public override void CreateIndexOperation_is_unique()
         {
             base.CreateIndexOperation_is_unique();
-            AssertSql(@"CREATE UNIQUE INDEX IX_Singer_FullName ON Singer (FullName)");
+            AssertSql(@"CREATE UNIQUE INDEX `IX_Singer_FullName` ON `Singer` (`FullName`)");
         }
 
         [Fact]
         public override void CreateIndexOperation_storing()
         {
             base.CreateIndexOperation_storing();
-            AssertSql(@"CREATE INDEX AlbumsByAlbumTitle2 ON Albums (AlbumTitle) STORING (MarketingBudget)");
+            AssertSql(@"CREATE INDEX `AlbumsByAlbumTitle2` ON `Albums` (`AlbumTitle`) STORING (`MarketingBudget`)");
         }
 
         [Fact]
         public override void CreateIndexOperation_storing_with_multiple_columns()
         {
             base.CreateIndexOperation_storing_with_multiple_columns();
-            AssertSql(@"CREATE INDEX AlbumsByAlbumTitle2 ON Albums (AlbumTitle) STORING (MarketingBudget, ReleaseDate)");
+            AssertSql(@"CREATE INDEX `AlbumsByAlbumTitle2` ON `Albums` (`AlbumTitle`) STORING (`MarketingBudget`, `ReleaseDate`)");
         }
 
         [Fact]
         public override void AddColumOperation()
         {
             base.AddColumOperation();
-            AssertSql(@"ALTER TABLE Singer ADD Name STRING(30) NOT NULL
+            AssertSql(@"ALTER TABLE `Singer` ADD `Name` STRING(30) NOT NULL
 ");
         }
 
@@ -136,7 +136,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void AddColumnOperation_with_computedSql()
         {
             base.AddColumnOperation_with_computedSql();
-            AssertSql(@"ALTER TABLE Singer ADD FullName STRING(MAX) NOT NULL AS (COALESCE(FirstName || ' ', '') || LastName) STORED
+            AssertSql(@"ALTER TABLE `Singer` ADD `FullName` STRING(MAX) NOT NULL AS (COALESCE(FirstName || ' ', '') || LastName) STORED
 ");
         }
 
@@ -144,7 +144,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void AddColumnOperation_with_update_commit_timestamp()
         {
             base.AddColumnOperation_with_update_commit_timestamp();
-            AssertSql(@"ALTER TABLE Album ADD CreatedDate TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true) 
+            AssertSql(@"ALTER TABLE `Album` ADD `CreatedDate` TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true) 
 ");
         }
 
@@ -152,7 +152,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void AddColumnOperation_without_column_type()
         {
             base.AddColumnOperation_without_column_type();
-            AssertSql(@"ALTER TABLE Singer ADD FullName STRING(MAX) NOT NULL
+            AssertSql(@"ALTER TABLE `Singer` ADD `FullName` STRING(MAX) NOT NULL
 ");
         }
 
@@ -160,7 +160,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void AddColumnOperation_with_column_type()
         {
             base.AddColumnOperation_with_column_type();
-            AssertSql(@"ALTER TABLE Singer ADD FullName ARRAY<STRING(200)> NOT NULL
+            AssertSql(@"ALTER TABLE `Singer` ADD `FullName` ARRAY<STRING(200)> NOT NULL
 ");
         }
 
@@ -168,7 +168,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void AddColumnOperation_with_maxLength()
         {
             base.AddColumnOperation_with_maxLength();
-            AssertSql(@"ALTER TABLE Singer ADD FullName STRING(30)
+            AssertSql(@"ALTER TABLE `Singer` ADD `FullName` STRING(30)
 ");
         }
 
@@ -176,7 +176,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void AddColumnOperation_with_maxLength_no_model()
         {
             base.AddColumnOperation_with_maxLength_no_model();
-            AssertSql(@"ALTER TABLE Singer ADD FullName STRING(30)
+            AssertSql(@"ALTER TABLE `Singer` ADD `FullName` STRING(30)
 ");
         }
 
@@ -184,7 +184,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void AddColumnOperation_with_maxLength_overridden()
         {
             base.AddColumnOperation_with_maxLength_overridden();
-            AssertSql(@"ALTER TABLE Singer ADD FullName STRING(32)
+            AssertSql(@"ALTER TABLE `Singer` ADD `FullName` STRING(32)
 ");
         }
 
@@ -192,7 +192,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void AddColumnOperation_with_maxLength_on_derived()
         {
             base.AddColumnOperation_with_maxLength_on_derived();
-            AssertSql(@"ALTER TABLE Singer ADD Name STRING(30)
+            AssertSql(@"ALTER TABLE `Singer` ADD `Name` STRING(30)
 ");
         }
 
@@ -200,7 +200,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void AddColumnOperation_with_shared_column()
         {
             base.AddColumnOperation_with_shared_column();
-            AssertSql(@"ALTER TABLE VersionedEntity ADD Version INT64
+            AssertSql(@"ALTER TABLE `VersionedEntity` ADD `Version` INT64
 ");
         }
 
@@ -223,7 +223,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void AddForeignKeyOperation_with_name()
         {
             base.AddForeignKeyOperation_with_name();
-            AssertSql(@"ALTER TABLE Album ADD  CONSTRAINT FK_Album_Singer FOREIGN KEY (SingerId) REFERENCES Singer (SingerId)
+            AssertSql(@"ALTER TABLE `Album` ADD  CONSTRAINT `FK_Album_Singer` FOREIGN KEY (`SingerId`) REFERENCES `Singer` (`SingerId`)
 ");
         }
 
@@ -231,7 +231,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void AddForeignKeyOperation_with_multiple_column()
         {
             base.AddForeignKeyOperation_with_multiple_column();
-            AssertSql(@"ALTER TABLE Performances ADD  CONSTRAINT FK_Performances_Concerts FOREIGN KEY (VenueCode, ConcertStartTime, SingerId) REFERENCES Concerts (VenueCode, StartTime, SingerId)
+            AssertSql(@"ALTER TABLE `Performances` ADD  CONSTRAINT `FK_Performances_Concerts` FOREIGN KEY (`VenueCode`, `ConcertStartTime`, `SingerId`) REFERENCES `Concerts` (`VenueCode`, `StartTime`, `SingerId`)
 ");
         }
 
@@ -253,7 +253,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public void CreateDatabaseOperation()
         {
             Generate(new SpannerCreateDatabaseOperation { Name = "Northwind" });
-            AssertSql(@"CREATE DATABASE Northwind");
+            AssertSql(@"CREATE DATABASE `Northwind`");
         }
 
         [Fact]
@@ -274,7 +274,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void CreateCheckConstraintOperation_with_name()
         {
             base.CreateCheckConstraintOperation_with_name();
-            AssertSql(@"ALTER TABLE Singers ADD CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0)
+            AssertSql(@"ALTER TABLE `Singers` ADD CONSTRAINT `Chk_Title_Length_Equal` CHECK (CHARACTER_LENGTH(Title) > 0)
 ");
         }
 
@@ -282,7 +282,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void DropColumnOperation()
         {
             base.DropColumnOperation();
-            AssertSql(@"ALTER TABLE Singer DROP COLUMN FullName
+            AssertSql(@"ALTER TABLE `Singer` DROP COLUMN `FullName`
 ");
         }
 
@@ -290,7 +290,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void DropForeignKeyOperation()
         {
             base.DropForeignKeyOperation();
-            AssertSql(@"ALTER TABLE Album DROP CONSTRAINT FK_Album_Singers
+            AssertSql(@"ALTER TABLE `Album` DROP CONSTRAINT `FK_Album_Singers`
 ");
         }
 
@@ -298,14 +298,14 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void DropIndexOperation()
         {
             base.DropIndexOperation();
-            AssertSql(@" DROP INDEX IX_Singer_FullName");
+            AssertSql(@" DROP INDEX `IX_Singer_FullName`");
         }
 
         [Fact]
         public override void DropTableOperation()
         {
             base.DropTableOperation();
-            AssertSql(@"DROP TABLE Singer
+            AssertSql(@"DROP TABLE `Singer`
 ");
         }
 
@@ -313,7 +313,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void DropCheckConstraintOperation()
         {
             base.DropCheckConstraintOperation();
-            AssertSql(@"ALTER TABLE Singer DROP CONSTRAINT CK_Singer_FullName
+            AssertSql(@"ALTER TABLE `Singer` DROP CONSTRAINT `CK_Singer_FullName`
 ");
         }
 
@@ -321,7 +321,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public void DropDatabaseOperation()
         {
             Generate(new SpannerDropDatabaseOperation { Name = "Northwind" });
-            AssertSql(@"DROP DATABASE Northwind");
+            AssertSql(@"DROP DATABASE `Northwind`");
         }
 
         [Fact]
@@ -399,7 +399,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void AddUniqueConstraintOperation()
         {
             base.AddUniqueConstraintOperation();
-            AssertSql(@"ALTER TABLE Singer ADD CONSTRAINT Unique_Name UNIQUE (FirstName, LastName)
+            AssertSql(@"ALTER TABLE `Singer` ADD CONSTRAINT `Unique_Name` UNIQUE (`FirstName`, `LastName`)
 ");
         }
 
@@ -407,7 +407,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void DropUniqueConstraintOperation()
         {
             base.DropUniqueConstraintOperation();
-            AssertSql(@"ALTER TABLE Singer DROP CONSTRAINT Unique_Name
+            AssertSql(@"ALTER TABLE `Singer` DROP CONSTRAINT `Unique_Name`
 ");
         }
 
@@ -432,7 +432,7 @@ CONSTRAINT Chk_Title_Length_Equal CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void InsertDataOperation()
         {
             base.InsertDataOperation();
-            AssertSql(@"INSERT INTO Singer (SingerId, FirstName, LastName)
+            AssertSql(@"INSERT INTO `Singer` (`SingerId`, `FirstName`, `LastName`)
 VALUES (1, 'Marc', 'Richards'),
 (2, 'Catalina', 'Smith'),
 (3, 'Alice', 'Trentor'),
@@ -444,10 +444,10 @@ VALUES (1, 'Marc', 'Richards'),
         public override void DeleteDataOperation_simple_key()
         {
             base.DeleteDataOperation_simple_key();
-            AssertSql(@"DELETE FROM Singer
-WHERE SingerId = 1;
-DELETE FROM Singer
-WHERE SingerId = 3;
+            AssertSql(@"DELETE FROM `Singer`
+WHERE `SingerId` = 1;
+DELETE FROM `Singer`
+WHERE `SingerId` = 3;
 ");
         }
 
@@ -455,10 +455,10 @@ WHERE SingerId = 3;
         public override void DeleteDataOperation_composite_key()
         {
             base.DeleteDataOperation_composite_key();
-            AssertSql(@"DELETE FROM Singer
-WHERE FirstName = 'Dorothy' AND LastName IS NULL;
-DELETE FROM Singer
-WHERE FirstName = 'Curt' AND LastName = 'Lee';
+            AssertSql(@"DELETE FROM `Singer`
+WHERE `FirstName` = 'Dorothy' AND `LastName` IS NULL;
+DELETE FROM `Singer`
+WHERE `FirstName` = 'Curt' AND `LastName` = 'Lee';
 ");
         }
 
@@ -466,10 +466,10 @@ WHERE FirstName = 'Curt' AND LastName = 'Lee';
         public override void UpdateDataOperation_simple_key()
         {
             base.UpdateDataOperation_simple_key();
-            AssertSql(@"UPDATE Singer SET FirstName = 'Christopher'
-WHERE SingerId = 1;
-UPDATE Singer SET FirstName = 'Lisa'
-WHERE SingerId = 4;
+            AssertSql(@"UPDATE `Singer` SET `FirstName` = 'Christopher'
+WHERE `SingerId` = 1;
+UPDATE `Singer` SET `FirstName` = 'Lisa'
+WHERE `SingerId` = 4;
 ");
         }
 
@@ -477,10 +477,10 @@ WHERE SingerId = 4;
         public override void UpdateDataOperation_composite_key()
         {
             base.UpdateDataOperation_composite_key();
-            AssertSql(@"UPDATE Album SET Title = 'Total Junk'
-WHERE SingerId = 1 AND AlbumId = 1;
-UPDATE Album SET Title = 'Terrified'
-WHERE SingerId = 1 AND AlbumId = 2;
+            AssertSql(@"UPDATE `Album` SET `Title` = 'Total Junk'
+WHERE `SingerId` = 1 AND `AlbumId` = 1;
+UPDATE `Album` SET `Title` = 'Terrified'
+WHERE `SingerId` = 1 AND `AlbumId` = 2;
 ");
         }
 
@@ -488,10 +488,10 @@ WHERE SingerId = 1 AND AlbumId = 2;
         public override void UpdateDataOperation_multiple_columns()
         {
             base.UpdateDataOperation_multiple_columns();
-            AssertSql(@"UPDATE Singer SET FirstName = 'Gregory', LastName = 'Davis'
-WHERE SingerId = 1;
-UPDATE Singer SET FirstName = 'Katherine', LastName = 'Palmer'
-WHERE SingerId = 4;
+            AssertSql(@"UPDATE `Singer` SET `FirstName` = 'Gregory', `LastName` = 'Davis'
+WHERE `SingerId` = 1;
+UPDATE `Singer` SET `FirstName` = 'Katherine', `LastName` = 'Palmer'
+WHERE `SingerId` = 4;
 ");
         }
 
