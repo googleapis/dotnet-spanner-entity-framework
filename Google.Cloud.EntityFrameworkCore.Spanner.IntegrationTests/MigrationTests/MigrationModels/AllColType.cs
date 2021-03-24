@@ -39,6 +39,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public float? ColFloat { get; set; }
         public double? ColDouble { get; set; }
         public string ColString { get; set; }
+        public string ASC { get; set; }
         public Guid? ColGuid { get; set; }
         public byte[] ColBytes { get; set; }
         public SpannerNumeric[] ColDecimalArray { get; set; }
