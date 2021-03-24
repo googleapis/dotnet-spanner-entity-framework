@@ -1314,6 +1314,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             // Select query
             var result = db.TableWithAllColumnTypes
+                .Where(s => new long[] { id1, id2 }.Contains(s.ColInt64))
                 .OrderBy(s => s.ASC)
                 .Select(c => c.ASC).ToList();
             Assert.Collection(result,
@@ -1322,24 +1323,28 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             // Where clause
             var result1 = db.TableWithAllColumnTypes
+                .Where(s => new long[] { id1, id2 }.Contains(s.ColInt64))
                 .Where(s => s.ASC == "string1")
                 .Select(c => c.ASC).ToList();
             Assert.Collection(result1, s => Assert.Equal("string1", s));
 
             // Start with query
             var result2 = db.TableWithAllColumnTypes
-               .Where(s => s.ASC.StartsWith("This"))
-               .Select(c => c.ASC).ToList();
+                .Where(s => new long[] { id1, id2 }.Contains(s.ColInt64))
+                .Where(s => s.ASC.StartsWith("This"))
+                .Select(c => c.ASC).ToList();
             Assert.Collection(result2, s => Assert.Equal("This is reserved keyword", s));
 
             // Contain query
             var result3 = db.TableWithAllColumnTypes
-               .Where(s => s.ASC.Contains("1"))
-               .Select(c => c.ASC).ToList();
+                .Where(s => new long[] { id1, id2 }.Contains(s.ColInt64))
+                .Where(s => s.ASC.Contains("1"))
+                .Select(c => c.ASC).ToList();
             Assert.Collection(result3, s => Assert.Equal("string1", s));
 
             // Like function
             var result4 = db.TableWithAllColumnTypes
+                .Where(s => new long[] { id1, id2 }.Contains(s.ColInt64))
                 .Where(s => EF.Functions.Like(s.ASC, "%1"))
                 .Select(c => c.ASC).ToList();
             Assert.Collection(result4, s => Assert.Equal("string1", s));
