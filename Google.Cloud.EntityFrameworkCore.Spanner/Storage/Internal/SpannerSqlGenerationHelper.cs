@@ -50,6 +50,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             builder.Append(GenerateParameterName(name));
         }
 
+        /// <inheritdoc />
+        public override void EscapeIdentifier(StringBuilder builder, string identifier)
+        {
+            GaxPreconditions.CheckNotNullOrEmpty(identifier, nameof(identifier));
+            var initialLength = builder.Length;
+            builder.Append(identifier);
+            builder.Replace("`", "\\`", initialLength, identifier.Length);
+        }
+
+        /// <inheritdoc />
+        public override string EscapeIdentifier(string identifier)
+        {
+            GaxPreconditions.CheckNotNullOrEmpty(identifier, nameof(identifier));
+            return identifier.Replace("`", "\\`");
+        }
+
         // Note we remove the schema because spanner does not support schema based names.
         /// <inheritdoc />
         public override string DelimitIdentifier(string name, string schema)
@@ -61,13 +77,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         /// <inheritdoc />
         public override string DelimitIdentifier(string identifier)
-            => $"{EscapeIdentifier(GaxPreconditions.CheckNotNullOrEmpty(identifier, nameof(identifier)))}";
+            => $"`{EscapeIdentifier(GaxPreconditions.CheckNotNullOrEmpty(identifier, nameof(identifier)))}`";
 
         /// <inheritdoc />
         public override void DelimitIdentifier(StringBuilder builder, string identifier)
         {
             GaxPreconditions.CheckNotNullOrEmpty(identifier, nameof(identifier));
+            builder.Append('`');
             EscapeIdentifier(builder, identifier);
+            builder.Append('`');
         }
     }
 }

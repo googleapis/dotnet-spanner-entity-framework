@@ -72,7 +72,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task TestEntity_ConvertValuesWithoutPrecisionLossOrOverflow_Succeeds()
         {
-            var sql = $"SELECT t.Id, t.ByteCol, t.DecimalCol, t.FloatCol{Environment.NewLine}FROM TestEntities AS t{Environment.NewLine}WHERE t.Id = @__p_0{Environment.NewLine}LIMIT 1";
+            var sql = $"SELECT `t`.`Id`, `t`.`ByteCol`, `t`.`DecimalCol`, `t`.`FloatCol`" +
+                $"{Environment.NewLine}FROM `TestEntities` AS `t`{Environment.NewLine}" +
+                $"WHERE `t`.`Id` = @__p_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.Type, string>>
                 {
@@ -98,7 +100,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task TestEntity_ConvertValuesWithByteOverflow_Fails()
         {
-            var sql = $"SELECT t.Id, t.ByteCol, t.DecimalCol, t.FloatCol{Environment.NewLine}FROM TestEntities AS t{Environment.NewLine}WHERE t.Id = @__p_0{Environment.NewLine}LIMIT 1";
+            var sql = $"SELECT `t`.`Id`, `t`.`ByteCol`, `t`.`DecimalCol`, `t`.`FloatCol`" +
+                $"{Environment.NewLine}FROM `TestEntities` AS `t`{Environment.NewLine}" +
+                $"WHERE `t`.`Id` = @__p_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.Type, string>>
                 {
@@ -120,7 +124,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task TestEntity_ConvertValuesWithFloatOverflow_Succeeds()
         {
-            var sql = $"SELECT t.Id, t.ByteCol, t.DecimalCol, t.FloatCol{Environment.NewLine}FROM TestEntities AS t{Environment.NewLine}WHERE t.Id = @__p_0{Environment.NewLine}LIMIT 1";
+            var sql = $"SELECT `t`.`Id`, `t`.`ByteCol`, `t`.`DecimalCol`, `t`.`FloatCol`" +
+                $"{Environment.NewLine}FROM `TestEntities` AS `t`{Environment.NewLine}" +
+                $"WHERE `t`.`Id` = @__p_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.Type, string>>
                 {
@@ -143,7 +149,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task TestEntity_ConvertValuesWithDecimalOverflow_Fails()
         {
-            var sql = $"SELECT t.Id, t.ByteCol, t.DecimalCol, t.FloatCol{Environment.NewLine}FROM TestEntities AS t{Environment.NewLine}WHERE t.Id = @__p_0{Environment.NewLine}LIMIT 1";
+            var sql = $"SELECT `t`.`Id`, `t`.`ByteCol`, `t`.`DecimalCol`, `t`.`FloatCol`" +
+                $"{Environment.NewLine}FROM `TestEntities` AS `t`{Environment.NewLine}" +
+                $"WHERE `t`.`Id` = @__p_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.Type, string>>
                 {

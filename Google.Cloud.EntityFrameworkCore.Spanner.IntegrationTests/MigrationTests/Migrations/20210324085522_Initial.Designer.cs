@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTests.Migrations
 {
     [DbContext(typeof(TestMigrationDbContext))]
-    [Migration("20210309110114_Initial")]
+    [Migration("20210324085522_Initial")]
     partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -26,6 +26,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INT64");
+
+                    b.Property<string>("ASC")
+                        .HasColumnType("STRING");
 
                     b.Property<bool?>("ColBool")
                         .HasColumnType("BOOL");

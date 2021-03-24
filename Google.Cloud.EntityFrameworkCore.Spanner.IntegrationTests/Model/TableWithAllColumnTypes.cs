@@ -29,5 +29,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         public List<Nullable<SpannerDate>> ColDateArray { get; set; }
         public List<Nullable<DateTime>> ColTimestampArray { get; set; }
         public string ColComputed { get; set; }
+        public string ASC { get; set; }
     }
 }

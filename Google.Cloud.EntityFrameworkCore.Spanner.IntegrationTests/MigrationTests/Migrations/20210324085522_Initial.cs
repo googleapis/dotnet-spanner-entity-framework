@@ -33,6 +33,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     ColFloat = table.Column<float>(nullable: true),
                     ColDouble = table.Column<double>(nullable: true),
                     ColString = table.Column<string>(nullable: true),
+                    ASC = table.Column<string>(nullable: true),
                     ColGuid = table.Column<Guid>(nullable: true),
                     ColBytes = table.Column<byte[]>(nullable: true),
                     ColDecimalArray = table.Column<SpannerNumeric[]>(nullable: true),
