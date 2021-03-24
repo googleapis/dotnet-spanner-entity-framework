@@ -1291,5 +1291,57 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row => Assert.NotNull(row.ColDateArray)
             );
         }
+
+        [Fact]
+        public async Task CanQueryOnReservedKeywords()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id1 = _fixture.RandomLong();
+            var id2 = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.AddRange(
+               new TableWithAllColumnTypes
+               {
+                   ColInt64 = id1,
+                   ASC = "This is reserved keyword"
+               },
+               new TableWithAllColumnTypes
+               {
+                   ColInt64 = id2,
+                   ASC = "string1"
+               });
+            await db.SaveChangesAsync();
+
+            // Select query
+            var result = db.TableWithAllColumnTypes
+                .OrderBy(s => s.ASC)
+                .Select(c => c.ASC).ToList();
+            Assert.Collection(result,
+                s => Assert.Equal("This is reserved keyword", s),
+                s => Assert.Equal("string1", s));
+
+            // Where clause
+            var result1 = db.TableWithAllColumnTypes
+                .Where(s => s.ASC == "string1")
+                .Select(c => c.ASC).ToList();
+            Assert.Collection(result1, s => Assert.Equal("string1", s));
+
+            // Start with query
+            var result2 = db.TableWithAllColumnTypes
+               .Where(s => s.ASC.StartsWith("This"))
+               .Select(c => c.ASC).ToList();
+            Assert.Collection(result2, s => Assert.Equal("This is reserved keyword", s));
+
+            // Contain query
+            var result3 = db.TableWithAllColumnTypes
+               .Where(s => s.ASC.Contains("1"))
+               .Select(c => c.ASC).ToList();
+            Assert.Collection(result3, s => Assert.Equal("string1", s));
+
+            // Like function
+            var result4 = db.TableWithAllColumnTypes
+                .Where(s => EF.Functions.Like(s.ASC, "%1"))
+                .Select(c => c.ASC).ToList();
+            Assert.Collection(result4, s => Assert.Equal("string1", s));
+        }
     }
 }
