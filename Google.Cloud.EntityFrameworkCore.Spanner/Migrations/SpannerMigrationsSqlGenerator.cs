@@ -61,13 +61,13 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 if ((SpannerUpdateCommitTimestamp)commitTimestampAnnotation.Value != SpannerUpdateCommitTimestamp.Never)
                 {
                     builder
-                        .Append(operation.Name)
+                        .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Name))
                         .Append(" SET OPTIONS (allow_commit_timestamp=true) ");
                 }
                 else
                 {
                     builder
-                        .Append(operation.Name)
+                        .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Name))
                         .Append(" SET OPTIONS (allow_commit_timestamp=null) ");
                 }
             }

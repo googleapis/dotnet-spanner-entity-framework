@@ -1838,7 +1838,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task CanInsertCommitTimestamp()
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
-            var sql = $"INSERT INTO `TableWithAllColumnTypes` (`ColCommitTS`, `ColInt64`, `ColBool`, `ColBoolArray`, `ColBytes`, `ColBytesArray`, `ColBytesMax`, `ColBytesMaxArray`, `ColDate`, `ColDateArray`, `ColFloat64`, `ColFloat64Array`, `ColInt64Array`, `ColNumeric`, `ColNumericArray`, `ColString`, `ColStringArray`, `ColStringMax`, `ColStringMaxArray`, `ColTimestamp`, `ColTimestampArray`){Environment.NewLine}VALUES (PENDING_COMMIT_TIMESTAMP(), @p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19)";
+            var sql = "INSERT INTO `TableWithAllColumnTypes` (`ColCommitTS`, `ColInt64`, `ASC`, `ColBool`, " +
+                "`ColBoolArray`, `ColBytes`, `ColBytesArray`, `ColBytesMax`, `ColBytesMaxArray`, `ColDate`, `ColDateArray`," +
+                " `ColFloat64`, `ColFloat64Array`, `ColInt64Array`, `ColNumeric`, `ColNumericArray`, `ColString`, " +
+                "`ColStringArray`, `ColStringMax`, `ColStringMaxArray`, `ColTimestamp`, `ColTimestampArray`)" +
+                $"{Environment.NewLine}VALUES (PENDING_COMMIT_TIMESTAMP(), " +
+                "@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20)";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1L));
             _fixture.SpannerMock.AddOrUpdateStatementResult($"{Environment.NewLine}SELECT `ColComputed`" +
                 $"{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p0", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
@@ -1910,12 +1915,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task CanInsertRowWithCommitTimestampAndComputedColumn()
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
-            var sql = $"INSERT INTO `TableWithAllColumnTypes` (`ColCommitTS`, `ColInt64`, `ColBool`, `ColBoolArray`, " +
-                $"`ColBytes`, `ColBytesArray`, `ColBytesMax`, `ColBytesMaxArray`, `ColDate`, `ColDateArray`, `ColFloat64`, " +
-                $"`ColFloat64Array`, `ColInt64Array`, `ColNumeric`, `ColNumericArray`, `ColString`, `ColStringArray`, " +
-                $"`ColStringMax`, `ColStringMaxArray`, `ColTimestamp`, `ColTimestampArray`)" +
-                $"{Environment.NewLine}VALUES " +
-                $"(PENDING_COMMIT_TIMESTAMP(), @p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19)";
+            var sql = "INSERT INTO `TableWithAllColumnTypes` (`ColCommitTS`, `ColInt64`, `ASC`, `ColBool`, `ColBoolArray`," +
+                " `ColBytes`, `ColBytesArray`, `ColBytesMax`, `ColBytesMaxArray`, `ColDate`, `ColDateArray`, `ColFloat64`," +
+                " `ColFloat64Array`, `ColInt64Array`, `ColNumeric`, `ColNumericArray`, `ColString`, `ColStringArray`," +
+                $" `ColStringMax`, `ColStringMaxArray`, `ColTimestamp`, `ColTimestampArray`){Environment.NewLine}" +
+                "VALUES (PENDING_COMMIT_TIMESTAMP(), @p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20)";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1L));
             var selectSql = $"{Environment.NewLine}SELECT `ColComputed`{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(selectSql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
