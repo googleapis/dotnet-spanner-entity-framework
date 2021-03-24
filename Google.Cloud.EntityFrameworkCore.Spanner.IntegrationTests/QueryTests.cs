@@ -1298,17 +1298,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
             var id1 = _fixture.RandomLong();
             var id2 = _fixture.RandomLong();
-            db.TableWithAllColumnTypes.AddRange(
+            db.TableWithAllColumnTypes.Add(
                new TableWithAllColumnTypes
                {
                    ColInt64 = id1,
                    ASC = "This is reserved keyword"
-               },
-               new TableWithAllColumnTypes
-               {
-                   ColInt64 = id2,
-                   ASC = "string1"
                });
+            await db.SaveChangesAsync();
+            db.TableWithAllColumnTypes.Add(new TableWithAllColumnTypes
+            {
+                ColInt64 = id2,
+                ASC = "string1"
+            });
             await db.SaveChangesAsync();
 
             // Select query
