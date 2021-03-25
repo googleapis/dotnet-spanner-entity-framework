@@ -52,6 +52,23 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             commandStringBuilder.Append(" TRUE ");
         }
 
+        internal string GenerateSelectAffectedSql(
+            string table,
+            string schema,
+             IReadOnlyList<ColumnModification> readOperations,
+             IReadOnlyList<ColumnModification> conditionOperations,
+             int commandPosition)
+        {
+            var commandStringBuilder = new StringBuilder();
+            base.AppendSelectAffectedCommand(commandStringBuilder, table, schema, readOperations, conditionOperations, commandPosition);
+            var sql = commandStringBuilder.ToString().Trim();
+            if (sql.EndsWith(_sqlGenerationHelper.StatementTerminator))
+            {
+                sql = sql.Substring(0, sql.Length - _sqlGenerationHelper.StatementTerminator.Length);
+            }
+            return sql;
+        }
+
         public virtual ResultSetMapping AppendBulkInsertOperation(
             StringBuilder commandStringBuilder,
             IReadOnlyList<ModificationCommand> modificationCommands,

@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
+using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal;
 using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data.Common;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -33,9 +36,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public SpannerRelationalConnection(RelationalConnectionDependencies dependencies)
             : base(dependencies)
         {
+            var optionsExtension = dependencies.ContextOptions.Extensions.OfType<SpannerOptionsExtension>().FirstOrDefault();
+            MutationUsage = optionsExtension.MutationUsage;
         }
 
         private SpannerRetriableConnection Connection => DbConnection as SpannerRetriableConnection;
+
+        public MutationUsage MutationUsage { get; }
 
         /// <inheritdoc />
         public override bool IsMultipleActiveResultSetsEnabled => true;

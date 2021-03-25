@@ -37,7 +37,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
     {
         private readonly IRelationalTypeMappingSource _typeMapper;
         private readonly List<ModificationCommand> _modificationCommands = new List<ModificationCommand>();
+        private readonly List<SpannerRetriableCommand> _propagateResultsCommands = new List<SpannerRetriableCommand>();
         private readonly char _statementTerminator;
+        private readonly bool _hasExplicitTransaction;
 
         /// <summary>
         /// This is internal functionality and not intended for public use.
@@ -51,6 +53,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             // This class needs a statement terminator because the EFCore built-in SQL generator helper
             // will generate multiple statements as one string.
             _statementTerminator = ';';
+             _hasExplicitTransaction = dependencies.CurrentContext.Context.Database.CurrentTransaction != null;
         }
 
         /// <summary>
@@ -123,20 +126,58 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         public override async Task ExecuteAsync(IRelationalConnection connection,
             CancellationToken cancellationToken = new CancellationToken())
         {
+            var spannerRelationalConnection = (SpannerRelationalConnection)connection;
             var spannerConnection = (SpannerRetriableConnection)connection.DbConnection;
             if (!(connection.CurrentTransaction?.GetDbTransaction() is SpannerRetriableTransaction transaction))
             {
                 throw new InvalidOperationException("There is no active transaction");
             }
-            var cmd = CreateSpannerBatchDmlCommand(spannerConnection, transaction);
-            UpdateCounts = (await cmd.Item1.ExecuteNonQueryAsync(cancellationToken)).ToList();
-            if (RowsAffected != _modificationCommands.Count)
+            var useMutations = spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.Always
+                || (!_hasExplicitTransaction && spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.ImplicitTransactions);
+            if (useMutations)
             {
-                ThrowAggregateUpdateConcurrencyException();
+                int index = 0;
+                foreach (var modificationCommand in _modificationCommands)
+                {
+                    if (modificationCommand is SpannerPendingCommitTimestampModificationCommand commitTimestampModificationCommand)
+                    {
+                        commitTimestampModificationCommand.MarkAsMutationCommand();
+                    }
+                    var cmd = CreateSpannerMutationCommand(spannerConnection, transaction, modificationCommand);
+                    // Note: The following line does not actually execute any command on the backend, it only buffers
+                    // the mutation locally to be sent with the next Commit statement.
+                    await cmd.ExecuteNonQueryAsync(cancellationToken);
+                    // We assume that each mutation will affect exactly one row. This assumption always holds for INSERT
+                    // and UPDATE mutations (unless they return an error). DELETE mutations could affect zero rows if the
+                    // row had already been deleted, and more than one row if the deleted row is in a table with one or
+                    // more INTERLEAVED tables that are defined with ON DELETE CASCADE.
+                    UpdateCounts.Add(1L);
+                    // Check whether we need to generate a SELECT command to propagate computed values back to the context.
+                    if (modificationCommand.RequiresResultPropagation)
+                    {
+                        var builder = new StringBuilder();
+                        var operations = modificationCommand.ColumnModifications;
+                        var keyOperations = operations.Where(o => o.IsKey).ToList();
+                        var readOperations = operations.Where(o => o.IsRead).ToList();
+                        var sql = ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).GenerateSelectAffectedSql(
+                            modificationCommand.TableName, modificationCommand.Schema, readOperations, keyOperations, index);
+                        _propagateResultsCommands.Add(CreateSelectedAffectedCommand(spannerConnection, modificationCommand, sql));
+                    }
+                    index++;
+                }
             }
-            if (cmd.Item2.Count > 0)
+            else
             {
-                await PropagateResults(cmd.Item2, cancellationToken);
+                var cmd = CreateSpannerBatchDmlCommand(spannerConnection, transaction);
+                UpdateCounts = (await cmd.Item1.ExecuteNonQueryAsync(cancellationToken)).ToList();
+                if (RowsAffected != _modificationCommands.Count)
+                {
+                    ThrowAggregateUpdateConcurrencyException();
+                }
+                if (cmd.Item2.Count > 0)
+                {
+                    _propagateResultsCommands.AddRange(cmd.Item2);
+                }
             }
         }
 
@@ -158,14 +199,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 RelationalStrings.UpdateConcurrencyException(expectedRowsAffected, RowsAffected), entries);
         }
 
-        private async Task PropagateResults(List<SpannerRetriableCommand> selectCommands, CancellationToken cancellationToken)
+        internal async Task PropagateResults(CancellationToken cancellationToken)
         {
             int index = 0;
             foreach (var modificationCommand in _modificationCommands)
             {
                 if (modificationCommand.RequiresResultPropagation)
                 {
-                    using var reader = await selectCommands[index].ExecuteReaderAsync(cancellationToken);
+                    using var reader = await _propagateResultsCommands[index].ExecuteReaderAsync(cancellationToken);
                     if (await reader.ReadAsync(cancellationToken))
                     {
                         var valueBufferFactory = CreateValueBufferFactory(modificationCommand.ColumnModifications);
@@ -184,7 +225,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             cmd.Transaction = transaction;
             foreach (var modificationCommand in _modificationCommands)
             {
-                var commands = CreateSpannerCommand(connection, transaction, modificationCommand, commandPosition);
+                var commands = CreateSpannerDmlCommand(connection, transaction, modificationCommand, commandPosition);
                 cmd.Add(commands.Item1);
                 if (commands.Item2 != null)
                 {
@@ -195,7 +236,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             return Tuple.Create(cmd, selectCommands);
         }
 
-        private Tuple<SpannerCommand, SpannerRetriableCommand> CreateSpannerCommand(SpannerRetriableConnection connection, SpannerRetriableTransaction transaction, ModificationCommand modificationCommand, int commandPosition)
+        private Tuple<SpannerCommand, SpannerRetriableCommand> CreateSpannerDmlCommand(SpannerRetriableConnection connection, SpannerRetriableTransaction transaction, ModificationCommand modificationCommand, int commandPosition)
         {
             var builder = new StringBuilder();
             ResultSetMapping res;
@@ -222,15 +263,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 dml = commandTexts[0];
                 if (commandTexts.Length > 1)
                 {
-                    selectCommand = connection.CreateSelectCommand(commandTexts[1]);
-                    selectCommand.Transaction = transaction;
-                    foreach (var columnModification in modificationCommand.ColumnModifications)
-                    {
-                        if (columnModification.IsKey && (columnModification.UseOriginalValueParameter || columnModification.UseCurrentValueParameter))
-                        {
-                            selectCommand.Parameters.Add(CreateParameter(columnModification, selectCommand, columnModification.UseOriginalValueParameter ? UseValue.Original : UseValue.Current));
-                        }
-                    }
+                    selectCommand = CreateSelectedAffectedCommand(connection, modificationCommand, commandTexts[1]);
                 }
             }
             else
@@ -241,21 +274,65 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             // This intentionally uses a SpannerCommand instead of the internal SpannerRetriableCommand, because the command
             // will eventually be added to a BatchCommand.
             var cmd = connection.SpannerConnection.CreateDmlCommand(dml);
-            foreach (var columnModification in modificationCommand.ColumnModifications.Where(o => o.UseOriginalValueParameter))
-            {
-                cmd.Parameters.Add(CreateParameter(columnModification, cmd, UseValue.Original));
-            }
-            foreach (var columnModification in modificationCommand.ColumnModifications.Where(o => o.UseCurrentValueParameter))
-            {
-                cmd.Parameters.Add(CreateParameter(columnModification, cmd, UseValue.Current));
-            }
+            AppendWriteParameters(modificationCommand, cmd, false);
             return Tuple.Create(cmd, selectCommand);
         }
 
-        private DbParameter CreateParameter(ColumnModification columnModification, DbCommand cmd, UseValue useValue)
+        private SpannerCommand CreateSpannerMutationCommand(
+            SpannerRetriableConnection spannerConnection,
+            SpannerRetriableTransaction transaction,
+            ModificationCommand modificationCommand)
         {
+            SpannerCommand cmd = modificationCommand.EntityState switch
+            {
+                EntityState.Deleted => spannerConnection.SpannerConnection.CreateDeleteCommand(modificationCommand.TableName),
+                EntityState.Modified => spannerConnection.SpannerConnection.CreateUpdateCommand(modificationCommand.TableName),
+                EntityState.Added => spannerConnection.SpannerConnection.CreateInsertCommand(modificationCommand.TableName),
+                _ => throw new NotSupportedException($"Modification type {modificationCommand.EntityState} is not supported."),
+            };
+            cmd.Transaction = transaction.SpannerTransaction;
+            AppendWriteParameters(modificationCommand, cmd, true);
+            return cmd;
+        }
+
+        private void AppendWriteParameters(ModificationCommand modificationCommand, SpannerCommand cmd, bool useColumnName)
+        {
+            foreach (var columnModification in modificationCommand.ColumnModifications.Where(o => o.UseOriginalValueParameter))
+            {
+                cmd.Parameters.Add(CreateParameter(columnModification, cmd, UseValue.Original, useColumnName));
+            }
+            foreach (var columnModification in modificationCommand.ColumnModifications.Where(o => o.UseCurrentValueParameter))
+            {
+                cmd.Parameters.Add(CreateParameter(columnModification, cmd, UseValue.Current, useColumnName));
+            }
+        }
+
+        private SpannerRetriableCommand CreateSelectedAffectedCommand(SpannerRetriableConnection connection, ModificationCommand modificationCommand, string sql)
+        {
+            var selectCommand = connection.CreateSelectCommand(sql);
+            foreach (var columnModification in modificationCommand.ColumnModifications)
+            {
+                if (columnModification.IsKey && (columnModification.UseOriginalValueParameter || columnModification.UseCurrentValueParameter))
+                {
+                    selectCommand.Parameters.Add(CreateParameter(columnModification, selectCommand, columnModification.UseOriginalValueParameter ? UseValue.Original : UseValue.Current, false));
+                }
+            }
+            return selectCommand;
+        }
+
+        private DbParameter CreateParameter(ColumnModification columnModification, DbCommand cmd, UseValue useValue, bool useColumnName)
+        {
+            string paramName;
+            if (useColumnName)
+            {
+                paramName = columnModification.ColumnName;
+            }
+            else
+            {
+                paramName = useValue == UseValue.Original ? columnModification.OriginalParameterName : columnModification.ParameterName;
+            }
             var param = _typeMapper.GetMapping(columnModification.Property).CreateParameter(cmd,
-                useValue == UseValue.Original ? columnModification.OriginalParameterName : columnModification.ParameterName,
+                paramName,
                 useValue == UseValue.Original ? columnModification.OriginalValue : columnModification.Value,
                 columnModification.Property.IsNullable);
             if (param is SpannerParameter spannerParameter && SpannerDbType.Unspecified.Equals(spannerParameter.SpannerDbType))

@@ -309,7 +309,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
         public void AddOrUpdateStatementResult(string sql, StatementResult result)
         {
-            _results.AddOrUpdate(sql,
+            _results.AddOrUpdate(sql.Trim(),
                 result,
                 (string sql, StatementResult existing) => result
             );
@@ -525,7 +525,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 {
                     break;
                 }
-                if (_results.TryGetValue(statement.Sql, out StatementResult result))
+                if (_results.TryGetValue(statement.Sql.Trim(), out StatementResult result))
                 {
                     switch (result.Type)
                     {
@@ -583,7 +583,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             executionTime?.SimulateExecutionTime();
             Session session = TryFindSession(request.SessionAsSessionName);
             Transaction tx = FindOrBeginTransaction(request.SessionAsSessionName, request.Transaction);
-            if (_results.TryGetValue(request.Sql, out StatementResult result))
+            if (_results.TryGetValue(request.Sql.Trim(), out StatementResult result))
             {
                 switch (result.Type)
                 {

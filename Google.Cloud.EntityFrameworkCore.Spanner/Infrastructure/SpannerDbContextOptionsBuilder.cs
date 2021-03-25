@@ -18,9 +18,18 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure
 {
+    public enum MutationUsage
+    {
+        Never,
+        ImplicitTransactions,
+        Always
+    }
+
     public class SpannerDbContextOptionsBuilder
            : RelationalDbContextOptionsBuilder<SpannerDbContextOptionsBuilder, SpannerOptionsExtension>
     {
+        private MutationUsage _mutationUsage = MutationUsage.ImplicitTransactions;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="SpannerDbContextOptionsBuilder" /> class.
         /// </summary>
@@ -28,6 +37,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure
         public SpannerDbContextOptionsBuilder(DbContextOptionsBuilder optionsBuilder)
             : base(optionsBuilder)
         {
+        }
+
+        public SpannerDbContextOptionsBuilder WithMutationUsage(MutationUsage mutationUsage)
+        {
+            _mutationUsage = mutationUsage;
+            return this;
         }
     }
 }

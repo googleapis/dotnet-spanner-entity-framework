@@ -33,7 +33,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
     public class SpannerMutationBasedModificationCommandBatch : ModificationCommandBatch
     {
         //Note: This class hooks into updates before any DML is generated. It handles the updates by converting
-        // each row update into the appropriate SpannerCommand (mutation).  Note the use of the type mapper.
+        // each row update into the appropriate SpannerCommand (mutation). Note the use of the type mapper.
 
         private readonly IDiagnosticsLogger<DbLoggerCategory.Database.Command> _logger;
         private readonly List<ModificationCommand> _modificationCommands = new List<ModificationCommand>();
@@ -53,6 +53,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// This is internal functionality and not intended for public use.
         /// </summary>
         public override IReadOnlyList<ModificationCommand> ModificationCommands => _modificationCommands;
+
+        internal int RowsAffected
+        {
+            // This assumes that each mutation always affects exactly 1 row. That is true as long as:
+            // 1. INSERT and UPDATE: These always affect exactly 1 row or throw AlreadyExists or NotFound.
+            // 2. UPSERT: These would also always affect exactly 1 row, but are not used by this class.
+            // 3. DELETE: When using a key range, it could affect any number of rows. This class only uses
+            // single keys, which means that each DELETE command only affects 0 or 1 rows plus any rows
+            // that might be deleted as a result of a ON DELETE CASCADE clause of a parent/child table.
+            //
+            // Mutations cannot include a WHERE clause, which means that they are not usable in combination
+            // with concurrency tokens.
+            get => _modificationCommands.Count;
+        }
 
         /// <summary>
         /// This is internal functionality and not intended for public use.
@@ -78,11 +92,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         public override async Task ExecuteAsync(IRelationalConnection connection,
             CancellationToken cancellationToken = new CancellationToken())
         {
-            GaxPreconditions.CheckArgument(connection.DbConnection is SpannerRetriableConnection, nameof(connection), "");
+            GaxPreconditions.CheckArgument(connection.DbConnection is SpannerRetriableConnection, nameof(connection), "Connection must be a SpannerRetriableConnection");
             var spannerConnection = (SpannerRetriableConnection)connection.DbConnection;
             if (!(connection.CurrentTransaction?.GetDbTransaction() is SpannerRetriableTransaction transaction))
             {
-                throw new InvalidOperationException("");
+                throw new InvalidOperationException("Transaction must be a SpannerRetriableTransaction");
             }
             var tasks = _modificationCommands.Select(
                 x => CreateSpannerCommand(spannerConnection, transaction, x)

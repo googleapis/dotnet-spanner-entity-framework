@@ -111,6 +111,17 @@ namespace Microsoft.EntityFrameworkCore
             => (DbContextOptionsBuilder<TContext>)UseSpanner(
                 (DbContextOptionsBuilder)optionsBuilder, connection, spannerOptionsAction);
 
+        public static DbContextOptionsBuilder UseMutations(
+            this DbContextOptionsBuilder optionsBuilder,
+            MutationUsage mutationUsage)
+        {
+            GaxPreconditions.CheckNotNull(optionsBuilder, nameof(optionsBuilder));
+            var extension = GetOrCreateExtension(optionsBuilder).WithMutationUsage(mutationUsage);
+            ((IDbContextOptionsBuilderInfrastructure)optionsBuilder).AddOrUpdateExtension(extension);
+
+            return optionsBuilder;
+        }
+
         private static SpannerOptionsExtension GetOrCreateExtension(DbContextOptionsBuilder optionsBuilder)
             => optionsBuilder.Options.FindExtension<SpannerOptionsExtension>()
                ?? new SpannerOptionsExtension();

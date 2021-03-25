@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Update;
@@ -23,23 +24,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
     {
         internal const string PendingCommitTimestampValue = "PENDING_COMMIT_TIMESTAMP()";
 
-        internal SpannerPendingCommitTimestampColumnModification(ColumnModification modification, bool sensitiveLoggingEnabled)
-            : base(modification.Entry, modification.Property, () => "", modification.IsRead, modification.IsWrite, modification.IsKey, modification.IsCondition, modification.IsConcurrencyToken, sensitiveLoggingEnabled)
-        {
-        }
-
         internal SpannerPendingCommitTimestampColumnModification(IUpdateEntry entry, IProperty property, bool sensitiveLoggingEnabled)
             : base(entry, property, () => "", false, true, false, false, false, sensitiveLoggingEnabled)
         {
         }
 
+        internal bool IsMutationColumnModification { get; set; }
+
         public override bool IsWrite => true;
 
-        public override bool UseCurrentValueParameter => false;
+        public override bool UseCurrentValueParameter => IsMutationColumnModification;
 
         public override bool UseOriginalValueParameter => false;
 
-        public override object Value { get => PendingCommitTimestampValue; set => base.Value = value; }
+        public override object Value
+        {
+            get => IsMutationColumnModification ? SpannerParameter.CommitTimestamp : PendingCommitTimestampValue;
+            set => base.Value = value;
+        }
     }
 
 
@@ -70,6 +72,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 }
             }
             _columnModifications = columnModifications.AsReadOnly();
+        }
+
+        internal void MarkAsMutationCommand()
+        {
+            foreach (var col in _columnModifications)
+            {
+                if (col is SpannerPendingCommitTimestampColumnModification commitTimestampColumnModification)
+                {
+                    commitTimestampColumnModification.IsMutationColumnModification = true;
+                }
+            }
         }
 
         public override IReadOnlyList<ColumnModification> ColumnModifications { get => _columnModifications; }

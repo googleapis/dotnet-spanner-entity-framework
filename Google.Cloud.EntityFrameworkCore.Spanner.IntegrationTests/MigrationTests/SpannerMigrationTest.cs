@@ -442,7 +442,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 "this is too long string should throw length validation error"
             });
 
-            Assert.Throws<SpannerBatchNonQueryException>(() => context.SaveChanges());
+            Assert.Throws<SpannerException>(() => context.SaveChanges());
         }
 
         [Fact]
@@ -459,7 +459,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 }
             });
 
-            Assert.Throws<SpannerBatchNonQueryException>(() => context.SaveChanges());
+            Assert.Throws<SpannerException>(() => context.SaveChanges());
         }
 
         [Fact]
@@ -517,7 +517,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 PublishDate = new DateTime(2020, 12, 1)
             };
             context.Articles.Add(article);
-            Assert.Throws<SpannerBatchNonQueryException>(() => context.SaveChanges());
+            Assert.Throws<SpannerException>(() => context.SaveChanges());
         }
 
         [Fact]
