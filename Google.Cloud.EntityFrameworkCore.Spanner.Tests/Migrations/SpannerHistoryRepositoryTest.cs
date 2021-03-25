@@ -34,13 +34,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
             var sql = CreateHistoryRepository().GetCreateScript();
 
             Assert.Equal(
-                "CREATE TABLE EFMigrationsHistory ("
+                "CREATE TABLE `EFMigrationsHistory` ("
                 + EOL
-                + "    MigrationId STRING(150) NOT NULL,"
+                + "    `MigrationId` STRING(150) NOT NULL,"
                 + EOL
-                + "    ProductVersion STRING(32) NOT NULL"
+                + "    `ProductVersion` STRING(32) NOT NULL"
                 + EOL
-                + ")PRIMARY KEY (MigrationId)",
+                + ")PRIMARY KEY (`MigrationId`)",
                 sql);
         }
 

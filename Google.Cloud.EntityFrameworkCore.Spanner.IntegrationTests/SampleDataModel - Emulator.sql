@@ -81,6 +81,7 @@ CREATE TABLE TableWithAllColumnTypes (
 	ColDateArray ARRAY<DATE>,
 	ColTimestampArray ARRAY<TIMESTAMP>,
 	ColComputed STRING(MAX),
+	`ASC` STRING(MAX),
 ) PRIMARY KEY (ColInt64);
 
 CREATE NULL_FILTERED INDEX IDX_TableWithAllColumnTypes_ColDate_ColCommitTS ON TableWithAllColumnTypes (ColDate, ColCommitTS);

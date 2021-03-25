@@ -25,6 +25,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INT64");
 
+                    b.Property<string>("ASC")
+                        .HasColumnType("STRING");
+
                     b.Property<bool?>("ColBool")
                         .HasColumnType("BOOL");
 
