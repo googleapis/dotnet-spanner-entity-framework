@@ -528,7 +528,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public async Task ComputedColumn()
         {
             using var context = new TestMigrationDbContext(_fixture.DatabaseName);
-            using var transaction = await context.Database.BeginTransactionAsync();
+            // using var transaction = await context.Database.BeginTransactionAsync();
             var author = new Author
             {
                 AuthorId = 10,
@@ -537,7 +537,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             };
             context.Authors.Add(author);
             var rowCount = await context.SaveChangesAsync();
-            await transaction.CommitAsync();
+            // await transaction.CommitAsync();
 
             author = await context.Authors.FindAsync(10L);
             Assert.Equal("Loren Ritchie", author.FullName);

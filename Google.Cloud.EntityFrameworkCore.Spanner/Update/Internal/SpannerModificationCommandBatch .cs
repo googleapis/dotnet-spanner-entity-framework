@@ -32,6 +32,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 {
     /// <summary>
     /// This is internal functionality and not intended for public use.
+    /// 
+    /// SpannerModificationCommandBatch will by default execute updates using mutations when implicit
+    /// transactions are being used, and DML when explicit transactions are being used. Using DML for
+    /// explicit transactions allows the transaction to read its own writes. Using mutations for implicit
+    /// transactions is more efficient, as mutations are faster than DML and implicit transactions imply
+    /// that read-your-writes is not needed.
+    /// 
+    /// Client applications can configure mutation usage when creating a DbContext to change the default
+    /// behavior:
+    /// * MutationUsage.ImplicitTransactions (default): Use mutations when implicit transactions are used.
+    /// * Never: Never use mutations and always use DML. This will reduce the performance of implicit transactions.
+    /// * Always: Always use mutations, also for explicit transactions. This will break read-your-writes in transactions.
     /// </summary>
     public class SpannerModificationCommandBatch : ModificationCommandBatch
     {
@@ -57,7 +69,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         }
 
         /// <summary>
-        ///     Service dependencies.
+        /// Service dependencies.
         /// </summary>
         public virtual ModificationCommandBatchFactoryDependencies Dependencies { get; }
 
@@ -124,13 +136,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// This is internal functionality and not intended for public use.
         /// </summary>
         public override async Task ExecuteAsync(IRelationalConnection connection,
-            CancellationToken cancellationToken = new CancellationToken())
+            CancellationToken cancellationToken = default)
         {
             var spannerRelationalConnection = (SpannerRelationalConnection)connection;
             var spannerConnection = (SpannerRetriableConnection)connection.DbConnection;
+            // There should always be a transaction:
+            // 1. Implicit: A transaction is automatically started by Entity Framework when SaveChanges() is called.
+            // 2. Explicit: The client application has called BeginTransaction() on the database.
             if (!(connection.CurrentTransaction?.GetDbTransaction() is SpannerRetriableTransaction transaction))
             {
-                throw new InvalidOperationException("There is no active transaction");
+                throw new InvalidOperationException("There is no active transaction. Cloud Spanner does not support executing updates without a transaction.");
             }
             var useMutations = spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.Always
                 || (!_hasExplicitTransaction && spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.ImplicitTransactions);
@@ -144,7 +159,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             }
         }
 
-        private async Task ExecuteMutationsAsync(SpannerRetriableConnection spannerConnection, SpannerRetriableTransaction transaction, CancellationToken cancellationToken)
+        /// <summary>
+        /// Executes the command batch using mutations. Mutations are more efficient than DML, but do not support read-your-writes.
+        /// Mutations are therefore by default only used for implicit transactions, but client applications can configure the Spanner
+        /// Entity Framework provider to use mutations for explicit transactions as well.
+        /// </summary>
+        private async Task ExecuteMutationsAsync(
+            SpannerRetriableConnection spannerConnection, SpannerRetriableTransaction transaction, CancellationToken cancellationToken)
         {
             int index = 0;
             foreach (var modificationCommand in _modificationCommands)
@@ -156,6 +177,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 //
                 // This can be changed if a concurrency token check fails.
                 var updateCount = 1L;
+
                 // Concurrency token checks cannot be included in mutations. Instead, we need to do manual select to check
                 // that the concurrency token is still the same as what we expect. This select is executed in the same
                 // transaction as the mutations, so it is guaranteed that the value that we read here will still be valid
@@ -167,13 +189,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                     var conditionOperations = operations.Where(o => o.IsCondition).ToList();
                     var concurrencySql = ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).GenerateSelectConcurrencyCheckSql(modificationCommand.TableName, conditionOperations);
                     var concurrencyCommand = spannerConnection.CreateSelectCommand(concurrencySql);
+                    concurrencyCommand.Transaction = transaction;
                     foreach (var columnModification in conditionOperations)
                     {
                         concurrencyCommand.Parameters.Add(CreateParameter(columnModification, concurrencyCommand, UseValue.Original, false));
                     }
+                    // Execute the concurrency check query in the read/write transaction and check whether the expected row exists.
                     using var reader = await concurrencyCommand.ExecuteReaderAsync(cancellationToken);
                     if (!await reader.ReadAsync(cancellationToken))
                     {
+                        // Set the update count to 0 to trigger a concurrency exception.
+                        // We do not throw the exception here already, as there might be more concurrency problems,
+                        // and we want to be able to report all in the exception.
                         updateCount = 0L;
                     }
                 }
@@ -185,6 +212,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 {
                     commitTimestampModificationCommand.MarkAsMutationCommand();
                 }
+                // Create the mutation command and execute it.
                 var cmd = CreateSpannerMutationCommand(spannerConnection, transaction, modificationCommand);
                 // Note: The following line does not actually execute any command on the backend, it only buffers
                 // the mutation locally to be sent with the next Commit statement.
@@ -192,7 +220,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 UpdateCounts.Add(updateCount);
 
                 // Check whether we need to generate a SELECT command to propagate computed values back to the context.
-                if (modificationCommand.RequiresResultPropagation)
+                // This SELECT command will be executed outside of the current implicit transaction.
+                // The propagation query is skipped if the batch uses an explicit transaction, as it will not be able
+                // to read the new value anyways.
+                if (modificationCommand.RequiresResultPropagation && !_hasExplicitTransaction)
                 {
                     var builder = new StringBuilder();
                     var keyOperations = operations.Where(o => o.IsKey).ToList();
@@ -203,26 +234,38 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 }
                 index++;
             }
+            // Check that there were no concurrency problems detected.
             if (RowsAffected != _modificationCommands.Count)
             {
                 ThrowAggregateUpdateConcurrencyException();
             }
         }
 
+        /// <summary>
+        /// Executes the command batch using DML. DML is less efficient than mutations, but do allow applications
+        /// to read their own writes within a transaction. DML is therefore used by default for explicit transactions.
+        /// Applications can also configure the Spanner Entity Framework provider to use DML for implicit transactions as well.
+        /// </summary>
         private async Task ExecuteDmlAsync(SpannerRetriableConnection spannerConnection, SpannerRetriableTransaction transaction, CancellationToken cancellationToken)
         {
+            // Create a Batch DML command that contains all the updates in this batch.
+            // The update statements will include any concurrency token checks that might be needed.
             var cmd = CreateSpannerBatchDmlCommand(spannerConnection, transaction);
             UpdateCounts = (await cmd.Item1.ExecuteNonQueryAsync(cancellationToken)).ToList();
             if (RowsAffected != _modificationCommands.Count)
             {
                 ThrowAggregateUpdateConcurrencyException();
             }
+            // Add any select commands that were generated by the batch for updates that need to propagate results.
             if (cmd.Item2.Count > 0)
             {
                 _propagateResultsCommands.AddRange(cmd.Item2);
             }
         }
 
+        /// <summary>
+        /// Constructs and throws a DbUpdateConcurrencyException for this batch based on the UpdateCounts.
+        /// </summary>
         private void ThrowAggregateUpdateConcurrencyException()
         {
             var expectedRowsAffected = _modificationCommands.Count;
@@ -241,7 +284,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 RelationalStrings.UpdateConcurrencyException(expectedRowsAffected, RowsAffected), entries);
         }
 
-        internal async Task PropagateResults(CancellationToken cancellationToken)
+        internal void PropagateResults() =>
+            Task.Run(() => PropagateResultsAsync()).WaitWithUnwrappedExceptions();
+
+        /// <summary>
+        /// Propagates results from update statements that caused a computed column to be changed.
+        /// Result propagation is done by executing a separate SELECT statement on the table that was
+        /// updated. These SELECT statements are executed after the batch has been executed, and outside
+        /// of the transaction if implicit transactions are used.
+        /// 
+        /// If the batch uses an explicit transaction, the result propagation will be executed inside the
+        /// transaction.
+        /// </summary>
+        internal async Task PropagateResultsAsync(CancellationToken cancellationToken = default)
         {
             int index = 0;
             foreach (var modificationCommand in _modificationCommands)
@@ -259,6 +314,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             }
         }
 
+        /// <summary>
+        /// Generates a Batch DML command for the modifications in this batch and SELECT statements for any
+        /// results that need to be propagated after the update.
+        /// </summary>
         private Tuple<SpannerRetriableBatchCommand, List<SpannerRetriableCommand>> CreateSpannerBatchDmlCommand(SpannerRetriableConnection connection, SpannerRetriableTransaction transaction)
         {
             var selectCommands = new List<SpannerRetriableCommand>();
@@ -337,6 +396,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             return cmd;
         }
 
+        /// <summary>
+        /// Adds the parameters that need to be written for an update command. This can be both a DML and a mutation command.
+        /// 
+        /// ConcurrencyToken conditions are not included in mutation commands, as these do not support a WHERE clause or other filtering.
+        /// </summary>
         private void AppendWriteParameters(ModificationCommand modificationCommand, DbCommand cmd, bool useColumnName, bool includeConcurrencyTokenConditions)
         {
             foreach (var columnModification in modificationCommand.ColumnModifications.Where(
@@ -350,6 +414,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             }
         }
 
+        /// <summary>
+        /// Creates a SELECT command for a result that needs to be propagated after the update.
+        /// </summary>
         private SpannerRetriableCommand CreateSelectedAffectedCommand(SpannerRetriableConnection connection, ModificationCommand modificationCommand, string sql)
         {
             var selectCommand = connection.CreateSelectCommand(sql);
@@ -363,6 +430,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             return selectCommand;
         }
 
+        /// <summary>
+        /// Creates a SpannerParameter for a command and sets the correct type.
+        /// </summary>
         private DbParameter CreateParameter(ColumnModification columnModification, DbCommand cmd, UseValue useValue, bool useColumnName)
         {
             string paramName;

@@ -20,6 +20,10 @@ using System.Collections.Generic;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 {
+    /// <summary>
+    /// This class is used for ColumnModifications that will set the value of the column to the commit timestamp of the transaction.
+    /// These modifications must set the column value to a specific placeholder value.
+    /// </summary>
     internal class SpannerPendingCommitTimestampColumnModification : ColumnModification
     {
         internal const string PendingCommitTimestampValue = "PENDING_COMMIT_TIMESTAMP()";
@@ -29,6 +33,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         {
         }
 
+        /// <summary>
+        /// Indicates whether this modification will use mutations (true) or DML (false).
+        /// </summary>
         internal bool IsMutationColumnModification { get; set; }
 
         public override bool IsWrite => true;
@@ -44,7 +51,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         }
     }
 
-
+    /// <summary>
+    /// ModificationCommand that is used for modifications that contain at least one ColumnModification that will
+    /// set the value to the commit timestamp of the transaction.
+    /// </summary>
     internal class SpannerPendingCommitTimestampModificationCommand : ModificationCommand
     {
         private readonly ModificationCommand _delegate;

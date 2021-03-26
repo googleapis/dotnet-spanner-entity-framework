@@ -46,6 +46,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             try
             {
                 base.Execute(batchesList, connection);
+                foreach (var batch in batchesList)
+                {
+                    if (batch is SpannerModificationCommandBatch spannerModificationCommandBatch)
+                    {
+                        spannerModificationCommandBatch.PropagateResults();
+                    }
+                }
                 span.SetStatus(Status.Ok);
             }
             catch (Exception ex)
@@ -69,11 +76,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             try
             {
                 await base.ExecuteAsync(batchesList, connection, cancellationToken);
+                // Results that need to be propagated after an update are executed after the batch has been saved.
+                // This ensures that when implict transactions are being used the updated value is fetched after the
+                // transaction has been committed. This makes it possible to use mutations for implicit transactions
+                // and still automatically propagate computed columns.
                 foreach (var batch in batchesList)
                 {
                     if (batch is SpannerModificationCommandBatch spannerModificationCommandBatch)
                     {
-                        await spannerModificationCommandBatch.PropagateResults(cancellationToken);
+                        await spannerModificationCommandBatch.PropagateResultsAsync(cancellationToken);
                     }
                 }
                 span.SetStatus(Status.Ok);
@@ -98,10 +109,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 if (commandBatch is SpannerModificationCommandBatch spannerCommandBatch)
                 {
                     spannerCount += (int)spannerCommandBatch.UpdateCounts.Sum();
-                }
-                if (commandBatch is SpannerMutationBasedModificationCommandBatch spannerMutationCommandBatch)
-                {
-                    spannerCount += spannerMutationCommandBatch.RowsAffected;
                 }
             }
             return spannerCount;

@@ -52,6 +52,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             commandStringBuilder.Append(" TRUE ");
         }
 
+        /// <summary>
+        /// Generates a SQL statement for results that were affected by a modification, and that need to be read
+        /// back from the database as the value was computed.
+        /// </summary>
         internal string GenerateSelectAffectedSql(
             string table,
             string schema,
@@ -69,6 +73,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             return sql;
         }
 
+        /// <summary>
+        /// Generates a SQL statement for reading the current concurrency token value of a row. This is used
+        /// for transactions that use mutations instead of DML, as mutations cannot include a WHERE clause.
+        /// 
+        /// The query will return a single row result set if the concurrency token value has the expected value,
+        /// and an empty result set if the value has changed.
+        /// </summary>
         internal string GenerateSelectConcurrencyCheckSql(
             string table,
             IReadOnlyList<ColumnModification> conditionOperations)
