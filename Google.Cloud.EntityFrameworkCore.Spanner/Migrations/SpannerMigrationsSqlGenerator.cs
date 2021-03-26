@@ -475,22 +475,22 @@ namespace Microsoft.EntityFrameworkCore.Migrations
 
         protected override void UniqueConstraint(AddUniqueConstraintOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException("Cloud Spanner does not support unique constraint.");
+            throw new NotSupportedException("Cloud Spanner does not support unique constraints. Use unique indexes instead.");
         }
 
         protected override void Generate(DropUniqueConstraintOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException("Cloud Spanner does not support unique constraint.");
+            throw new NotSupportedException("Cloud Spanner does not support unique constraints. Use unique indexes instead.");
         }
 
         protected override void Generate(AddPrimaryKeyOperation operation, IModel model, MigrationCommandListBuilder builder, bool terminate = true)
         {
-            throw new NotSupportedException("Cloud Spanner requires the primary key for creating table.");
+            throw new NotSupportedException("Cloud Spanner does not support adding a primary key to an existing table. The primary key must always be included in the CREATE TABLE statement.");
         }
 
         protected override void Generate(DropPrimaryKeyOperation operation, IModel model, MigrationCommandListBuilder builder, bool terminate = true)
         {
-            throw new NotSupportedException("Cloud Spanner requires the primary key for creating table.");
+            throw new NotSupportedException("Cloud Spanner does not support dropping a primary key. All tables must always have a primary key.");
         }
     }
 }
