@@ -161,9 +161,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 // transaction as the mutations, so it is guaranteed that the value that we read here will still be valid
                 // when the mutations are committed.
                 var operations = modificationCommand.ColumnModifications;
-                var conditionOperations = operations.Where(o => o.IsCondition).ToList();
-                if (conditionOperations.Count > 0)
+                var hasConcurrencyCondition = operations.Where(o => o.IsCondition && o.IsConcurrencyToken).Any();
+                if (hasConcurrencyCondition)
                 {
+                    var conditionOperations = operations.Where(o => o.IsCondition).ToList();
                     var concurrencySql = ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).GenerateSelectConcurrencyCheckSql(modificationCommand.TableName, conditionOperations);
                     var concurrencyCommand = spannerConnection.CreateSelectCommand(concurrencySql);
                     foreach (var columnModification in conditionOperations)
@@ -319,24 +320,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             return Tuple.Create(cmd, selectCommand);
         }
 
-        private SpannerCommand CreateSpannerMutationCommand(
+        private SpannerRetriableCommand CreateSpannerMutationCommand(
             SpannerRetriableConnection spannerConnection,
             SpannerRetriableTransaction transaction,
             ModificationCommand modificationCommand)
         {
-            SpannerCommand cmd = modificationCommand.EntityState switch
+            var cmd = modificationCommand.EntityState switch
             {
-                EntityState.Deleted => spannerConnection.SpannerConnection.CreateDeleteCommand(modificationCommand.TableName),
-                EntityState.Modified => spannerConnection.SpannerConnection.CreateUpdateCommand(modificationCommand.TableName),
-                EntityState.Added => spannerConnection.SpannerConnection.CreateInsertCommand(modificationCommand.TableName),
+                EntityState.Deleted => spannerConnection.CreateDeleteCommand(modificationCommand.TableName),
+                EntityState.Modified => spannerConnection.CreateUpdateCommand(modificationCommand.TableName),
+                EntityState.Added => spannerConnection.CreateInsertCommand(modificationCommand.TableName),
                 _ => throw new NotSupportedException($"Modification type {modificationCommand.EntityState} is not supported."),
             };
-            cmd.Transaction = transaction.SpannerTransaction;
+            cmd.Transaction = transaction;
             AppendWriteParameters(modificationCommand, cmd, true, false);
             return cmd;
         }
 
-        private void AppendWriteParameters(ModificationCommand modificationCommand, SpannerCommand cmd, bool useColumnName, bool includeConcurrencyTokenConditions)
+        private void AppendWriteParameters(ModificationCommand modificationCommand, DbCommand cmd, bool useColumnName, bool includeConcurrencyTokenConditions)
         {
             foreach (var columnModification in modificationCommand.ColumnModifications.Where(
                 o => o.UseOriginalValueParameter && (includeConcurrencyTokenConditions || !(o.IsCondition && o.IsConcurrencyToken))))

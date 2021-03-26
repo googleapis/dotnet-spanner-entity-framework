@@ -69,7 +69,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 optionsBuilder
                     .UseSpanner(new SpannerConnection(_connectionString, ChannelCredentials.Insecure))
-                    .UseMutations(MutationUsage.ImplicitTransactions)
+                    .UseMutations(MutationUsage.Always)
                     .UseLazyLoadingProxies();
             }
         }
@@ -91,6 +91,27 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 optionsBuilder
                     .UseSpanner(new SpannerConnection(_connectionString, ChannelCredentials.Insecure))
                     .UseMutations(MutationUsage.Never)
+                    .UseLazyLoadingProxies();
+            }
+        }
+    }
+
+    internal class MockServerVersionDbContextUsingMutations : SpannerVersionDbContext
+    {
+        private readonly string _connectionString;
+
+        internal MockServerVersionDbContextUsingMutations(string connectionString) : base()
+        {
+            _connectionString = connectionString;
+        }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured)
+            {
+                optionsBuilder
+                    .UseSpanner(new SpannerConnection(_connectionString, ChannelCredentials.Insecure))
+                    .UseMutations(MutationUsage.Always)
                     .UseLazyLoadingProxies();
             }
         }
@@ -144,7 +165,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.Null(singer.Picture);
 
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is V1.ExecuteSqlRequest).Select(request => (V1.ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
@@ -152,7 +173,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             );
             // A read-only operation should not initiate and commit a transaction.
-            Assert.Empty(_fixture.SpannerMock.Requests.Where(request => request is V1.CommitRequest));
+            Assert.Empty(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
         }
 
         [Fact]
@@ -246,6 +267,74 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task UpdateSingerWithMutation_SelectsFullName()
+        {
+            // Setup results.
+            var selectSingerSql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, " +
+                $"`s`.`FullName`, `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+            var selectFullNameSql = AddSelectSingerFullNameResult("Alice Pieterson-Morrison", 0);
+
+            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            var singer = await db.Singers.FindAsync(1L);
+            singer.LastName = "Pieterson-Morrison";
+            var updateCount = await db.SaveChangesAsync();
+
+            Assert.Equal(1L, updateCount);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests
+                    .Where(request => !new [] { typeof(BeginTransactionRequest), typeof(BatchCreateSessionsRequest) }.Contains(request.GetType()))
+                    .Select(request => request.GetType()),
+                request => Assert.Equal(typeof(ExecuteSqlRequest), request),
+                request => Assert.Equal(typeof(CommitRequest), request),
+                request => Assert.Equal(typeof(ExecuteSqlRequest), request)
+            );
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                request =>
+                {
+                    Assert.Equal(selectSingerSql.Trim(), request.Sql.Trim());
+                    Assert.Null(request.Transaction?.Id);
+                },
+                request =>
+                {
+                    Assert.Equal(selectFullNameSql.Trim(), request.Sql.Trim());
+                    Assert.Null(request.Transaction?.Id);
+                }
+            );
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(request => request is CommitRequest).Select(request => request as CommitRequest),
+                request =>
+                {
+                    Assert.Collection(
+                        request.Mutations,
+                        mutation =>
+                        {
+                            Assert.Equal(Mutation.OperationOneofCase.Update, mutation.OperationCase);
+                            Assert.Equal("Singers", mutation.Update.Table);
+                            Assert.Collection(
+                                mutation.Update.Columns,
+                                column => Assert.Equal("SingerId", column),
+                                column => Assert.Equal("LastName", column)
+                            );
+                            Assert.Collection(
+                                mutation.Update.Values,
+                                row =>
+                                {
+                                    Assert.Collection(
+                                        row.Values,
+                                        value => Assert.Equal("1", value.StringValue),
+                                        value => Assert.Equal("Pieterson-Morrison", value.StringValue)
+                                    );
+                                }
+                            );
+                        }
+                    );
+                }
+            );
+        }
+
+        [Fact]
         public async Task DeleteSinger_DoesNotSelectFullName()
         {
             // Setup results.
@@ -258,7 +347,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Equal(1L, updateCount);
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is V1.ExecuteBatchDmlRequest).Select(request => (V1.ExecuteBatchDmlRequest)request),
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest).Select(request => (ExecuteBatchDmlRequest)request),
                 request =>
                 {
                     Assert.Single(request.Statements);
@@ -266,8 +355,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.NotNull(request.Transaction?.Id);
                 }
             );
-            Assert.Empty(_fixture.SpannerMock.Requests.Where(request => request is V1.ExecuteSqlRequest));
-            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is V1.CommitRequest));
+            Assert.Empty(_fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest));
+            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
         }
 
         [Fact]
@@ -282,7 +371,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.NotNull(await db.Singers.FindAsync(1L));
 
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is V1.ExecuteSqlRequest).Select(request => (V1.ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
@@ -290,8 +379,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             );
             Assert.Single(_fixture.SpannerMock.Requests
-                .Where(request => request is V1.BeginTransactionRequest)
-                .Select(request => (V1.BeginTransactionRequest)request)
+                .Where(request => request is BeginTransactionRequest)
+                .Select(request => (BeginTransactionRequest)request)
                 .Where(request => request.Options?.ReadOnly?.Strong ?? false));
         }
 
@@ -307,7 +396,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.NotNull(await db.Singers.FindAsync(1L));
 
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is V1.ExecuteSqlRequest).Select(request => (V1.ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
@@ -315,8 +404,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             );
             Assert.Single(_fixture.SpannerMock.Requests
-                .Where(request => request is V1.BeginTransactionRequest)
-                .Select(request => (V1.BeginTransactionRequest)request)
+                .Where(request => request is BeginTransactionRequest)
+                .Select(request => (BeginTransactionRequest)request)
                 .Where(request => request.Options?.ReadOnly?.ExactStaleness?.Seconds == 10L));
         }
 
@@ -447,6 +536,94 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task VersionNumberIsAutomaticallyGeneratedOnInsertAndUpdate_UsingMutations()
+        {
+            using var db = new MockServerVersionDbContextUsingMutations(ConnectionString);
+            var singer = new SingersWithVersion { SingerId = 1L, FirstName = "Pete", LastName = "Allison" };
+            db.Singers.Add(singer);
+            await db.SaveChangesAsync();
+
+            Assert.Empty(_fixture.SpannerMock.Requests.Where(r => r is ExecuteBatchDmlRequest));
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(r => r is CommitRequest).Select(r => r as CommitRequest),
+                r =>
+                {
+                    Assert.Collection(
+                        r.Mutations,
+                        mutation =>
+                        {
+                            Assert.Equal(Mutation.OperationOneofCase.Insert, mutation.OperationCase);
+                            Assert.Equal("SingersWithVersion", mutation.Insert.Table);
+                            Assert.Collection(
+                                mutation.Insert.Columns,
+                                column => Assert.Equal("SingerId", column),
+                                column => Assert.Equal("FirstName", column),
+                                column => Assert.Equal("LastName", column),
+                                column => Assert.Equal("Version", column)
+                            );
+                            Assert.Collection(
+                                mutation.Insert.Values,
+                                row => Assert.Collection(
+                                    row.Values,
+                                    value => Assert.Equal("1", value.StringValue),
+                                    value => Assert.Equal("Pete", value.StringValue),
+                                    value => Assert.Equal("Allison", value.StringValue),
+                                    value => Assert.Equal("1", value.StringValue)
+                                )
+                            );
+                        }
+                    );
+                }
+            );
+
+            _fixture.SpannerMock.Reset();
+            // Update the singer and verify that the version number is first checked using a SELECT statement and then is updated in a mutation.
+            var concurrencySql = $"SELECT 1 FROM `SingersWithVersion` {Environment.NewLine}WHERE `SingerId` = @p0 AND `Version` = @p1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(concurrencySql, StatementResult.CreateSelect1ResultSet());
+            singer.LastName = "Peterson - Allison";
+            await db.SaveChangesAsync();
+
+            Assert.Empty(_fixture.SpannerMock.Requests.Where(r => r is ExecuteBatchDmlRequest));
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(r => r is ExecuteSqlRequest).Select(r => r as ExecuteSqlRequest),
+                r =>
+                {
+                    Assert.Equal("1", r.Params.Fields["p0"].StringValue); // SingerId
+                    Assert.Equal("1", r.Params.Fields["p1"].StringValue); // Version
+                }
+            );
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(r => r is CommitRequest).Select(r => r as CommitRequest),
+                r =>
+                {
+                    Assert.Collection(
+                        r.Mutations,
+                        mutation =>
+                        {
+                            Assert.Equal(Mutation.OperationOneofCase.Update, mutation.OperationCase);
+                            Assert.Equal("SingersWithVersion", mutation.Update.Table);
+                            Assert.Collection(
+                                mutation.Update.Columns,
+                                column => Assert.Equal("SingerId", column),
+                                column => Assert.Equal("LastName", column),
+                                column => Assert.Equal("Version", column)
+                            );
+                            Assert.Collection(
+                                mutation.Update.Values,
+                                row => Assert.Collection(
+                                    row.Values,
+                                    value => Assert.Equal("1", value.StringValue),
+                                    value => Assert.Equal("Peterson - Allison", value.StringValue),
+                                    value => Assert.Equal("2", value.StringValue)
+                                )
+                            );
+                        }
+                    );
+                }
+            );
+        }
+
+        [Fact]
         public async Task UpdateFailsIfVersionNumberChanged()
         {
             var updateSql = $"UPDATE `SingersWithVersion` SET `LastName` = @p0, `Version` = @p1" +
@@ -464,6 +641,27 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             // Update the update count to 1 to simulate a resolved version conflict.
             _fixture.SpannerMock.AddOrUpdateStatementResult(updateSql, StatementResult.CreateUpdateCount(1L));
+            Assert.Equal(1L, await db.SaveChangesAsync());
+        }
+
+        [Fact]
+        public async Task UpdateFailsIfVersionNumberChanged_UsingMutations()
+        {
+            using var db = new MockServerVersionDbContextUsingMutations(ConnectionString);
+
+            // Set the result of the concurrency check to an empty result set to simulate a version number that has changed.
+            var concurrencySql = $"SELECT 1 FROM `SingersWithVersion` {Environment.NewLine}WHERE `SingerId` = @p0 AND `Version` = @p1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(concurrencySql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "COL1"));
+
+            // Attach a singer to the context and try to update it.
+            var singer = new SingersWithVersion { SingerId = 1L, FirstName = "Pete", LastName = "Allison", Version = 1L };
+            db.Attach(singer);
+
+            singer.LastName = "Allison - Peterson";
+            await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => db.SaveChangesAsync());
+
+            // Update the concurrency check result to 1 to simulate a resolved version conflict.
+            _fixture.SpannerMock.AddOrUpdateStatementResult(concurrencySql, StatementResult.CreateSelect1ResultSet());
             Assert.Equal(1L, await db.SaveChangesAsync());
         }
 
@@ -530,6 +728,68 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 );
                 // Even if we are using implicit transactions, there will still be a transaction in the background and this transaction should be committed.
                 Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
+            }
+        }
+
+        [Theory]
+        [InlineData(true, true)]
+        [InlineData(true, false)]
+        [InlineData(false, true)]
+        [InlineData(false, false)]
+        public async Task ExplicitAndImplicitTransactionIsRetried_WhenUsingMutations(bool disableInternalRetries, bool useExplicitTransaction)
+        {
+            // Abort the next statement that is executed on the mock server.
+            _fixture.SpannerMock.AbortNextStatement();
+
+            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            IDbContextTransaction transaction = null;
+            if (useExplicitTransaction)
+            {
+                transaction = await db.Database.BeginTransactionAsync();
+                if (disableInternalRetries)
+                {
+                    transaction.DisableInternalRetries();
+                }
+            }
+            db.Venues.Add(new Venues
+            {
+                Code = "C1",
+                Name = "Concert Hall",
+            });
+
+            // We can only disable internal retries when using explicit transactions. Otherwise internal retries
+            // are always used.
+            if (disableInternalRetries && useExplicitTransaction)
+            {
+                await db.SaveChangesAsync();
+                var e = await Assert.ThrowsAsync<SpannerException>(() => transaction.CommitAsync());
+                Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+            }
+            else
+            {
+                var updateCount = await db.SaveChangesAsync();
+                Assert.Equal(1L, updateCount);
+                if (useExplicitTransaction)
+                {
+                    await transaction.CommitAsync();
+                }
+                Assert.Empty(_fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest));
+                Assert.Collection(
+                    _fixture.SpannerMock.Requests.Where(request => request is CommitRequest).Select(request => (CommitRequest)request),
+                    // The commit request is sent twice to the server, as the statement is aborted during the first attempt.
+                    request =>
+                    {
+                        Assert.Single(request.Mutations);
+                        Assert.Equal("Venues", request.Mutations.First().Insert.Table);
+                        Assert.NotNull(request.TransactionId);
+                    },
+                    request =>
+                    {
+                        Assert.Single(request.Mutations);
+                        Assert.Equal("Venues", request.Mutations.First().Insert.Table);
+                        Assert.NotNull(request.TransactionId);
+                    }
+                );
             }
         }
 

@@ -147,7 +147,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         protected internal override int ExecuteNonQueryWithRetry(SpannerCommand command)
             => Task.Run(() => ExecuteNonQueryWithRetryAsync(command, CancellationToken.None)).ResultWithUnwrappedExceptions();
 
-        internal async Task<int> ExecuteNonQueryWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken = default)
+        protected internal override async Task<int> ExecuteNonQueryWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken = default)
         {
             while (true)
             {
