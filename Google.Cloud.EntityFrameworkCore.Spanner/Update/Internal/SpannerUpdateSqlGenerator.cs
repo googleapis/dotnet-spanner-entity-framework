@@ -55,9 +55,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         internal string GenerateSelectAffectedSql(
             string table,
             string schema,
-             IReadOnlyList<ColumnModification> readOperations,
-             IReadOnlyList<ColumnModification> conditionOperations,
-             int commandPosition)
+            IReadOnlyList<ColumnModification> readOperations,
+            IReadOnlyList<ColumnModification> conditionOperations,
+            int commandPosition)
         {
             var commandStringBuilder = new StringBuilder();
             base.AppendSelectAffectedCommand(commandStringBuilder, table, schema, readOperations, conditionOperations, commandPosition);
@@ -67,6 +67,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 sql = sql.Substring(0, sql.Length - _sqlGenerationHelper.StatementTerminator.Length);
             }
             return sql;
+        }
+
+        internal string GenerateSelectConcurrencyCheckSql(
+            string table,
+            IReadOnlyList<ColumnModification> conditionOperations)
+        {
+            var concurrencyBuilder = new StringBuilder($"SELECT 1 FROM `{table}` ");
+            AppendWhereClause(concurrencyBuilder, conditionOperations);
+            return concurrencyBuilder.ToString();
         }
 
         public virtual ResultSetMapping AppendBulkInsertOperation(

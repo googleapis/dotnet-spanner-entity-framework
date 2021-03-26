@@ -54,7 +54,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     SingerId = invalidSingerId, // Invalid, does not reference an actual Singer
                     Title = "Some title",
                 });
-                await Assert.ThrowsAsync<SpannerBatchNonQueryException>(() => db.SaveChangesAsync());
+                await Assert.ThrowsAsync<SpannerException>(() => db.SaveChangesAsync());
             }
 
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))

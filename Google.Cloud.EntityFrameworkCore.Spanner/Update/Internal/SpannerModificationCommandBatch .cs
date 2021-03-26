@@ -136,48 +136,89 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 || (!_hasExplicitTransaction && spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.ImplicitTransactions);
             if (useMutations)
             {
-                int index = 0;
-                foreach (var modificationCommand in _modificationCommands)
-                {
-                    if (modificationCommand is SpannerPendingCommitTimestampModificationCommand commitTimestampModificationCommand)
-                    {
-                        commitTimestampModificationCommand.MarkAsMutationCommand();
-                    }
-                    var cmd = CreateSpannerMutationCommand(spannerConnection, transaction, modificationCommand);
-                    // Note: The following line does not actually execute any command on the backend, it only buffers
-                    // the mutation locally to be sent with the next Commit statement.
-                    await cmd.ExecuteNonQueryAsync(cancellationToken);
-                    // We assume that each mutation will affect exactly one row. This assumption always holds for INSERT
-                    // and UPDATE mutations (unless they return an error). DELETE mutations could affect zero rows if the
-                    // row had already been deleted, and more than one row if the deleted row is in a table with one or
-                    // more INTERLEAVED tables that are defined with ON DELETE CASCADE.
-                    UpdateCounts.Add(1L);
-                    // Check whether we need to generate a SELECT command to propagate computed values back to the context.
-                    if (modificationCommand.RequiresResultPropagation)
-                    {
-                        var builder = new StringBuilder();
-                        var operations = modificationCommand.ColumnModifications;
-                        var keyOperations = operations.Where(o => o.IsKey).ToList();
-                        var readOperations = operations.Where(o => o.IsRead).ToList();
-                        var sql = ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).GenerateSelectAffectedSql(
-                            modificationCommand.TableName, modificationCommand.Schema, readOperations, keyOperations, index);
-                        _propagateResultsCommands.Add(CreateSelectedAffectedCommand(spannerConnection, modificationCommand, sql));
-                    }
-                    index++;
-                }
+                await ExecuteMutationsAsync(spannerConnection, transaction, cancellationToken);
             }
             else
             {
-                var cmd = CreateSpannerBatchDmlCommand(spannerConnection, transaction);
-                UpdateCounts = (await cmd.Item1.ExecuteNonQueryAsync(cancellationToken)).ToList();
-                if (RowsAffected != _modificationCommands.Count)
+                await ExecuteDmlAsync(spannerConnection, transaction, cancellationToken);
+            }
+        }
+
+        private async Task ExecuteMutationsAsync(SpannerRetriableConnection spannerConnection, SpannerRetriableTransaction transaction, CancellationToken cancellationToken)
+        {
+            int index = 0;
+            foreach (var modificationCommand in _modificationCommands)
+            {
+                // We assume that each mutation will affect exactly one row. This assumption always holds for INSERT
+                // and UPDATE mutations (unless they return an error). DELETE mutations could affect zero rows if the
+                // row had already been deleted, and more than one row if the deleted row is in a table with one or
+                // more INTERLEAVED tables that are defined with ON DELETE CASCADE.
+                //
+                // This can be changed if a concurrency token check fails.
+                var updateCount = 1L;
+                // Concurrency token checks cannot be included in mutations. Instead, we need to do manual select to check
+                // that the concurrency token is still the same as what we expect. This select is executed in the same
+                // transaction as the mutations, so it is guaranteed that the value that we read here will still be valid
+                // when the mutations are committed.
+                var operations = modificationCommand.ColumnModifications;
+                var conditionOperations = operations.Where(o => o.IsCondition).ToList();
+                if (conditionOperations.Count > 0)
                 {
-                    ThrowAggregateUpdateConcurrencyException();
+                    var concurrencySql = ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).GenerateSelectConcurrencyCheckSql(modificationCommand.TableName, conditionOperations);
+                    var concurrencyCommand = spannerConnection.CreateSelectCommand(concurrencySql);
+                    foreach (var columnModification in conditionOperations)
+                    {
+                        concurrencyCommand.Parameters.Add(CreateParameter(columnModification, concurrencyCommand, UseValue.Original, false));
+                    }
+                    using var reader = await concurrencyCommand.ExecuteReaderAsync(cancellationToken);
+                    if (!await reader.ReadAsync(cancellationToken))
+                    {
+                        updateCount = 0L;
+                    }
                 }
-                if (cmd.Item2.Count > 0)
+
+                // Mutation commands must use a specific TIMESTAMP constant for pending commit timestamps instead of the
+                // placeholder string PENDING_COMMIT_TIMESTAMP(). This instructs any pending commit timestamp modifications
+                // to use the mutation constant instead.
+                if (modificationCommand is SpannerPendingCommitTimestampModificationCommand commitTimestampModificationCommand)
                 {
-                    _propagateResultsCommands.AddRange(cmd.Item2);
+                    commitTimestampModificationCommand.MarkAsMutationCommand();
                 }
+                var cmd = CreateSpannerMutationCommand(spannerConnection, transaction, modificationCommand);
+                // Note: The following line does not actually execute any command on the backend, it only buffers
+                // the mutation locally to be sent with the next Commit statement.
+                await cmd.ExecuteNonQueryAsync(cancellationToken);
+                UpdateCounts.Add(updateCount);
+
+                // Check whether we need to generate a SELECT command to propagate computed values back to the context.
+                if (modificationCommand.RequiresResultPropagation)
+                {
+                    var builder = new StringBuilder();
+                    var keyOperations = operations.Where(o => o.IsKey).ToList();
+                    var readOperations = operations.Where(o => o.IsRead).ToList();
+                    var sql = ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).GenerateSelectAffectedSql(
+                        modificationCommand.TableName, modificationCommand.Schema, readOperations, keyOperations, index);
+                    _propagateResultsCommands.Add(CreateSelectedAffectedCommand(spannerConnection, modificationCommand, sql));
+                }
+                index++;
+            }
+            if (RowsAffected != _modificationCommands.Count)
+            {
+                ThrowAggregateUpdateConcurrencyException();
+            }
+        }
+
+        private async Task ExecuteDmlAsync(SpannerRetriableConnection spannerConnection, SpannerRetriableTransaction transaction, CancellationToken cancellationToken)
+        {
+            var cmd = CreateSpannerBatchDmlCommand(spannerConnection, transaction);
+            UpdateCounts = (await cmd.Item1.ExecuteNonQueryAsync(cancellationToken)).ToList();
+            if (RowsAffected != _modificationCommands.Count)
+            {
+                ThrowAggregateUpdateConcurrencyException();
+            }
+            if (cmd.Item2.Count > 0)
+            {
+                _propagateResultsCommands.AddRange(cmd.Item2);
             }
         }
 
@@ -225,7 +266,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             cmd.Transaction = transaction;
             foreach (var modificationCommand in _modificationCommands)
             {
-                var commands = CreateSpannerDmlCommand(connection, transaction, modificationCommand, commandPosition);
+                var commands = CreateSpannerDmlCommand(connection, modificationCommand, commandPosition);
                 cmd.Add(commands.Item1);
                 if (commands.Item2 != null)
                 {
@@ -236,7 +277,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             return Tuple.Create(cmd, selectCommands);
         }
 
-        private Tuple<SpannerCommand, SpannerRetriableCommand> CreateSpannerDmlCommand(SpannerRetriableConnection connection, SpannerRetriableTransaction transaction, ModificationCommand modificationCommand, int commandPosition)
+        private Tuple<SpannerCommand, SpannerRetriableCommand> CreateSpannerDmlCommand(SpannerRetriableConnection connection, ModificationCommand modificationCommand, int commandPosition)
         {
             var builder = new StringBuilder();
             ResultSetMapping res;
@@ -274,7 +315,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             // This intentionally uses a SpannerCommand instead of the internal SpannerRetriableCommand, because the command
             // will eventually be added to a BatchCommand.
             var cmd = connection.SpannerConnection.CreateDmlCommand(dml);
-            AppendWriteParameters(modificationCommand, cmd, false);
+            AppendWriteParameters(modificationCommand, cmd, false, true);
             return Tuple.Create(cmd, selectCommand);
         }
 
@@ -291,13 +332,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 _ => throw new NotSupportedException($"Modification type {modificationCommand.EntityState} is not supported."),
             };
             cmd.Transaction = transaction.SpannerTransaction;
-            AppendWriteParameters(modificationCommand, cmd, true);
+            AppendWriteParameters(modificationCommand, cmd, true, false);
             return cmd;
         }
 
-        private void AppendWriteParameters(ModificationCommand modificationCommand, SpannerCommand cmd, bool useColumnName)
+        private void AppendWriteParameters(ModificationCommand modificationCommand, SpannerCommand cmd, bool useColumnName, bool includeConcurrencyTokenConditions)
         {
-            foreach (var columnModification in modificationCommand.ColumnModifications.Where(o => o.UseOriginalValueParameter))
+            foreach (var columnModification in modificationCommand.ColumnModifications.Where(
+                o => o.UseOriginalValueParameter && (includeConcurrencyTokenConditions || !(o.IsCondition && o.IsConcurrencyToken))))
             {
                 cmd.Parameters.Add(CreateParameter(columnModification, cmd, UseValue.Original, useColumnName));
             }
