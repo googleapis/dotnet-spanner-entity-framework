@@ -601,23 +601,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     NewName = "FullName"
                 });
 
-        public virtual void AddUniqueConstraintOperation()
-            => Generate(
-                new AddUniqueConstraintOperation
-                {
-                    Table = "Singer",
-                    Name = "Unique_Name",
-                    Columns = new[] { "FirstName", "LastName" }
-                });
-
-        public virtual void DropUniqueConstraintOperation()
-            => Generate(
-                new DropUniqueConstraintOperation
-                {
-                    Table = "Singer",
-                    Name = "Unique_Name",
-                });
-
         public virtual void InsertDataOperation()
             => Generate(
                 new InsertDataOperation

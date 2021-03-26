@@ -70,8 +70,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
         /// </summary>
         public override string GetCreateIfNotExistsScript()
         {
-            // TODO: find specific use case and create query for same.
-            throw new NotImplementedException();
+            throw new NotSupportedException("Cloud Spanner does not support CREATE IF NOT EXISTS style commands.");
         }
 
         /// <summary>
@@ -79,16 +78,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
         /// </summary>
         public override string GetBeginIfNotExistsScript(string migrationId)
         {
-            // TODO: find specific use case and create query for same.
-            throw new NotImplementedException();
+            throw new NotSupportedException("Cloud Spanner does not support CREATE IF NOT EXISTS style commands.");
         }
         /// <summary>
         ///     This is internal functionality and not intended for public use.
         /// </summary>
         public override string GetBeginIfExistsScript(string migrationId)
         {
-            // TODO: find specific use case and create query for same.
-            throw new NotImplementedException();
+            throw new NotSupportedException("Cloud Spanner does not support CREATE IF NOT EXISTS style commands.");
         }
 
         /// <summary>
