@@ -472,5 +472,25 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         {
             throw new NotSupportedException("Cloud Spanner does not support dropping schema.");
         }
+
+        protected override void UniqueConstraint(AddUniqueConstraintOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException("Cloud Spanner does not support unique constraint.");
+        }
+
+        protected override void Generate(DropUniqueConstraintOperation operation, IModel model, MigrationCommandListBuilder builder)
+        {
+            throw new NotSupportedException("Cloud Spanner does not support unique constraint.");
+        }
+
+        protected override void Generate(AddPrimaryKeyOperation operation, IModel model, MigrationCommandListBuilder builder, bool terminate = true)
+        {
+            throw new NotSupportedException("Cloud Spanner requires the primary key for creating table.");
+        }
+
+        protected override void Generate(DropPrimaryKeyOperation operation, IModel model, MigrationCommandListBuilder builder, bool terminate = true)
+        {
+            throw new NotSupportedException("Cloud Spanner requires the primary key for creating table.");
+        }
     }
 }

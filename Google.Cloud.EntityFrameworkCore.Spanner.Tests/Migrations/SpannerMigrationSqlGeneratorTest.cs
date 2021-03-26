@@ -396,19 +396,26 @@ CONSTRAINT `Chk_Title_Length_Equal` CHECK (CHARACTER_LENGTH(Title) > 0),
         }
 
         [Fact]
-        public override void AddUniqueConstraintOperation()
+        public virtual void AddUniqueConstraintOperation()
         {
-            base.AddUniqueConstraintOperation();
-            AssertSql(@"ALTER TABLE `Singer` ADD CONSTRAINT `Unique_Name` UNIQUE (`FirstName`, `LastName`)
-");
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new AddUniqueConstraintOperation
+                {
+                    Table = "Singer",
+                    Name = "Unique_Name",
+                    Columns = new[] { "FirstName", "LastName" }
+                }));
         }
 
         [Fact]
-        public override void DropUniqueConstraintOperation()
+        public virtual void DropUniqueConstraintOperation()
         {
-            base.DropUniqueConstraintOperation();
-            AssertSql(@"ALTER TABLE `Singer` DROP CONSTRAINT `Unique_Name`
-");
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new DropUniqueConstraintOperation
+                {
+                    Table = "Singer",
+                    Name = "Unique_Name",
+                }));
         }
 
         [Fact]
@@ -540,6 +547,29 @@ WHERE `SingerId` = 4;
                     Name = "Location",
                     ClrType = typeof(string),
                     DefaultValue = "London"
+                }));
+        }
+
+        [Fact]
+        public virtual void AddPrimaryKeyOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+               new AddPrimaryKeyOperation
+               {
+                   Table = "Singer",
+                   Columns = new[] { "SingerId" },
+                   Name = "PK_Singer"
+               }));
+        }
+
+        [Fact]
+        public virtual void DropPrimaryKeyOperation()
+        {
+            Assert.Throws<NotSupportedException>(() => Generate(
+                new DropPrimaryKeyOperation
+                {
+                    Table = "Singer",
+                    Name = "PK_Singer"
                 }));
         }
 
