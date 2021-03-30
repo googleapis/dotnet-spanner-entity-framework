@@ -16,8 +16,6 @@ using Google.Api.Gax;
 using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.V1.Internal.Logging;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
-using Microsoft.EntityFrameworkCore.ValueGeneration;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -41,17 +39,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 optionsBuilder
                     .UseSpanner($"Data Source={_databaseName};emulatordetection=EmulatorOrProduction");
             }
-        }
-    }
-
-    internal class AuthorFullNameGenerator : ValueGenerator<string>
-    {
-        public override bool GeneratesTemporaryValues => false;
-
-        public override string Next(EntityEntry entry)
-        {
-            var author = entry.Entity as Author;
-            return (author.FirstName ?? "") + " " + (author.LastName ?? "");
         }
     }
 

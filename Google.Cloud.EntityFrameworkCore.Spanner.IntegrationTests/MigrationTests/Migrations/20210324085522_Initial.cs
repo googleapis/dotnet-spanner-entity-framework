@@ -65,7 +65,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     AuthorId = table.Column<long>(nullable: false),
                     FirstName = table.Column<string>(nullable: true),
                     LastName = table.Column<string>(nullable: true),
-                    FullName = table.Column<string>(nullable: true, computedColumnSql: SpannerFixtureBase.IsEmulator ? null : "(ARRAY_TO_STRING([FirstName, LastName], ' ')) STORED")
+                    FullName = table.Column<string>(nullable: true, computedColumnSql: "(ARRAY_TO_STRING([FirstName, LastName], ' ')) STORED")
                 },
                 constraints: table =>
                 {
