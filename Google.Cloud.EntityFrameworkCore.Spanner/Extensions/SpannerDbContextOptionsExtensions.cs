@@ -111,6 +111,13 @@ namespace Microsoft.EntityFrameworkCore
             => (DbContextOptionsBuilder<TContext>)UseSpanner(
                 (DbContextOptionsBuilder)optionsBuilder, connection, spannerOptionsAction);
 
+        /// <summary>
+        /// Configure when the DbContext should use mutations instead of DML. The default configuration
+        /// will use mutations for implicit transactions and DML for manual transactions.
+        /// </summary>
+        /// <param name="optionsBuilder">the optionsBuilder to configure</param>
+        /// <param name="mutationUsage">the configuration option to use for the DbContext</param>
+        /// <returns>the optionsBuilder</returns>
         public static DbContextOptionsBuilder UseMutations(
             this DbContextOptionsBuilder optionsBuilder,
             MutationUsage mutationUsage)

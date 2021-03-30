@@ -160,6 +160,46 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task InsertSingerInTransaction()
+        {
+            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            using var transaction = await db.Database.BeginTransactionAsync();
+            db.Singers.Add(new Singers
+            {
+                SingerId = 1L,
+                FirstName = "Alice",
+                LastName = "Morrison",
+            });
+            var updateCount = await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            Assert.Equal(1L, updateCount);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(request => request is CommitRequest).Select(request => (CommitRequest)request),
+                request => {
+                    Assert.Single(request.Mutations);
+                    var mutation = request.Mutations[0];
+                    Assert.Equal(Mutation.OperationOneofCase.Insert, mutation.OperationCase);
+                    Assert.Equal("Singers", mutation.Insert.Table);
+                    var row = mutation.Insert.Values[0];
+                    var cols = mutation.Insert.Columns;
+                    Assert.Equal("1", row.Values[cols.IndexOf("SingerId")].StringValue);
+                    Assert.Equal("Alice", row.Values[cols.IndexOf("FirstName")].StringValue);
+                    Assert.Equal("Morrison", row.Values[cols.IndexOf("LastName")].StringValue);
+                    Assert.Equal(-1, cols.IndexOf("FullName"));
+                }
+            );
+            // Verify that EF Core does NOT try to fetch the name of the Singer, even though it is a computed
+            // column that should normally be propagated. The fetch is skipped because the update uses mutations
+            // in combination with manual transactions. Trying to fetch the name of the singer is therefore not
+            // possible during the transaction.
+            Assert.Collection(_fixture.SpannerMock.Requests
+                .Where(request => request is CommitRequest || request is ExecuteSqlRequest)
+                .Select(request => request.GetType()),
+                request => Assert.Equal(typeof(CommitRequest), request));
+        }
+
+        [Fact]
         public async Task UpdateSinger_SelectsFullName()
         {
             // Setup results.

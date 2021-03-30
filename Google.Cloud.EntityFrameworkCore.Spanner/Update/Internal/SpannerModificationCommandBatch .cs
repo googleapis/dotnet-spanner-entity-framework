@@ -284,8 +284,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 RelationalStrings.UpdateConcurrencyException(expectedRowsAffected, RowsAffected), entries);
         }
 
-        internal void PropagateResults() =>
+        internal void PropagateResults()
+        {
+            if (_propagateResultsCommands.Count == 0)
+            {
+                return;
+            }
             Task.Run(() => PropagateResultsAsync()).WaitWithUnwrappedExceptions();
+        }
 
         /// <summary>
         /// Propagates results from update statements that caused a computed column to be changed.
@@ -298,6 +304,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// </summary>
         internal async Task PropagateResultsAsync(CancellationToken cancellationToken = default)
         {
+            if (_propagateResultsCommands.Count == 0)
+            {
+                return;
+            }
             int index = 0;
             foreach (var modificationCommand in _modificationCommands)
             {

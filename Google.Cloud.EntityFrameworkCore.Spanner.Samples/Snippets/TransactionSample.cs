@@ -53,7 +53,7 @@ public static class TransactionSample
         Console.WriteLine($"Added {count} singer in a transaction.");
 
         // Now try to read the singer in a different context which will use a different transaction.
-        // This will return null pending changes from other transactions cannot read.
+        // This will return null, as pending changes from other transactions are not visible.
         using var contextWithoutTransaction = new SpannerSampleDbContext(connectionString);
         var exists = await contextWithoutTransaction.Singers
             .FromSqlInterpolated($"SELECT * FROM Singers WHERE SingerId={singerId}")
@@ -61,7 +61,9 @@ public static class TransactionSample
         Console.WriteLine($"Can read singer outside of transaction: {exists != null}");
 
         // Now try to read the same using the context with the transaction. This will return true as
-        // a transaction can read its own writes.
+        // a transaction can read its own writes. The Cloud Spanner Entity Framework Core provider
+        // uses DML by default for updates that are executed in manual transactions in order to support
+        // the read-your-writes feature.
         exists = await context.Singers
             .FromSqlInterpolated($"SELECT * FROM Singers WHERE SingerId={singerId}")
             .FirstOrDefaultAsync();
