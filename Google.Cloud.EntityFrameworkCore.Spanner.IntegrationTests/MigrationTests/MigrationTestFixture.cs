@@ -42,34 +42,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     .UseSpanner($"Data Source={_databaseName};emulatordetection=EmulatorOrProduction");
             }
         }
-
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            base.OnModelCreating(modelBuilder);
-            // Override some settings if the tests are executed against the emulator, as the emulator does
-            // not support all features of Spanner.
-            if (SpannerFixtureBase.IsEmulator)
-            {
-                // Simulate a generated column when testing against the emulator.
-                modelBuilder.Entity<Author>(entity =>
-                {
-                    entity.Property(e => e.FullName)
-                        .HasValueGenerator<AuthorFullNameGenerator>()
-                        .ValueGeneratedNever();
-                });
-            }
-        }
-    }
-
-    internal class AuthorFullNameGenerator : ValueGenerator<string>
-    {
-        public override bool GeneratesTemporaryValues => false;
-
-        public override string Next(EntityEntry entry)
-        {
-            var author = entry.Entity as Author;
-            return (author.FirstName ?? "") + " " + (author.LastName ?? "");
-        }
     }
 
     public class MigrationTestFixture : SpannerFixtureBase
