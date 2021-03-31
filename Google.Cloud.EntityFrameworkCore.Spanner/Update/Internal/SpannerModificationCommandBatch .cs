@@ -340,7 +340,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 cmd.Add(commands.Item1);
                 if (commands.Item2 != null)
                 {
-                    commands.Item2.Transaction = transaction;
+                    if (_hasExplicitTransaction)
+                    {
+                        commands.Item2.Transaction = transaction;
+                    }
                     selectCommands.Add(commands.Item2);
                 }
                 commandPosition++;
