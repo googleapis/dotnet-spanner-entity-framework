@@ -299,6 +299,26 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
+        public async Task ComputedColumnIsPropagatedInManualTransaction()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            using var transaction = await db.Database.BeginTransactionAsync();
+            var id = _fixture.RandomLong();
+            db.Singers.Add(new Singers
+            {
+                SingerId = id,
+                FirstName = "Alice",
+                LastName = "Ferguson",
+            });
+            await db.SaveChangesAsync();
+
+            var row = await db.Singers.FindAsync(id);
+            Assert.Equal("Alice Ferguson", row.FullName);
+
+            await transaction.CommitAsync();
+        }
+
+        [Fact]
         public async Task ManualTransactionCannotReadMutations()
         {
             var options = new DbContextOptionsBuilder<SpannerSampleDbContext>()
