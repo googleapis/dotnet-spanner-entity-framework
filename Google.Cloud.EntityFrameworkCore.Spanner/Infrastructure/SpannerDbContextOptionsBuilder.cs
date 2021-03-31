@@ -41,19 +41,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure
     /// </summary>
     public enum MutationUsage
     {
-        // Never use mutations, always use DML.
+        // Never use mutations, always use DML. This configuration is not recommended for most applications.
         Never,
         // Use mutations for implicit transactions and DML for manual transactions.
+        // This is the default and is the appropriate configuration for most applications.
         ImplicitTransactions,
         // Always use mutations, never use DML. This will disable read-your-writes for manual transactions.
+        // Use this for contexts that execute a large number of updates in manual transactions, if these
+        // transactions do not need to read their own writes.
         Always
     }
 
     public class SpannerDbContextOptionsBuilder
            : RelationalDbContextOptionsBuilder<SpannerDbContextOptionsBuilder, SpannerOptionsExtension>
     {
-        private MutationUsage _mutationUsage = MutationUsage.ImplicitTransactions;
-
         /// <summary>
         /// Initializes a new instance of the <see cref="SpannerDbContextOptionsBuilder" /> class.
         /// </summary>
@@ -61,12 +62,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure
         public SpannerDbContextOptionsBuilder(DbContextOptionsBuilder optionsBuilder)
             : base(optionsBuilder)
         {
-        }
-
-        public SpannerDbContextOptionsBuilder WithMutationUsage(MutationUsage mutationUsage)
-        {
-            _mutationUsage = mutationUsage;
-            return this;
         }
     }
 }

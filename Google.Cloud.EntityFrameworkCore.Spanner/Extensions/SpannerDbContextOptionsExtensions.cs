@@ -112,8 +112,16 @@ namespace Microsoft.EntityFrameworkCore
                 (DbContextOptionsBuilder)optionsBuilder, connection, spannerOptionsAction);
 
         /// <summary>
+        /// This option is intended for advanced users.
+        /// 
         /// Configure when the DbContext should use mutations instead of DML. The default configuration
-        /// will use mutations for implicit transactions and DML for manual transactions.
+        /// will use mutations for implicit transactions and DML for manual transactions. The default
+        /// configuration is the best options for most use cases.
+        /// 
+        /// This option can be set to MutationUsage.Always if your application experiences slow performance
+        /// for manual transactions that execute a large number of inserts/updates/deletes. Note that
+        /// setting this option to MutationUsage.Always will disable read-your-writes for manual transactions
+        /// in the DbContext.
         /// </summary>
         /// <param name="optionsBuilder">the optionsBuilder to configure</param>
         /// <param name="mutationUsage">the configuration option to use for the DbContext</param>
