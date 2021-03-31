@@ -298,6 +298,38 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             );
         }
 
+        [Fact]
+        public async Task ManualTransactionCannotReadMutations()
+        {
+            var options = new DbContextOptionsBuilder<SpannerSampleDbContext>()
+                .UseSpanner(_fixture.ConnectionString)
+                .UseMutations(Infrastructure.MutationUsage.Always)
+                .Options;
+            using var db = new SpannerSampleDbContext((DbContextOptions<SpannerSampleDbContext>)options);
+            using var transaction = await db.Database.BeginTransactionAsync();
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.Add(new TableWithAllColumnTypes
+            {
+                ColInt64 = id,
+                ColString = "Test row",
+            });
+            await db.SaveChangesAsync();
+
+            // Getting the row from the context using its id should work, as the row is attached to the context.
+            var row = await db.TableWithAllColumnTypes.FindAsync(id);
+            Assert.NotNull(row);
+
+            // Getting the row by querying will not work, as the context is using mutations for all transactions,
+            // and mutations are not readable during the same transaction.
+            row = await db.TableWithAllColumnTypes.Where(record => record.ColInt64 == id).FirstOrDefaultAsync();
+            Assert.Null(row);
+
+            // Commit the transaction. The row should now be readable through a query.
+            await transaction.CommitAsync();
+            row = await db.TableWithAllColumnTypes.Where(record => record.ColInt64 == id).FirstOrDefaultAsync();
+            Assert.NotNull(row);
+        }
+
         private async Task InsertRandomSinger(bool disableInternalRetries)
         {
             var rnd = new Random(Guid.NewGuid().GetHashCode());
