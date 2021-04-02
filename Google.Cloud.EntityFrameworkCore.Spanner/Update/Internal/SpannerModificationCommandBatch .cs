@@ -225,7 +225,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 // to read the new value anyways.
                 if (modificationCommand.RequiresResultPropagation && !_hasExplicitTransaction)
                 {
-                    var builder = new StringBuilder();
                     var keyOperations = operations.Where(o => o.IsKey).ToList();
                     var readOperations = operations.Where(o => o.IsRead).ToList();
                     var sql = ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).GenerateSelectAffectedSql(

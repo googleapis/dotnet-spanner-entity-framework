@@ -377,7 +377,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks
                 .ToList();
         }
 
-        // [Benchmark]
+        [Benchmark]
         public List<Singers> SelectMultipleSingersInReadOnlyTransactionSpanner()
         {
             using var connection = CreateConnection();
