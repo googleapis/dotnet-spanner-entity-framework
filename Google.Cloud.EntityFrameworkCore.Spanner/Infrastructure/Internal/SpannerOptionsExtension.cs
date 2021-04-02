@@ -42,11 +42,28 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
         protected SpannerOptionsExtension(SpannerOptionsExtension original)
             : base(original)
         {
+            _info = original._info;
+            MutationUsage = original.MutationUsage;
         }
 
         public override DbContextOptionsExtensionInfo Info => _info ??= new ExtensionInfo(this);
 
         public override int? MinBatchSize => 2;
+
+        /// <summary>
+        /// This is internal functionality and not intended for public use.
+        /// </summary>
+        public MutationUsage MutationUsage { get; private set; } = MutationUsage.ImplicitTransactions;
+
+        /// <summary>
+        /// This is internal functionality and not intended for public use.
+        /// </summary>
+        public SpannerOptionsExtension WithMutationUsage(MutationUsage mutationUsage)
+        {
+            SpannerOptionsExtension clone = (SpannerOptionsExtension)Clone();
+            clone.MutationUsage = mutationUsage;
+            return clone;
+        }
 
         /// <summary>
         /// This is internal functionality and not intended for public use.

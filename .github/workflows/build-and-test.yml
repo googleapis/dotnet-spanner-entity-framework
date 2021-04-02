@@ -40,9 +40,7 @@ jobs:
       working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
       # The emulator requires the integration tests to be run serially, so we temporarily
       # overwrite the default test configuration.
-      run: |
-        echo "{ \"parallelizeTestCollections\": false }" > xunit.runner.json
-        dotnet test --verbosity normal
+      run: dotnet test --verbosity normal
       env:
         JOB_TYPE: test
         SPANNER_EMULATOR_HOST: localhost:9010
@@ -50,9 +48,7 @@ jobs:
         TEST_SPANNER_INSTANCE: test-instance
     - name: Integration Tests on Production
       working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
-      run: |
-        echo "{ \"parallelizeTestCollections\": false }" > xunit.runner.json
-        dotnet test --verbosity normal
+      run: dotnet test --verbosity normal
       env:
         JOB_TYPE: test
         TEST_PROJECT: ${{ secrets.GCP_PROJECT_ID }}

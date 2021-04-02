@@ -55,6 +55,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
         public virtual DbSet<Performance> Performances { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
+            // Configure Entity Framework to use a Cloud Spanner database.
             => options.UseSpanner(_connectionString);
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

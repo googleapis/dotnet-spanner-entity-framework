@@ -16,6 +16,8 @@ using Google.Cloud.Spanner.Data;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
@@ -50,12 +52,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public override IsolationLevel IsolationLevel => SpannerTransaction.IsolationLevel;
 
         /// <summary>
-        /// Executes a <see cref="SpannerCommand"/> as a DML statement and retries the entire
+        /// Executes a <see cref="SpannerCommand"/> as an update statement and retries the entire
         /// transaction if the command fails with an Aborted error.
         /// </summary>
-        /// <param name="command">The command to execute. Must be a DML command.</param>
+        /// <param name="command">The command to execute. Must be a DML or mutation command.</param>
         /// <returns>The number of affected rows.</returns>
         protected internal abstract int ExecuteNonQueryWithRetry(SpannerCommand command);
+
+        /// <summary>
+        /// Executes a <see cref="SpannerCommand"/> as an update statement and retries the entire
+        /// transaction if the command fails with an Aborted error.
+        /// </summary>
+        /// <param name="command">The command to execute. Must be a DML or mutation command.</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns>The number of affected rows.</returns>
+        protected internal abstract Task<int> ExecuteNonQueryWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken);
 
         /// <summary>
         /// Executes a <see cref="SpannerBatchCommand"/> and retries the entire transaction if the

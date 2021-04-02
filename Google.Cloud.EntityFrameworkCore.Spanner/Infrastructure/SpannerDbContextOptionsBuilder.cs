@@ -18,6 +18,40 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure
 {
+
+    /// <summary>
+    /// This enum is used to determine when the Cloud Spanner Entity Framework Core provider should
+    /// use Mutations and when it should use DML for inserts/updates/deletes. DML statements allow
+    /// transactions to read their own writes, but DML statements are slow in comparison
+    /// mutations, especially for large batches of small updates. Mutations do not allow
+    /// read-your-writes semantics, as mutations are buffered in the client until Commit is called,
+    /// but mutations execute significantly faster on the backend.
+    /// 
+    /// The Cloud Spanner Entity Framework Core provider therefore defaults to using mutations for
+    /// implicit transactions, that is: when the application does not manually start a transaction
+    /// on the database context. With implicit transactions the EF Core provider automatically starts
+    /// a transaction when SaveChanges or SaveChangesAsync is called and commits this transaction if
+    /// all operations succeeded.
+    /// When the application manually starts a transaction, all inserts, updates and deletes will be
+    /// executed as DML statements on the transaction. This allows the application to read the writes
+    /// that have already been executed on the transaction.
+    /// 
+    /// An application can configure a DbContext to use either DML or Mutations for all updates by
+    /// calling DbContextOptionsBuilder.UseMutations(MutationUsage).
+    /// </summary>
+    public enum MutationUsage
+    {
+        // Never use mutations, always use DML. This configuration is not recommended for most applications.
+        Never,
+        // Use mutations for implicit transactions and DML for manual transactions.
+        // This is the default and is the appropriate configuration for most applications.
+        ImplicitTransactions,
+        // Always use mutations, never use DML. This will disable read-your-writes for manual transactions.
+        // Use this for contexts that execute a large number of updates in manual transactions, if these
+        // transactions do not need to read their own writes.
+        Always
+    }
+
     public class SpannerDbContextOptionsBuilder
            : RelationalDbContextOptionsBuilder<SpannerDbContextOptionsBuilder, SpannerOptionsExtension>
     {

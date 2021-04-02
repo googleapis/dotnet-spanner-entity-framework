@@ -18,6 +18,8 @@ using JetBrains.Annotations;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
@@ -61,6 +63,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
         protected internal override int ExecuteNonQueryWithRetry(SpannerCommand command) =>
+            throw new InvalidOperationException("Non-query operations are not allowed on a read-only transaction");
+
+        /// <summary>
+        /// Read-only transactions cannot execute non-query statements. Calling this method will throw an <see cref="InvalidOperationException"/>.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        protected internal override Task<int> ExecuteNonQueryWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Non-query operations are not allowed on a read-only transaction");
 
         /// <summary>

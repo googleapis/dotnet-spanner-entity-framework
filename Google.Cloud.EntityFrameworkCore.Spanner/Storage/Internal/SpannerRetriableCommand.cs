@@ -65,6 +65,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             ? ExecuteNonQueryWithRetryAsync(_spannerCommand).ResultWithUnwrappedExceptions()
             : _transaction.ExecuteNonQueryWithRetry(_spannerCommand);
 
+        public override Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken = default) =>
+            _transaction == null
+            ? ExecuteNonQueryWithRetryAsync(_spannerCommand, cancellationToken)
+            : _transaction.ExecuteNonQueryWithRetryAsync(_spannerCommand, cancellationToken);
+
         /// <summary>
         /// Wraps a DML command in a Spanner retriable transaction to retry Aborted errors.
         /// </summary>

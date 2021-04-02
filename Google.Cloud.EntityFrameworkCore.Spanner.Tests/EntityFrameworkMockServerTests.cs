@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.Data;
@@ -47,6 +48,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 optionsBuilder
                     .UseSpanner(new SpannerConnection(_connectionString, ChannelCredentials.Insecure))
+                    .UseMutations(MutationUsage.Never)
                     .UseLazyLoadingProxies();
             }
         }
@@ -67,6 +69,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 optionsBuilder
                     .UseSpanner(new SpannerConnection(_connectionString, ChannelCredentials.Insecure))
+                    .UseMutations(MutationUsage.Never)
                     .UseLazyLoadingProxies();
             }
         }
@@ -120,7 +123,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.Null(singer.Picture);
 
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is V1.ExecuteSqlRequest).Select(request => (V1.ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
@@ -128,7 +131,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             );
             // A read-only operation should not initiate and commit a transaction.
-            Assert.Empty(_fixture.SpannerMock.Requests.Where(request => request is V1.CommitRequest));
+            Assert.Empty(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
         }
 
         [Fact]
@@ -151,7 +154,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Equal(1L, updateCount);
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is V1.ExecuteBatchDmlRequest).Select(request => (V1.ExecuteBatchDmlRequest)request),
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest).Select(request => (ExecuteBatchDmlRequest)request),
                 request =>
                 {
                     Assert.Single(request.Statements);
@@ -160,14 +163,23 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             );
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is V1.ExecuteSqlRequest).Select(request => (V1.ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
                 request =>
                 {
                     Assert.Equal(selectFullNameSql, request.Sql);
-                    Assert.NotNull(request.Transaction?.Id);
+                    Assert.Null(request.Transaction?.Id);
                 }
             );
-            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is V1.CommitRequest));
+            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
+
+            Assert.Collection(_fixture.SpannerMock.Requests
+                .Where(request => request is ExecuteBatchDmlRequest || request is CommitRequest || request is ExecuteSqlRequest)
+                .Select(request => request.GetType()),
+                request => Assert.Equal(typeof(ExecuteBatchDmlRequest), request),
+                request => Assert.Equal(typeof(CommitRequest), request),
+                request => Assert.Equal(typeof(ExecuteSqlRequest), request)
+            );
+
         }
 
         [Fact]
@@ -188,7 +200,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Equal(1L, updateCount);
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is V1.ExecuteBatchDmlRequest).Select(request => (V1.ExecuteBatchDmlRequest)request),
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest).Select(request => (ExecuteBatchDmlRequest)request),
                 request =>
                 {
                     Assert.Single(request.Statements);
@@ -197,7 +209,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             );
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is V1.ExecuteSqlRequest).Select(request => (V1.ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
                 request =>
                 {
                     Assert.Equal(selectSingerSql, request.Sql);
@@ -206,10 +218,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(selectFullNameSql, request.Sql);
-                    Assert.NotNull(request.Transaction?.Id);
+                    Assert.Null(request.Transaction?.Id);
                 }
             );
-            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is V1.CommitRequest));
+            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
         }
 
         [Fact]
@@ -225,7 +237,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Equal(1L, updateCount);
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is V1.ExecuteBatchDmlRequest).Select(request => (V1.ExecuteBatchDmlRequest)request),
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest).Select(request => (ExecuteBatchDmlRequest)request),
                 request =>
                 {
                     Assert.Single(request.Statements);
@@ -233,8 +245,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.NotNull(request.Transaction?.Id);
                 }
             );
-            Assert.Empty(_fixture.SpannerMock.Requests.Where(request => request is V1.ExecuteSqlRequest));
-            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is V1.CommitRequest));
+            Assert.Empty(_fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest));
+            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
         }
 
         [Fact]
@@ -249,7 +261,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.NotNull(await db.Singers.FindAsync(1L));
 
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is V1.ExecuteSqlRequest).Select(request => (V1.ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
@@ -257,8 +269,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             );
             Assert.Single(_fixture.SpannerMock.Requests
-                .Where(request => request is V1.BeginTransactionRequest)
-                .Select(request => (V1.BeginTransactionRequest)request)
+                .Where(request => request is BeginTransactionRequest)
+                .Select(request => (BeginTransactionRequest)request)
                 .Where(request => request.Options?.ReadOnly?.Strong ?? false));
         }
 
@@ -274,7 +286,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.NotNull(await db.Singers.FindAsync(1L));
 
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is V1.ExecuteSqlRequest).Select(request => (V1.ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
@@ -282,8 +294,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             );
             Assert.Single(_fixture.SpannerMock.Requests
-                .Where(request => request is V1.BeginTransactionRequest)
-                .Select(request => (V1.BeginTransactionRequest)request)
+                .Where(request => request is BeginTransactionRequest)
+                .Select(request => (BeginTransactionRequest)request)
                 .Where(request => request.Options?.ReadOnly?.ExactStaleness?.Seconds == 10L));
         }
 
@@ -1938,12 +1950,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request => Assert.Equal(selectSql, request.Sql)
             );
             Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
-            // Verify the order of the requests (that is, the Select statement should be inside the transaction).
+            // Verify the order of the requests (that is, the Select statement should be outside the implicit transaction).
             Assert.Collection(
                 _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest || request is CommitRequest || request is ExecuteSqlRequest).Select(request => request.GetType()),
                 requestType => Assert.Equal(typeof(ExecuteBatchDmlRequest), requestType),
-                requestType => Assert.Equal(typeof(ExecuteSqlRequest), requestType),
-                requestType => Assert.Equal(typeof(CommitRequest), requestType)
+                requestType => Assert.Equal(typeof(CommitRequest), requestType),
+                requestType => Assert.Equal(typeof(ExecuteSqlRequest), requestType)
             );
         }
 

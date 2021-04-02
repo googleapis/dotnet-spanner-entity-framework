@@ -30,6 +30,7 @@ public class BloggingContext : DbContext
     public DbSet<Post> Posts { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder options)
+        // Configures Entity Framework to use the specified Cloud Spanner database.
         => options.UseSpanner("Data Source=projects/my-project/instances/my-instance/databases/my-database");
 }
 

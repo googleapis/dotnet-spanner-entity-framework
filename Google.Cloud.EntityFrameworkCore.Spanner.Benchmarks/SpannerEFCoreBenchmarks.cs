@@ -17,6 +17,7 @@ using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
 using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
@@ -36,10 +37,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks
 
         private readonly string _connectionString;
 
-        internal BenchmarkSampleDbContext(bool useRealSpanner, string connectionString) : base()
+        private readonly MutationUsage _mutationUsage;
+
+        internal BenchmarkSampleDbContext(bool useRealSpanner, string connectionString) : this(useRealSpanner, connectionString, MutationUsage.ImplicitTransactions)
+        {
+        }
+
+        internal BenchmarkSampleDbContext(bool useRealSpanner, string connectionString, MutationUsage mutationUsage) : base()
         {
             _useRealSpanner = useRealSpanner;
             _connectionString = connectionString;
+            _mutationUsage = mutationUsage;
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -49,6 +57,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks
                 var connection = _useRealSpanner ? new SpannerConnection(_connectionString) : new SpannerConnection(_connectionString, ChannelCredentials.Insecure);
                 optionsBuilder
                     .UseSpanner(connection)
+                    .UseMutations(_mutationUsage)
                     .UseLazyLoadingProxies();
             }
         }
@@ -276,8 +285,49 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks
             var singerId = MaybeCreateSingerSpanner(connection);
             return connection.RunWithRetriableTransaction(transaction =>
             {
+                var updateCount = 0;
+                for (int row = 0; row < 100; row++)
+                {
+                    var command = connection.CreateInsertCommand("Albums", new SpannerParameterCollection
+                    {
+                        new SpannerParameter("id", SpannerDbType.Int64, _useRealSpanner ? _fixture.RandomLong() : row),
+                        new SpannerParameter("title", SpannerDbType.String, "Pete"),
+                        new SpannerParameter("releaseDate", SpannerDbType.Date, new DateTime(1998, 10, 6)),
+                        new SpannerParameter("singerId", SpannerDbType.Int64, singerId),
+                    });
+                    updateCount += command.ExecuteNonQuery();
+                }
+                return updateCount;
+            });
+        }
+
+        [Benchmark]
+        public long SaveMultipleRowsEF()
+        {
+            using var db = new BenchmarkSampleDbContext(_useRealSpanner, _connectionString);
+            var singerId = MaybeCreateSingerEF(db);
+            for (int row = 0; row < 100; row++)
+            {
+                db.Albums.Add(new Albums
+                {
+                    AlbumId = _useRealSpanner ? _fixture.RandomLong() : row,
+                    Title = "Pete",
+                    ReleaseDate = new SpannerDate(1998, 10, 6),
+                    SingerId = singerId,
+                });
+            }
+            return db.SaveChanges();
+        }
+
+        [Benchmark]
+        public long SaveMultipleRowsUsingDmlSpanner()
+        {
+            using var connection = CreateConnection();
+            var singerId = MaybeCreateSingerSpanner(connection);
+            return connection.RunWithRetriableTransaction(transaction =>
+            {
                 var command = transaction.CreateBatchDmlCommand();
-                for (int row = 0; row < 10; row++)
+                for (int row = 0; row < 100; row++)
                 {
                     command.Add("INSERT INTO Albums (AlbumId, Title, ReleaseDate, SingerId) VALUES (@id, @title, @releaseDate, @singerId)", new SpannerParameterCollection
                     {
@@ -292,11 +342,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks
         }
 
         [Benchmark]
-        public long SaveMultipleRowsEF()
+        public long SaveMultipleRowsUsingDmlEF()
         {
-            using var db = new BenchmarkSampleDbContext(_useRealSpanner, _connectionString);
+            using var db = new BenchmarkSampleDbContext(_useRealSpanner, _connectionString, MutationUsage.Never);
             var singerId = MaybeCreateSingerEF(db);
-            for (int row = 0; row < 10; row++)
+            for (int row = 0; row < 100; row++)
             {
                 db.Albums.Add(new Albums
                 {

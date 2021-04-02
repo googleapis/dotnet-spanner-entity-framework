@@ -31,6 +31,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             _typeMapper = typeMapper;
         }
 
-        public ModificationCommandBatch Create() => new SpannerModificationCommandBatch(_dependencies, _typeMapper);
+        public ModificationCommandBatch Create() =>
+            new SpannerModificationCommandBatch(_dependencies, _typeMapper);
     }
 }
