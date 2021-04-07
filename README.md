@@ -1,7 +1,9 @@
 # Google.Cloud.EntityFrameworkCore.Spanner
 [Google Cloud Spanner](https://cloud.google.com/spanner/docs/) database provider for [Entity Framework Core](https://docs.microsoft.com/en-us/ef/core/).
 
-__NOTE: This project is still in DEVELOPMENT. It may make breaking changes without prior notice and should not yet be used for production purposes.__
+This project has __Preview__ release status. Known limitations are listed in the [issues](https://github.com/cloudspannerecosystem/dotnet-spanner-entity-framework/issues?q=is%3Aissue+is%3Aopen+label%3A%22known+limitation%22) list.
+All supported features have been tested and verified to work with the test configurations. There may be configurations and/or data model variations that have not
+yet been covered by the tests and that show unexpected behavior. Please report any problems that you might encounter by [creating a new issue](https://github.com/cloudspannerecosystem/dotnet-spanner-entity-framework/issues/new).
 
 # Getting started
 The Entity Framework Core provider allows you to use the Entity Framework to create your database, query and update data.
