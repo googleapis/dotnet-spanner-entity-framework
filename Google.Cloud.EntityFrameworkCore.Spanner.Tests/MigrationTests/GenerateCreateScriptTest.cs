@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models;
 using Microsoft.EntityFrameworkCore;
 using System.IO;
@@ -29,7 +30,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
         {
             if (!optionsBuilder.IsConfigured)
             {
-                optionsBuilder.UseSpanner("Data Source=projects/p1/instances/i1/databases/d1;");
+                optionsBuilder.UseSpanner("Data Source=projects/p1/instances/i1/databases/d1;", _ => ModelValidationConnectionStringProvider.EnableDatabaseModelValidation(false));
             }
         }
     }

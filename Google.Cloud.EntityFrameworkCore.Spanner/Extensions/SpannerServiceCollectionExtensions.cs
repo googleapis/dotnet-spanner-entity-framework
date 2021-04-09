@@ -28,9 +28,11 @@ using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.Extensions.DependencyInjection;
+using System;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
 {
+
     /// <summary>
     /// Spanner specific extension methods for <see cref="IServiceCollection" />.
     /// </summary>
@@ -53,11 +55,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                 .TryAdd<IUpdateSqlGenerator, SpannerUpdateSqlGenerator>()
                 .TryAdd<IBatchExecutor, SpannerBatchExecutor>()
                 .TryAdd<IModificationCommandBatchFactory, SpannerModificationCommandBatchFactory>()
-                .TryAdd<IModelValidator, RelationalModelValidator>()
                 .TryAdd<IQuerySqlGeneratorFactory, SpannerQuerySqlGeneratorFactory>()
                 .TryAdd<IMethodCallTranslatorProvider, SpannerMethodCallTranslatorProvider>()
                 .TryAdd<IMemberTranslatorProvider, SpannerMemberTranslatorProvider>()
                 .TryAdd<IRelationalConnection>(p => p.GetService<ISpannerRelationalConnection>())
+                .TryAdd<IModelValidator, SpannerModelValidator>()
+                .TryAddProviderSpecificServices(p => p.TryAddSingleton(_ => ModelValidationConnectionStringProvider.Instance))
                 .TryAdd<IMigrationsSqlGenerator, SpannerMigrationsSqlGenerator>()
                 .TryAdd<IMigrationCommandExecutor, SpannerMigrationCommandExecutor>()
                 .TryAdd<IRelationalDatabaseCreator, SpannerDatabaseCreator>()
@@ -67,6 +70,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                   .TryAddScoped<ISpannerRelationalConnection, SpannerRelationalConnection>()
                 );
             builder.TryAddCoreServices();
+
             return serviceCollection;
         }
     }

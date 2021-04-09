@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google Inc. All Rights Reserved.
+﻿// Copyright 2020 Google Inc. All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
+using Xunit;
 
-namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.VersioningTests.Model
+namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
-    public partial class AlbumsWithVersion : VersionedEntity
+    [CollectionDefinition(nameof(NonParallelTestCollection), DisableParallelization = true)]
+    public class NonParallelTestCollection
     {
-        public long AlbumId { get; set; }
-        public long SingerId { get; set; }
-        public string Title { get; set; }
-        public virtual SingersWithVersion Singer { get; set; }
     }
 }

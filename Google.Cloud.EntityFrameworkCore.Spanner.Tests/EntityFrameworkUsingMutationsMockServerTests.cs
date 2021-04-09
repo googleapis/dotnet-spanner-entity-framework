@@ -45,7 +45,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             if (!optionsBuilder.IsConfigured)
             {
                 optionsBuilder
-                    .UseSpanner(new SpannerConnection(_connectionString, ChannelCredentials.Insecure))
+                    .UseSpanner(_connectionString, _ => ModelValidationConnectionStringProvider.EnableDatabaseModelValidation(false), ChannelCredentials.Insecure)
                     .UseMutations(MutationUsage.Always)
                     .UseLazyLoadingProxies();
             }
@@ -66,7 +66,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             if (!optionsBuilder.IsConfigured)
             {
                 optionsBuilder
-                    .UseSpanner(new SpannerConnection(_connectionString, ChannelCredentials.Insecure))
+                    .UseSpanner(_connectionString, _ => ModelValidationConnectionStringProvider.EnableDatabaseModelValidation(false), ChannelCredentials.Insecure)
                     .UseMutations(MutationUsage.Always)
                     .UseLazyLoadingProxies();
             }

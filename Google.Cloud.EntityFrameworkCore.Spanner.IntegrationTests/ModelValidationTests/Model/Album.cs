@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
-
-namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.VersioningTests.Model
+namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.ModelValidationTests
 {
-    public partial class AlbumsWithVersion : VersionedEntity
+    public partial class Album
     {
-        public long AlbumId { get; set; }
         public long SingerId { get; set; }
+        public long AlbumId { get; set; }
         public string Title { get; set; }
-        public virtual SingersWithVersion Singer { get; set; }
+        public virtual Singer Singer { get; set; }
     }
 }

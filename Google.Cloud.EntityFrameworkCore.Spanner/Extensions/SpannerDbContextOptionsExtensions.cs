@@ -13,10 +13,12 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
+using Grpc.Core;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using System;
@@ -35,13 +37,22 @@ namespace Microsoft.EntityFrameworkCore
         public static DbContextOptionsBuilder UseSpanner(
             this DbContextOptionsBuilder optionsBuilder,
             string connectionString,
-            Action<SpannerDbContextOptionsBuilder> spannerOptionsAction = null)
+            Action<SpannerDbContextOptionsBuilder> spannerOptionsAction = null,
+            ChannelCredentials channelCredentials = null)
         {
             GaxPreconditions.CheckNotNull(optionsBuilder, nameof(optionsBuilder));
             GaxPreconditions.CheckNotNullOrEmpty(connectionString, nameof(connectionString));
 
-            var extension = (SpannerOptionsExtension)GetOrCreateExtension(optionsBuilder)
-                .WithConnectionString(connectionString);
+            ModelValidationConnectionStringProvider.Instance.SetConnectionString(connectionString, channelCredentials);
+            var extension = GetOrCreateExtension(optionsBuilder);
+            if (channelCredentials == null)
+            {
+                extension = (SpannerOptionsExtension)extension.WithConnectionString(connectionString);
+            }
+            else
+            {
+                extension = (SpannerOptionsExtension)extension.WithConnection(new SpannerRetriableConnection(new SpannerConnection(connectionString, channelCredentials)));
+            }
             ((IDbContextOptionsBuilderInfrastructure)optionsBuilder).AddOrUpdateExtension(extension);
 
             ConfigureWarnings(optionsBuilder);
@@ -65,11 +76,13 @@ namespace Microsoft.EntityFrameworkCore
         internal static DbContextOptionsBuilder UseSpanner(
             this DbContextOptionsBuilder optionsBuilder,
             SpannerRetriableConnection connection,
-            Action<SpannerDbContextOptionsBuilder> spannerOptionsAction = null)
+            Action<SpannerDbContextOptionsBuilder> spannerOptionsAction = null,
+            ChannelCredentials channelCredentials = null)
         {
             GaxPreconditions.CheckNotNull(optionsBuilder, nameof(optionsBuilder));
             GaxPreconditions.CheckNotNull(connection, nameof(connection));
 
+            ModelValidationConnectionStringProvider.Instance.SetConnectionString(connection.ConnectionString, channelCredentials);
             var extension = (SpannerOptionsExtension)GetOrCreateExtension(optionsBuilder).WithConnection(connection);
             ((IDbContextOptionsBuilderInfrastructure)optionsBuilder).AddOrUpdateExtension(extension);
 
@@ -101,15 +114,7 @@ namespace Microsoft.EntityFrameworkCore
             Action<SpannerDbContextOptionsBuilder> spannerOptionsAction = null)
             where TContext : DbContext
             => (DbContextOptionsBuilder<TContext>)UseSpanner(
-                (DbContextOptionsBuilder)optionsBuilder, new SpannerRetriableConnection(connection), spannerOptionsAction);
-
-        internal static DbContextOptionsBuilder<TContext> UseSpanner<TContext>(
-            this DbContextOptionsBuilder<TContext> optionsBuilder,
-            SpannerRetriableConnection connection,
-            Action<SpannerDbContextOptionsBuilder> spannerOptionsAction = null)
-            where TContext : DbContext
-            => (DbContextOptionsBuilder<TContext>)UseSpanner(
-                (DbContextOptionsBuilder)optionsBuilder, connection, spannerOptionsAction);
+                optionsBuilder, new SpannerRetriableConnection(connection), spannerOptionsAction);
 
         /// <summary>
         /// This option is intended for advanced users.
