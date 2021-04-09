@@ -34,8 +34,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.ModelValidat
         {
             // Reset the connection string provider for model validation. This ensures that the validation
             // is executed regardless whether these tests execute before or after the other integration tests.
-            ModelValidationConnectionStringProvider.Reset();
-            ModelValidationConnectionStringProvider.EnableDatabaseModelValidation(true);
+            SpannerModelValidationConnectionProvider.Instance.Reset();
+            SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(true);
             _fixture = fixture;
         }
 

@@ -30,7 +30,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
         {
             if (!optionsBuilder.IsConfigured)
             {
-                optionsBuilder.UseSpanner("Data Source=projects/p1/instances/i1/databases/d1;", _ => ModelValidationConnectionStringProvider.EnableDatabaseModelValidation(false));
+                optionsBuilder.UseSpanner("Data Source=projects/p1/instances/i1/databases/d1;", _ => SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false));
             }
         }
     }

@@ -60,7 +60,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                 .TryAdd<IMemberTranslatorProvider, SpannerMemberTranslatorProvider>()
                 .TryAdd<IRelationalConnection>(p => p.GetService<ISpannerRelationalConnection>())
                 .TryAdd<IModelValidator, SpannerModelValidator>()
-                .TryAddProviderSpecificServices(p => p.TryAddSingleton(_ => ModelValidationConnectionStringProvider.Instance))
+                .TryAddProviderSpecificServices(p => p.TryAddSingleton(_ => SpannerModelValidationConnectionProvider.Instance))
                 .TryAdd<IMigrationsSqlGenerator, SpannerMigrationsSqlGenerator>()
                 .TryAdd<IMigrationCommandExecutor, SpannerMigrationCommandExecutor>()
                 .TryAdd<IRelationalDatabaseCreator, SpannerDatabaseCreator>()

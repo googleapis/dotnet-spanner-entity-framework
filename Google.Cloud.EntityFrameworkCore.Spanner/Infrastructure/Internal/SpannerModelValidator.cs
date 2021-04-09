@@ -21,12 +21,16 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
 {
     public class SpannerModelValidator : RelationalModelValidator
     {
+        private readonly string _disableValidationHint = $"Call {nameof(SpannerModelValidationConnectionProvider)}.{nameof(SpannerModelValidationConnectionProvider.EnableDatabaseModelValidation)}(false) to disable model validation if this error is a false positive.";
+
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
         ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
@@ -34,13 +38,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public SpannerModelValidator(
-            ModelValidationConnectionStringProvider connectionStringProvider,
+            SpannerModelValidationConnectionProvider connectionStringProvider,
             ModelValidatorDependencies dependencies,
             RelationalModelValidatorDependencies relationalDependencies)
             : base(dependencies, relationalDependencies)
             => ConnectionStringProvider = connectionStringProvider;
 
-        internal ModelValidationConnectionStringProvider ConnectionStringProvider { get; }
+        internal SpannerModelValidationConnectionProvider ConnectionStringProvider { get; }
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -65,6 +69,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
             {
                 return;
             }
+            // Check whether the model is being validated as part of a migration.
+            // In that case we should also skip the further validation, as the differences
+            // could be a result of migrations that still need to be executed.
+            var facadeExtensions = nameof(RelationalDatabaseFacadeExtensions);
+            var migrateMethods = new List<string> { nameof(RelationalDatabaseFacadeExtensions.Migrate), nameof(RelationalDatabaseFacadeExtensions.MigrateAsync) };
+            int skipFrames = 1;
+            MethodBase method = null;
+            do
+            {
+                method = new StackFrame(skipFrames, false).GetMethod();
+                if (method != null && migrateMethods.Contains(method.Name) && facadeExtensions.Equals(method.DeclaringType.Name))
+                {
+                    return;
+                }
+                skipFrames++;
+            } while (method != null);
 
             var commandText = @"SELECT I.TABLE_NAME, I.INDEX_NAME, C.COLUMN_NAME 
                                 FROM INFORMATION_SCHEMA.INDEXES I
@@ -112,12 +132,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
                 {
                     if (!allIndexedDbColumns.Where(dbKeyColumns => Enumerable.SequenceEqual(keyColumns, dbKeyColumns)).Any())
                     {
-                        throw new InvalidOperationException($"No primary key or other unique index was found in the database for table {table} for key column(s) ({string.Join(", ", keyColumns)})");
+                        throw new InvalidOperationException($"No primary key or other unique index was found in the database for table {table} for key column(s) ({string.Join(", ", keyColumns)}). {_disableValidationHint}");
                     }
                 }
                 else
                 {
-                    throw new InvalidOperationException($"No primary key was found in the database for table {table}");
+                    throw new InvalidOperationException($"No primary key was found in the database for table {table}. {_disableValidationHint}");
                 }
             }
         }

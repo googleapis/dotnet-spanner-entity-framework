@@ -18,45 +18,24 @@ using Grpc.Core;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
 {
     /// <summary>
-    /// This is internal functionality and not intended for public use.
-    /// 
-    /// ModelValidationConnectionStringProvider is registered as a singleton service that provides a
-    /// connection string to the Spanner database that is used with EF Core. This provider will only
-    /// return a connection string as long as the application is only connecting one database. If the
-    /// application uses EF Core to connect to multiple different Spanner databases, the provider will
+    /// ModelValidationConnectionProvider is registered as a singleton service that provides a
+    /// connection to the Spanner database that is used with Entity Framework. This provider will only
+    /// return a connection as long as the application is only connecting one database. If the
+    /// application uses Entity Framework to connect to multiple different Spanner databases, the provider will
     /// return null.
     /// 
-    /// The connection string that is returned by this provider can be used by the SpannerModelValidator
-    /// to check the entity model that is used against the database, to check for common misconfigurations.
+    /// The connection that is returned by this provider can be used by the SpannerModelValidator
+    /// to check the entity model that is used against the database to check for common misconfigurations.
+    /// 
+    /// Call <see cref="EnableDatabaseModelValidation(bool)"/> to disable
+    /// model validation against the actual database.
     /// </summary>
-    public class ModelValidationConnectionStringProvider
+    public class SpannerModelValidationConnectionProvider
     {
-        public static readonly ModelValidationConnectionStringProvider Instance = new ModelValidationConnectionStringProvider();
-
         /// <summary>
-        /// This is internal functionality and not intended for public use.
-        /// 
-        /// Resets the connection string provider to its initial state. This will (re-)enable model validation against
-        /// an actual database. Calling this in a multi-threaded environment that accesses multiple different Spanner
-        /// databases can cause random validation errors.
+        /// The singleton instance of the connection provider for model validation.
         /// </summary>
-        public static void Reset()
-        {
-            lock (Instance.lck)
-            {
-                Instance._connectionString = null;
-                Instance._channelCredentials = null;
-                Instance._connectionStringBuilder = null;
-            }
-        }
-
-        public static void EnableDatabaseModelValidation(bool enable)
-        {
-            lock (Instance.lck)
-            {
-                Instance._enabled = enable;
-            }
-        }
+        public static readonly SpannerModelValidationConnectionProvider Instance = new SpannerModelValidationConnectionProvider();
 
         private readonly object lck = new object();
         private bool _enabled = true;
@@ -64,11 +43,43 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         private ChannelCredentials _channelCredentials;
         private SpannerConnectionStringBuilder _connectionStringBuilder;
 
-        private ModelValidationConnectionStringProvider()
+        private SpannerModelValidationConnectionProvider()
         {
         }
 
-        public SpannerConnection GetConnection()
+        /// <summary>
+        /// Enables or disables model validation against an actual database. Model validation is automatically
+        /// disabled during migrations that are executed through Entity Framework. Disable model validation
+        /// manually if you are experiencing validation failures during manual DDL updates or other manual
+        /// migrations of your database.
+        /// </summary>
+        /// <param name="enable"></param>
+        public void EnableDatabaseModelValidation(bool enable)
+        {
+            lock (lck)
+            {
+                _enabled = enable;
+            }
+        }
+
+        /// <summary>
+        /// This is internal functionality and not intended for public use.
+        /// 
+        /// Resets the connection provider to its initial state. This will (re-)enable model validation against
+        /// an actual database. Calling this in a multi-threaded environment that accesses multiple different Spanner
+        /// databases can cause random validation errors.
+        /// </summary>
+        public void Reset()
+        {
+            lock (lck)
+            {
+                _connectionString = null;
+                _channelCredentials = null;
+                _connectionStringBuilder = null;
+            }
+        }
+
+        internal SpannerConnection GetConnection()
         {
             lock (lck)
             {

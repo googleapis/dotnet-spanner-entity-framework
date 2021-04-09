@@ -30,10 +30,14 @@ namespace Microsoft.EntityFrameworkCore
     /// </summary>
     public static class SpannerDbContextOptionsExtensions
     {
-        /// <param name="optionsBuilder"></param>
-        /// <param name="connectionString"></param>
-        /// <param name="spannerOptionsAction"></param>
-        /// <returns></returns>
+        /// <summary>
+        /// Configures a <see cref="DbContextOptionsBuilder"/> for use with Cloud Spanner.
+        /// </summary>
+        /// <param name="optionsBuilder">The DbContextOptionsBuilder to configure for use with Cloud Spanner</param>
+        /// <param name="connectionString">The connection string to use to connect to Cloud Spanner in the format `Data Source=projects/{project}/instances/{instance}/databases/{database};[Host={hostname};][Port={portnumber}]`</param>
+        /// <param name="spannerOptionsAction">Any actions that should be executed as part of configuring the options builder for Cloud Spanner</param>
+        /// <param name="channelCredentials">An optional credential for operations to be performed on the Spanner database.</param>
+        /// <returns>The optionsBuilder for chaining</returns>
         public static DbContextOptionsBuilder UseSpanner(
             this DbContextOptionsBuilder optionsBuilder,
             string connectionString,
@@ -43,7 +47,7 @@ namespace Microsoft.EntityFrameworkCore
             GaxPreconditions.CheckNotNull(optionsBuilder, nameof(optionsBuilder));
             GaxPreconditions.CheckNotNullOrEmpty(connectionString, nameof(connectionString));
 
-            ModelValidationConnectionStringProvider.Instance.SetConnectionString(connectionString, channelCredentials);
+            SpannerModelValidationConnectionProvider.Instance.SetConnectionString(connectionString, channelCredentials);
             var extension = GetOrCreateExtension(optionsBuilder);
             if (channelCredentials == null)
             {
@@ -51,6 +55,8 @@ namespace Microsoft.EntityFrameworkCore
             }
             else
             {
+                // The Cloud Spanner client library does not support adding any credentials to the connection string, so in that case we need
+                // to create a connection here already in order to be able to use the credentials.
                 extension = (SpannerOptionsExtension)extension.WithConnection(new SpannerRetriableConnection(new SpannerConnection(connectionString, channelCredentials)));
             }
             ((IDbContextOptionsBuilderInfrastructure)optionsBuilder).AddOrUpdateExtension(extension);
@@ -61,6 +67,13 @@ namespace Microsoft.EntityFrameworkCore
             return optionsBuilder;
         }
 
+        /// <summary>
+        /// Configures a <see cref="DbContextOptionsBuilder"/> for use with Cloud Spanner.
+        /// </summary>
+        /// <param name="optionsBuilder">The DbContextOptionsBuilder to configure for use with Cloud Spanner</param>
+        /// <param name="connection">The connection to use to connect to Cloud Spanner</param>
+        /// <param name="spannerOptionsAction">Any actions that should be executed as part of configuring the options builder for Cloud Spanner</param>
+        /// <returns>The optionsBuilder for chaining</returns>
         public static DbContextOptionsBuilder UseSpanner(
             this DbContextOptionsBuilder optionsBuilder,
             SpannerConnection connection,
@@ -68,11 +81,13 @@ namespace Microsoft.EntityFrameworkCore
             UseSpanner(optionsBuilder, new SpannerRetriableConnection(connection), spannerOptionsAction);
 
         /// <summary>
+        /// Configures a <see cref="DbContextOptionsBuilder"/> for use with Cloud Spanner.
         /// </summary>
-        /// <param name="optionsBuilder"></param>
-        /// <param name="connection"></param>
-        /// <param name="spannerOptionsAction"></param>
-        /// <returns></returns>
+        /// <param name="optionsBuilder">The DbContextOptionsBuilder to configure for use with Cloud Spanner</param>
+        /// <param name="connection">The connection to use to connect to Cloud Spanner</param>
+        /// <param name="spannerOptionsAction">Any actions that should be executed as part of configuring the options builder for Cloud Spanner</param>
+        /// <param name="channelCredentials">An optional credential for operations to be performed on the Spanner database.</param>
+        /// <returns>The optionsBuilder for chaining</returns>
         internal static DbContextOptionsBuilder UseSpanner(
             this DbContextOptionsBuilder optionsBuilder,
             SpannerRetriableConnection connection,
@@ -82,7 +97,7 @@ namespace Microsoft.EntityFrameworkCore
             GaxPreconditions.CheckNotNull(optionsBuilder, nameof(optionsBuilder));
             GaxPreconditions.CheckNotNull(connection, nameof(connection));
 
-            ModelValidationConnectionStringProvider.Instance.SetConnectionString(connection.ConnectionString, channelCredentials);
+            SpannerModelValidationConnectionProvider.Instance.SetConnectionString(connection.ConnectionString, channelCredentials);
             var extension = (SpannerOptionsExtension)GetOrCreateExtension(optionsBuilder).WithConnection(connection);
             ((IDbContextOptionsBuilderInfrastructure)optionsBuilder).AddOrUpdateExtension(extension);
 
@@ -94,12 +109,12 @@ namespace Microsoft.EntityFrameworkCore
         }
 
         /// <summary>
+        /// Configures a <see cref="DbContextOptionsBuilder"/> for use with Cloud Spanner.
         /// </summary>
-        /// <typeparam name="TContext"></typeparam>
-        /// <param name="optionsBuilder"></param>
-        /// <param name="connectionString"></param>
-        /// <param name="spannerOptionsAction"></param>
-        /// <returns></returns>
+        /// <param name="optionsBuilder">The DbContextOptionsBuilder to configure for use with Cloud Spanner</param>
+        /// <param name="connectionString">The connection string to use to connect to Cloud Spanner in the format `Data Source=projects/{project}/instances/{instance}/databases/{database};[Host={hostname};][Port={portnumber}]`</param>
+        /// <param name="spannerOptionsAction">Any actions that should be executed as part of configuring the options builder for Cloud Spanner</param>
+        /// <returns>The optionsBuilder for chaining</returns>
         public static DbContextOptionsBuilder<TContext> UseSpanner<TContext>(
             this DbContextOptionsBuilder<TContext> optionsBuilder,
             string connectionString,
@@ -108,6 +123,14 @@ namespace Microsoft.EntityFrameworkCore
             => (DbContextOptionsBuilder<TContext>)UseSpanner(
                 (DbContextOptionsBuilder)optionsBuilder, connectionString, spannerOptionsAction);
 
+        /// <summary>
+        /// Configures a <see cref="DbContextOptionsBuilder"/> for use with Cloud Spanner.
+        /// </summary>
+        /// <param name="optionsBuilder">The DbContextOptionsBuilder to configure for use with Cloud Spanner</param>
+        /// <param name="connection">The connection to use to connect to Cloud Spanner</param>
+        /// <param name="spannerOptionsAction">Any actions that should be executed as part of configuring the options builder for Cloud Spanner</param>
+        /// <param name="channelCredentials">An optional credential for operations to be performed on the Spanner database.</param>
+        /// <returns>The optionsBuilder for chaining</returns>
         public static DbContextOptionsBuilder<TContext> UseSpanner<TContext>(
             this DbContextOptionsBuilder<TContext> optionsBuilder,
             SpannerConnection connection,
