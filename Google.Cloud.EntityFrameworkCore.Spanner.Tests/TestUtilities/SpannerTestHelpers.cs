@@ -31,6 +31,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.TestUtilities
             => services.AddEntityFrameworkSpanner();
 
         protected override void UseProviderOptions(DbContextOptionsBuilder optionsBuilder)
-            => optionsBuilder.UseSpanner(new SpannerConnection("Data Source=projects/p1/instances/i1/databases/d1"));
+        {
+            optionsBuilder.UseSpanner(new SpannerConnection("Data Source=projects/p1/instances/i1/databases/d1"));
+            SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false);
+        }
     }
 }

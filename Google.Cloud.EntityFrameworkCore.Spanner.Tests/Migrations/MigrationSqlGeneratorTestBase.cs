@@ -15,6 +15,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.EntityFrameworkCore.Spanner.Tests.TestUtilities;
 using Google.Cloud.Spanner.V1;

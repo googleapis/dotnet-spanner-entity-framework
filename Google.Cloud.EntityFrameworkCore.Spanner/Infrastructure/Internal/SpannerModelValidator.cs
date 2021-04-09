@@ -29,7 +29,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
 {
     public class SpannerModelValidator : RelationalModelValidator
     {
-        private readonly string _disableValidationHint = $"Call {nameof(SpannerModelValidationConnectionProvider)}.{nameof(SpannerModelValidationConnectionProvider.EnableDatabaseModelValidation)}(false) to disable model validation if this error is a false positive.";
+        private readonly string _disableValidationHint = $"Call {nameof(SpannerModelValidationConnectionProvider)}.{nameof(SpannerModelValidationConnectionProvider.Instance)}.{nameof(SpannerModelValidationConnectionProvider.EnableDatabaseModelValidation)}(false) to disable model validation if this error is a false positive.";
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -86,59 +86,66 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
                 skipFrames++;
             } while (method != null);
 
-            var commandText = @"SELECT I.TABLE_NAME, I.INDEX_NAME, C.COLUMN_NAME 
-                                FROM INFORMATION_SCHEMA.INDEXES I
-                                INNER JOIN INFORMATION_SCHEMA.INDEX_COLUMNS C ON
-		                                I.TABLE_CATALOG = C.TABLE_CATALOG AND
-		                                I.TABLE_SCHEMA = C.TABLE_SCHEMA AND
-		                                I.TABLE_NAME = C.TABLE_NAME AND
-		                                I.INDEX_NAME = C.INDEX_NAME
-                                WHERE I.TABLE_CATALOG = ''
-                                  AND I.TABLE_SCHEMA = ''
-                                  AND I.IS_UNIQUE = TRUE
-                                  AND I.IS_NULL_FILTERED = FALSE
-                                ORDER BY I.TABLE_CATALOG, I.TABLE_SCHEMA, I.TABLE_NAME, I.INDEX_NAME, C.ORDINAL_POSITION";
-            using var cmd = connection.CreateSelectCommand(commandText);
-            using var reader = cmd.ExecuteReader();
-            var tableKeyColumnsGroups = reader.Cast<DbDataRecord>()
-                .GroupBy(ddr => (
-                    Table: ddr.GetString(ddr.GetOrdinal("TABLE_NAME")),
-                    Index: ddr.GetString(ddr.GetOrdinal("INDEX_NAME"))));
-            var tableKeyColumns = new Dictionary<string, List<List<string>>>();
-            foreach (var tableKeyColumnGroup in tableKeyColumnsGroups)
+            try
             {
-                var table = tableKeyColumnGroup.Key.Table;
-                var index = tableKeyColumnGroup.Key.Index;
-                var columns = tableKeyColumnGroup.Select(col => col.GetString(col.GetOrdinal("COLUMN_NAME"))).ToList();
-                if (!tableKeyColumns.TryGetValue(table, out List<List<string>> allIndexedColumns))
+                var commandText = @"SELECT I.TABLE_NAME, I.INDEX_NAME, C.COLUMN_NAME 
+                                    FROM INFORMATION_SCHEMA.INDEXES I
+                                    INNER JOIN INFORMATION_SCHEMA.INDEX_COLUMNS C ON
+		                                    I.TABLE_CATALOG = C.TABLE_CATALOG AND
+		                                    I.TABLE_SCHEMA = C.TABLE_SCHEMA AND
+		                                    I.TABLE_NAME = C.TABLE_NAME AND
+		                                    I.INDEX_NAME = C.INDEX_NAME
+                                    WHERE I.TABLE_CATALOG = ''
+                                      AND I.TABLE_SCHEMA = ''
+                                      AND I.IS_UNIQUE = TRUE
+                                      AND I.IS_NULL_FILTERED = FALSE
+                                    ORDER BY I.TABLE_CATALOG, I.TABLE_SCHEMA, I.TABLE_NAME, I.INDEX_NAME, C.ORDINAL_POSITION";
+                using var cmd = connection.CreateSelectCommand(commandText);
+                using var reader = cmd.ExecuteReader();
+                var tableKeyColumnsGroups = reader.Cast<DbDataRecord>()
+                    .GroupBy(ddr => (
+                        Table: ddr.GetString(ddr.GetOrdinal("TABLE_NAME")),
+                        Index: ddr.GetString(ddr.GetOrdinal("INDEX_NAME"))));
+                var tableKeyColumns = new Dictionary<string, List<List<string>>>();
+                foreach (var tableKeyColumnGroup in tableKeyColumnsGroups)
                 {
-                    allIndexedColumns = new List<List<string>>();
-                    tableKeyColumns.Add(table, allIndexedColumns);
-                }
-                allIndexedColumns.Add(columns);
-            }
-
-            foreach (var entityType in model.GetEntityTypes())
-            {
-                var table = entityType.GetTableName();
-                var pk = entityType.FindPrimaryKey();
-                if (pk == null)
-                {
-                    // This is handled by the base validator.
-                    continue;
-                }
-                var keyColumns = pk.Properties.Select(p => p.GetColumnName()).ToList();
-                if (tableKeyColumns.TryGetValue(table, out var allIndexedDbColumns))
-                {
-                    if (!allIndexedDbColumns.Where(dbKeyColumns => Enumerable.SequenceEqual(keyColumns, dbKeyColumns)).Any())
+                    var table = tableKeyColumnGroup.Key.Table;
+                    var index = tableKeyColumnGroup.Key.Index;
+                    var columns = tableKeyColumnGroup.Select(col => col.GetString(col.GetOrdinal("COLUMN_NAME"))).ToList();
+                    if (!tableKeyColumns.TryGetValue(table, out List<List<string>> allIndexedColumns))
                     {
-                        throw new InvalidOperationException($"No primary key or other unique index was found in the database for table {table} for key column(s) ({string.Join(", ", keyColumns)}). {_disableValidationHint}");
+                        allIndexedColumns = new List<List<string>>();
+                        tableKeyColumns.Add(table, allIndexedColumns);
+                    }
+                    allIndexedColumns.Add(columns);
+                }
+
+                foreach (var entityType in model.GetEntityTypes())
+                {
+                    var table = entityType.GetTableName();
+                    var pk = entityType.FindPrimaryKey();
+                    if (pk == null)
+                    {
+                        // This is handled by the base validator.
+                        continue;
+                    }
+                    var keyColumns = pk.Properties.Select(p => p.GetColumnName()).ToList();
+                    if (tableKeyColumns.TryGetValue(table, out var allIndexedDbColumns))
+                    {
+                        if (!allIndexedDbColumns.Where(dbKeyColumns => Enumerable.SequenceEqual(keyColumns, dbKeyColumns)).Any())
+                        {
+                            throw new InvalidOperationException($"No primary key or other unique index was found in the database for table {table} for key column(s) ({string.Join(", ", keyColumns)}). {_disableValidationHint}");
+                        }
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"No primary key was found in the database for table {table}. {_disableValidationHint}");
                     }
                 }
-                else
-                {
-                    throw new InvalidOperationException($"No primary key was found in the database for table {table}. {_disableValidationHint}");
-                }
+            }
+            catch (SpannerException e)
+            {
+                throw new InvalidOperationException($"Model validation against database failed. {_disableValidationHint}", e);
             }
         }
     }
