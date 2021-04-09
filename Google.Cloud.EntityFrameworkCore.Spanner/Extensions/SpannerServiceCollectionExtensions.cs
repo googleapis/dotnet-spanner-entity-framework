@@ -28,11 +28,9 @@ using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.Extensions.DependencyInjection;
-using System;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
 {
-
     /// <summary>
     /// Spanner specific extension methods for <see cref="IServiceCollection" />.
     /// </summary>
@@ -70,7 +68,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                   .TryAddScoped<ISpannerRelationalConnection, SpannerRelationalConnection>()
                 );
             builder.TryAddCoreServices();
-
             return serviceCollection;
         }
     }

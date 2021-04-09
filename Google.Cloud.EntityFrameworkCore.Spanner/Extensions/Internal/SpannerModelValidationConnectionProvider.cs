@@ -20,7 +20,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
     /// <summary>
     /// ModelValidationConnectionProvider is registered as a singleton service that provides a
     /// connection to the Spanner database that is used with Entity Framework. This provider will only
-    /// return a connection as long as the application is only connecting one database. If the
+    /// return a connection as long as the application is only connecting to one database. If the
     /// application uses Entity Framework to connect to multiple different Spanner databases, the provider will
     /// return null.
     /// 
