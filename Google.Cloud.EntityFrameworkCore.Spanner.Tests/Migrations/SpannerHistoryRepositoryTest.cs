@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Tests.TestUtilities;
 using Google.Cloud.Spanner.Data;
@@ -51,7 +52,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                 .UseSpanner(
                     new SpannerConnection("Data Source=projects/p1/instances/i1/databases/d1"),
 
-                    b => b.MigrationsHistoryTable(SpannerHistoryRepository.DefaultMigrationsHistoryTableName, schema))
+                    b =>
+                    {
+                        SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false);
+                        b.MigrationsHistoryTable(SpannerHistoryRepository.DefaultMigrationsHistoryTableName, schema);
+                    })
                 .Options)
         .GetService<IHistoryRepository>();
     }
