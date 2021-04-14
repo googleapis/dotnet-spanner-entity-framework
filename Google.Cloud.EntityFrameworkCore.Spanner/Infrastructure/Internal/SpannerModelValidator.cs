@@ -15,6 +15,7 @@
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Design.Internal;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -73,13 +74,30 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
             // In that case we should also skip the further validation, as the differences
             // could be a result of migrations that still need to be executed.
             var facadeExtensions = nameof(RelationalDatabaseFacadeExtensions);
-            var migrateMethods = new List<string> { nameof(RelationalDatabaseFacadeExtensions.Migrate), nameof(RelationalDatabaseFacadeExtensions.MigrateAsync) };
+            var migrateMethods = new List<string>
+            {
+                nameof(RelationalDatabaseFacadeExtensions.Migrate),
+                nameof(RelationalDatabaseFacadeExtensions.MigrateAsync),
+            };
+            var migrationsOperations = nameof(MigrationsOperations);
+            var migrationsOperationsMethods = new List<string>
+            {
+                nameof(MigrationsOperations.AddMigration),
+                nameof(MigrationsOperations.GetMigrations),
+                nameof(MigrationsOperations.RemoveMigration),
+                nameof(MigrationsOperations.ScriptMigration),
+                nameof(MigrationsOperations.UpdateDatabase),
+            };
             int skipFrames = 1;
             MethodBase method = null;
             do
             {
                 method = new StackFrame(skipFrames, false).GetMethod();
                 if (method != null && migrateMethods.Contains(method.Name) && facadeExtensions.Equals(method.DeclaringType.Name))
+                {
+                    return;
+                }
+                if (method != null && migrationsOperationsMethods.Contains(method.Name) && migrationsOperations.Equals(method.DeclaringType.Name))
                 {
                     return;
                 }
