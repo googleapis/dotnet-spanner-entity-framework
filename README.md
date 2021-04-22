@@ -303,6 +303,27 @@ singer = await context.Singers.FindAsync(1);
 Console.WriteLine($"Singer was created at {singer.CreatedAt}");
 ```
 
+# Create and publish a NuGet package locally using Visual Studio
+
+### 1. Pack your Package from the Source Code
+Open the Solution in Visual Studio 2019, Right click on `Google.Cloud.EntityFrameworkCore.Spanner` Project and  Click on `Pack`. This will create `Google.Cloud.EntityFrameworkCore.Spanner.1.0.0-beta.nupkg` File.
+
+### 2. Download the NuGet executable
+[Download the NuGet executable](https://www.nuget.org/downloads) and Copy into your local feed(e.g. C:\local-nuget-feed).
+
+### 3. Open the command prompt
+Open the Command Prompt and Goto your local feed path(e.g. C:\local-nuget-feed).
+
+### 4. Add your package into NuGet Feed
+Run Below Command to Add your package in NuGet Feed:<br />
+`nuget add long\build\path\to\package\Google.Cloud.EntityFrameworkCore.Spanner.1.0.0-beta.nupkg -Source C:\local-nuget-feed`
+
+### 5. Add Package Source
+In Visual Studio Goto `Tools --> Options --> NuGet Package Manager --> Package Sources`
+Add new Package source with Name as `Local Package` and Source as your local feed path(e.g. C:\local-nuget-feed).
+
+NOTE: To Show your package into NuGet Feed(Manage Nuget Packages) please select Package source as `Local Package` and click on `include prerelease`.
+
 # Licensing
 
 * See [LICENSE](LICENSE)
