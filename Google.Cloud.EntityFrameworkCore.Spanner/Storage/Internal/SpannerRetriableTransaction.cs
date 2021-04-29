@@ -282,6 +282,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             }
         }
 
+        /// <summary>
+        /// Adds a modification command that automatically sets a commit timestamp. These modification commands
+        /// are registered here so the transaction can set the commit timestamp that will be returned by the
+        /// Commit RPC on the updated entities. This makes the commit timestamp values readable within the same
+        /// DbContext without the need to re-fetch them from the database.
+        /// </summary>
         internal void AddSpannerPendingCommitTimestampModificationCommand(SpannerPendingCommitTimestampModificationCommand modificationCommand)
         {
             _commitTimestampModificationCommands.Add(modificationCommand);
@@ -301,6 +307,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 try
                 {
                     _commitTimestamp = await SpannerTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    // Propagate the commit timestamp to all columns that were automatically updated during this transaction.
+                    // Note that this transaction could both be a manual transaction started by the application, as well as
+                    // an implicit transaction started by Entity Framework.
                     foreach (var modificationCommand in _commitTimestampModificationCommands)
                     {
                         foreach (var columnModification in modificationCommand.ColumnModifications)
@@ -318,7 +327,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                                 }
                             }
                         }
-
                     }
                     span.SetStatus(OpenTelemetry.Trace.Status.Ok);
                     span.End();
