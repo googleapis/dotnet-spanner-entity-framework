@@ -158,22 +158,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             // Detaching the entity from the context and re-getting it will give us the most recent commit timestamp.
             db.Entry(rowUpdated).State = EntityState.Detached;
-            if (SpannerFixtureBase.IsEmulator)
-            {
-                // The emulator does not support getting the enitire entity because of the ARRAY<NUMERIC> column.
-                var rowRefreshed = await db.TableWithAllColumnTypes
-                    .Where(r => r.ColInt64 == id)
-                    .Select(r => new { r.ColInt64, r.ColCommitTs })
-                    .FirstOrDefaultAsync();
-                Assert.NotNull(rowRefreshed);
-                Assert.NotNull(rowRefreshed.ColCommitTs);
-            }
-            else
-            {
-                var rowRefreshed = await db.TableWithAllColumnTypes.FindAsync(id);
-                Assert.NotNull(rowRefreshed);
-                Assert.NotNull(rowRefreshed.ColCommitTs);
-            }
+            var rowRefreshed = await db.TableWithAllColumnTypes.FindAsync(id);
+            Assert.NotNull(rowRefreshed);
+            Assert.NotNull(rowRefreshed.ColCommitTs);
         }
 
         [Fact]
