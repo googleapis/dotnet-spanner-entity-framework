@@ -132,10 +132,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             using var transaction = await db.Database.BeginTransactionAsync();
             // Add a row that will generate a commit timestamp.
-            db.TableWithAllColumnTypes.Add(new TableWithAllColumnTypes { ColInt64 = id });
+            var row = new TableWithAllColumnTypes { ColInt64 = id };
+            db.TableWithAllColumnTypes.Add(row);
             await db.SaveChangesAsync();
+            // The transaction has not yet been committed, so there is still
+            // no commit timestamp available.
+            Assert.Null(row.ColCommitTs);
 
-            // Tables that have a pending commit timestamp cannot be read.
+            // Columns that have a pending commit timestamp cannot be read.
             // https://cloud.google.com/spanner/docs/commit-timestamp#dml
             // This also means that we cannot mark the commit timestamp column
             // as a column that has a generated value, as that would trigger a
@@ -147,6 +151,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     .FirstOrDefaultAsync());
             // Commit the transaction. This will generate a commit timestamp.
             await transaction.CommitAsync();
+            // Check that the commit timestamp value has been filled.
+            Assert.NotNull(row.ColCommitTs);
 
             // If we read the row back through the same database context using the primary key value,
             // we will get the cached object. The commit timestamp should have been automatically propagated
@@ -170,8 +176,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
 
             // Add a row that will generate a commit timestamp.
-            db.TableWithAllColumnTypes.Add(new TableWithAllColumnTypes { ColInt64 = id });
+            var row = new TableWithAllColumnTypes { ColInt64 = id };
+            db.TableWithAllColumnTypes.Add(row);
+            Assert.Null(row.ColCommitTs);
             await db.SaveChangesAsync();
+            // Check that the commit timestamp value has been filled.
+            Assert.NotNull(row.ColCommitTs);
 
             // If we read the row back through the same database context using the primary key value,
             // we will get the cached object. The commit timestamp should have been automatically propagated
