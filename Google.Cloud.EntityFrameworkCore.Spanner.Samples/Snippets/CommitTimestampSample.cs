@@ -19,13 +19,14 @@ using System.Threading.Tasks;
 /// <summary>
 /// Cloud Spanner supports writing the commit timestamp of a row: https://cloud.google.com/spanner/docs/commit-timestamp
 /// 
-/// This feature has one very important limitation that should be taken into consideration before choosing
-/// to use it: When writing a PENDING_COMMIT_TIMESTAMP to a table, that table will be unreadable for the
-/// remainder of the transaction. This means that you cannot execute any queries on the same table after
-/// calling SaveChanges during the same transaction. This is not an issue if you do not use manual transactions.
+/// See the <see cref="Performance"/> entity in <see cref="SpannerSampleDbContext.OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder)"/>
+/// for the annotations that need to be set on the entity to automatically fill a commit timestamp value.
 /// 
-/// It also means that the commit timestamp value is not readable in the same database context as the one that
-/// updated it.
+/// This feature has one limitation that should be taken into consideration before using it:
+/// When writing a PENDING_COMMIT_TIMESTAMP to a table, that column will be unreadable for ALL rows in the table
+/// for the remainder of the transaction. This means that you cannot execute any queries that reference this
+/// column after calling SaveChanges during the same transaction.
+/// NOTE: This is ONLY an issue if you use MANUAL transactions.
 /// 
 /// See also https://cloud.google.com/spanner/docs/commit-timestamp#dml
 /// 
@@ -54,14 +55,9 @@ public static class CommitTimestampSample
         await context.Performances.AddAsync(performance);
         var count = await context.SaveChangesAsync();
         Console.WriteLine($"Saved {count} performance");
-
-
-        // A generated commit timestamp is normally not readable within the same database context.
-        // We therefore need to force a refresh and read it back.
-        context.Entry(performance).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
-        performance = await context.Performances.FindAsync(concert.VenueCode, concert.SingerId, startTime);
         Console.WriteLine($"Performance was created at {performance.CreatedAt}");
 
+        // Last updated is only filled when the entity is updated (not when it is inserted).
         var lastUpdated = performance.LastUpdatedAt == null ? "<never>" : performance.LastUpdatedAt.ToString();
         Console.WriteLine($"Performance was last updated at {lastUpdated}");
 
@@ -69,9 +65,6 @@ public static class CommitTimestampSample
         performance.Rating = 8.5;
         count = await context.SaveChangesAsync();
         Console.WriteLine($"Updated {count} performance");
-
-        context.Entry(performance).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
-        performance = await context.Performances.FindAsync(concert.VenueCode, concert.SingerId, startTime);
         Console.WriteLine($"Performance was created at {performance.CreatedAt}");
         Console.WriteLine($"Performance was updated at {performance.LastUpdatedAt}");
     }

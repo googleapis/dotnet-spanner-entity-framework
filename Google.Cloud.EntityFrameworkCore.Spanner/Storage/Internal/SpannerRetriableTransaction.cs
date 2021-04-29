@@ -14,6 +14,7 @@
 
 using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal;
 using Google.Cloud.Spanner.Data;
 using Grpc.Core;
 using System;
@@ -83,6 +84,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private readonly IScheduler _scheduler;
         private readonly RetriableTransactionOptions _options;
         private readonly List<IRetriableStatement> _retriableStatements = new List<IRetriableStatement>();
+        private readonly List<SpannerPendingCommitTimestampModificationCommand> _commitTimestampModificationCommands = new List<SpannerPendingCommitTimestampModificationCommand>();
         public int RetryCount { get; private set; }
 
         internal SpannerRetriableTransaction(
@@ -280,6 +282,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             }
         }
 
+        internal void AddSpannerPendingCommitTimestampModificationCommand(SpannerPendingCommitTimestampModificationCommand modificationCommand)
+        {
+            _commitTimestampModificationCommands.Add(modificationCommand);
+        }
+
         /// <summary>
         /// Commits the database transaction asynchronously.
         /// </summary>
@@ -294,6 +301,25 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 try
                 {
                     _commitTimestamp = await SpannerTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    foreach (var modificationCommand in _commitTimestampModificationCommands)
+                    {
+                        foreach (var columnModification in modificationCommand.ColumnModifications)
+                        {
+                            if (columnModification is SpannerPendingCommitTimestampColumnModification pendingCommitTimestampColumnModification)
+                            {
+                                var property = pendingCommitTimestampColumnModification.Property.PropertyInfo;
+                                if (property != null)
+                                {
+                                    var entry = pendingCommitTimestampColumnModification.Entry;
+                                    var originalState = entry.EntityState;
+                                    var entity = entry.ToEntityEntry().Entity;
+                                    property.SetValue(entity, _commitTimestamp);
+                                    entry.EntityState = originalState;
+                                }
+                            }
+                        }
+
+                    }
                     span.SetStatus(OpenTelemetry.Trace.Status.Ok);
                     span.End();
                     return (DateTime)_commitTimestamp;

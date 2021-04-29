@@ -62,4 +62,4 @@ CREATE TABLE Performances (
   CONSTRAINT FK_Performances_Concerts FOREIGN KEY (VenueCode, ConcertStartTime, SingerId) REFERENCES Concerts (VenueCode, StartTime, SingerId),
   CONSTRAINT FK_Performances_Singers FOREIGN KEY (SingerId) REFERENCES Singers (SingerId),
   CONSTRAINT FK_Performances_Tracks FOREIGN KEY (AlbumId, TrackId) REFERENCES Tracks (AlbumId, TrackId),
-) PRIMARY KEY (VenueCode, SingerId, StartTime);
+) PRIMARY KEY (VenueCode, StartTime, SingerId);

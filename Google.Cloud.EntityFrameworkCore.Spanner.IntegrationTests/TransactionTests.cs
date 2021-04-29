@@ -149,31 +149,43 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             await transaction.CommitAsync();
 
             // If we read the row back through the same database context using the primary key value,
-            // we will get the cached object. This will not have a commit timestamp value, as EFCore
-            // does not know that the column has a generated value.
+            // we will get the cached object. The commit timestamp should have been automatically propagated
+            // by the SpannerRetriableTransaction to the entity, even though the property is not marked as
+            // generated.
             var rowUpdated = await db.TableWithAllColumnTypes.FindAsync(id);
             Assert.NotNull(rowUpdated);
-            // TODO: Find a reasonable way to propagate the generated value to the current context.
-            Assert.Null(rowUpdated.ColCommitTs);
+            Assert.NotNull(rowUpdated.ColCommitTs);
 
-            // Detaching the entity from the context and re-getting it will give us the most recent commit timestamp.
+            // Detaching the entity from the context and re-getting it should give us the same commit timestamp.
             db.Entry(rowUpdated).State = EntityState.Detached;
-            if (SpannerFixtureBase.IsEmulator)
-            {
-                // The emulator does not support getting the enitire entity because of the ARRAY<NUMERIC> column.
-                var rowRefreshed = await db.TableWithAllColumnTypes
-                    .Where(r => r.ColInt64 == id)
-                    .Select(r => new { r.ColInt64, r.ColCommitTs })
-                    .FirstOrDefaultAsync();
-                Assert.NotNull(rowRefreshed);
-                Assert.NotNull(rowRefreshed.ColCommitTs);
-            }
-            else
-            {
-                var rowRefreshed = await db.TableWithAllColumnTypes.FindAsync(id);
-                Assert.NotNull(rowRefreshed);
-                Assert.NotNull(rowRefreshed.ColCommitTs);
-            }
+            var rowRefreshed = await db.TableWithAllColumnTypes.FindAsync(id);
+            Assert.NotNull(rowRefreshed);
+            Assert.Equal(rowUpdated.ColCommitTs, rowRefreshed.ColCommitTs);
+        }
+
+        [Fact]
+        public async Task ImplicitTransactionCanReadCommitTimestamp()
+        {
+            var id = _fixture.RandomLong();
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+
+            // Add a row that will generate a commit timestamp.
+            db.TableWithAllColumnTypes.Add(new TableWithAllColumnTypes { ColInt64 = id });
+            await db.SaveChangesAsync();
+
+            // If we read the row back through the same database context using the primary key value,
+            // we will get the cached object. The commit timestamp should have been automatically propagated
+            // by the SpannerRetriableTransaction to the entity, even though the property is not marked as
+            // generated.
+            var rowUpdated = await db.TableWithAllColumnTypes.FindAsync(id);
+            Assert.NotNull(rowUpdated);
+            Assert.NotNull(rowUpdated.ColCommitTs);
+
+            // Detaching the entity from the context and re-getting it should give us the same commit timestamp.
+            db.Entry(rowUpdated).State = EntityState.Detached;
+            var rowRefreshed = await db.TableWithAllColumnTypes.FindAsync(id);
+            Assert.NotNull(rowRefreshed);
+            Assert.Equal(rowUpdated.ColCommitTs, rowRefreshed.ColCommitTs);
         }
 
         [Fact]
