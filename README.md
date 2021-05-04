@@ -284,25 +284,6 @@ side Guid generator for a primary key if your table does not contain a natural p
 ## Default Values
 Cloud Spanner does not support default values for columns.
 
-## Commit Timestamps are not Visible in the Same DbContext
-Commit timestamps that are filled automatically using the `UpdateCommitTimestamp` annotation (see above) are not visible
-in the same `DbContext` that wrote it. The reason for this is that:
-1. A commit timestamp can only be read after the transaction has committed.
-2. EF Core will propagate values that are automatically updated by the database in the same transaction as the transaction that executed the update.
-
-The automatic propagation of commit timestamps is therefore disabled by the Spanner EF Core provider.
-
-A workaround for this problem is to force  refresh of the entity:
-
-```cs
-var singer = new Singer { SingerId = 1, ... };
-await context.SaveChangesAsync();
-// Refresh the singer entity to get the most recent commit timestamp.
-context.Entry(singer).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
-singer = await context.Singers.FindAsync(1);
-Console.WriteLine($"Singer was created at {singer.CreatedAt}");
-```
-
 # Create and publish a NuGet package locally using Visual Studio
 
 ### 1. Pack your Package from the Source Code

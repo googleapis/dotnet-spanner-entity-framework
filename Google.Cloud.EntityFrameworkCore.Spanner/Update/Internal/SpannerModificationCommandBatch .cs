@@ -211,6 +211,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 if (modificationCommand is SpannerPendingCommitTimestampModificationCommand commitTimestampModificationCommand)
                 {
                     commitTimestampModificationCommand.MarkAsMutationCommand();
+                    transaction.AddSpannerPendingCommitTimestampModificationCommand(commitTimestampModificationCommand);
                 }
                 // Create the mutation command and execute it.
                 var cmd = CreateSpannerMutationCommand(spannerConnection, transaction, modificationCommand);
@@ -344,6 +345,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                         commands.Item2.Transaction = transaction;
                     }
                     selectCommands.Add(commands.Item2);
+                }
+                if (modificationCommand is SpannerPendingCommitTimestampModificationCommand commitTimestampModificationCommand)
+                {
+                    transaction.AddSpannerPendingCommitTimestampModificationCommand(commitTimestampModificationCommand);
                 }
                 commandPosition++;
             }

@@ -92,16 +92,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
 
             modelBuilder.Entity<Concert>(entity =>
             {
-                entity.HasKey(entity => new { entity.VenueCode, entity.SingerId, entity.StartTime });
+                entity.HasKey(entity => new { entity.VenueCode, entity.StartTime, entity.SingerId });
                 entity.Property(e => e.Version).IsConcurrencyToken();
             });
 
             modelBuilder.Entity<Performance>(entity =>
             {
-                entity.HasKey(entity => new { entity.VenueCode, entity.SingerId, entity.StartTime });
+                entity.HasKey(entity => new { entity.VenueCode, entity.StartTime, entity.SingerId });
                 entity.Property(e => e.Version).IsConcurrencyToken();
 
                 // Specify when the CreateAt and LastUpdatedAt columns should be updated.
+                // You can also use SpannerUpdateCommitTimestamp.OnInsertAndUpdate to specify
+                // that the commit timestamp should be updated both for inserts AND updates.
+                // Note that these properties are NOT marked as generated with ValueGeneratedOnAddOrUpdate().
                 entity.Property(e => e.CreatedAt)
                     .HasAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp, SpannerUpdateCommitTimestamp.OnInsert);
                 entity.Property(e => e.LastUpdatedAt)
@@ -122,7 +125,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
 
                 entity.HasOne(d => d.Concert)
                     .WithMany(p => p.Performances)
-                    .HasForeignKey(d => new { d.VenueCode, d.SingerId, d.ConcertStartTime })
+                    .HasForeignKey(d => new { d.VenueCode, d.ConcertStartTime, d.SingerId })
                     .OnDelete(DeleteBehavior.ClientSetNull);
             });
 
