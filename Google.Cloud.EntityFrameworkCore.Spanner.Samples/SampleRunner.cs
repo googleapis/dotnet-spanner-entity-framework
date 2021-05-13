@@ -204,6 +204,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
             var statements = script.Split(";");
             for (var i = 0; i < statements.Length; i++)
             {
+                // Remove license header from script
+                if (statements[i].IndexOf("/*") >= 0 && statements[i].IndexOf("*/") >= 0)
+                {
+                    int startIndex = statements[i].IndexOf("/*");
+                    int endIndex = statements[i].IndexOf("*/", startIndex) + "*/".Length;
+                    statements[i] = statements[i].Remove(startIndex, endIndex - startIndex);
+                }
                 statements[i] = statements[i].Trim(new char[] { '\r', '\n' });
             }
             int length = statements.Length;
