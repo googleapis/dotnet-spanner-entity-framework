@@ -18,10 +18,12 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
+using Google.Cloud.Spanner.V1;
 using Grpc.Core;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using System;
+using System.Threading;
 
 namespace Microsoft.EntityFrameworkCore
 {
@@ -30,6 +32,14 @@ namespace Microsoft.EntityFrameworkCore
     /// </summary>
     public static class SpannerDbContextOptionsExtensions
     {
+        private static readonly Lazy<SessionPoolManager> s_sessionPoolManager = new Lazy<SessionPoolManager>(() =>
+        {
+            var settings = SpannerSettings.GetDefault();
+            settings.VersionHeaderBuilder.AppendAssemblyVersion("efcore", typeof(SpannerDbContextOptionsExtensions));
+            return SessionPoolManager.CreateWithSettings(new SessionPoolOptions(), settings);
+        }, LazyThreadSafetyMode.ExecutionAndPublication);
+        internal static SessionPoolManager SessionPoolManager { get; } = s_sessionPoolManager.Value;
+
         /// <summary>
         /// Configures a <see cref="DbContextOptionsBuilder"/> for use with Cloud Spanner.
         /// </summary>
@@ -57,7 +67,11 @@ namespace Microsoft.EntityFrameworkCore
             {
                 // The Cloud Spanner client library does not support adding any credentials to the connection string, so in that case we need
                 // to create a connection here already in order to be able to use the credentials.
-                extension = (SpannerOptionsExtension)extension.WithConnection(new SpannerRetriableConnection(new SpannerConnection(connectionString, channelCredentials)));
+                var builder = new SpannerConnectionStringBuilder(connectionString, channelCredentials)
+                {
+                    SessionPoolManager = SessionPoolManager,
+                };
+                extension = (SpannerOptionsExtension)extension.WithConnection(new SpannerRetriableConnection(new SpannerConnection(builder)));
             }
             ((IDbContextOptionsBuilderInfrastructure)optionsBuilder).AddOrUpdateExtension(extension);
 
