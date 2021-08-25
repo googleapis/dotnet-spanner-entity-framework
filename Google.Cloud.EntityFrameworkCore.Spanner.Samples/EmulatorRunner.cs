@@ -91,7 +91,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
             {
                 return "npipe://./pipe/docker_engine";
             }
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 return "unix:/var/run/docker.sock";
             }
