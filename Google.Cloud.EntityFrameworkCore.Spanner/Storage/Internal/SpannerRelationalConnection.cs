@@ -15,6 +15,7 @@
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal;
 using Google.Cloud.Spanner.Data;
+using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data.Common;
@@ -48,7 +49,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public override bool IsMultipleActiveResultSetsEnabled => true;
 
         /// <inheritdoc />
-        protected override DbConnection CreateDbConnection() => new SpannerRetriableConnection(new SpannerConnection(ConnectionString));
+        protected override DbConnection CreateDbConnection()
+        {
+            var builder = new SpannerConnectionStringBuilder
+            {
+                ConnectionString = ConnectionString,
+                SessionPoolManager = SpannerDbContextOptionsExtensions.SessionPoolManager
+            };
+            var con = new SpannerConnection(builder);
+            return new SpannerRetriableConnection(con);
+        }
 
         /// <summary>
         /// Begins a read-only transaction on this connection.

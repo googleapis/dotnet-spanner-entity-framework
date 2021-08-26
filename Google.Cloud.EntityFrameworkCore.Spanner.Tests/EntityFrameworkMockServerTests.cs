@@ -1960,6 +1960,29 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             );
         }
 
+        [Fact]
+        public async Task RequestIncludesEfCoreClientHeader()
+        {
+            var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
+                      $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                      $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.Type, string>> { },
+                new List<object[]> { }
+            ));
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            await db.Singers.FindAsync(1L);
+
+            Assert.NotEmpty(_fixture.SpannerMock.Contexts);
+            Assert.All(_fixture.SpannerMock.Contexts, context =>
+            {
+                var entry = context.RequestHeaders.Get("x-goog-api-client");
+                Assert.NotNull(entry);
+                Assert.Contains("efcore", entry.Value);
+            });
+        }
+
         private string AddFindSingerResult(string sql)
         {
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(

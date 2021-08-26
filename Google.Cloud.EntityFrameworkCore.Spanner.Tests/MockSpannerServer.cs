@@ -298,6 +298,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         private readonly object _lock = new object();
         private readonly ConcurrentDictionary<string, StatementResult> _results = new ConcurrentDictionary<string, StatementResult>();
         private ConcurrentQueue<IMessage> _requests = new ConcurrentQueue<IMessage>();
+        private ConcurrentQueue<ServerCallContext> _contexts = new ConcurrentQueue<ServerCallContext>();
         private int _sessionCounter;
         private int _transactionCounter;
         private readonly ConcurrentDictionary<SessionName, Session> _sessions = new ConcurrentDictionary<SessionName, Session>();
@@ -340,9 +341,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
         public IEnumerable<IMessage> Requests => new List<IMessage>(_requests).AsReadOnly();
 
+        public IEnumerable<ServerCallContext> Contexts => new List<ServerCallContext>(_contexts).AsReadOnly();
+
         public void Reset()
         {
             _requests = new ConcurrentQueue<IMessage>();
+            _contexts = new ConcurrentQueue<ServerCallContext>();
             _executionTimes.Clear();
             _results.Clear();
         }
@@ -350,6 +354,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public override Task<Transaction> BeginTransaction(BeginTransactionRequest request, ServerCallContext context)
         {
             _requests.Enqueue(request);
+            _contexts.Enqueue(context);
             TryFindSession(request.SessionAsSessionName);
             Transaction tx = new Transaction();
             var id = Interlocked.Increment(ref _transactionCounter);
@@ -361,6 +366,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public override Task<CommitResponse> Commit(CommitRequest request, ServerCallContext context)
         {
             _requests.Enqueue(request);
+            _contexts.Enqueue(context);
             TryFindSession(request.SessionAsSessionName);
             if (request.TransactionCase == CommitRequest.TransactionOneofCase.TransactionId)
             {
@@ -454,6 +460,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public override Task<BatchCreateSessionsResponse> BatchCreateSessions(BatchCreateSessionsRequest request, ServerCallContext context)
         {
             _requests.Enqueue(request);
+            _contexts.Enqueue(context);
             _executionTimes.TryGetValue(nameof(ExecuteStreamingSql), out ExecutionTime executionTime);
             executionTime?.SimulateExecutionTime();
             var database = request.DatabaseAsDatabaseName;
@@ -468,6 +475,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public override Task<Session> CreateSession(CreateSessionRequest request, ServerCallContext context)
         {
             _requests.Enqueue(request);
+            _contexts.Enqueue(context);
             var database = request.DatabaseAsDatabaseName;
             return Task.FromResult(CreateSession(database));
         }
@@ -475,12 +483,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public override Task<Session> GetSession(GetSessionRequest request, ServerCallContext context)
         {
             _requests.Enqueue(request);
+            _contexts.Enqueue(context);
             return Task.FromResult(TryFindSession(request.SessionName));
         }
 
         public override Task<ListSessionsResponse> ListSessions(ListSessionsRequest request, ServerCallContext context)
         {
             _requests.Enqueue(request);
+            _contexts.Enqueue(context);
             ListSessionsResponse response = new ListSessionsResponse();
             foreach (Session session in _sessions.Values)
             {
@@ -492,6 +502,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public override Task<Empty> DeleteSession(DeleteSessionRequest request, ServerCallContext context)
         {
             _requests.Enqueue(request);
+            _contexts.Enqueue(context);
             _sessions.TryRemove(request.SessionName, out _);
             return Task.FromResult(EMPTY);
         }
@@ -508,6 +519,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public override Task<ExecuteBatchDmlResponse> ExecuteBatchDml(ExecuteBatchDmlRequest request, ServerCallContext context)
         {
             _requests.Enqueue(request);
+            _contexts.Enqueue(context);
             _executionTimes.TryGetValue(nameof(ExecuteBatchDml), out ExecutionTime executionTime);
             executionTime?.SimulateExecutionTime();
             _ = TryFindSession(request.SessionAsSessionName);
@@ -575,6 +587,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public override async Task ExecuteStreamingSql(ExecuteSqlRequest request, IServerStreamWriter<PartialResultSet> responseStream, ServerCallContext context)
         {
             _requests.Enqueue(request);
+            _contexts.Enqueue(context);
             _executionTimes.TryGetValue(nameof(ExecuteStreamingSql) + request.Sql, out ExecutionTime executionTime);
             if (executionTime == null)
             {
