@@ -19,7 +19,6 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Google.Protobuf.WellKnownTypes;
-using Google.Rpc.Context;
 using Grpc.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;

@@ -468,13 +468,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<long?> { 1L, 2L, 4L, 8L }, row.ColInt64Array);
                 if (!db.IsEmulator)
                 {
-                    Assert.Equal(JsonDocument.Parse("{\"key\": \"value\"}"), row.ColJson);
+                    Assert.Equal(JsonDocument.Parse("{\"key\":\"value\"}"), row.ColJson);
                     Assert.Equal(new List<JsonDocument>
                     {
-                        JsonDocument.Parse("{\"key1\": \"value1\"}"),
+                        JsonDocument.Parse("{\"key1\":\"value1\"}"),
                         JsonDocument.Parse("{}"),
                         JsonDocument.Parse("[]"),
-                        JsonDocument.Parse("{\"key2\": \"value2\"}")
+                        JsonDocument.Parse("{\"key2\":\"value2\"}")
                     }, row.ColJsonArray);
                 }
                 Assert.Equal("some string", row.ColString);
@@ -538,9 +538,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<long?> { 500L, 1000L }, row.ColInt64Array);
                 if (!db.IsEmulator)
                 {
-                    Assert.Equal(JsonDocument.Parse("{}"), row.ColJson);
-                    Assert.Equal(new List<JsonDocument> { JsonDocument.Parse("[]"), JsonDocument.Parse("{}"), null },
-                        row.ColJsonArray);
+                    Assert.Equal("{}", row.ColJson.RootElement.ToString());
+                    Assert.Equal(new List<string> { "[]", "{}", null }, row.ColJsonArray.Select(v => v?.RootElement.ToString()));
                 }
                 Assert.Equal("some changed string", row.ColString);
                 Assert.Equal(new List<string> { "changed string1", "changed string2", "changed string3" }, row.ColStringArray);
@@ -752,8 +751,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<long?> { 100, null, 200 }, row.ColInt64Array);
                 if (!db.IsEmulator)
                 {
-                    Assert.Equal(new List<JsonDocument> { JsonDocument.Parse("{}"), null, JsonDocument.Parse("[]") },
-                        row.ColJsonArray);
+                    Assert.Equal(new List<string> { "{}", null, "[]" }, row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToList());
                 }
                 Assert.Equal(new List<SpannerNumeric?> { (SpannerNumeric)3.14m, null, (SpannerNumeric)6.662m }, row.ColNumericArray);
                 Assert.Equal(new List<string> { "string1", null, "string2" }, row.ColStringArray);
@@ -785,8 +783,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<long?> { 100, null, 200 }, row.ColInt64Array);
                 if (!db.IsEmulator)
                 {
-                    Assert.Equal(new List<JsonDocument> { JsonDocument.Parse("{}"), null, JsonDocument.Parse("[]") },
-                        row.ColJsonArray);
+                    Assert.Equal(new List<string> { "{}", null, "[]" }, row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToList());
                 }
                 Assert.Equal(new List<SpannerNumeric?> { (SpannerNumeric)3.14m, null, (SpannerNumeric)6.662m }, row.ColNumericArray);
                 Assert.Equal(new List<string> { "string1", null, "string2" }, row.ColStringArray);
