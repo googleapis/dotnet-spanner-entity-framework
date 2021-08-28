@@ -468,14 +468,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<long?> { 1L, 2L, 4L, 8L }, row.ColInt64Array);
                 if (!db.IsEmulator)
                 {
-                    Assert.Equal(JsonDocument.Parse("{\"key\":\"value\"}"), row.ColJson);
-                    Assert.Equal(new List<JsonDocument>
+                    Assert.Equal("{\"key\":\"value\"}", row.ColJson.ToString());
+                    Assert.Equal(new List<string>
                     {
-                        JsonDocument.Parse("{\"key1\":\"value1\"}"),
-                        JsonDocument.Parse("{}"),
-                        JsonDocument.Parse("[]"),
-                        JsonDocument.Parse("{\"key2\":\"value2\"}")
-                    }, row.ColJsonArray);
+                        "{\"key1\":\"value1\"}",
+                        "{}",
+                        "[]",
+                        "{\"key2\":\"value2\"}"
+                    }, row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToList());
                 }
                 Assert.Equal("some string", row.ColString);
                 Assert.Equal(new List<string> { "string1", "string2", "string3" }, row.ColStringArray);
