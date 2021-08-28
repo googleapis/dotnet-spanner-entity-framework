@@ -414,9 +414,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [InlineData(false, false)]
         public async Task ExplicitAndImplicitTransactionIsRetried(bool disableInternalRetries, bool useExplicitTransaction)
         {
-            // Abort the next statement that is executed on the mock server.
-            _fixture.SpannerMock.AbortNextStatement();
-
             using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
             IDbContextTransaction transaction = null;
             if (useExplicitTransaction)
@@ -436,6 +433,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 Name = "Concert Hall",
             });
 
+            // Abort the next statement that is executed on the mock server.
+            _fixture.SpannerMock.AbortNextStatement();
             // We can only disable internal retries when using explicit transactions. Otherwise internal retries
             // are always used.
             if (disableInternalRetries && useExplicitTransaction)
