@@ -18,12 +18,15 @@ using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
+using Google.Protobuf.WellKnownTypes;
+using Google.Rpc.Context;
 using Grpc.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Xunit;
 using V1 = Google.Cloud.Spanner.V1;
@@ -556,6 +559,159 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     var row = mutation.Insert.Values[0];
                     var cols = mutation.Insert.Columns;
                     Assert.Equal("spanner.commit_timestamp()", row.Values[cols.IndexOf("ColCommitTS")].StringValue);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanInsertAllTypes()
+        {
+            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            _fixture.SpannerMock.AddOrUpdateStatementResult($"{Environment.NewLine}SELECT `ColComputed`" +
+                                                            $"{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p0", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
+
+            db.TableWithAllColumnTypes.Add(new TableWithAllColumnTypes
+            {
+                ColInt64 = 1L,
+                ColBool = true,
+                ColBytes = new byte[] {1,2,3},
+                ColDate = new SpannerDate(2000, 1, 1),
+                ColFloat64 = 3.14,
+                ColJson = JsonDocument.Parse("{\"key\": \"value\"}"),
+                ColNumeric = SpannerNumeric.Parse("6.626"),
+                ColString = "test",
+                ColTimestamp = new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                ColBoolArray = new List<bool?>{true, null, false},
+                ColBytesArray = new List<byte[]>{new byte[]{1,2,3}, null, new byte[]{3,2,1}},
+                ColBytesMax = new byte[] {},
+                ColDateArray = new List<SpannerDate?>{new SpannerDate(2021, 8, 26), null, new SpannerDate(2000, 1, 1)},
+                ColFloat64Array = new List<double?>{3.14, null, 6.626},
+                ColInt64Array = new List<long?>{1,null,2},
+                ColJsonArray = new List<JsonDocument>{JsonDocument.Parse("{\"key1\": \"value1\"}"), null, JsonDocument.Parse("{\"key2\": \"value2\"}")},
+                ColNumericArray = new List<SpannerNumeric?>{SpannerNumeric.Parse("3.14"), null, SpannerNumeric.Parse("6.626")},
+                ColStringArray = new List<string>{"test1", null, "test2"},
+                ColStringMax = "",
+                ColTimestampArray = new List<DateTime?>{new DateTime(2000, 1, 1, 0, 0, 0, 1, DateTimeKind.Utc), null, new DateTime(2000, 1, 1, 0, 0, 0, 2, DateTimeKind.Utc)},
+                ColBytesMaxArray = new List<byte[]>(),
+                ColStringMaxArray = new List<string>(),
+            });
+            await db.SaveChangesAsync();
+            
+            // Verify the value types.
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<CommitRequest>(),
+                request =>
+                {
+                    var values = request.Mutations[0].Insert.Values[0].Values;
+                    var columns = request.Mutations[0].Insert.Columns;
+                    var index = 0;
+                    
+                    Assert.Equal("ColCommitTS", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.StringValue, values[index].KindCase);
+                    Assert.Equal("spanner.commit_timestamp()", values[index++].StringValue);
+                    Assert.Equal("ColInt64", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.StringValue, values[index].KindCase);
+                    Assert.Equal("1", values[index++].StringValue);
+                    Assert.Equal("ASC", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.NullValue, values[index++].KindCase);
+                    Assert.Equal("ColBool", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.BoolValue, values[index].KindCase);
+                    Assert.True(values[index++].BoolValue);
+                    Assert.Equal("ColBoolArray", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.ListValue, values[index].KindCase);
+                    Assert.Collection(values[index++].ListValue.Values,
+                        v => Assert.True(v.BoolValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.False(v.BoolValue)
+                    );
+                    Assert.Equal("ColBytes", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.StringValue, values[index].KindCase);
+                    Assert.Equal(Convert.ToBase64String(new byte[]{1,2,3}), values[index++].StringValue);
+                    Assert.Equal("ColBytesArray", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.ListValue, values[index].KindCase);
+                    Assert.Collection(values[index++].ListValue.Values,
+                        v => Assert.Equal(Convert.ToBase64String(new byte[]{1,2,3}), v.StringValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.Equal(Convert.ToBase64String(new byte[]{3,2,1}), v.StringValue)
+                    );
+                    Assert.Equal("ColBytesMax", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.StringValue, values[index].KindCase);
+                    Assert.Equal("", values[index++].StringValue);
+                    Assert.Equal("ColBytesMaxArray", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.ListValue, values[index].KindCase);
+                    Assert.Empty(values[index++].ListValue.Values);
+                    Assert.Equal("ColDate", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.StringValue, values[index].KindCase);
+                    Assert.Equal("2000-01-01", values[index++].StringValue);
+                    Assert.Equal("ColDateArray", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.ListValue, values[index].KindCase);
+                    Assert.Collection(values[index++].ListValue.Values,
+                        v => Assert.Equal("2021-08-26", v.StringValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.Equal("2000-01-01", v.StringValue)
+                    );
+                    Assert.Equal("ColFloat64", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.NumberValue, values[index].KindCase);
+                    Assert.Equal(3.14d, values[index++].NumberValue);
+                    Assert.Equal("ColFloat64Array", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.ListValue, values[index].KindCase);
+                    Assert.Collection(values[index++].ListValue.Values,
+                        v => Assert.Equal(3.14d, v.NumberValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.Equal(6.626d, v.NumberValue)
+                    );
+                    Assert.Equal(Value.KindOneofCase.ListValue, values[index].KindCase);
+                    Assert.Collection(values[index++].ListValue.Values,
+                        v => Assert.Equal("1", v.StringValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.Equal("2", v.StringValue)
+                    );
+                    Assert.Equal("ColJson", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.StringValue, values[index].KindCase);
+                    Assert.Equal("{\"key\": \"value\"}", values[index++].StringValue);
+                    Assert.Equal("ColJsonArray", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.ListValue, values[index].KindCase);
+                    Assert.Collection(values[index++].ListValue.Values,
+                        v => Assert.Equal("{\"key1\": \"value1\"}", v.StringValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.Equal("{\"key2\": \"value2\"}", v.StringValue)
+                    );
+                    Assert.Equal("ColNumeric", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.StringValue, values[index].KindCase);
+                    Assert.Equal("6.626", values[index++].StringValue);
+                    Assert.Equal("ColNumericArray", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.ListValue, values[index].KindCase);
+                    Assert.Collection(values[index++].ListValue.Values,
+                        v => Assert.Equal("3.14", v.StringValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.Equal("6.626", v.StringValue)
+                    );
+                    Assert.Equal("ColString", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.StringValue, values[index].KindCase);
+                    Assert.Equal("test", values[index++].StringValue);
+                    Assert.Equal("ColStringArray", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.ListValue, values[index].KindCase);
+                    Assert.Collection(values[index++].ListValue.Values,
+                        v => Assert.Equal("test1", v.StringValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.Equal("test2", v.StringValue)
+                    );
+                    Assert.Equal("ColStringMax", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.StringValue, values[index].KindCase);
+                    Assert.Equal("", values[index++].StringValue);
+                    Assert.Equal("ColStringMaxArray", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.ListValue, values[index].KindCase);
+                    Assert.Empty(values[index++].ListValue.Values);
+                    Assert.Equal("ColTimestamp", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.StringValue, values[index].KindCase);
+                    Assert.Equal("2000-01-01T00:00:00Z", values[index++].StringValue);
+                    Assert.Equal("ColTimestampArray", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.ListValue, values[index].KindCase);
+                    Assert.Collection(values[index++].ListValue.Values,
+                        v => Assert.Equal("2000-01-01T00:00:00.001Z", v.StringValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.Equal("2000-01-01T00:00:00.002Z", v.StringValue)
+                    );
                 }
             );
         }

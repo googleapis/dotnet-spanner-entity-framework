@@ -33,6 +33,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             SpannerDbType.ArrayOf(SpannerDbType.Date),
             SpannerDbType.ArrayOf(SpannerDbType.Float64),
             SpannerDbType.ArrayOf(SpannerDbType.Int64),
+            SpannerDbType.ArrayOf(SpannerDbType.Json),
             SpannerDbType.ArrayOf(SpannerDbType.Numeric),
             SpannerDbType.ArrayOf(SpannerDbType.String),
             SpannerDbType.ArrayOf(SpannerDbType.Timestamp),

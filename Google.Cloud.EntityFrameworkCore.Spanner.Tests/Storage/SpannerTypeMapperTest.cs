@@ -20,6 +20,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
@@ -122,6 +123,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
             var typeMapping = GetTypeMapping(typeof(Guid));
             Assert.Equal("STRING(36)", typeMapping.StoreType);
             Assert.Equal(36, typeMapping.Size);
+        }
+
+        [Fact]
+        public void Does_json_mapping()
+        {
+            Assert.Equal("JSON", GetTypeMapping(typeof(JsonDocument)).StoreType);
         }
 
         [Fact]
@@ -354,6 +361,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
             Assert.Equal("ARRAY<BYTES>", GetTypeMapping(typeof(List<byte[]>)).StoreType);
         }
 
+        [Fact]
+        public void Does_json_array_mapping()
+        {
+            Assert.Equal("ARRAY<JSON>", GetTypeMapping(typeof(JsonDocument[])).StoreType);
+        }
+
+        [Fact]
+        public void Does_json_list_mapping()
+        {
+            Assert.Equal("ARRAY<JSON>", GetTypeMapping(typeof(List<JsonDocument>)).StoreType);
+        }
+
         [Theory]
         [InlineData("BOOL", typeof(bool))]
         [InlineData("INT64", typeof(long))]
@@ -365,6 +384,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
         [InlineData("BYTES(100)", typeof(byte[]), 100)]
         [InlineData("DATE", typeof(SpannerDate))]
         [InlineData("TIMESTAMP", typeof(DateTime))]
+        [InlineData("JSON", typeof(JsonDocument))]
         public void Can_map_by_type_name(string typeName, System.Type clrType, int? size = null, bool unicode = false)
         {
             var mapping = CreateTypeMapper().FindMapping(typeName);
@@ -386,6 +406,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
         [InlineData("ARRAY<BYTES(100)>", typeof(List<byte[]>), 100, false, "ARRAY<BYTES>")]
         [InlineData("ARRAY<DATE>", typeof(List<SpannerDate?>))]
         [InlineData("ARRAY<TIMESTAMP>", typeof(List<DateTime?>))]
+        [InlineData("ARRAY<JSON>", typeof(List<JsonDocument>))]
         public void Can_map_by_array_type_name(string typeName, System.Type clrType, int? size = null, bool unicode = false, string expectedType = null)
         {
             var mapping = CreateTypeMapper().FindMapping(typeName);

@@ -35,6 +35,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         internal TestSpannerSampleDbContext(DatabaseName databaseName) => _databaseName = databaseName;
 
+        internal bool IsEmulator => Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST") != null;
+
         internal TestSpannerSampleDbContext(DbContextOptions<SpannerSampleDbContext> options)
             : base(options)
         {
@@ -48,6 +50,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     .UseSpanner($"Data Source={_databaseName};emulatordetection=EmulatorOrProduction")
                     .UseLazyLoadingProxies();
             }
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            if (IsEmulator)
+            {
+                modelBuilder.Entity<TableWithAllColumnTypes>()
+                    .Ignore(t => t.ColJson)
+                    .Ignore(t => t.ColJsonArray);
+            }
+            base.OnModelCreating(modelBuilder);
         }
     }
 

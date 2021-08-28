@@ -16,10 +16,11 @@ using System;
 using System.Collections.Generic;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.V1;
+using System.Text.Json;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 {
-    public partial class TableWithAllColumnTypes
+    public partial class TableWithAllColumnTypes : IDisposable
     {
         public long ColInt64 { get; set; }
         public double? ColFloat64 { get; set; }
@@ -31,6 +32,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         public byte[] ColBytesMax { get; set; }
         public SpannerDate? ColDate { get; set; }
         public DateTime? ColTimestamp { get; set; }
+        public JsonDocument ColJson { get; set; }
         public DateTime? ColCommitTs { get; set; }
         public List<Nullable<long>> ColInt64Array { get; set; }
         public List<Nullable<double>> ColFloat64Array { get; set; }
@@ -42,7 +44,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         public List<byte[]> ColBytesMaxArray { get; set; }
         public List<Nullable<SpannerDate>> ColDateArray { get; set; }
         public List<Nullable<DateTime>> ColTimestampArray { get; set; }
+        public List<JsonDocument> ColJsonArray { get; set; }
         public string ColComputed { get; set; }
         public string ASC { get; set; }
+
+        public void Dispose()
+        {
+            ColJson?.Dispose();
+            if (ColJsonArray != null)
+            {
+                foreach (var json in ColJsonArray)
+                {
+                    json?.Dispose();
+                }
+            }
+        }
     }
 }

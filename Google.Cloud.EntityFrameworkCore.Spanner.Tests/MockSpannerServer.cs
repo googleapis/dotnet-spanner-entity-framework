@@ -378,6 +378,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             return Task.FromResult(response);
         }
 
+        public override Task<Empty> Rollback(RollbackRequest request, ServerCallContext context)
+        {
+            _requests.Enqueue(request);
+            _contexts.Enqueue(context);
+            TryFindSession(request.SessionAsSessionName);
+            TryFindTransaction(request.TransactionId, true);
+            return Task.FromResult(EMPTY);
+        }
+
         private Session CreateSession(DatabaseName database)
         {
             var id = Interlocked.Increment(ref _sessionCounter);
@@ -671,11 +680,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public override Task<ResultSet> Read(ReadRequest request, ServerCallContext context)
         {
             return base.Read(request, context);
-        }
-
-        public override Task<Empty> Rollback(RollbackRequest request, ServerCallContext context)
-        {
-            return base.Rollback(request, context);
         }
 
         public override Task StreamingRead(ReadRequest request, IServerStreamWriter<PartialResultSet> responseStream, ServerCallContext context)
