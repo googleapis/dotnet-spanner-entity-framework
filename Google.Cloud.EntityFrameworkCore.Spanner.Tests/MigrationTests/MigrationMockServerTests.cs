@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests;
 using Google.Cloud.Spanner.Admin.Database.V1;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
-namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
 {
     /// <summary>
     /// Tests migrations using an in-mem Spanner mock server.
