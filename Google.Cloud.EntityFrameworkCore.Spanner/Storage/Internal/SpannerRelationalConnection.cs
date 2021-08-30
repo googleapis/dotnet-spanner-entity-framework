@@ -17,6 +17,7 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data.Common;
 using System.Linq;
@@ -37,9 +38,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public SpannerRelationalConnection(RelationalConnectionDependencies dependencies)
             : base(dependencies)
         {
-            var optionsExtension = dependencies.ContextOptions.Extensions.OfType<SpannerOptionsExtension>().FirstOrDefault();
-            MutationUsage = optionsExtension.MutationUsage;
-            ConnectionStringBuilder = optionsExtension.ConnectionStringBuilder;
+            var relationalOptions = (SpannerOptionsExtension) RelationalOptionsExtension.Extract(dependencies.ContextOptions);
+            MutationUsage = relationalOptions.MutationUsage;
+            ConnectionStringBuilder = relationalOptions.ConnectionStringBuilder;
         }
 
         private SpannerRetriableConnection Connection => DbConnection as SpannerRetriableConnection;
