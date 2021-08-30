@@ -21,6 +21,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
     /// <summary>
     /// Tests migrations using an in-mem Spanner mock server.
     /// </summary>
+    [CollectionDefinition(nameof(MigrationMockServerTests), DisableParallelization = true)]
+    [Collection(nameof(MigrationMockServerTests))]
     public class MigrationMockServerTests : IClassFixture<SpannerMockServerFixture>
     {
         private readonly SpannerMockServerFixture _fixture;
