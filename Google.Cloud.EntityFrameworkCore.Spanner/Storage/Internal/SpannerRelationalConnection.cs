@@ -39,6 +39,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
             var optionsExtension = dependencies.ContextOptions.Extensions.OfType<SpannerOptionsExtension>().FirstOrDefault();
             MutationUsage = optionsExtension.MutationUsage;
+            ConnectionStringBuilder = optionsExtension.ConnectionStringBuilder;
         }
 
         private SpannerRetriableConnection Connection => DbConnection as SpannerRetriableConnection;
@@ -48,10 +49,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <inheritdoc />
         public override bool IsMultipleActiveResultSetsEnabled => true;
 
+        private SpannerConnectionStringBuilder ConnectionStringBuilder { get; }
+
         /// <inheritdoc />
         protected override DbConnection CreateDbConnection()
         {
-            var builder = new SpannerConnectionStringBuilder
+            var builder = ConnectionStringBuilder ?? new SpannerConnectionStringBuilder
             {
                 ConnectionString = ConnectionString,
                 SessionPoolManager = SpannerDbContextOptionsExtensions.SessionPoolManager
@@ -98,7 +101,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             // Spanner does not have anything like a master database, so we just return a new instance of a
             // RelationalConnection with the same options and dependencies. This ensures that all settings of the
             // underlying connection are carried over to the new RelationalConnection, such as credentials and host.
-            return new SpannerRelationalConnection(Dependencies);
+            var masterConn = (SpannerRetriableConnection) CreateDbConnection();
+            var optionsBuilder = new DbContextOptionsBuilder();
+            optionsBuilder.UseSpanner(masterConn);
+
+            return new SpannerRelationalConnection(Dependencies.With(optionsBuilder.Options));
         }
     }
 }

@@ -71,7 +71,7 @@ namespace Microsoft.EntityFrameworkCore
                 {
                     SessionPoolManager = SessionPoolManager,
                 };
-                extension = (SpannerOptionsExtension)extension.WithConnection(new SpannerRetriableConnection(new SpannerConnection(builder)));
+                extension = extension.WithConnectionStringBuilder(builder);
             }
             ((IDbContextOptionsBuilderInfrastructure)optionsBuilder).AddOrUpdateExtension(extension);
 
