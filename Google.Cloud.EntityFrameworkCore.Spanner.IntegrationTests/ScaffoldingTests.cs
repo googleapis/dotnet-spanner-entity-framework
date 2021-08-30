@@ -53,6 +53,46 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.False(await reader.ReadAsync());
         }
 
+        [InlineData("ColInt64", "INT64")]
+        [InlineData("ColInt64Array", "ARRAY<INT64>")]
+        [InlineData("ColFloat64", "FLOAT64")]
+        [InlineData("ColFloat64Array", "ARRAY<FLOAT64>")]
+        [InlineData("ColNumeric", "NUMERIC")]
+        [InlineData("ColNumericArray", "ARRAY<NUMERIC>")]
+        [InlineData("ColString", "STRING(100)")]
+        [InlineData("ColStringArray", "ARRAY<STRING(100)>")]
+        [InlineData("ColBytes", "BYTES(100)")]
+        [InlineData("ColBytesArray", "ARRAY<BYTES(100)>")]
+        [InlineData("ColStringMax", "STRING(MAX)")]
+        [InlineData("ColStringMaxArray", "ARRAY<STRING(MAX)>")]
+        [InlineData("ColBytesMax", "BYTES(MAX)")]
+        [InlineData("ColBytesMaxArray", "ARRAY<BYTES(MAX)>")]
+        [InlineData("ColJson", "JSON")]
+        [InlineData("ColJsonArray", "ARRAY<JSON>")]
+        [InlineData("ColBool", "BOOL")]
+        [InlineData("ColBoolArray", "ARRAY<BOOL>")]
+        [InlineData("ColDate", "DATE")]
+        [InlineData("ColDateArray", "ARRAY<DATE>")]
+        [InlineData("ColTimestamp", "TIMESTAMP")]
+        [InlineData("ColTimestampArray", "ARRAY<TIMESTAMP>")]
+        [SkippableTheory]
+        public async void AllColumnTypesAreGenerated(string name, string type)
+        {
+            Skip.If(SpannerFixtureBase.IsEmulator && type.Contains("JSON"), "Emulator does not the JSON data type yet");
+            using var connection = _fixture.GetConnection();
+            var parameters = new SpannerParameterCollection
+            {
+                { "name", SpannerDbType.String, name }
+            };
+            var cmd = connection.CreateSelectCommand(
+                "SELECT SPANNER_TYPE " +
+                "FROM INFORMATION_SCHEMA.COLUMNS " +
+                "WHERE TABLE_CATALOG='' AND TABLE_SCHEMA='' AND TABLE_NAME='TableWithAllColumnTypes' " +
+                "AND COLUMN_NAME=@name", parameters);
+            var foundType = await cmd.ExecuteScalarAsync<string>();
+            Assert.Equal(type, foundType);
+        }
+
         [Fact]
         public async void CanInsertAndUpdateVenue()
         {
