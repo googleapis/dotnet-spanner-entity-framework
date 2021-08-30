@@ -40,6 +40,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     .UseSpanner($"Data Source={_databaseName};emulatordetection=EmulatorOrProduction");
             }
         }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            if (SpannerFixtureBase.IsEmulator)
+            {
+                modelBuilder.Entity<AllColType>()
+                    .Ignore(t => t.ColJson)
+                    .Ignore(t => t.ColJsonArray)
+                    .Ignore(t => t.ColJsonList);
+            }
+            base.OnModelCreating(modelBuilder);
+        }
     }
 
     public class MigrationTestFixture : SpannerFixtureBase

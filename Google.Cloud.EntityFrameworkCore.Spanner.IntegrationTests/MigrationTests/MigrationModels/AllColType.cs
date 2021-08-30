@@ -16,6 +16,7 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.V1;
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -42,6 +43,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public string ASC { get; set; }
         public Guid? ColGuid { get; set; }
         public byte[] ColBytes { get; set; }
+        public JsonDocument ColJson { get; set; }
         public SpannerNumeric[] ColDecimalArray { get; set; }
         public List<SpannerNumeric> ColDecimalList { get; set; }
         public string[] ColStringArray { get; set; }
@@ -58,5 +60,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public List<DateTime> ColTimestampList { get; set; }
         public byte[][] ColBytesArray { get; set; }
         public List<byte[]> ColBytesList { get; set; }
+        public JsonDocument[] ColJsonArray { get; set; }
+        public List<JsonDocument> ColJsonList { get; set; }
     }
 }
