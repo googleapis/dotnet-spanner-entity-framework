@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.Spanner.Admin.Database.V1;
 using Google.Cloud.Spanner.Common.V1;
 using V1 = Google.Cloud.Spanner.V1;
 using Google.Protobuf;
@@ -27,6 +28,7 @@ using System.Threading.Tasks;
 using Status = Google.Rpc.Status;
 using Google.Cloud.Spanner.V1;
 using Google.Cloud.Spanner.Data;
+using Google.LongRunning;
 using System.Reflection;
 using Google.Rpc;
 
@@ -389,7 +391,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             return session;
         }
 
-        static internal RpcException CreateAbortedException(string message)
+        internal static RpcException CreateAbortedException(string message)
         {
             // Add a 100 nanosecond retry delay to the error to ensure that the delay is used, but does not slow
             // down the tests unnecessary (100ns == 1 Tick is the smallest possible measurable timespan in .NET).
@@ -398,6 +400,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var trailers = new Grpc.Core.Metadata { entry };
 
             var status = new Grpc.Core.Status(StatusCode.Aborted, $"Transaction aborted: {message}");
+            var rpc = new RpcException(status, trailers);
+
+            return rpc;
+        }
+
+        internal static RpcException CreateDatabaseNotFoundException(string name)
+        {
+            var key = ResourceInfo.Descriptor.FullName + "-bin";
+            var entry = new Metadata.Entry(key, new ResourceInfo { ResourceName = name, ResourceType = "type.googleapis.com/google.spanner.admin.database.v1.Database"}.ToByteArray());
+            var trailers = new Metadata { entry };
+
+            var status = new Grpc.Core.Status(StatusCode.NotFound, $"Database not found: Database with id {name} not found");
             var rpc = new RpcException(status, trailers);
 
             return rpc;
@@ -681,6 +695,45 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public override Task StreamingRead(ReadRequest request, IServerStreamWriter<PartialResultSet> responseStream, ServerCallContext context)
         {
             return base.StreamingRead(request, responseStream, context);
+        }
+    }
+
+    public class MockDatabaseAdminService : DatabaseAdmin.DatabaseAdminBase
+    {
+        private readonly ConcurrentQueue<IMessage> _requests = new ConcurrentQueue<IMessage>();
+
+        public IEnumerable<IMessage> Requests => new List<IMessage>(_requests).AsReadOnly();
+
+        public override Task<Operation> CreateDatabase(CreateDatabaseRequest request, ServerCallContext context)
+        {
+            _requests.Enqueue(request);
+            var op = new Operation
+            {
+                Name = "projects/p1/instances/i1/operations/o1",
+                Response = Any.Pack(new Database()),
+                Metadata = Any.Pack(new CreateDatabaseMetadata()),
+                Done = true,
+            };
+            return Task.FromResult(op);
+        }
+
+        public override Task<Operation> UpdateDatabaseDdl(UpdateDatabaseDdlRequest request, ServerCallContext context)
+        {
+            _requests.Enqueue(request);
+            var op = new Operation
+            {
+                Name = "projects/p1/instances/i1/operations/o1",
+                Response = Any.Pack(new Empty()),
+                Metadata = Any.Pack(new UpdateDatabaseDdlMetadata()),
+                Done = true,
+            };
+            return Task.FromResult(op);
+        }
+
+        public override Task<Empty> DropDatabase(DropDatabaseRequest request, ServerCallContext context)
+        {
+            _requests.Enqueue(request);
+            return Task.FromResult(new Empty());
         }
     }
 }

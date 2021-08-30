@@ -95,14 +95,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// </summary>
         public ISpannerRelationalConnection CreateMasterConnection()
         {
-            var builder = new SpannerConnectionStringBuilder(ConnectionString);
-            //Spanner actually has no master or admin db, so we just use a normal connection.
-            var masterConn =
-                new SpannerRetriableConnection(new SpannerConnection($"Data Source=projects/{builder.Project}/instances/{builder.SpannerInstance}"));
-            var optionsBuilder = new DbContextOptionsBuilder();
-            optionsBuilder.UseSpanner(masterConn);
-
-            return new SpannerRelationalConnection(Dependencies.With(optionsBuilder.Options));
+            // Spanner does not have anything like a master database, so we just return a new instance of a
+            // RelationalConnection with the same options and dependencies. This ensures that all settings of the
+            // underlying connection are carried over to the new RelationalConnection, such as credentials and host.
+            return new SpannerRelationalConnection(Dependencies);
         }
     }
 }
