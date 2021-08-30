@@ -468,7 +468,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<long?> { 1L, 2L, 4L, 8L }, row.ColInt64Array);
                 if (!db.IsEmulator)
                 {
-                    Assert.Equal("{\"key\":\"value\"}", row.ColJson.ToString());
+                    Assert.Equal("{\"key\":\"value\"}", row.ColJson.RootElement.ToString());
                     Assert.Equal(new List<string>
                     {
                         "{\"key1\":\"value1\"}",
