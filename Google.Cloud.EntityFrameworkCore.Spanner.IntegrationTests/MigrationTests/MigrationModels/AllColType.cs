@@ -16,7 +16,6 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.V1;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
