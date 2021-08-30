@@ -24,6 +24,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
@@ -222,6 +223,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                         },
                         new AddColumnOperation
                         {
+                            Name = "ColJson",
+                            Table = "AllColTypes",
+                            ClrType = typeof(JsonDocument),
+                            IsNullable = true,
+                        },
+                        new AddColumnOperation
+                        {
                             Name = "ColDecimalArray",
                             Table = "AllColTypes",
                             ClrType = typeof(SpannerNumeric[]),
@@ -331,7 +339,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                             Table = "AllColTypes",
                             ClrType = typeof(List<byte[]>),
                             IsNullable = true
-                        }
+                        },
+                        new AddColumnOperation
+                        {
+                            Name = "ColJsonArray",
+                            Table = "AllColTypes",
+                            ClrType = typeof(JsonDocument[]),
+                            IsNullable = true
+                        },
+                        new AddColumnOperation
+                        {
+                            Name = "ColJsonList",
+                            Table = "AllColTypes",
+                            ClrType = typeof(List<JsonDocument>),
+                            IsNullable = true
+                        },
                     },
                 PrimaryKey = new AddPrimaryKeyOperation { Columns = new[] { "AlbumId" } },
             });

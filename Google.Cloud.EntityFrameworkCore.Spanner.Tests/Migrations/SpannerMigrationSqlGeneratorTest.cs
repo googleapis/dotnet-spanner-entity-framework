@@ -60,6 +60,7 @@ CONSTRAINT `Chk_Title_Length_Equal` CHECK (CHARACTER_LENGTH(Title) > 0),
     `ColString` STRING(MAX),
     `ColGuid` STRING(36),
     `ColBytes` BYTES(MAX),
+    `ColJson` JSON,
     `ColDecimalArray` ARRAY<NUMERIC>,
     `ColDecimalList` ARRAY<NUMERIC>,
     `ColStringArray` ARRAY<STRING(MAX)>,
@@ -75,7 +76,9 @@ CONSTRAINT `Chk_Title_Length_Equal` CHECK (CHARACTER_LENGTH(Title) > 0),
     `ColTimestampArray` ARRAY<TIMESTAMP>,
     `ColTimestampList` ARRAY<TIMESTAMP>,
     `ColBytesArray` ARRAY<BYTES(MAX)>,
-    `ColBytesList` ARRAY<BYTES(MAX)>
+    `ColBytesList` ARRAY<BYTES(MAX)>,
+    `ColJsonArray` ARRAY<JSON>,
+    `ColJsonList` ARRAY<JSON>
 )PRIMARY KEY (`AlbumId`)");
         }
 
