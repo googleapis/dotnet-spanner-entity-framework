@@ -65,8 +65,8 @@ namespace Microsoft.EntityFrameworkCore
             }
             else
             {
-                // The Cloud Spanner client library does not support adding any credentials to the connection string, so in that case we need
-                // to create a connection here already in order to be able to use the credentials.
+                // The Cloud Spanner client library does not support adding any credentials to the connection string,
+                // so in that case we need to use a SpannerConnectionStringBuilder with the credentials.
                 var builder = new SpannerConnectionStringBuilder(connectionString, channelCredentials)
                 {
                     SessionPoolManager = SessionPoolManager,
