@@ -21,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Xunit;
@@ -1202,6 +1203,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 ColFloat64Array = new List<double?> { 3.14D, 6.626D },
                 ColInt64 = id1,
                 ColInt64Array = new List<long?> { 1L, 2L, 4L, 8L },
+                ColJson = JsonDocument.Parse("{\"key\": \"value\"}"),
+                ColJsonArray = new List<JsonDocument>{JsonDocument.Parse("{\"key1\": \"value1\"}"), null, JsonDocument.Parse("{\"key2\": \"value2\"}")},
                 ColNumeric = (SpannerNumeric?)3.14m,
                 ColNumericArray = new List<SpannerNumeric?> { (SpannerNumeric)3.14m, (SpannerNumeric)6.626m },
                 ColString = "some string",
@@ -1211,17 +1214,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 ColTimestamp = new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288),
                 ColTimestampArray = new List<DateTime?> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now },
             };
-            var updateCount1 = await db.Database.ExecuteSqlRawAsync(
-                @"INSERT INTO TableWithAllColumnTypes 
+            var updateCount1 = await db.Database.ExecuteSqlRawAsync(@"INSERT INTO TableWithAllColumnTypes 
                               (ColBool, ColBoolArray, ColBytes, ColBytesMax, ColBytesArray, ColBytesMaxArray,
                                ColDate, ColDateArray, ColFloat64, ColFloat64Array, ColInt64, ColInt64Array,
-                               ColNumeric, ColNumericArray, ColString, ColStringArray, ColStringMax, ColStringMaxArray,
-                               ColTimestamp, ColTimestampArray)
+                               ColJson, ColJsonArray, ColNumeric, ColNumericArray, ColString, ColStringArray,
+                               ColStringMax, ColStringMaxArray, ColTimestamp, ColTimestampArray)
                               VALUES
                               (@ColBool, @ColBoolArray, @ColBytes, @ColBytesMax, @ColBytesArray, @ColBytesMaxArray,
                                @ColDate, @ColDateArray, @ColFloat64, @ColFloat64Array, @ColInt64, @ColInt64Array,
-                               @ColNumeric, @ColNumericArray, @ColString, @ColStringArray, @ColStringMax, @ColStringMaxArray,
-                               @ColTimestamp, @ColTimestampArray)",
+                               @ColJson, @ColJsonArray, @ColNumeric, @ColNumericArray, @ColString, @ColStringArray,
+                               @ColStringMax, @ColStringMaxArray, @ColTimestamp, @ColTimestampArray)",
                 new SpannerParameter("ColBool", SpannerDbType.Bool, row.ColBool),
                 new SpannerParameter("ColBoolArray", SpannerDbType.ArrayOf(SpannerDbType.Bool), row.ColBoolArray),
                 new SpannerParameter("ColBytes", SpannerDbType.Bytes, row.ColBytes),
@@ -1234,6 +1236,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 new SpannerParameter("ColFloat64Array", SpannerDbType.ArrayOf(SpannerDbType.Float64), row.ColFloat64Array),
                 new SpannerParameter("ColInt64", SpannerDbType.Int64, row.ColInt64),
                 new SpannerParameter("ColInt64Array", SpannerDbType.ArrayOf(SpannerDbType.Int64), row.ColInt64Array),
+                new SpannerParameter("ColJson", db.IsEmulator ? SpannerDbType.String : SpannerDbType.Json, row.ColJson.RootElement.ToString()),
+                new SpannerParameter("ColJsonArray", SpannerDbType.ArrayOf(db.IsEmulator ? SpannerDbType.String : SpannerDbType.Json), row.ColJsonArray.Select(v => v?.RootElement.ToString())),
                 new SpannerParameter("ColNumeric", SpannerDbType.Numeric, row.ColNumeric),
                 new SpannerParameter("ColNumericArray", SpannerDbType.ArrayOf(SpannerDbType.Numeric), row.ColNumericArray),
                 new SpannerParameter("ColString", SpannerDbType.String, row.ColString),
@@ -1251,13 +1255,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 @$"INSERT INTO TableWithAllColumnTypes 
                               (ColBool, ColBoolArray, ColBytes, ColBytesMax, ColBytesArray, ColBytesMaxArray,
                                ColDate, ColDateArray, ColFloat64, ColFloat64Array, ColInt64, ColInt64Array,
-                               ColNumeric, ColNumericArray, ColString, ColStringArray, ColStringMax, ColStringMaxArray,
-                               ColTimestamp, ColTimestampArray)
+                               ColJson, ColJsonArray, ColNumeric, ColNumericArray, ColString, ColStringArray,
+                               ColStringMax, ColStringMaxArray, ColTimestamp, ColTimestampArray)
                               VALUES
                               ({ row.ColBool}, { row.ColBoolArray}, { row.ColBytes}, { row.ColBytesMax}, { row.ColBytesArray}, { row.ColBytesMaxArray},
                                { row.ColDate}, { row.ColDateArray}, { row.ColFloat64}, { row.ColFloat64Array}, { row.ColInt64}, { row.ColInt64Array},
-                               { row.ColNumeric}, { row.ColNumericArray}, { row.ColString}, { row.ColStringArray}, { row.ColStringMax}, { row.ColStringMaxArray},
-                               { row.ColTimestamp}, { row.ColTimestampArray})"
+                               { (db.IsEmulator ? (object) row.ColJson.RootElement.ToString() : row.ColJson)},
+                               { (db.IsEmulator ? (object) row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToList() : row.ColJsonArray)},
+                               { row.ColNumeric}, { row.ColNumericArray}, { row.ColString}, { row.ColStringArray},
+                               { row.ColStringMax}, { row.ColStringMaxArray}, { row.ColTimestamp}, { row.ColTimestampArray})"
             );
             Assert.Equal(1, updateCount2);
 
@@ -1267,17 +1273,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 @"INSERT INTO TableWithAllColumnTypes 
                               (ColBool, ColBoolArray, ColBytes, ColBytesMax, ColBytesArray, ColBytesMaxArray,
                                ColDate, ColDateArray, ColFloat64, ColFloat64Array, ColInt64, ColInt64Array,
-                               ColNumeric, ColNumericArray, ColString, ColStringArray, ColStringMax, ColStringMaxArray,
-                               ColTimestamp, ColTimestampArray)
+                               ColJson, ColJsonArray, ColNumeric, ColNumericArray, ColString, ColStringArray,
+                               ColStringMax, ColStringMaxArray, ColTimestamp, ColTimestampArray)
                               VALUES
                               ({0}, {1}, {2}, {3}, {4}, {5},
                                {6}, {7}, {8}, {9}, {10}, {11},
                                {12}, {13}, {14}, {15}, {16}, {17},
-                               {18}, {19})",
+                               {18}, {19}, {20}, {21})",
                                row.ColBool, row.ColBoolArray, row.ColBytes, row.ColBytesMax, row.ColBytesArray, row.ColBytesMaxArray,
                                row.ColDate, row.ColDateArray, row.ColFloat64, row.ColFloat64Array, row.ColInt64, row.ColInt64Array,
-                               row.ColNumeric, row.ColNumericArray, row.ColString, row.ColStringArray, row.ColStringMax, row.ColStringMaxArray,
-                               row.ColTimestamp, row.ColTimestampArray
+                               db.IsEmulator ? (object) row.ColJson.RootElement.ToString() : row.ColJson,
+                               db.IsEmulator ? (object) row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToList() : row.ColJsonArray,
+                               row.ColNumeric, row.ColNumericArray, row.ColString, row.ColStringArray,
+                               row.ColStringMax, row.ColStringMaxArray, row.ColTimestamp, row.ColTimestampArray
             );
             Assert.Equal(1, updateCount3);
 

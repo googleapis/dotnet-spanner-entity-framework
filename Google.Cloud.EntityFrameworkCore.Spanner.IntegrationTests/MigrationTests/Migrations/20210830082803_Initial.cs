@@ -50,6 +50,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     ASC = table.Column<string>(nullable: true),
                     ColGuid = table.Column<Guid>(nullable: true),
                     ColBytes = table.Column<byte[]>(nullable: true),
+                    ColJson = table.Column<string>(nullable: true),
                     ColDecimalArray = table.Column<SpannerNumeric[]>(nullable: true),
                     ColDecimalList = table.Column<List<SpannerNumeric>>(nullable: true),
                     ColStringArray = table.Column<string[]>(nullable: true),
@@ -65,7 +66,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     ColTimestampArray = table.Column<DateTime[]>(nullable: true),
                     ColTimestampList = table.Column<List<DateTime>>(nullable: true),
                     ColBytesArray = table.Column<byte[][]>(nullable: true),
-                    ColBytesList = table.Column<List<byte[]>>(nullable: true)
+                    ColBytesList = table.Column<List<byte[]>>(nullable: true),
+                    ColJsonArray = table.Column<string[]>(nullable: true),
+                    ColJsonList = table.Column<List<string>>(nullable: true)
                 },
                 constraints: table =>
                 {

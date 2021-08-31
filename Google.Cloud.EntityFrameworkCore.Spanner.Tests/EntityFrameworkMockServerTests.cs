@@ -16,7 +16,6 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Google.Protobuf.WellKnownTypes;
@@ -27,6 +26,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Xunit;
@@ -311,12 +311,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                               (`ColBool`, `ColBoolArray`, `ColBytes`, `ColBytesMax`, `ColBytesArray`, `ColBytesMaxArray`,
                                `ColDate`, `ColDateArray`, `ColFloat64`, `ColFloat64Array`, `ColInt64`, `ColInt64Array`,
                                `ColNumeric`, `ColNumericArray`, `ColString`, `ColStringArray`, `ColStringMax`, `ColStringMaxArray`,
-                               `ColTimestamp`, `ColTimestampArray`)
+                               `ColTimestamp`, `ColTimestampArray`, `ColJson`, `ColJsonArray`)
                               VALUES
                               (@ColBool, @ColBoolArray, @ColBytes, @ColBytesMax, @ColBytesArray, @ColBytesMaxArray,
                                @ColDate, @ColDateArray, @ColFloat64, @ColFloat64Array, @ColInt64, @ColInt64Array,
                                @ColNumeric, @ColNumericArray, @ColString, @ColStringArray, @ColStringMax, @ColStringMaxArray,
-                               @ColTimestamp, @ColTimestampArray)";
+                               @ColTimestamp, @ColTimestampArray, @ColJson, @ColJsonArray)";
             _fixture.SpannerMock.AddOrUpdateStatementResult(rawSql, StatementResult.CreateUpdateCount(1L));
 
             var row = new TableWithAllColumnTypes
@@ -341,6 +341,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 ColStringMaxArray = new List<string> { "longer string1", "longer string2", "longer string3" },
                 ColTimestamp = new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288),
                 ColTimestampArray = new List<DateTime?> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now },
+                ColJson = JsonDocument.Parse("{\"key1\": \"value1\", \"key2\": \"value2\"}"),
+                ColJsonArray = new List<JsonDocument>{ JsonDocument.Parse("{\"key1\": \"value1\", \"key2\": \"value2\"}"), JsonDocument.Parse("{\"key1\": \"value3\", \"key2\": \"value4\"}") },
             };
             var updateCount = await db.Database.ExecuteSqlRawAsync(rawSql,
                 new SpannerParameter("ColBool", SpannerDbType.Bool, row.ColBool),
@@ -362,7 +364,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 new SpannerParameter("ColStringMax", SpannerDbType.String, row.ColStringMax),
                 new SpannerParameter("ColStringMaxArray", SpannerDbType.ArrayOf(SpannerDbType.String), row.ColStringMaxArray),
                 new SpannerParameter("ColTimestamp", SpannerDbType.Timestamp, row.ColTimestamp),
-                new SpannerParameter("ColTimestampArray", SpannerDbType.ArrayOf(SpannerDbType.Timestamp), row.ColTimestampArray)
+                new SpannerParameter("ColTimestampArray", SpannerDbType.ArrayOf(SpannerDbType.Timestamp), row.ColTimestampArray),
+                new SpannerParameter("ColJson", SpannerDbType.Json, row.ColJson?.ToString()),
+                new SpannerParameter("ColJsonArray", SpannerDbType.ArrayOf(SpannerDbType.Json), row.ColJsonArray?.Select(d => d?.ToString()))
             );
 
             Assert.Equal(1, updateCount);
@@ -1853,10 +1857,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = "INSERT INTO `TableWithAllColumnTypes` (`ColCommitTS`, `ColInt64`, `ASC`, `ColBool`, " +
                 "`ColBoolArray`, `ColBytes`, `ColBytesArray`, `ColBytesMax`, `ColBytesMaxArray`, `ColDate`, `ColDateArray`," +
-                " `ColFloat64`, `ColFloat64Array`, `ColInt64Array`, `ColNumeric`, `ColNumericArray`, `ColString`, " +
+                " `ColFloat64`, `ColFloat64Array`, `ColInt64Array`, `ColJson`, `ColJsonArray`, `ColNumeric`, `ColNumericArray`, `ColString`, " +
                 "`ColStringArray`, `ColStringMax`, `ColStringMaxArray`, `ColTimestamp`, `ColTimestampArray`)" +
                 $"{Environment.NewLine}VALUES (PENDING_COMMIT_TIMESTAMP(), " +
-                "@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20)";
+                "@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22)";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1L));
             _fixture.SpannerMock.AddOrUpdateStatementResult($"{Environment.NewLine}SELECT `ColComputed`" +
                 $"{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p0", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
@@ -1930,9 +1934,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = "INSERT INTO `TableWithAllColumnTypes` (`ColCommitTS`, `ColInt64`, `ASC`, `ColBool`, `ColBoolArray`," +
                 " `ColBytes`, `ColBytesArray`, `ColBytesMax`, `ColBytesMaxArray`, `ColDate`, `ColDateArray`, `ColFloat64`," +
-                " `ColFloat64Array`, `ColInt64Array`, `ColNumeric`, `ColNumericArray`, `ColString`, `ColStringArray`," +
+                " `ColFloat64Array`, `ColInt64Array`, `ColJson`, `ColJsonArray`, `ColNumeric`, `ColNumericArray`, `ColString`, `ColStringArray`," +
                 $" `ColStringMax`, `ColStringMaxArray`, `ColTimestamp`, `ColTimestampArray`){Environment.NewLine}" +
-                "VALUES (PENDING_COMMIT_TIMESTAMP(), @p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20)";
+                "VALUES (PENDING_COMMIT_TIMESTAMP(), @p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22)";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1L));
             var selectSql = $"{Environment.NewLine}SELECT `ColComputed`{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(selectSql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
@@ -1957,6 +1961,161 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 requestType => Assert.Equal(typeof(ExecuteBatchDmlRequest), requestType),
                 requestType => Assert.Equal(typeof(CommitRequest), requestType),
                 requestType => Assert.Equal(typeof(ExecuteSqlRequest), requestType)
+            );
+        }
+
+        [Fact]
+        public async Task CanInsertAllTypes()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "INSERT INTO `TableWithAllColumnTypes` (`ColCommitTS`, `ColInt64`, `ASC`, `ColBool`, " +
+                      "`ColBoolArray`, `ColBytes`, `ColBytesArray`, `ColBytesMax`, `ColBytesMaxArray`, `ColDate`, `ColDateArray`," +
+                      " `ColFloat64`, `ColFloat64Array`, `ColInt64Array`, `ColJson`, `ColJsonArray`, `ColNumeric`, `ColNumericArray`, `ColString`, " +
+                      "`ColStringArray`, `ColStringMax`, `ColStringMaxArray`, `ColTimestamp`, `ColTimestampArray`)" +
+                      $"{Environment.NewLine}VALUES (PENDING_COMMIT_TIMESTAMP(), " +
+                      "@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1L));
+            _fixture.SpannerMock.AddOrUpdateStatementResult($"{Environment.NewLine}SELECT `ColComputed`" +
+                                                            $"{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p0", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
+
+            db.TableWithAllColumnTypes.Add(new TableWithAllColumnTypes
+            {
+                ColInt64 = 1L,
+                ColBool = true,
+                ColBytes = new byte[] {1,2,3},
+                ColDate = new SpannerDate(2000, 1, 1),
+                ColFloat64 = 3.14,
+                ColJson = JsonDocument.Parse("{\"key\": \"value\"}"),
+                ColNumeric = SpannerNumeric.Parse("6.626"),
+                ColString = "test",
+                ColTimestamp = new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                ColBoolArray = new List<bool?>{true, null, false},
+                ColBytesArray = new List<byte[]>{new byte[]{1,2,3}, null, new byte[]{3,2,1}},
+                ColBytesMax = new byte[] {},
+                ColDateArray = new List<SpannerDate?>{new SpannerDate(2021, 8, 26), null, new SpannerDate(2000, 1, 1)},
+                ColFloat64Array = new List<double?>{3.14, null, 6.626},
+                ColInt64Array = new List<long?>{1,null,2},
+                ColJsonArray = new List<JsonDocument>{JsonDocument.Parse("{\"key1\": \"value1\"}"), null, JsonDocument.Parse("{\"key2\": \"value2\"}")},
+                ColNumericArray = new List<SpannerNumeric?>{SpannerNumeric.Parse("3.14"), null, SpannerNumeric.Parse("6.626")},
+                ColStringArray = new List<string>{"test1", null, "test2"},
+                ColStringMax = "",
+                ColTimestampArray = new List<DateTime?>{new DateTime(2000, 1, 1, 0, 0, 0, 1, DateTimeKind.Utc), null, new DateTime(2000, 1, 1, 0, 0, 0, 2, DateTimeKind.Utc)},
+                ColBytesMaxArray = new List<byte[]>(),
+                ColStringMaxArray = new List<string>(),
+            });
+            await db.SaveChangesAsync();
+
+            // Verify the parameter types.
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>(),
+                request =>
+                {
+                    var types = request.Statements[0].ParamTypes;
+                    Assert.Equal(V1.TypeCode.Int64, types["p0"].Code);
+                    Assert.Equal(V1.TypeCode.String, types["p1"].Code);
+                    Assert.Equal(V1.TypeCode.Bool, types["p2"].Code);
+                    Assert.Equal(V1.TypeCode.Array, types["p3"].Code);
+                    Assert.Equal(V1.TypeCode.Bool, types["p3"].ArrayElementType.Code);
+                    Assert.Equal(V1.TypeCode.Bytes, types["p4"].Code);
+                    Assert.Equal(V1.TypeCode.Array, types["p5"].Code);
+                    Assert.Equal(V1.TypeCode.Bytes, types["p5"].ArrayElementType.Code);
+                    Assert.Equal(V1.TypeCode.Bytes, types["p6"].Code);
+                    Assert.Equal(V1.TypeCode.Array, types["p7"].Code);
+                    Assert.Equal(V1.TypeCode.Bytes, types["p7"].ArrayElementType.Code);
+                    Assert.Equal(V1.TypeCode.Date, types["p8"].Code);
+                    Assert.Equal(V1.TypeCode.Array, types["p9"].Code);
+                    Assert.Equal(V1.TypeCode.Date, types["p9"].ArrayElementType.Code);
+                    Assert.Equal(V1.TypeCode.Float64, types["p10"].Code);
+                    Assert.Equal(V1.TypeCode.Array, types["p11"].Code);
+                    Assert.Equal(V1.TypeCode.Float64, types["p11"].ArrayElementType.Code);
+                    Assert.Equal(V1.TypeCode.Array, types["p12"].Code);
+                    Assert.Equal(V1.TypeCode.Int64, types["p12"].ArrayElementType.Code);
+                    Assert.Equal(V1.TypeCode.Json, types["p13"].Code);
+                    Assert.Equal(V1.TypeCode.Array, types["p14"].Code);
+                    Assert.Equal(V1.TypeCode.Json, types["p14"].ArrayElementType.Code);
+                    Assert.Equal(V1.TypeCode.Numeric, types["p15"].Code);
+                    Assert.Equal(V1.TypeCode.Array, types["p16"].Code);
+                    Assert.Equal(V1.TypeCode.Numeric, types["p16"].ArrayElementType.Code);
+                    Assert.Equal(V1.TypeCode.String, types["p17"].Code);
+                    Assert.Equal(V1.TypeCode.Array, types["p18"].Code);
+                    Assert.Equal(V1.TypeCode.String, types["p18"].ArrayElementType.Code);
+                    Assert.Equal(V1.TypeCode.String, types["p19"].Code);
+                    Assert.Equal(V1.TypeCode.Array, types["p20"].Code);
+                    Assert.Equal(V1.TypeCode.String, types["p20"].ArrayElementType.Code);
+                    Assert.Equal(V1.TypeCode.Timestamp, types["p21"].Code);
+                    Assert.Equal(V1.TypeCode.Array, types["p22"].Code);
+                    Assert.Equal(V1.TypeCode.Timestamp, types["p22"].ArrayElementType.Code);
+                }
+            );
+            
+            // Verify the parameter values.
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>(),
+                request =>
+                {
+                    Assert.Single(request.Statements);
+                    Assert.Contains("PENDING_COMMIT_TIMESTAMP()", request.Statements[0].Sql);
+                    var fields = request.Statements[0].Params.Fields;
+                    Assert.Equal("1", fields["p0"].StringValue);
+                    Assert.Equal(Value.KindOneofCase.NullValue, fields["p1"].KindCase);
+                    Assert.True(fields["p2"].BoolValue);
+                    Assert.Collection(fields["p3"].ListValue.Values,
+                        v => Assert.True(v.BoolValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.False(v.BoolValue)
+                    );
+                    Assert.Equal(Convert.ToBase64String(new byte[]{1,2,3}), fields["p4"].StringValue);
+                    Assert.Collection(fields["p5"].ListValue.Values,
+                        v => Assert.Equal(Convert.ToBase64String(new byte[]{1,2,3}), v.StringValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.Equal(Convert.ToBase64String(new byte[]{3,2,1}), v.StringValue)
+                    );
+                    Assert.Equal("", fields["p6"].StringValue);
+                    Assert.Empty(fields["p7"].ListValue.Values);
+                    Assert.Equal("2000-01-01", fields["p8"].StringValue);
+                    Assert.Collection(fields["p9"].ListValue.Values,
+                        v => Assert.Equal("2021-08-26", v.StringValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.Equal("2000-01-01", v.StringValue)
+                    );
+                    Assert.Equal(3.14d, fields["p10"].NumberValue);
+                    Assert.Collection(fields["p11"].ListValue.Values,
+                        v => Assert.Equal(3.14d, v.NumberValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.Equal(6.626d, v.NumberValue)
+                    );
+                    Assert.Collection(fields["p12"].ListValue.Values,
+                        v => Assert.Equal("1", v.StringValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.Equal("2", v.StringValue)
+                    );
+                    Assert.Equal("{\"key\": \"value\"}", fields["p13"].StringValue);
+                    Assert.Collection(fields["p14"].ListValue.Values,
+                        v => Assert.Equal("{\"key1\": \"value1\"}", v.StringValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.Equal("{\"key2\": \"value2\"}", v.StringValue)
+                    );
+                    Assert.Equal("6.626", fields["p15"].StringValue);
+                    Assert.Collection(fields["p16"].ListValue.Values,
+                        v => Assert.Equal("3.14", v.StringValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.Equal("6.626", v.StringValue)
+                    );
+                    Assert.Equal("test", fields["p17"].StringValue);
+                    Assert.Collection(fields["p18"].ListValue.Values,
+                        v => Assert.Equal("test1", v.StringValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.Equal("test2", v.StringValue)
+                    );
+                    Assert.Equal("", fields["p19"].StringValue);
+                    Assert.Empty(fields["p20"].ListValue.Values);
+                    Assert.Equal("2000-01-01T00:00:00Z", fields["p21"].StringValue);
+                    Assert.Collection(fields["p22"].ListValue.Values,
+                        v => Assert.Equal("2000-01-01T00:00:00.001Z", v.StringValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.Equal("2000-01-01T00:00:00.002Z", v.StringValue)
+                    );
+                }
             );
         }
 

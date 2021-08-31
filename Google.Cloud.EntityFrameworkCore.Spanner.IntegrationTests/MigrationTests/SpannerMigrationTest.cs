@@ -20,6 +20,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -167,6 +168,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     ColFloat = 15.999f,
                     ColGuid = guid,
                     ColInt = 10,
+                    ColJson = JsonDocument.Parse("{\"key\": \"value\"}"),
+                    ColJsonArray = new []{ JsonDocument.Parse("{\"key1\": \"value1\"}"), JsonDocument.Parse("{\"key2\": \"value2\"}") },
+                    ColJsonList = new List<JsonDocument> {JsonDocument.Parse("{\"key1\": \"value1\"}"), JsonDocument.Parse("{\"key2\": \"value2\"}")},
                     ColLong = 155,
                     ColLongArray = new long[] { 15, 16 },
                     ColLongList = new List<long> { 20, 25 },
@@ -213,6 +217,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(15.999f, row.ColFloat);
                 Assert.Equal(guid, row.ColGuid);
                 Assert.Equal(10, row.ColInt);
+                if (!SpannerFixtureBase.IsEmulator)
+                {
+                    Assert.Equal("{\"key\":\"value\"}", row.ColJson.RootElement.ToString());
+                    Assert.Equal(new[] { "{\"key1\":\"value1\"}", "{\"key2\":\"value2\"}" },
+                        row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToArray());
+                    Assert.Equal(new[] { "{\"key1\":\"value1\"}", "{\"key2\":\"value2\"}" },
+                        row.ColJsonList.Select(v => v?.RootElement.ToString()).ToList());
+                }
                 Assert.Equal(155, row.ColLong);
                 Assert.Equal(new long[] { 15, 16 }, row.ColLongArray);
                 Assert.Equal(new List<long> { 20, 25 }, row.ColLongList);
@@ -257,6 +269,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row.ColDoubleList = new List<double> { 30.9 };
                 row.ColFloat = 16.52f;
                 row.ColInt = 200;
+                row.ColJson = JsonDocument.Parse("{\"key\": \"new-value\"}");
+                row.ColJsonArray = new[]
+                    { JsonDocument.Parse("{\"key1\": \"new-value1\"}"), JsonDocument.Parse("{\"key2\": \"new-value2\"}") };
+                row.ColJsonList = new List<JsonDocument>
+                    { JsonDocument.Parse("{\"key1\": \"new-value1\"}"), JsonDocument.Parse("{\"key2\": \"new-value2\"}") };
                 row.ColLong = 19999;
                 row.ColLongArray = new long[] { 17, 18 };
                 row.ColLongList = new List<long> { 25, 26 };
@@ -298,6 +315,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<double> { 30.9 }, row.ColDoubleList);
                 Assert.Equal(16.52f, row.ColFloat);
                 Assert.Equal(200, row.ColInt);
+                if (!SpannerFixtureBase.IsEmulator)
+                {
+                    Assert.Equal("{\"key\":\"new-value\"}", row.ColJson.RootElement.ToString());
+                    Assert.Equal(new[] { "{\"key1\":\"new-value1\"}", "{\"key2\":\"new-value2\"}" },
+                        row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToArray());
+                    Assert.Equal(new[] { "{\"key1\":\"new-value1\"}", "{\"key2\":\"new-value2\"}" },
+                        row.ColJsonList.Select(v => v?.RootElement.ToString()).ToList());
+                }
                 Assert.Equal(19999, row.ColLong);
                 Assert.Equal(new long[] { 17, 18 }, row.ColLongArray);
                 Assert.Equal(new List<long> { 25, 26 }, row.ColLongList);

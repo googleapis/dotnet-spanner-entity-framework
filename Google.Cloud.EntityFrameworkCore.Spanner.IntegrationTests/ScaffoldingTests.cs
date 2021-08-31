@@ -22,6 +22,7 @@ using System.Linq;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
@@ -50,6 +51,46 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.True(await reader.ReadAsync());
             Assert.Equal(tableNames.Length, reader.GetInt64(0));
             Assert.False(await reader.ReadAsync());
+        }
+
+        [InlineData("ColInt64", "INT64")]
+        [InlineData("ColInt64Array", "ARRAY<INT64>")]
+        [InlineData("ColFloat64", "FLOAT64")]
+        [InlineData("ColFloat64Array", "ARRAY<FLOAT64>")]
+        [InlineData("ColNumeric", "NUMERIC")]
+        [InlineData("ColNumericArray", "ARRAY<NUMERIC>")]
+        [InlineData("ColString", "STRING(100)")]
+        [InlineData("ColStringArray", "ARRAY<STRING(100)>")]
+        [InlineData("ColBytes", "BYTES(100)")]
+        [InlineData("ColBytesArray", "ARRAY<BYTES(100)>")]
+        [InlineData("ColStringMax", "STRING(MAX)")]
+        [InlineData("ColStringMaxArray", "ARRAY<STRING(MAX)>")]
+        [InlineData("ColBytesMax", "BYTES(MAX)")]
+        [InlineData("ColBytesMaxArray", "ARRAY<BYTES(MAX)>")]
+        [InlineData("ColJson", "JSON")]
+        [InlineData("ColJsonArray", "ARRAY<JSON>")]
+        [InlineData("ColBool", "BOOL")]
+        [InlineData("ColBoolArray", "ARRAY<BOOL>")]
+        [InlineData("ColDate", "DATE")]
+        [InlineData("ColDateArray", "ARRAY<DATE>")]
+        [InlineData("ColTimestamp", "TIMESTAMP")]
+        [InlineData("ColTimestampArray", "ARRAY<TIMESTAMP>")]
+        [SkippableTheory]
+        public async void AllColumnTypesAreGenerated(string name, string type)
+        {
+            Skip.If(SpannerFixtureBase.IsEmulator && type.Contains("JSON"), "Emulator does not the JSON data type yet");
+            using var connection = _fixture.GetConnection();
+            var parameters = new SpannerParameterCollection
+            {
+                { "name", SpannerDbType.String, name }
+            };
+            var cmd = connection.CreateSelectCommand(
+                "SELECT SPANNER_TYPE " +
+                "FROM INFORMATION_SCHEMA.COLUMNS " +
+                "WHERE TABLE_CATALOG='' AND TABLE_SCHEMA='' AND TABLE_NAME='TableWithAllColumnTypes' " +
+                "AND COLUMN_NAME=@name", parameters);
+            var foundType = await cmd.ExecuteScalarAsync<string>();
+            Assert.Equal(type, foundType);
         }
 
         [Fact]
@@ -425,6 +466,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     ColFloat64Array = new List<double?> { 3.14D, 6.626D },
                     ColInt64 = id,
                     ColInt64Array = new List<long?> { 1L, 2L, 4L, 8L },
+                    ColJson = JsonDocument.Parse("{\"key\": \"value\"}"),
+                    ColJsonArray = new List<JsonDocument>
+                    {
+                        JsonDocument.Parse("{\"key1\": \"value1\"}"),
+                        JsonDocument.Parse("{}"),
+                        JsonDocument.Parse("[]"),
+                        JsonDocument.Parse("{\"key2\": \"value2\"}")
+                    },
                     ColNumeric = (SpannerNumeric?)3.14m,
                     ColNumericArray = new List<SpannerNumeric?> { (SpannerNumeric)3.14m, (SpannerNumeric)6.626m },
                     ColString = "some string",
@@ -457,6 +506,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<SpannerNumeric?> { (SpannerNumeric)3.14m, (SpannerNumeric)6.626m }, row.ColNumericArray);
                 Assert.Equal(id, row.ColInt64);
                 Assert.Equal(new List<long?> { 1L, 2L, 4L, 8L }, row.ColInt64Array);
+                if (!db.IsEmulator)
+                {
+                    Assert.Equal("{\"key\":\"value\"}", row.ColJson.RootElement.ToString());
+                    Assert.Equal(new List<string>
+                    {
+                        "{\"key1\":\"value1\"}",
+                        "{}",
+                        "[]",
+                        "{\"key2\":\"value2\"}"
+                    }, row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToList());
+                }
                 Assert.Equal("some string", row.ColString);
                 Assert.Equal(new List<string> { "string1", "string2", "string3" }, row.ColStringArray);
                 Assert.Equal("some longer string", row.ColStringMax);
@@ -488,6 +548,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row.ColNumeric = (SpannerNumeric?)1.234m;
                 row.ColNumericArray = new List<SpannerNumeric?> { (SpannerNumeric)1.0m, (SpannerNumeric)1.1m, (SpannerNumeric)1.11m };
                 row.ColInt64Array = new List<long?> { 500L, 1000L };
+                row.ColJson = JsonDocument.Parse("{}");
+                row.ColJsonArray = new List<JsonDocument> { JsonDocument.Parse("[]"), JsonDocument.Parse("{}"), null };
                 row.ColString = "some changed string";
                 row.ColStringArray = new List<string> { "changed string1", "changed string2", "changed string3" };
                 row.ColStringMax = "some longer changed string";
@@ -514,6 +576,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal((SpannerNumeric?)1.234m, row.ColNumeric);
                 Assert.Equal(new List<SpannerNumeric?> { (SpannerNumeric)1.0m, (SpannerNumeric)1.1m, (SpannerNumeric)1.11m }, row.ColNumericArray);
                 Assert.Equal(new List<long?> { 500L, 1000L }, row.ColInt64Array);
+                if (!db.IsEmulator)
+                {
+                    Assert.Equal("{}", row.ColJson.RootElement.ToString());
+                    Assert.Equal(new List<string> { "[]", "{}", null }, row.ColJsonArray.Select(v => v?.RootElement.ToString()));
+                }
                 Assert.Equal("some changed string", row.ColString);
                 Assert.Equal(new List<string> { "changed string1", "changed string2", "changed string3" }, row.ColStringArray);
                 Assert.Equal("some longer changed string", row.ColStringMax);
@@ -566,6 +633,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Null(row.ColNumeric);
                 Assert.Null(row.ColNumericArray);
                 Assert.Null(row.ColInt64Array);
+                Assert.Null(row.ColJson);
+                Assert.Null(row.ColJsonArray);
                 Assert.Null(row.ColString);
                 Assert.Null(row.ColStringArray);
                 Assert.Null(row.ColStringMax);
@@ -587,6 +656,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row.ColNumeric = (SpannerNumeric?)0.0m;
                 row.ColNumericArray = new List<SpannerNumeric?> { };
                 row.ColInt64Array = new List<long?> { };
+                row.ColJson = JsonDocument.Parse("{}");
+                row.ColJsonArray = new List<JsonDocument>();
                 row.ColString = "";
                 row.ColStringArray = new List<string> { };
                 row.ColStringMax = "";
@@ -617,6 +688,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.NotNull(row.ColNumeric);
                 Assert.NotNull(row.ColNumericArray);
                 Assert.NotNull(row.ColInt64Array);
+                if (!db.IsEmulator)
+                {
+                    Assert.NotNull(row.ColJson);
+                    Assert.NotNull(row.ColJsonArray);
+                }
                 Assert.NotNull(row.ColString);
                 Assert.NotNull(row.ColStringArray);
                 Assert.NotNull(row.ColStringMax);
@@ -638,6 +714,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row.ColNumeric = null;
                 row.ColNumericArray = null;
                 row.ColInt64Array = null;
+                row.ColJson = null;
+                row.ColJsonArray = null;
                 row.ColString = null;
                 row.ColStringArray = null;
                 row.ColStringMax = null;
@@ -665,6 +743,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Null(row.ColNumeric);
                 Assert.Null(row.ColNumericArray);
                 Assert.Null(row.ColInt64Array);
+                Assert.Null(row.ColJson);
+                Assert.Null(row.ColJsonArray);
                 Assert.Null(row.ColString);
                 Assert.Null(row.ColStringArray);
                 Assert.Null(row.ColStringMax);
@@ -689,6 +769,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     ColDateArray = new List<SpannerDate?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) },
                     ColFloat64Array = new List<double?> { 3.14, null, 6.662 },
                     ColInt64Array = new List<long?> { 100, null, 200 },
+                    ColJsonArray = new List<JsonDocument>{JsonDocument.Parse("{}"), null, JsonDocument.Parse("[]")},
                     ColNumericArray = new List<SpannerNumeric?> { (SpannerNumeric)3.14m, null, (SpannerNumeric)6.662m },
                     ColStringArray = new List<string> { "string1", null, "string2" },
                     ColStringMaxArray = new List<string> { "long string 1", null, "long string 2" },
@@ -708,6 +789,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<SpannerDate?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) }, row.ColDateArray);
                 Assert.Equal(new List<double?> { 3.14, null, 6.662 }, row.ColFloat64Array);
                 Assert.Equal(new List<long?> { 100, null, 200 }, row.ColInt64Array);
+                if (!db.IsEmulator)
+                {
+                    Assert.Equal(new List<string> { "{}", null, "[]" }, row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToList());
+                }
                 Assert.Equal(new List<SpannerNumeric?> { (SpannerNumeric)3.14m, null, (SpannerNumeric)6.662m }, row.ColNumericArray);
                 Assert.Equal(new List<string> { "string1", null, "string2" }, row.ColStringArray);
                 Assert.Equal(new List<string> { "long string 1", null, "long string 2" }, row.ColStringMaxArray);
@@ -719,6 +804,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row.ColDateArray = new List<SpannerDate?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) };
                 row.ColFloat64Array = new List<double?> { 3.14, null, 6.662 };
                 row.ColInt64Array = new List<long?> { 100, null, 200 };
+                row.ColJsonArray = new List<JsonDocument> { JsonDocument.Parse("{}"), null, JsonDocument.Parse("[]") };
                 row.ColNumericArray = new List<SpannerNumeric?> { (SpannerNumeric)3.14m, null, (SpannerNumeric)6.662m };
                 row.ColStringArray = new List<string> { "string1", null, "string2" };
                 row.ColStringMaxArray = new List<string> { "long string 1", null, "long string 2" };
@@ -735,6 +821,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<SpannerDate?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) }, row.ColDateArray);
                 Assert.Equal(new List<double?> { 3.14, null, 6.662 }, row.ColFloat64Array);
                 Assert.Equal(new List<long?> { 100, null, 200 }, row.ColInt64Array);
+                if (!db.IsEmulator)
+                {
+                    Assert.Equal(new List<string> { "{}", null, "[]" }, row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToList());
+                }
                 Assert.Equal(new List<SpannerNumeric?> { (SpannerNumeric)3.14m, null, (SpannerNumeric)6.662m }, row.ColNumericArray);
                 Assert.Equal(new List<string> { "string1", null, "string2" }, row.ColStringArray);
                 Assert.Equal(new List<string> { "long string 1", null, "long string 2" }, row.ColStringMaxArray);

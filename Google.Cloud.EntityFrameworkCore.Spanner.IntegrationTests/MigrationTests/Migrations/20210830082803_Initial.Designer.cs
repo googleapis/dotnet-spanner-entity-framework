@@ -26,7 +26,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTests.Migrations
 {
     [DbContext(typeof(TestMigrationDbContext))]
-    [Migration("20210324085522_Initial")]
+    [Migration("20210830082803_Initial")]
     partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -107,6 +107,30 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
 
                     b.Property<int?>("ColInt")
                         .HasColumnType("INT64");
+                    
+                    // TODO: Remove once the emulator supports the JSON data type.
+                    if (SpannerFixtureBase.IsEmulator)
+                    {
+                        b.Property<string>("ColJson")
+                            .HasColumnType("STRING");
+
+                        b.Property<string[]>("ColJsonArray")
+                            .HasColumnType("ARRAY<STRING>");
+
+                        b.Property<List<string>>("ColJsonList")
+                            .HasColumnType("ARRAY<STRING>");
+                    }
+                    else
+                    {
+                        b.Property<string>("ColJson")
+                            .HasColumnType("JSON");
+
+                        b.Property<string[]>("ColJsonArray")
+                            .HasColumnType("ARRAY<JSON>");
+
+                        b.Property<List<string>>("ColJsonList")
+                            .HasColumnType("ARRAY<JSON>");
+                    }
 
                     b.Property<long?>("ColLong")
                         .HasColumnType("INT64");

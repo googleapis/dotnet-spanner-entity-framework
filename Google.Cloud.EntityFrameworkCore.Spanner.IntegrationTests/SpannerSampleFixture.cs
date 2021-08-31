@@ -35,6 +35,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         internal TestSpannerSampleDbContext(DatabaseName databaseName) => _databaseName = databaseName;
 
+        internal bool IsEmulator => Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST") != null;
+
         internal TestSpannerSampleDbContext(DbContextOptions<SpannerSampleDbContext> options)
             : base(options)
         {
@@ -48,6 +50,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     .UseSpanner($"Data Source={_databaseName};emulatordetection=EmulatorOrProduction")
                     .UseLazyLoadingProxies();
             }
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            if (IsEmulator)
+            {
+                modelBuilder.Entity<TableWithAllColumnTypes>()
+                    .Ignore(t => t.ColJson)
+                    .Ignore(t => t.ColJsonArray);
+            }
+            base.OnModelCreating(modelBuilder);
         }
     }
 
@@ -119,9 +132,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         {
             var dirPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             // We must use a slightly edited sample data model for the emulator, as the emulator does not support:
-            // 1. NUMERIC data type.
-            // 2. Computed columns.
-            // 3. Check constraints.
+            // 1. JSON data type.
+            // 2. Check constraints.
+            // 3. Computed columns that are not the last column in the table.
             var sampleModel = IsEmulator ? "SampleDataModel - Emulator.sql" : "SampleDataModel.sql";
             var fileName = Path.Combine(dirPath, sampleModel);
             var script = File.ReadAllText(fileName);

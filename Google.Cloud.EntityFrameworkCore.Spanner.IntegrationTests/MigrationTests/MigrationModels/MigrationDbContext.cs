@@ -36,7 +36,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public DbSet<Article> Articles { get; set; }
         public DbSet<Author> Authors { get; set; }
 
-
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<AllColType>(entity =>

@@ -106,6 +106,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                     b.Property<int?>("ColInt")
                         .HasColumnType("INT64");
 
+                    b.Property<string>("ColJson")
+                        .HasColumnType("JSON");
+
+                    b.Property<string[]>("ColJsonArray")
+                        .HasColumnType("ARRAY<JSON>");
+
+                    b.Property<List<string>>("ColJsonList")
+                        .HasColumnType("ARRAY<JSON>");
+
                     b.Property<long?>("ColLong")
                         .HasColumnType("INT64");
 
