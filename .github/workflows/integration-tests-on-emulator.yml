@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
+  integration-tests-on-emulator:
     runs-on: ubuntu-latest
     services:
       emulator:
