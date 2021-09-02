@@ -1,0 +1,36 @@
+name: .NET
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      emulator:
+        image: gcr.io/cloud-spanner-emulator/emulator:latest
+        ports:
+          - 9010:9010
+          - 9020:9020
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 3.1.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: dotnet build --no-restore
+    - name: Integration Tests on Emulator
+      working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
+      run: dotnet test --verbosity normal
+      env:
+        JOB_TYPE: test
+        SPANNER_EMULATOR_HOST: localhost:9010
+        TEST_PROJECT: emulator-test-project
+        TEST_SPANNER_INSTANCE: test-instance
