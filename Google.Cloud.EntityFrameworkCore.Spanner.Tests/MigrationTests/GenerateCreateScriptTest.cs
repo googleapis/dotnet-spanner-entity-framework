@@ -13,7 +13,9 @@
 // limitations under the License.
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models;
+using Grpc.Core;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -21,15 +23,25 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
 {
     internal class MockMigrationSampleDbContext : SpannerMigrationSampleDbContext
     {
-        public MockMigrationSampleDbContext()
+        private readonly string _connectionString;
+
+        public MockMigrationSampleDbContext() : this("Data Source=projects/p1/instances/i1/databases/d1;")
         {
+        }
+
+        public MockMigrationSampleDbContext(string connectionString)
+        {
+            _connectionString = connectionString;
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             if (!optionsBuilder.IsConfigured)
             {
-                optionsBuilder.UseSpanner("Data Source=projects/p1/instances/i1/databases/d1;", _ => SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false));
+                optionsBuilder
+                    .UseSpanner(_connectionString, _ => SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false), ChannelCredentials.Insecure)
+                    .UseMutations(MutationUsage.Never)
+                    .UseLazyLoadingProxies();
             }
         }
     }

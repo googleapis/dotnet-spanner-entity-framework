@@ -17,6 +17,7 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data.Common;
 using System.Linq;
@@ -37,8 +38,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public SpannerRelationalConnection(RelationalConnectionDependencies dependencies)
             : base(dependencies)
         {
-            var optionsExtension = dependencies.ContextOptions.Extensions.OfType<SpannerOptionsExtension>().FirstOrDefault();
-            MutationUsage = optionsExtension.MutationUsage;
+            var relationalOptions = (SpannerOptionsExtension) RelationalOptionsExtension.Extract(dependencies.ContextOptions);
+            MutationUsage = relationalOptions.MutationUsage;
+            ConnectionStringBuilder = relationalOptions.ConnectionStringBuilder;
         }
 
         private SpannerRetriableConnection Connection => DbConnection as SpannerRetriableConnection;
@@ -48,10 +50,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <inheritdoc />
         public override bool IsMultipleActiveResultSetsEnabled => true;
 
+        private SpannerConnectionStringBuilder ConnectionStringBuilder { get; }
+
         /// <inheritdoc />
         protected override DbConnection CreateDbConnection()
         {
-            var builder = new SpannerConnectionStringBuilder
+            var builder = ConnectionStringBuilder ?? new SpannerConnectionStringBuilder
             {
                 ConnectionString = ConnectionString,
                 SessionPoolManager = SpannerDbContextOptionsExtensions.SessionPoolManager
@@ -95,10 +99,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// </summary>
         public ISpannerRelationalConnection CreateMasterConnection()
         {
-            var builder = new SpannerConnectionStringBuilder(ConnectionString);
-            //Spanner actually has no master or admin db, so we just use a normal connection.
-            var masterConn =
-                new SpannerRetriableConnection(new SpannerConnection($"Data Source=projects/{builder.Project}/instances/{builder.SpannerInstance}"));
+            // Spanner does not have anything like a master database, so we just return a new instance of a
+            // RelationalConnection with the same options and dependencies. This ensures that all settings of the
+            // underlying connection are carried over to the new RelationalConnection, such as credentials and host.
+            var masterConn = (SpannerRetriableConnection) CreateDbConnection();
             var optionsBuilder = new DbContextOptionsBuilder();
             optionsBuilder.UseSpanner(masterConn);
 

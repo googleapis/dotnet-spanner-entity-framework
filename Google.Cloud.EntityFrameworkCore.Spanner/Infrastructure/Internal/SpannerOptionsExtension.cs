@@ -14,6 +14,7 @@
 
 using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Generic;
@@ -44,6 +45,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
         {
             _info = original._info;
             MutationUsage = original.MutationUsage;
+            ConnectionStringBuilder = original.ConnectionStringBuilder;
         }
 
         public override DbContextOptionsExtensionInfo Info => _info ??= new ExtensionInfo(this);
@@ -55,6 +57,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
         /// </summary>
         public MutationUsage MutationUsage { get; private set; } = MutationUsage.ImplicitTransactions;
 
+        internal SpannerConnectionStringBuilder ConnectionStringBuilder { get; private set; }
+
         /// <summary>
         /// This is internal functionality and not intended for public use.
         /// </summary>
@@ -63,6 +67,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
             SpannerOptionsExtension clone = (SpannerOptionsExtension)Clone();
             clone.MutationUsage = mutationUsage;
             return clone;
+        }
+
+        internal SpannerOptionsExtension WithConnectionStringBuilder(SpannerConnectionStringBuilder builder)
+        {
+            var clone = (SpannerOptionsExtension)Clone();
+            clone.ConnectionStringBuilder = builder;
+            return (SpannerOptionsExtension) clone.WithConnectionString(builder.ConnectionString);
         }
 
         /// <summary>

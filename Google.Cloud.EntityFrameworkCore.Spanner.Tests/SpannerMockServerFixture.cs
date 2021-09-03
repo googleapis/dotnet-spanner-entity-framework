@@ -24,6 +24,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
         private readonly Server _server;
         public MockSpannerService SpannerMock { get; }
+        public MockDatabaseAdminService DatabaseAdminMock { get; }
         public string Endpoint
         {
             get
@@ -37,9 +38,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public SpannerMockServerFixture()
         {
             SpannerMock = new MockSpannerService();
+            DatabaseAdminMock = new MockDatabaseAdminService();
             _server = new Server
             {
-                Services = { Google.Cloud.Spanner.V1.Spanner.BindService(SpannerMock) },
+                Services = { Google.Cloud.Spanner.V1.Spanner.BindService(SpannerMock), Google.Cloud.Spanner.Admin.Database.V1.DatabaseAdmin.BindService(DatabaseAdminMock) },
                 Ports = { new ServerPort("localhost", 0, ServerCredentials.Insecure) }
             };
             _server.Start();

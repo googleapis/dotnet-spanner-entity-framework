@@ -14,6 +14,7 @@
 
 using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
+using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Collections.Generic;
@@ -62,9 +63,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 
         private bool IsDdlStatement(string statement)
         {
-            statement = statement.ToUpper();
-            // https://cloud.google.com/spanner/docs/data-definition-language#ddl_syntax
-            return statement.StartsWith("CREATE") || statement.StartsWith("DROP") || statement.StartsWith("ALTER");
+            return SpannerCommandTextBuilder.FromCommandText(statement).SpannerCommandType == SpannerCommandType.Ddl;
         }
     }
 }

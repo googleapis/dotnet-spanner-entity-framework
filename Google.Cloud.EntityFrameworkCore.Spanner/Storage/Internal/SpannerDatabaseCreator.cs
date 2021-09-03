@@ -14,6 +14,7 @@
 
 using Google.Api.Gax;
 using Google.Cloud.Spanner.Admin.Database.V1;
+using Google.Cloud.Spanner.Data;
 using Grpc.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -121,14 +122,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
             try
             {
-                var adminClientBuilder = new DatabaseAdminClientBuilder
-                {
-                    EmulatorDetection = EmulatorDetection.EmulatorOrProduction
-                };
-                var databaseAdminClient = await adminClientBuilder.BuildAsync(cancellationToken);
-                await databaseAdminClient.GetDatabaseAsync(_connection.DbConnection.DataSource, cancellationToken);
+                using var cmd = _connection.DbConnection.CreateCommand();
+                cmd.CommandText = "SELECT 1";
+                await cmd.ExecuteScalarAsync(cancellationToken);
             }
-            catch (RpcException e) when (e.StatusCode == StatusCode.NotFound)
+            catch (SpannerException e) when (e.ErrorCode == ErrorCode.NotFound)
             {
                 return false;
             }
