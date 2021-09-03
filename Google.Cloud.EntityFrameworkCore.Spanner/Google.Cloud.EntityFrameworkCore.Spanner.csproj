@@ -19,7 +19,7 @@
 
   <ItemGroup>
     <PackageReference Include="Google.Cloud.Spanner.Data" Version="3.12.0" />
-    <PackageReference Include="JetBrains.Annotations" Version="2020.3.0" PrivateAssets="All" />
+    <PackageReference Include="JetBrains.Annotations" Version="2021.2.0" PrivateAssets="All" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="3.1.0" PrivateAssets="All" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="3.1.0" />
     <PackageReference Include="OpenTelemetry.Api" Version="1.0.1" />
