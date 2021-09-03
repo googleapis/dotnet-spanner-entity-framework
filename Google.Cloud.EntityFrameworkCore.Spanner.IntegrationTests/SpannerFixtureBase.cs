@@ -86,9 +86,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
         public string RandomString(int length, Random rnd)
         {
-            byte[] buf = new byte[length];
+            byte[] buf = new byte[length * 4];
             rnd.NextBytes(buf);
-            return System.Text.Encoding.ASCII.GetString(buf);
+            return System.Text.Encoding.Unicode.GetString(buf).Substring(0, 4);
         }
     }
 }
