@@ -351,6 +351,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _contexts = new ConcurrentQueue<ServerCallContext>();
             _executionTimes.Clear();
             _results.Clear();
+            _abortedTransactions.Clear();
+            _abortNextStatement = false;
         }
 
         public override Task<Transaction> BeginTransaction(BeginTransactionRequest request, ServerCallContext context)
@@ -385,7 +387,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _requests.Enqueue(request);
             _contexts.Enqueue(context);
             TryFindSession(request.SessionAsSessionName);
-            TryFindTransaction(request.TransactionId, true);
+            _transactions.TryRemove(request.TransactionId, out _);
             return Task.FromResult(EMPTY);
         }
 
