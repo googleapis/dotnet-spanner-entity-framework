@@ -14,6 +14,8 @@
 
 using Google.Cloud.Spanner.Admin.Database.V1;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
+using System;
 using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
@@ -38,13 +40,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
         [Fact]
         public void TestMigrateUsesDdlBatch()
         {
+            var version = typeof(Migration).Assembly.GetName().Version ?? new Version();
+            var formattedVersion = $"{version.Major}.{version.Minor}.{version.Revision}";
             _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateException(MockSpannerService.CreateDatabaseNotFoundException("d1")));
             _fixture.SpannerMock.AddOrUpdateStatementResult(
-                "INSERT INTO `EFMigrationsHistory` (`MigrationId`, `ProductVersion`)\nVALUES ('20210309110233_Initial', '3.1.0')",
+                $"INSERT INTO `EFMigrationsHistory` (`MigrationId`, `ProductVersion`)\nVALUES ('20210309110233_Initial', '{formattedVersion}')",
                 StatementResult.CreateUpdateCount(1)
             );
             _fixture.SpannerMock.AddOrUpdateStatementResult(
-                "INSERT INTO `EFMigrationsHistory` (`MigrationId`, `ProductVersion`)\nVALUES ('20210830_V2', '3.1.0')",
+                $"INSERT INTO `EFMigrationsHistory` (`MigrationId`, `ProductVersion`)\nVALUES ('20210830_V2', '{formattedVersion}')",
                 StatementResult.CreateUpdateCount(1)
             );
             using var db = new MockMigrationSampleDbContext(ConnectionString);
