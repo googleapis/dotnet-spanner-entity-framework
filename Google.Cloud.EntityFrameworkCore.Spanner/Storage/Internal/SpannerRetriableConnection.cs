@@ -129,7 +129,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// retried if one of the statements on the transaction is aborted by Cloud Spanner.
         /// </summary>
         /// <returns>A new read/write transaction with internal retries enabled.</returns>
-        public Task<SpannerRetriableTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+        public new Task<SpannerRetriableTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
             => BeginTransactionAsync(IsolationLevel.Unspecified, cancellationToken);
 
         /// <summary>
@@ -141,7 +141,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// </summary>
         /// <returns>A new read/write transaction with internal retries enabled.</returns>
         /// <exception cref="NotSupportedException"/>
-        public async Task<SpannerRetriableTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default)
+        public new async Task<SpannerRetriableTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default)
         {
             if (isolationLevel != IsolationLevel.Unspecified
                 && isolationLevel != IsolationLevel.Serializable)
