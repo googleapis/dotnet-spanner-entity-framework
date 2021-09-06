@@ -13,11 +13,11 @@
 // limitations under the License.
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Metadata;
-using System;
-using System.Collections.Generic;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
+using System;
+using System.Collections.Generic;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migrations
 {
