@@ -20,7 +20,7 @@ using System;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
-    public class SpannerTimestampTypeMapping : RelationalTypeMapping
+    internal class SpannerTimestampTypeMapping : RelationalTypeMapping
     {
         public SpannerTimestampTypeMapping() : base(SpannerDbType.Timestamp.ToString(), typeof(DateTime), System.Data.DbType.DateTime) { }
 

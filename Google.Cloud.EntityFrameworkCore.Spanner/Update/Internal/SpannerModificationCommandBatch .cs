@@ -45,7 +45,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
     /// * Never: Never use mutations and always use DML. This will reduce the performance of implicit transactions.
     /// * Always: Always use mutations, also for explicit transactions. This will break read-your-writes in transactions.
     /// </summary>
-    public class SpannerModificationCommandBatch : ModificationCommandBatch
+    internal sealed class SpannerModificationCommandBatch : ModificationCommandBatch
     {
         private readonly IRelationalTypeMappingSource _typeMapper;
         private readonly List<ModificationCommand> _modificationCommands = new List<ModificationCommand>();
@@ -71,7 +71,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// <summary>
         /// Service dependencies.
         /// </summary>
-        public virtual ModificationCommandBatchFactoryDependencies Dependencies { get; }
+        public ModificationCommandBatchFactoryDependencies Dependencies { get; }
 
         /// <summary>
         /// This is internal functionality and not intended for public use.
@@ -99,7 +99,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         ///     being modified such that a ValueBuffer with appropriate slots can be created.
         /// </param>
         /// <returns> The factory. </returns>
-        protected virtual IRelationalValueBufferFactory CreateValueBufferFactory(
+        private IRelationalValueBufferFactory CreateValueBufferFactory(
             [NotNull] IReadOnlyList<ColumnModification> columnModifications)
             => Dependencies.ValueBufferFactoryFactory
                 .Create(

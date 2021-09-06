@@ -16,6 +16,7 @@
 using System;
 using System.Collections.Generic;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests;
+using Google.Cloud.EntityFrameworkCore.Spanner.Metadata;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;

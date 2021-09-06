@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
@@ -32,6 +33,7 @@ using System.Threading.Tasks;
 using Xunit;
 using V1 = Google.Cloud.Spanner.V1;
 
+#pragma warning disable EF1001
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 {
     internal class MockServerSampleDbContext : SpannerSampleDbContext
@@ -2181,3 +2183,4 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
     }
 }
+#pragma warning restore EF1001

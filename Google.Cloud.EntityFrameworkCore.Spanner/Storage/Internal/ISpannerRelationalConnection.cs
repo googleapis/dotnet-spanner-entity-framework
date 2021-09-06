@@ -16,7 +16,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
-    public interface ISpannerRelationalConnection : IRelationalConnection
+    internal interface ISpannerRelationalConnection : IRelationalConnection
     {
         //Note: The relationalconnection classes represent an efcore level abstraction over the EFCore
         // providers.

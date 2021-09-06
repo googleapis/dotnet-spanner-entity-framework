@@ -22,7 +22,7 @@ using System.Text.Json;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
-    public class SpannerJsonTypeMapping : RelationalTypeMapping
+    internal class SpannerJsonTypeMapping : RelationalTypeMapping
     {
         internal static readonly JsonDocumentOptions JsonOptions = new JsonDocumentOptions
             { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip, MaxDepth = 100 };

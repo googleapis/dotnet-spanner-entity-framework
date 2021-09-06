@@ -22,7 +22,7 @@ using System.Linq;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
-    public class SpannerDateListTypeMapping : RelationalTypeMapping
+    internal class SpannerDateListTypeMapping : RelationalTypeMapping
     {
         private static readonly ValueConverter s_converter = new ValueConverter<List<SpannerDate>, List<DateTime>>(
             v => v.Select(sd => sd.ToDateTime()).ToList(),

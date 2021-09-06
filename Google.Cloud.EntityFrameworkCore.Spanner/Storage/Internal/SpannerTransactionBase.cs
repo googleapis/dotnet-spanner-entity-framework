@@ -22,6 +22,8 @@ using System.Threading.Tasks;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     /// <summary>
+    /// This is internal functionality and not intended for public use.
+    /// 
     /// Base class for transactions that are used for the Cloud Spanner Entity Framework Core provider.
     /// </summary>
     public abstract class SpannerTransactionBase : DbTransaction

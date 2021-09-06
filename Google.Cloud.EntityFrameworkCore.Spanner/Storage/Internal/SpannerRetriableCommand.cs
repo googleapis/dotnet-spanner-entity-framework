@@ -22,6 +22,7 @@ using System.Threading.Tasks;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     /// <summary>
+    /// This is internal functionality and not intended for public use.
     /// <see cref="DbCommand"/> implementation for Cloud Spanner that can be retried if the underlying
     /// Spanner transaction is aborted.
     /// </summary>

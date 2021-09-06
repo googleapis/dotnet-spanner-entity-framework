@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.EntityFrameworkCore.Spanner.Metadata;
 using Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Tests.TestUtilities;
 using Microsoft.EntityFrameworkCore;

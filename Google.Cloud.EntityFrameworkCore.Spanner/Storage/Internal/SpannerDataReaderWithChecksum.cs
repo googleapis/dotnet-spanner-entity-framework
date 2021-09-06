@@ -30,7 +30,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     /// Reads a forward-only stream of rows from a data source and keeps track of a running
     /// checksum for all data that have been seen.
     /// </summary>
-    public sealed class SpannerDataReaderWithChecksum : DbDataReader, IRetriableStatement
+    internal sealed class SpannerDataReaderWithChecksum : DbDataReader, IRetriableStatement
     {
         private int _numberOfReadCalls;
         private byte[] _currentChecksum = new byte[0];

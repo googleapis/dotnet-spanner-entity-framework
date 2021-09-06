@@ -16,7 +16,7 @@ using Microsoft.EntityFrameworkCore.Query;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 {
-    public class SpannerQuerySqlGeneratorFactory : IQuerySqlGeneratorFactory
+    internal class SpannerQuerySqlGeneratorFactory : IQuerySqlGeneratorFactory
     {
         private readonly QuerySqlGeneratorDependencies _dependencies;
 

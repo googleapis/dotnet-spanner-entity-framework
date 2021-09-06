@@ -20,6 +20,9 @@ using System.Text;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 {
+    /// <summary>
+    ///     This is internal functionality and not intended for public use.
+    /// </summary>
     public class SpannerHistoryRepository : HistoryRepository
     {
         /// <summary>

@@ -16,6 +16,9 @@ using OpenTelemetry.Trace;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
 {
+    /// <summary>
+    /// Provides trace identifiers for the Spanner EF Core provider.
+    /// </summary>
     public class TracerProviderExtension
     {
         private TracerProviderExtension()

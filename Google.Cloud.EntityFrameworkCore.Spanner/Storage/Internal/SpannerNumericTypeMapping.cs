@@ -20,7 +20,7 @@ using System.Data.Common;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
-    public class SpannerNumericTypeMapping : RelationalTypeMapping
+    internal class SpannerNumericTypeMapping : RelationalTypeMapping
     {
         public SpannerNumericTypeMapping()
             : base(SpannerDbType.Numeric.ToString(), typeof(SpannerNumeric), System.Data.DbType.VarNumeric)

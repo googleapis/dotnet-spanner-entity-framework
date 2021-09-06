@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Metadata;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -20,6 +21,9 @@ using System.Linq;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 {
+    /// <summary>
+    ///     This is internal functionality and not intended for public use.
+    /// </summary>
     public class SpannerMigrationsAnnotationProvider : MigrationsAnnotationProvider
     {
         /// <summary>

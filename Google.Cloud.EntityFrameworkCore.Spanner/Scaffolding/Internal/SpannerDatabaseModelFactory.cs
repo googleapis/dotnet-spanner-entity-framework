@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Metadata;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -26,6 +27,12 @@ using System.Linq;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
 {
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
     public class SpannerDatabaseModelFactory : DatabaseModelFactory
     {
         public override DatabaseModel Create(string connectionString, DatabaseModelFactoryOptions options)
