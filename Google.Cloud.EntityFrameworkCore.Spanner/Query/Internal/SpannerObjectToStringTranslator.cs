@@ -30,7 +30,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    public class SpannerObjectToStringTranslator : IMethodCallTranslator
+    internal class SpannerObjectToStringTranslator : IMethodCallTranslator
     {
         private static readonly HashSet<System.Type> s_typeMapping = new HashSet<System.Type>
             {

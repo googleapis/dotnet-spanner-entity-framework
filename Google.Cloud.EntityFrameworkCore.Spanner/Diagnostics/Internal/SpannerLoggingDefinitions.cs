@@ -16,7 +16,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Diagnostics.Internal
 {
-    public class SpannerLoggingDefinitions : RelationalLoggingDefinitions
+    internal class SpannerLoggingDefinitions : RelationalLoggingDefinitions
     {
     }
 }

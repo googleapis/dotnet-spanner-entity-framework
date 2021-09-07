@@ -13,16 +13,19 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using Google.Cloud.EntityFrameworkCore.Spanner.Metadata;
+using Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Operations;
 using Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal;
-using JetBrains.Annotations;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace Microsoft.EntityFrameworkCore.Migrations
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
 {
     /// <summary>
     /// Customizes the default migration sql generator to create Spanner compatible Ddl.
@@ -107,9 +110,9 @@ namespace Microsoft.EntityFrameworkCore.Migrations
         }
 
         protected override void Generate(
-            [NotNull] CreateIndexOperation operation,
-            [CanBeNull] IModel model,
-            [NotNull] MigrationCommandListBuilder builder,
+            CreateIndexOperation operation,
+            IModel model,
+            MigrationCommandListBuilder builder,
             bool terminate = true)
         {
             builder.Append("CREATE ");

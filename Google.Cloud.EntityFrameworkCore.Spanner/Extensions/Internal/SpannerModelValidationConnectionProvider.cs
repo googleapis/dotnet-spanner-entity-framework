@@ -15,7 +15,7 @@
 using Google.Cloud.Spanner.Data;
 using Grpc.Core;
 
-namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions.Internal
 {
     /// <summary>
     /// ModelValidationConnectionProvider is registered as a singleton service that provides a
@@ -37,7 +37,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         /// </summary>
         public static readonly SpannerModelValidationConnectionProvider Instance = new SpannerModelValidationConnectionProvider();
 
-        private readonly object lck = new object();
+        private readonly object _lck = new object();
         private bool _enabled = true;
         private string _connectionString;
         private ChannelCredentials _channelCredentials;
@@ -56,7 +56,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         /// <param name="enable"></param>
         public void EnableDatabaseModelValidation(bool enable)
         {
-            lock (lck)
+            lock (_lck)
             {
                 _enabled = enable;
             }
@@ -71,7 +71,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         /// </summary>
         public void Reset()
         {
-            lock (lck)
+            lock (_lck)
             {
                 _connectionString = null;
                 _channelCredentials = null;
@@ -81,7 +81,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
 
         internal SpannerConnection GetConnection()
         {
-            lock (lck)
+            lock (_lck)
             {
                 return !_enabled || _connectionString == null ? null : new SpannerConnection(_connectionString, _channelCredentials);
             }
@@ -89,7 +89,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
 
         internal void SetConnectionString(string value, ChannelCredentials channelCredentials = null)
         {
-            lock (lck)
+            lock (_lck)
             {
                 if (_connectionString == null && _connectionStringBuilder != null)
                 {
@@ -117,7 +117,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                 // This is not the first valid connection string. Check whether the new
                 // connection string is connecting to the same database. If it is, it is
                 // still safe to do validation against the database.
-                if (!builder.DatabaseName.Equals(_connectionStringBuilder.DatabaseName))
+                if (!builder.DatabaseName.Equals(_connectionStringBuilder?.DatabaseName))
                 {
                     // The application is connecting to a new database. It is no longer safe
                     // to validate against the database, as there is no guarantee that the

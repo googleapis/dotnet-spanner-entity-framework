@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions.Internal;
 using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design.Internal;
@@ -28,7 +28,7 @@ using System.Reflection;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
 {
-    public class SpannerModelValidator : RelationalModelValidator
+    internal class SpannerModelValidator : RelationalModelValidator
     {
         private readonly string _disableValidationHint = $"Call {nameof(SpannerModelValidationConnectionProvider)}.{nameof(SpannerModelValidationConnectionProvider.Instance)}.{nameof(SpannerModelValidationConnectionProvider.EnableDatabaseModelValidation)}(false) to disable model validation if this error is a false positive.";
 

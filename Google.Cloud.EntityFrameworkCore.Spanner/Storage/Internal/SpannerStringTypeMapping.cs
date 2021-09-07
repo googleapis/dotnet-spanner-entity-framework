@@ -20,7 +20,7 @@ using System.Data.Common;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
-    public class SpannerStringTypeMapping : StringTypeMapping
+    internal class SpannerStringTypeMapping : StringTypeMapping
     {
         private readonly SpannerDbType _sqlDbType;
         private readonly int _maxSpecificSize;

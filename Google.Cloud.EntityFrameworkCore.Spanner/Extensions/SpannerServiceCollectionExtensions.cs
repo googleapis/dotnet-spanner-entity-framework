@@ -14,14 +14,16 @@
 
 using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.Diagnostics.Internal;
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal;
+using Google.Cloud.EntityFrameworkCore.Spanner.Metadata.Conventions;
+using Google.Cloud.EntityFrameworkCore.Spanner.Migrations;
 using Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Query;

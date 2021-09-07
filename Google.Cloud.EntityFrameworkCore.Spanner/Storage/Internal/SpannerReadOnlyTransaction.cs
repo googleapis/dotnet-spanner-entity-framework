@@ -24,6 +24,7 @@ using System.Threading.Tasks;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     /// <summary>
+    /// This is internal functionality and not intended for public use.
     /// Multi-use read-only transaction for a Cloud Spanner database.
     /// </summary>
     public class SpannerReadOnlyTransaction : SpannerTransactionBase

@@ -27,11 +27,9 @@ using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 {
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "EF1001:Internal EF Core API usage.", Justification = "Internal class")]
-    /// <summary>
-    /// This is internal functionality and not intended for public use.
-    /// </summary>
-    public class SpannerBatchExecutor : BatchExecutor
+#pragma warning disable EF1001
+    internal class SpannerBatchExecutor : BatchExecutor
+#pragma warning restore EF1001
     {
         public SpannerBatchExecutor([NotNull] ICurrentDbContext currentContext, [NotNull] IExecutionStrategyFactory executionStrategyFactory) : base(currentContext, executionStrategyFactory)
         {
@@ -45,7 +43,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             using var span = tracer.StartActiveSpan(TracerProviderExtension.SPAN_NAME_SAVECHANGES);
             try
             {
+#pragma warning disable EF1001
                 base.Execute(batchesList, connection);
+#pragma warning restore EF1001
                 foreach (var batch in batchesList)
                 {
                     if (batch is SpannerModificationCommandBatch spannerModificationCommandBatch)
@@ -75,7 +75,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             using var span = tracer.StartActiveSpan(TracerProviderExtension.SPAN_NAME_SAVECHANGES);
             try
             {
+#pragma warning disable EF1001
                 await base.ExecuteAsync(batchesList, connection, cancellationToken);
+#pragma warning restore EF1001
                 // Results that need to be propagated after an update are executed after the batch has been saved.
                 // This ensures that when implict transactions are being used the updated value is fetched after the
                 // transaction has been committed. This makes it possible to use mutations for implicit transactions

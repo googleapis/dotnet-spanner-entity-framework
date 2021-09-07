@@ -13,12 +13,13 @@
 // limitations under the License.
 
 using JetBrains.Annotations;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
 using System.Linq;
 
-namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Metadata.Conventions
 {
-    public class SpannerConventionSetBuilder : RelationalConventionSetBuilder
+    internal class SpannerConventionSetBuilder : RelationalConventionSetBuilder
     {
         public SpannerConventionSetBuilder(
             [NotNull] ProviderConventionSetBuilderDependencies dependencies,

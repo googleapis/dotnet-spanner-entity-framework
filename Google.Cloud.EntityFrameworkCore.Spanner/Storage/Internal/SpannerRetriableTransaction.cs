@@ -28,6 +28,8 @@ using Status = Grpc.Core.Status;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     /// <summary>
+    /// This is internal functionality and not intended for public use.
+    /// 
     /// Represents a SQL transaction to be made in a Spanner database.
     /// A transaction in Cloud Spanner is a set of reads and writes that execute
     /// atomically at a single logical point in time across columns, rows, and

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.InheritanceTests.Model;
 using Google.Cloud.Spanner.Common.V1;
 using Microsoft.EntityFrameworkCore;

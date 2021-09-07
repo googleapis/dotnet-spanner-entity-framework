@@ -13,7 +13,6 @@
 // limitations under the License.
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Update;
 using System.Collections.Generic;
@@ -23,7 +22,7 @@ using System.Text;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 {
-    public class SpannerUpdateSqlGenerator : UpdateSqlGenerator, ISpannerUpdateSqlGenerator
+    internal class SpannerUpdateSqlGenerator : UpdateSqlGenerator
     {
         private readonly ISqlGenerationHelper _sqlGenerationHelper;
 
@@ -42,12 +41,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 
         protected override ISqlGenerationHelper SqlGenerationHelper { get => _sqlGenerationHelper; }
 
-        protected override void AppendIdentityWhereCondition([NotNull] StringBuilder commandStringBuilder, ColumnModification columnModification)
+        protected override void AppendIdentityWhereCondition(StringBuilder commandStringBuilder, ColumnModification columnModification)
         {
             commandStringBuilder.Append(" TRUE ");
         }
 
-        protected override void AppendRowsAffectedWhereCondition([NotNull] StringBuilder commandStringBuilder, int expectedRowsAffected)
+        protected override void AppendRowsAffectedWhereCondition(StringBuilder commandStringBuilder, int expectedRowsAffected)
         {
             commandStringBuilder.Append(" TRUE ");
         }

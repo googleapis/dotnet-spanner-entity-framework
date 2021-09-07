@@ -23,7 +23,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
     /// 
     /// Columns with type <see cref="DateTime"/> are mapped to TIMESTAMP in Cloud Spanner.
     /// </summary>
-    public struct SpannerDate : IEquatable<SpannerDate>, IConvertible, IComparable<SpannerDate>
+    public readonly struct SpannerDate : IEquatable<SpannerDate>, IConvertible, IComparable<SpannerDate>
     {
         public int Year { get; }
         public int Month { get; }
