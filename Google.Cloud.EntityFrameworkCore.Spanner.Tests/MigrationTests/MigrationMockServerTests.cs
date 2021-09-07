@@ -41,7 +41,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
         public void TestMigrateUsesDdlBatch()
         {
             var version = typeof(Migration).Assembly.GetName().Version ?? new Version();
-            var formattedVersion = $"{version.Major}.{version.Minor}.{version.Revision}";
+            var formattedVersion = $"{version.Major}.{version.Minor}.{version.Build}";
             _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateException(MockSpannerService.CreateDatabaseNotFoundException("d1")));
             _fixture.SpannerMock.AddOrUpdateStatementResult(
                 $"INSERT INTO `EFMigrationsHistory` (`MigrationId`, `ProductVersion`)\nVALUES ('20210309110233_Initial', '{formattedVersion}')",
