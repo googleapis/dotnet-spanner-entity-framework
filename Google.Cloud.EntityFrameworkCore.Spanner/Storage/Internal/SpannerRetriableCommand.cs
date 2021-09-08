@@ -54,6 +54,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             get => _transaction;
             set => _transaction = (SpannerTransactionBase)value;
         }
+        
+        public TimestampBound TimestampBound { get; set; }
 
         protected override DbParameterCollection DbParameterCollection => _spannerCommand.Parameters;
 
@@ -95,10 +97,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             : _transaction.ExecuteScalarWithRetry(_spannerCommand);
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
-            => _transaction == null
+        {
+            if (_transaction != null)
+            {
+                return _transaction.ExecuteDbDataReaderWithRetry(_spannerCommand);
+            }
             // These don't need retry protection as the ephemeral transaction used by the client library is a read-only transaction.
-            ? _spannerCommand.ExecuteReader()
-            : _transaction.ExecuteDbDataReaderWithRetry(_spannerCommand);
+            if (TimestampBound != null)
+            {
+                return _spannerCommand.ExecuteReaderAsync(TimestampBound)
+                    .ResultWithUnwrappedExceptions();
+            }
+            return _spannerCommand.ExecuteReader();
+        }
 
         public override void Prepare() => _spannerCommand.Prepare();
     }
