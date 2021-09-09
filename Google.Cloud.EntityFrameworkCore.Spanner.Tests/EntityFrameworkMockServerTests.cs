@@ -17,18 +17,22 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Extensions.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using V1 = Google.Cloud.Spanner.V1;
@@ -300,6 +304,98 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 .Where(request => request is BeginTransactionRequest)
                 .Select(request => (BeginTransactionRequest)request)
                 .Where(request => request.Options?.ReadOnly?.ExactStaleness?.Seconds == 10L));
+        }
+
+        [Fact]
+        public async Task CanReadWithMaxStaleness()
+        {
+            var sql = AddFindSingerResult($"-- max_staleness: 10{Environment.NewLine}{Environment.NewLine}" +
+                                          $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
+                                          $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                                          $"WHERE `s`.`SingerId` = @__id_0{Environment.NewLine}LIMIT 1");
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var id = 1L;
+            await db.Singers.WithTimestampBound(TimestampBound.OfMaxStaleness(TimeSpan.FromSeconds(10))).Where(s => s.SingerId == id).FirstAsync();
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal(Duration.FromTimeSpan(TimeSpan.FromSeconds(10)), request.Transaction?.SingleUse?.ReadOnly?.MaxStaleness);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanReadWithExactStaleness()
+        {
+            var sql = AddFindSingerResult($"-- exact_staleness: 5.5{Environment.NewLine}{Environment.NewLine}" +
+                                          $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
+                                          $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                                          $"WHERE `s`.`SingerId` = @__id_0{Environment.NewLine}LIMIT 1");
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var id = 1L;
+            await db.Singers.WithTimestampBound(TimestampBound.OfExactStaleness(TimeSpan.FromSeconds(5.5))).Where(s => s.SingerId == id).FirstAsync();
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal(Duration.FromTimeSpan(TimeSpan.FromSeconds(5.5)), request.Transaction?.SingleUse?.ReadOnly?.ExactStaleness);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanReadWithMinReadTimestamp()
+        {
+            var sql = AddFindSingerResult($"-- min_read_timestamp: 2021-09-08T15:18:01.1230000Z{Environment.NewLine}{Environment.NewLine}" +
+                                          $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
+                                          $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                                          $"WHERE `s`.`SingerId` = @__id_0{Environment.NewLine}LIMIT 1");
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var id = 1L;
+            await db.Singers
+                .WithTimestampBound(TimestampBound.OfMinReadTimestamp(DateTime.Parse("2021-09-08T17:18:01.123+02:00").ToUniversalTime()))
+                .Where(s => s.SingerId == id).FirstAsync();
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal(Timestamp.FromDateTime(new DateTime(2021, 9, 8, 15, 18, 1, 123, DateTimeKind.Utc)), request.Transaction?.SingleUse?.ReadOnly?.MinReadTimestamp);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanReadWithReadTimestamp()
+        {
+            var sql = AddFindSingerResult($"-- read_timestamp: 2021-09-08T15:18:02.0000000Z{Environment.NewLine}{Environment.NewLine}" +
+                                          $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
+                                          $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                                          $"WHERE `s`.`SingerId` = @__id_0{Environment.NewLine}LIMIT 1");
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var id = 1L;
+            await db.Singers
+                .WithTimestampBound(TimestampBound.OfReadTimestamp(DateTime.Parse("2021-09-08T15:18:02Z").ToUniversalTime()))
+                .Where(s => s.SingerId == id).FirstAsync();
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal(Timestamp.FromDateTime(new DateTime(2021, 9, 8, 15, 18, 2, DateTimeKind.Utc)), request.Transaction?.SingleUse?.ReadOnly?.ReadTimestamp);
+                }
+            );
         }
 
         [Fact]

@@ -15,6 +15,7 @@
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.Spanner.Data;
+using Google.Protobuf.WellKnownTypes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
@@ -258,6 +259,58 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using var readOnlyTransactionBeforeAdd = await db.Database.BeginReadOnlyTransactionAsync(TimestampBound.OfReadTimestamp(commitTimestamp.AddMilliseconds(-1)));
             var result = await db.Venues.Where(v => v.Code == venueCode).FirstOrDefaultAsync();
             Assert.Null(result);
+        }
+
+        [Fact]
+        public async Task CanExecuteStaleRead()
+        {
+            var venueCode = _fixture.RandomString(4);
+            var venueName = _fixture.RandomString(10);
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            using var transaction = await db.Database.BeginTransactionAsync();
+
+            // Add a venue.
+            db.Venues.AddRange(new Venues
+            {
+                Code = venueCode,
+                Name = venueName,
+            });
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+            var commitTimestamp = transaction.GetCommitTimestamp();
+
+            // Try to read the venue using a single use read-only transaction with strong timestamp bound.
+            var foundVenue = await db.Venues
+                .WithTimestampBound(TimestampBound.Strong)
+                .Where(v => v.Code == venueCode).FirstOrDefaultAsync();
+            Assert.NotNull(foundVenue);
+            Assert.Equal(venueName, foundVenue.Name);
+
+            // Try to read the venue using a single use read-only transaction that reads using
+            // a timestamp before the above venue was added. It should not return any results.
+            var result = await db.Venues
+                .WithTimestampBound(TimestampBound.OfReadTimestamp(commitTimestamp.AddMilliseconds(-1)))
+                .Where(v => v.Code == venueCode).FirstOrDefaultAsync();
+            Assert.Null(result);
+            
+            // Also try to read the venue using a single use read-only transaction that reads
+            // using a max staleness. Note that this could cause a `Table not found` exception if
+            // the read timestamp that is chosen by the backend is before the table was created.
+            try
+            {
+                result = await db.Venues
+                    .WithTimestampBound(TimestampBound.OfMaxStaleness(TimeSpan.FromSeconds(1)))
+                    .Where(v => v.Code == venueCode).FirstOrDefaultAsync();
+                // The read timestamp is chosen by the backend and could be before or after the venue was created.
+                if (result != null)
+                {
+                    Assert.Equal(venueName, result.Name);
+                }
+            }
+            catch (Exception e)
+            {
+                Assert.Contains("Table not found", e.Message);
+            }
         }
 
         [SkippableFact]
