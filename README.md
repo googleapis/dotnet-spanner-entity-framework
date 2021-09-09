@@ -284,27 +284,6 @@ side Guid generator for a primary key if your table does not contain a natural p
 ## Default Values
 Cloud Spanner does not support default values for columns.
 
-# Create and publish a NuGet package locally using Visual Studio
-
-### 1. Pack your Package from the Source Code
-Open the Solution in Visual Studio, Right click on `Google.Cloud.EntityFrameworkCore.Spanner` Project and  Click on `Pack`. This will create `Google.Cloud.EntityFrameworkCore.Spanner.0.1.0.nupkg` File.
-
-### 2. Download the NuGet executable
-[Download the NuGet executable](https://www.nuget.org/downloads) and copy into your local feed (e.g. C:\local-nuget-feed).
-
-### 3. Open the command prompt
-Open the Command Prompt and go to your local feed path (e.g. C:\local-nuget-feed).
-
-### 4. Add your package into NuGet Feed
-Run the command below to add your package in NuGet Feed:<br />
-`nuget add path\to\source\Google.Cloud.EntityFrameworkCore.Spanner\bin\Debug|Release\Google.Cloud.EntityFrameworkCore.Spanner.0.1.0.nupkg -Source C:\local-nuget-feed`
-
-### 5. Add Package Source
-In Visual Studio go to `Tools --> Options --> NuGet Package Manager --> Package Sources`
-Add new Package source with Name as `Local Package` and Source as your local feed path (e.g. C:\local-nuget-feed).
-
-NOTE: To view and/or add a reference to your package in the NuGet Feed in Visual Studio (in Manage Nuget Packages), please select `Local Package` as Package source and click on `Include prerelease`.
-
 # Licensing
 
 * See [LICENSE](LICENSE)
