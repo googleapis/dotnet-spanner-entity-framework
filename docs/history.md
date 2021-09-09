@@ -1,3 +1,11 @@
+# Version 1.0.0, released 2021-09-09
+
+- [Commit baee99b](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/baee99b) feat: support single stale reads ([#120](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/120))
+- [Commit 429486c](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/429486c) fix: use build instead of revision in version ([#118](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/118))
+- [Commit 7bfb5e4](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/7bfb5e4) test: use assembly version instead of hard coded string ([#114](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/114))
+- [Commit 0c4b76a](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/0c4b76a) test: use unicode for random strings ([#115](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/115))
+- [Commit 1869689](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/1869689) test: rollback should not clear the \_abortNextStatement flag ([#110](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/110))
+
 # Version 0.2.0, released 2021-09-03
 
 - [Commit 6664d8d](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/6664d8d) test: add test to verify the use of DDL batches ([#92](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/92))
