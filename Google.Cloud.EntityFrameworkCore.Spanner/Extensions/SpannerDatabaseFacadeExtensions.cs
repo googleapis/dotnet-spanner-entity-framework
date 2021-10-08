@@ -16,6 +16,7 @@ using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using JetBrains.Annotations;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
@@ -29,6 +30,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
     /// </summary>
     public static class SpannerDatabaseFacadeExtensions
     {
+        /// <summary>
+        /// Returns the underlying SpannerConnection of this database.
+        /// </summary>
+        /// <param name="databaseFacade">The Cloud Spanner database to get the connection from</param>
+        /// <returns>The underlying SpannerConnection of the database</returns>
+        /// <throws>ArgumentException if this DatabaseFacade is not connected to Cloud Spanner</throws>
+        public static SpannerConnection GetSpannerConnection([NotNull] this DatabaseFacade databaseFacade)
+        {
+            if (!(databaseFacade.GetDbConnection() is SpannerRetriableConnection connection))
+            {
+                throw new ArgumentException("The database is not Cloud Spanner");
+            }
+            return connection.SpannerConnection;
+        }
+        
         /// <summary>
         /// Begins a read-only transaction for a Cloud Spanner database.
         /// </summary>
