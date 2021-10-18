@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-namespace Microsoft.EntityFrameworkCore.Migrations.Operations
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
+
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Operations
 {
     /// <summary>
     /// This is internal functionality and not intended for public use.

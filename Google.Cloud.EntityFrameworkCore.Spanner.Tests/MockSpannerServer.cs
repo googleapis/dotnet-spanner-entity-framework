@@ -419,8 +419,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         internal static RpcException CreateDatabaseNotFoundException(string name)
         {
             var key = ResourceInfo.Descriptor.FullName + "-bin";
-            var entry = new Metadata.Entry(key, new ResourceInfo { ResourceName = name, ResourceType = "type.googleapis.com/google.spanner.admin.database.v1.Database"}.ToByteArray());
-            var trailers = new Metadata { entry };
+            var entry = new Grpc.Core.Metadata.Entry(key, new ResourceInfo { ResourceName = name, ResourceType = "type.googleapis.com/google.spanner.admin.database.v1.Database"}.ToByteArray());
+            var trailers = new Grpc.Core.Metadata { entry };
 
             var status = new Grpc.Core.Status(StatusCode.NotFound, $"Database not found: Database with id {name} not found");
             var rpc = new RpcException(status, trailers);

@@ -14,10 +14,11 @@
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal;
 using JetBrains.Annotations;
+using Microsoft.EntityFrameworkCore.Migrations;
 using System;
 using System.Reflection;
 
-namespace Microsoft.EntityFrameworkCore.Migrations
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
 {
     /// <summary>
     ///     Spanner specific extension methods for <see cref="MigrationBuilder" />.

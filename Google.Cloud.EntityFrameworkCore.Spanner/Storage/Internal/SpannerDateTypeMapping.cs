@@ -18,7 +18,7 @@ using System;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
-    public class SpannerDateTypeMapping : RelationalTypeMapping
+    internal class SpannerDateTypeMapping : RelationalTypeMapping
     {
         private static readonly ValueConverter s_converter = new ValueConverter<SpannerDate, DateTime>(
             v => v.ToDateTime(),

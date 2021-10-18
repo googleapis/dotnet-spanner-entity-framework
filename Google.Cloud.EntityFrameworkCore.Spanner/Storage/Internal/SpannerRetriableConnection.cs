@@ -23,6 +23,7 @@ using System.Threading.Tasks;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     /// <summary>
+    /// This is internal functionality and not intended for public use.
     /// Wrapper around a SpannerConnection that can create transactions that can be
     /// retried without the need to define the transaction as a function or action.
     /// 

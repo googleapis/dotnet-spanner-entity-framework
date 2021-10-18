@@ -13,9 +13,8 @@
 // limitations under the License.
 
 using Google.Api.Gax;
-using Google.Cloud.Spanner.Admin.Database.V1;
+using Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Operations;
 using Google.Cloud.Spanner.Data;
-using Grpc.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
@@ -29,7 +28,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     /// <summary>
     /// This is internal functionality and not intended for public use.
     /// </summary>
-    public class SpannerDatabaseCreator : RelationalDatabaseCreator
+    internal class SpannerDatabaseCreator : RelationalDatabaseCreator
     {
         //Note: This creator is used for migration when the developer calls Create and Delete on a DbContext.
 

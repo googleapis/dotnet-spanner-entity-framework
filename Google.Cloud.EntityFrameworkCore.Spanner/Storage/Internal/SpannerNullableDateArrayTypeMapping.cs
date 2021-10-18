@@ -21,7 +21,7 @@ using System.Linq;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
-    public class SpannerNullableDateArrayTypeMapping : RelationalTypeMapping
+    internal class SpannerNullableDateArrayTypeMapping : RelationalTypeMapping
     {
         private static readonly ValueConverter s_converter = new ValueConverter<SpannerDate?[], DateTime?[]>(
             v => v.Select(sd => sd == null ? (DateTime?)null : sd.GetValueOrDefault().ToDateTime()).ToArray(),

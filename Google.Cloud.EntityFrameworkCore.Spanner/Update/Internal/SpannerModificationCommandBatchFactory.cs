@@ -18,7 +18,7 @@ using Microsoft.EntityFrameworkCore.Update;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 {
-    public class SpannerModificationCommandBatchFactory : IModificationCommandBatchFactory
+    internal class SpannerModificationCommandBatchFactory : IModificationCommandBatchFactory
     {
         private readonly ModificationCommandBatchFactoryDependencies _dependencies;
         private readonly IRelationalTypeMappingSource _typeMapper;

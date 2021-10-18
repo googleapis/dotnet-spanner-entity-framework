@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions.Internal;
 using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,7 +34,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.TestUtilities
         protected override void UseProviderOptions(DbContextOptionsBuilder optionsBuilder)
         {
             optionsBuilder.UseSpanner(new SpannerConnection("Data Source=projects/p1/instances/i1/databases/d1"));
+#pragma warning disable EF1001
             SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false);
+#pragma warning restore EF1001
         }
     }
 }

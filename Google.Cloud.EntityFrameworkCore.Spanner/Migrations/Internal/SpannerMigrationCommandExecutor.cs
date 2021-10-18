@@ -24,7 +24,7 @@ using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 {
-    public class SpannerMigrationCommandExecutor : IMigrationCommandExecutor
+    internal class SpannerMigrationCommandExecutor : IMigrationCommandExecutor
     {
         public void ExecuteNonQuery(IEnumerable<MigrationCommand> migrationCommands, IRelationalConnection connection)
         {

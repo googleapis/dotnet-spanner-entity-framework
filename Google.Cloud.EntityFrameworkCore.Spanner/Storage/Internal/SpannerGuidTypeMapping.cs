@@ -19,7 +19,7 @@ using System.Data;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
-    public class SpannerGuidTypeMapping : RelationalTypeMapping
+    internal class SpannerGuidTypeMapping : RelationalTypeMapping
     {
         public SpannerGuidTypeMapping(
             [NotNull] string storeType,

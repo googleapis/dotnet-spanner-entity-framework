@@ -20,6 +20,7 @@ using System.Threading.Tasks;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     /// <summary>
+    /// This is internal functionality and not intended for public use.
     /// Batch DML command that will automatically retry the underlying transaction if it is aborted by Cloud Spanner.
     /// </summary>
     public class SpannerRetriableBatchCommand

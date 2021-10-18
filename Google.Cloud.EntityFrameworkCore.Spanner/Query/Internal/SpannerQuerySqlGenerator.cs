@@ -20,7 +20,7 @@ using System.Linq.Expressions;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 {
-    public class SpannerQuerySqlGenerator : QuerySqlGenerator
+    internal class SpannerQuerySqlGenerator : QuerySqlGenerator
     {
         public SpannerQuerySqlGenerator(QuerySqlGeneratorDependencies dependencies)
             : base(dependencies)

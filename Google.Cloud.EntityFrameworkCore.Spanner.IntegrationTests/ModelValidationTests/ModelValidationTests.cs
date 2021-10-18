@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions.Internal;
 using System;
 using System.Threading.Tasks;
 using Xunit;
 
+#pragma warning disable EF1001
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.ModelValidationTests
 {
     /// <summary>
@@ -103,3 +104,4 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.ModelValidat
         }
     }
 }
+#pragma warning restore EF1001

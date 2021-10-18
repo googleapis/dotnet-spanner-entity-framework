@@ -12,21 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal;
 using Google.Cloud.Spanner.Data;
-using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data.Common;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
-    public class SpannerRelationalConnection : RelationalConnection, ISpannerRelationalConnection
+    internal class SpannerRelationalConnection : RelationalConnection, ISpannerRelationalConnection
     {
         //Note: Wraps around a SpannerConnection.  It also sets up the log bridge for ADO.NET logs
         // to be seen in EF logs and has logic to set up a connection to the "master" db -- which in the spanner

@@ -23,7 +23,7 @@ using System.Text.Json;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
-    public class SpannerJsonArrayTypeMapping : RelationalTypeMapping
+    internal class SpannerJsonArrayTypeMapping : RelationalTypeMapping
     {
         private static readonly ValueConverter s_converter = new ValueConverter<JsonDocument[], string[]>(
             v => v.Select(jd => jd == null ? null : jd.RootElement.ToString()).ToArray(),

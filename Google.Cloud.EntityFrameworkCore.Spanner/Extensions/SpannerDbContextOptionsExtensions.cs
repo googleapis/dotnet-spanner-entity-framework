@@ -13,19 +13,20 @@
 // limitations under the License.
 
 using Google.Api.Gax;
-using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Grpc.Core;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using System;
 using System.Threading;
 
-namespace Microsoft.EntityFrameworkCore
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
 {
     /// <summary>
     /// Spanner specific extension methods for <see cref="DbContextOptionsBuilder" />.
@@ -76,6 +77,7 @@ namespace Microsoft.EntityFrameworkCore
             ((IDbContextOptionsBuilderInfrastructure)optionsBuilder).AddOrUpdateExtension(extension);
 
             ConfigureWarnings(optionsBuilder);
+            optionsBuilder.AddInterceptors(TimestampBoundHintCommandInterceptor.TimestampBoundHintInterceptor);
             spannerOptionsAction?.Invoke(new SpannerDbContextOptionsBuilder(optionsBuilder));
 
             return optionsBuilder;
@@ -143,7 +145,6 @@ namespace Microsoft.EntityFrameworkCore
         /// <param name="optionsBuilder">The DbContextOptionsBuilder to configure for use with Cloud Spanner</param>
         /// <param name="connection">The connection to use to connect to Cloud Spanner</param>
         /// <param name="spannerOptionsAction">Any actions that should be executed as part of configuring the options builder for Cloud Spanner</param>
-        /// <param name="channelCredentials">An optional credential for operations to be performed on the Spanner database.</param>
         /// <returns>The optionsBuilder for chaining</returns>
         public static DbContextOptionsBuilder<TContext> UseSpanner<TContext>(
             this DbContextOptionsBuilder<TContext> optionsBuilder,

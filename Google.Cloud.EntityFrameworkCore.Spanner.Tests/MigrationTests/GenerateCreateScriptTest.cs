@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models;
 using Grpc.Core;
@@ -39,7 +40,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
             if (!optionsBuilder.IsConfigured)
             {
                 optionsBuilder
+#pragma warning disable EF1001
                     .UseSpanner(_connectionString, _ => SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false), ChannelCredentials.Insecure)
+#pragma warning restore EF1001
                     .UseMutations(MutationUsage.Never)
                     .UseLazyLoadingProxies();
             }

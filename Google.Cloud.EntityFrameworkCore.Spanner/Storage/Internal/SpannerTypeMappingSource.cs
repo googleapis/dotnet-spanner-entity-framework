@@ -23,6 +23,9 @@ using System.Text.RegularExpressions;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
+    /// <summary>
+    /// This is internal functionality and not intended for public use.
+    /// </summary>
     public class SpannerTypeMappingSource : RelationalTypeMappingSource
     {
         internal const int StringMax = 2621440;
