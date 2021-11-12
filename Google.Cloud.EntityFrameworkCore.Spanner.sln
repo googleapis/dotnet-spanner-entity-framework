@@ -17,6 +17,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Google.Cloud.NHibernate.Spa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Google.Cloud.NHibernate.Spanner.Tests", "Google.Cloud.NHibernate.Spanner.Tests\Google.Cloud.NHibernate.Spanner.Tests.csproj", "{645E6B01-88C5-49D5-8C28-AE1B623DBA29}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Google.Cloud.NHibernate.Spanner.IntegrationTests", "Google.Cloud.NHibernate.Spanner.IntegrationTests\Google.Cloud.NHibernate.Spanner.IntegrationTests.csproj", "{25931DD6-FB7A-491F-AF90-A9061BF3F1B3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Google.Cloud.Spanner.Connection", "Google.Cloud.Spanner.Connection\Google.Cloud.Spanner.Connection.csproj", "{B251184C-7FE3-4CC0-ADD4-AF2D9C8594B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Google.Cloud.Spanner.Connection.Tests", "Google.Cloud.Spanner.Connection.Tests\Google.Cloud.Spanner.Connection.Tests.csproj", "{AA2E1753-D71E-40F9-AB2C-824CB80E684E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Google.Cloud.Spanner.Data", "..\google-cloud-dotnet\apis\Google.Cloud.Spanner.Data\Google.Cloud.Spanner.Data\Google.Cloud.Spanner.Data.csproj", "{6A842611-F7EE-43C7-945D-E6AF540BFE28}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,6 +59,22 @@ Global
 		{645E6B01-88C5-49D5-8C28-AE1B623DBA29}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{645E6B01-88C5-49D5-8C28-AE1B623DBA29}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{645E6B01-88C5-49D5-8C28-AE1B623DBA29}.Release|Any CPU.Build.0 = Release|Any CPU
+		{25931DD6-FB7A-491F-AF90-A9061BF3F1B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{25931DD6-FB7A-491F-AF90-A9061BF3F1B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{25931DD6-FB7A-491F-AF90-A9061BF3F1B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{25931DD6-FB7A-491F-AF90-A9061BF3F1B3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B251184C-7FE3-4CC0-ADD4-AF2D9C8594B0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B251184C-7FE3-4CC0-ADD4-AF2D9C8594B0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B251184C-7FE3-4CC0-ADD4-AF2D9C8594B0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B251184C-7FE3-4CC0-ADD4-AF2D9C8594B0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA2E1753-D71E-40F9-AB2C-824CB80E684E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AA2E1753-D71E-40F9-AB2C-824CB80E684E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA2E1753-D71E-40F9-AB2C-824CB80E684E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AA2E1753-D71E-40F9-AB2C-824CB80E684E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6A842611-F7EE-43C7-945D-E6AF540BFE28}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6A842611-F7EE-43C7-945D-E6AF540BFE28}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6A842611-F7EE-43C7-945D-E6AF540BFE28}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6A842611-F7EE-43C7-945D-E6AF540BFE28}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

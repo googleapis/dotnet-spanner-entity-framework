@@ -1,4 +1,3 @@
-using NHibernate.Driver;
 using NHibernate.Mapping.ByCode;
 using NHibernate.Mapping.ByCode.Conformist;
 
@@ -11,6 +10,12 @@ namespace Google.Cloud.NHibernate.Spanner.Tests.Entities
         public virtual string FirstName { get; set; }
         
         public virtual string LastName { get; set; }
+        
+        public virtual string FullName { get; set; }
+        
+        public virtual SpannerDate BirthDate { get; set; }
+        
+        public virtual object Picture { get; set; }
     }
 
     public class SingerMap : ClassMapping<Singer>
@@ -20,6 +25,9 @@ namespace Google.Cloud.NHibernate.Spanner.Tests.Entities
             Id(x => x.SingerId);
             Property(x => x.FirstName);
             Property(x => x.LastName);
+            Property(x => x.FullName, mapper => mapper.Generated(PropertyGeneration.Always));
+            Property(x => x.BirthDate);
+            // Property(x => x.Picture);
         }
     }
 }

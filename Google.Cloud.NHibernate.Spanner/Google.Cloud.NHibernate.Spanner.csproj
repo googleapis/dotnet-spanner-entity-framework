@@ -5,8 +5,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Google.Cloud.Spanner.Data" Version="3.12.0" />
       <PackageReference Include="NHibernate" Version="5.3.9" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Google.Cloud.Spanner.Connection\Google.Cloud.Spanner.Connection.csproj" />
     </ItemGroup>
 
 </Project>

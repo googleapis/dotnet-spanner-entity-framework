@@ -1,7 +1,9 @@
 ﻿
+using Google.Cloud.Spanner.Connection;
 using Google.Cloud.Spanner.Data;
 using NHibernate.AdoNet;
 using NHibernate.Driver;
+using System.Data;
 using System.Data.Common;
 
 namespace Google.Cloud.NHibernate.Spanner
@@ -17,10 +19,7 @@ namespace Google.Cloud.NHibernate.Spanner
             return new SpannerConnection();
         }
 
-        public override DbCommand CreateCommand()
-        {
-            return new SpannerCommand();
-        }
+        public override DbCommand CreateCommand() => new SpannerRetriableCommand(new SpannerCommand());
 
         public override bool UseNamedPrefixInSql => true;
         public override bool UseNamedPrefixInParameter => false;
