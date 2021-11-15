@@ -113,9 +113,9 @@ namespace Google.Cloud.Spanner.Connection
                 return _transaction.ExecuteDbDataReaderWithRetry(_spannerCommand);
             }
             // These don't need retry protection as the ephemeral transaction used by the client library is a read-only transaction.
-            if (TimestampBound != null)
+            if (TimestampBound != null || _connection.ReadOnlyStaleness != null && _connection.ReadOnlyStaleness.Mode != TimestampBoundMode.Strong)
             {
-                return _spannerCommand.ExecuteReaderAsync(TimestampBound)
+                return _spannerCommand.ExecuteReaderAsync(TimestampBound ?? _connection.ReadOnlyStaleness)
                     .ResultWithUnwrappedExceptions();
             }
             return _spannerCommand.ExecuteReader();

@@ -22,6 +22,8 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Transactions;
 using Xunit;
@@ -242,7 +244,8 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
             var sql = AddSingerResult(GetSelectSingerSql());
             using var session = _fixture.SessionFactory.OpenSession();
             using var connection = session.Connection as SpannerRetriableConnection;
-            connection!.ReadOnlyStaleness = TimestampBound.Strong;
+            connection!.CreateReadOnlyTransactionForSnapshot = true;
+            connection.ReadOnlyStaleness = TimestampBound.Strong;
 
             var transaction = session.BeginTransaction(IsolationLevel.Snapshot);
             var singer = await session.GetAsync<Singer>(1L);
@@ -304,9 +307,279 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
-                    // Assert.Equal(Duration.FromTimeSpan(TimeSpan.FromSeconds(10)), request.Transaction?.SingleUse?.ReadOnly?.MaxStaleness);
+                    Assert.Equal(Duration.FromTimeSpan(TimeSpan.FromSeconds(10)), request.Transaction?.SingleUse?.ReadOnly?.MaxStaleness);
                 }
             );
+        }
+
+        [Fact]
+        public async Task CanReadWithExactStaleness()
+        {
+            var sql = AddSingerResult(GetSelectSingerSql());
+            using var session = _fixture.SessionFactory.OpenSession();
+            using var connection = session.Connection as SpannerRetriableConnection;
+            connection!.ReadOnlyStaleness = TimestampBound.OfExactStaleness(TimeSpan.FromSeconds(5.5));
+            await session.GetAsync<Singer>(1L);
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<V1.ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal(Duration.FromTimeSpan(TimeSpan.FromSeconds(5.5)), request.Transaction?.SingleUse?.ReadOnly?.ExactStaleness);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanReadWithMinReadTimestamp()
+        {
+            var sql = AddSingerResult(GetSelectSingerSql());
+            using var session = _fixture.SessionFactory.OpenSession();
+            using var connection = session.Connection as SpannerRetriableConnection;
+            connection!.ReadOnlyStaleness = TimestampBound.OfMinReadTimestamp(DateTime.Parse("2021-09-08T17:18:01.123+02:00").ToUniversalTime());
+            await session.GetAsync<Singer>(1L);
+            
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<V1.ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal(Timestamp.FromDateTime(new DateTime(2021, 9, 8, 15, 18, 1, 123, DateTimeKind.Utc)), request.Transaction?.SingleUse?.ReadOnly?.MinReadTimestamp);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanReadWithReadTimestamp()
+        {
+            var sql = AddSingerResult(GetSelectSingerSql());
+            using var session = _fixture.SessionFactory.OpenSession();
+            using var connection = session.Connection as SpannerRetriableConnection;
+            connection!.ReadOnlyStaleness = TimestampBound.OfReadTimestamp(DateTime.Parse("2021-09-08T15:18:02Z").ToUniversalTime());
+            await session.GetAsync<Singer>(1L);
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<V1.ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal(Timestamp.FromDateTime(new DateTime(2021, 9, 8, 15, 18, 2, DateTimeKind.Utc)), request.Transaction?.SingleUse?.ReadOnly?.ReadTimestamp);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task InsertUsingRawSqlReturnsUpdateCountWithoutAdditionalSelectCommand()
+        {
+            using var session = _fixture.SessionFactory.OpenSession();
+            var today = SpannerDate.FromDateTime(DateTime.SpecifyKind(DateTime.Today, DateTimeKind.Unspecified));
+            var now = DateTime.UtcNow;
+            var id = 1L;
+            var rawSql = @"INSERT INTO `TableWithAllColumnTypes` 
+                              (`ColBool`, `ColBoolArray`, `ColBytes`, `ColBytesMax`, `ColBytesArray`, `ColBytesMaxArray`,
+                               `ColDate`, `ColDateArray`, `ColFloat64`, `ColFloat64Array`, `ColInt64`, `ColInt64Array`,
+                               `ColNumeric`, `ColNumericArray`, `ColString`, `ColStringArray`, `ColStringMax`, `ColStringMaxArray`,
+                               `ColTimestamp`, `ColTimestampArray`, `ColJson`, `ColJsonArray`)
+                              VALUES
+                              (:ColBool, :ColBoolArray, :ColBytes, :ColBytesMax, :ColBytesArray, :ColBytesMaxArray,
+                               :ColDate, :ColDateArray, :ColFloat64, :ColFloat64Array, :ColInt64, :ColInt64Array,
+                               :ColNumeric, :ColNumericArray, :ColString, :ColStringArray, :ColStringMax, :ColStringMaxArray,
+                               :ColTimestamp, :ColTimestampArray, :ColJson, :ColJsonArray)";
+            var translatedSql = @"INSERT INTO `TableWithAllColumnTypes` 
+                              (`ColBool`, `ColBoolArray`, `ColBytes`, `ColBytesMax`, `ColBytesArray`, `ColBytesMaxArray`,
+                               `ColDate`, `ColDateArray`, `ColFloat64`, `ColFloat64Array`, `ColInt64`, `ColInt64Array`,
+                               `ColNumeric`, `ColNumericArray`, `ColString`, `ColStringArray`, `ColStringMax`, `ColStringMaxArray`,
+                               `ColTimestamp`, `ColTimestampArray`, `ColJson`, `ColJsonArray`)
+                              VALUES
+                              (@p0, @p1, @p2, @p3, @p4, @p5,
+                               @p6, @p7, @p8, @p9, @p10, @p11,
+                               @p12, @p13, @p14, @p15, @p16, @p17,
+                               @p18, @p19, @p20, @p21)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(translatedSql, StatementResult.CreateUpdateCount(1L));
+
+            var row = new TableWithAllColumnTypes
+            {
+                ColBool = true,
+                ColBoolArray = new SpannerBoolArray(new List<bool?> { true, false, true }),
+                ColBytes = new byte[] { 1, 2, 3 },
+                ColBytesMax = Encoding.UTF8.GetBytes("This is a long string"),
+                ColBytesArray = new SpannerBytesArray(new List<byte[]> { new byte[] { 3, 2, 1 }, new byte[] { }, new byte[] { 4, 5, 6 } }),
+                ColBytesMaxArray = new SpannerBytesArray(new List<byte[]> { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2"), Encoding.UTF8.GetBytes("string 3") }),
+                ColDate = new SpannerDate(2020, 12, 28),
+                ColDateArray = new SpannerDateArray(new List<DateTime?> { new DateTime(2020, 12, 28), new DateTime(2010, 1, 1), today.ToDateTime() }),
+                ColFloat64 = 3.14D,
+                ColFloat64Array = new SpannerFloat64Array(new List<double?> { 3.14D, 6.626D }),
+                ColInt64 = id,
+                ColInt64Array = new SpannerInt64Array(new List<long?> { 1L, 2L, 4L, 8L }),
+                ColNumeric = new SpannerNumeric((V1.SpannerNumeric)3.14m),
+                ColNumericArray = new SpannerNumericArray(new List<V1.SpannerNumeric?> { (V1.SpannerNumeric)3.14m, (V1.SpannerNumeric)6.626m }),
+                ColString = "some string",
+                ColStringArray = new SpannerStringArray(new List<string> { "string1", "string2", "string3" }),
+                ColStringMax = "some longer string",
+                ColStringMaxArray = new SpannerStringArray(new List<string> { "longer string1", "longer string2", "longer string3" }),
+                ColTimestamp = new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288),
+                ColTimestampArray = new SpannerTimestampArray(new List<DateTime?> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now }),
+                ColJson = new SpannerJson("{\"key1\": \"value1\", \"key2\": \"value2\"}"),
+                ColJsonArray = new SpannerJsonArray(new List<string>{ "{\"key1\": \"value1\", \"key2\": \"value2\"}", "{\"key1\": \"value3\", \"key2\": \"value4\"}" }),
+            };
+            var statement = session.CreateSQLQuery(rawSql);
+            statement.SetParameter("ColBool", row.ColBool);
+            statement.SetParameter("ColBoolArray", row.ColBoolArray);
+            statement.SetParameter("ColBytes", row.ColBytes);
+            statement.SetParameter("ColBytesMax", row.ColBytesMax);
+            statement.SetParameter("ColBytesArray", row.ColBytesArray);
+            statement.SetParameter("ColBytesMaxArray", row.ColBytesMaxArray);
+            statement.SetParameter("ColDate", row.ColDate);
+            statement.SetParameter("ColDateArray", row.ColDateArray);
+            statement.SetParameter("ColFloat64", row.ColFloat64);
+            statement.SetParameter("ColFloat64Array", row.ColFloat64Array);
+            statement.SetParameter("ColInt64", row.ColInt64);
+            statement.SetParameter("ColInt64Array", row.ColInt64Array);
+            statement.SetParameter("ColNumeric", row.ColNumeric);
+            statement.SetParameter("ColNumericArray", row.ColNumericArray);
+            statement.SetParameter("ColString", row.ColString);
+            statement.SetParameter("ColStringArray", row.ColStringArray);
+            statement.SetParameter("ColStringMax", row.ColStringMax);
+            statement.SetParameter("ColStringMaxArray", row.ColStringMaxArray);
+            statement.SetParameter("ColTimestamp", row.ColTimestamp.Value);
+            statement.SetParameter("ColTimestampArray", row.ColTimestampArray);
+            statement.SetParameter("ColJson", row.ColJson);
+            statement.SetParameter("ColJsonArray", row.ColJsonArray);
+
+            var updateCount = await statement.ExecuteUpdateAsync();
+
+            Assert.Equal(1, updateCount);
+            // Verify that the INSERT statement is the only one on the mock server.
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.Where(r => r is V1.ExecuteSqlRequest sqlRequest).Select(r => r as V1.ExecuteSqlRequest),
+                request =>
+                {
+                    Assert.Equal(translatedSql, request.Sql);
+                    Assert.Collection(request.ParamTypes,
+                        paramType =>
+                        {
+                            Assert.Equal("p0", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Bool, paramType.Value.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p1", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Array, paramType.Value.Code);
+                            Assert.Equal(V1.TypeCode.Bool, paramType.Value.ArrayElementType.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p2", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Bytes, paramType.Value.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p3", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Bytes, paramType.Value.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p4", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Array, paramType.Value.Code);
+                            Assert.Equal(V1.TypeCode.Bytes, paramType.Value.ArrayElementType.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p5", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Array, paramType.Value.Code);
+                            Assert.Equal(V1.TypeCode.Bytes, paramType.Value.ArrayElementType.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p6", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Date, paramType.Value.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p7", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Array, paramType.Value.Code);
+                            Assert.Equal(V1.TypeCode.Date, paramType.Value.ArrayElementType.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p8", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Float64, paramType.Value.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p9", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Array, paramType.Value.Code);
+                            Assert.Equal(V1.TypeCode.Float64, paramType.Value.ArrayElementType.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p10", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Int64, paramType.Value.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p11", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Array, paramType.Value.Code);
+                            Assert.Equal(V1.TypeCode.Int64, paramType.Value.ArrayElementType.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p12", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Numeric, paramType.Value.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p13", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Array, paramType.Value.Code);
+                            Assert.Equal(V1.TypeCode.Numeric, paramType.Value.ArrayElementType.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p14", paramType.Key);
+                            Assert.Equal(V1.TypeCode.String, paramType.Value.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p15", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Array, paramType.Value.Code);
+                            Assert.Equal(V1.TypeCode.String, paramType.Value.ArrayElementType.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p16", paramType.Key);
+                            Assert.Equal(V1.TypeCode.String, paramType.Value.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p17", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Array, paramType.Value.Code);
+                            Assert.Equal(V1.TypeCode.String, paramType.Value.ArrayElementType.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p18", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Timestamp, paramType.Value.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p19", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Array, paramType.Value.Code);
+                            Assert.Equal(V1.TypeCode.Timestamp, paramType.Value.ArrayElementType.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p20", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Json, paramType.Value.Code);
+                        },
+                        paramType =>
+                        {
+                            Assert.Equal("p21", paramType.Key);
+                            Assert.Equal(V1.TypeCode.Array, paramType.Value.Code);
+                            Assert.Equal(V1.TypeCode.Json, paramType.Value.ArrayElementType.Code);
+                        }
+                    );
+                });
         }
 
         [SkippableFact]

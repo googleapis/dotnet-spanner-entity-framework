@@ -16,13 +16,13 @@ namespace Google.Cloud.NHibernate.Spanner
 
         public override DbConnection CreateConnection()
         {
-            return new SpannerConnection();
+            return new SpannerRetriableConnection(new SpannerConnection());
         }
 
         public override DbCommand CreateCommand() => new SpannerRetriableCommand(new SpannerCommand());
 
         public override bool UseNamedPrefixInSql => true;
-        public override bool UseNamedPrefixInParameter => false;
+        public override bool UseNamedPrefixInParameter => true;
         public override string NamedPrefix => "@";
         public System.Type BatcherFactoryClass => typeof(GenericBatchingBatcherFactory);
     }

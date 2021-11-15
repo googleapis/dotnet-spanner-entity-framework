@@ -18,9 +18,9 @@ namespace Google.Cloud.NHibernate.Spanner.Tests.Entities
         public virtual object Picture { get; set; }
     }
 
-    public class SingerMap : ClassMapping<Singer>
+    public class SingerMapping : ClassMapping<Singer>
     {
-        public SingerMap()
+        public SingerMapping()
         {
             Id(x => x.SingerId);
             Property(x => x.FirstName);
