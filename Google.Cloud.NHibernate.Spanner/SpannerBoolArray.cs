@@ -39,8 +39,14 @@ namespace Google.Cloud.NHibernate.Spanner
         public override object NullSafeGet(DbDataReader rs, string[] names, ISessionImplementor session, object owner) => 
             rs.IsDBNull(names[0]) ? null : new SpannerBoolArray(rs.GetFieldValue<List<bool?>>(names[0]));
 
-        public override object DeepCopy(object value) =>
-            new SpannerBoolArray(new List<bool?>(Array));
+        public override object DeepCopy(object value)
+        {
+            if (value is SpannerBoolArray s)
+            {
+                return new SpannerBoolArray(s.Array == null ? null : new List<bool?>(s.Array));
+            }
+            return new SpannerBoolArray();
+        }
 
         protected override SpannerDbType GetArrayElementType() => SpannerDbType.Bool;
     }

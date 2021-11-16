@@ -39,7 +39,7 @@ namespace Google.Cloud.NHibernate.Spanner
             Json = json;
         }
 
-        public SqlType[] SqlTypes => new[] { new SqlType(DbType.String) };
+        public SqlType[] SqlTypes => new[] { new SpannerSqlType(SpannerDbType.Json) };
         public System.Type ReturnedType => typeof(SpannerJson);
         public bool IsMutable => false;
 

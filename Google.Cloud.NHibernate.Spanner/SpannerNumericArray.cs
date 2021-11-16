@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
+using System.Runtime.Intrinsics;
 
 namespace Google.Cloud.NHibernate.Spanner
 {
@@ -41,8 +42,14 @@ namespace Google.Cloud.NHibernate.Spanner
             rs.IsDBNull(names[0]) ? null : new SpannerNumericArray(
                 rs.GetFieldValue<List<Cloud.Spanner.V1.SpannerNumeric?>>(names[0]));
 
-        public override object DeepCopy(object value) =>
-            new SpannerNumericArray(new List<Cloud.Spanner.V1.SpannerNumeric?>(Array));
+        public override object DeepCopy(object value)
+        {
+            if (value is SpannerNumericArray s)
+            {
+                return new SpannerNumericArray(s.Array == null ? null : new List<Cloud.Spanner.V1.SpannerNumeric?>(s.Array));
+            }
+            return new SpannerNumericArray();
+        }
 
         protected override SpannerDbType GetArrayElementType() => SpannerDbType.Numeric;
     }

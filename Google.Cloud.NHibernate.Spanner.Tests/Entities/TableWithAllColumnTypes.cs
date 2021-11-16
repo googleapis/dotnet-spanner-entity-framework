@@ -23,31 +23,31 @@ namespace Google.Cloud.NHibernate.Spanner.Tests.Entities
 {
     public class TableWithAllColumnTypes
     {
-        public long ColInt64 { get; set; }
-        public double? ColFloat64 { get; set; }
-        public SpannerNumeric ColNumeric { get; set; }
-        public bool? ColBool { get; set; }
-        public string ColString { get; set; }
-        public string ColStringMax { get; set; }
-        public byte[] ColBytes { get; set; }
-        public byte[] ColBytesMax { get; set; }
-        public SpannerDate ColDate { get; set; }
-        public DateTime? ColTimestamp { get; set; }
-        public SpannerJson ColJson { get; set; }
-        public DateTime? ColCommitTs { get; set; }
-        public SpannerInt64Array ColInt64Array { get; set; }
-        public SpannerFloat64Array ColFloat64Array { get; set; }
-        public SpannerNumericArray ColNumericArray { get; set; }
-        public SpannerBoolArray ColBoolArray { get; set; }
-        public SpannerStringArray ColStringArray { get; set; }
-        public SpannerStringArray ColStringMaxArray { get; set; }
-        public SpannerBytesArray ColBytesArray { get; set; }
-        public SpannerBytesArray ColBytesMaxArray { get; set; }
-        public SpannerDateArray ColDateArray { get; set; }
-        public SpannerTimestampArray ColTimestampArray { get; set; }
-        public SpannerJsonArray ColJsonArray { get; set; }
-        public string ColComputed { get; set; }
-        public string ASC { get; set; }
+        public virtual long ColInt64 { get; set; }
+        public virtual double? ColFloat64 { get; set; }
+        public virtual SpannerNumeric ColNumeric { get; set; }
+        public virtual bool? ColBool { get; set; }
+        public virtual string ColString { get; set; }
+        public virtual string ColStringMax { get; set; }
+        public virtual byte[] ColBytes { get; set; }
+        public virtual byte[] ColBytesMax { get; set; }
+        public virtual SpannerDate ColDate { get; set; }
+        public virtual DateTime? ColTimestamp { get; set; }
+        public virtual SpannerJson ColJson { get; set; }
+        public virtual DateTime? ColCommitTs { get; set; }
+        public virtual SpannerInt64Array ColInt64Array { get; set; }
+        public virtual SpannerFloat64Array ColFloat64Array { get; set; }
+        public virtual SpannerNumericArray ColNumericArray { get; set; }
+        public virtual SpannerBoolArray ColBoolArray { get; set; }
+        public virtual SpannerStringArray ColStringArray { get; set; }
+        public virtual SpannerStringArray ColStringMaxArray { get; set; }
+        public virtual SpannerBytesArray ColBytesArray { get; set; }
+        public virtual SpannerBytesArray ColBytesMaxArray { get; set; }
+        public virtual SpannerDateArray ColDateArray { get; set; }
+        public virtual SpannerTimestampArray ColTimestampArray { get; set; }
+        public virtual SpannerJsonArray ColJsonArray { get; set; }
+        public virtual string ColComputed { get; set; }
+        public virtual string ASC { get; set; }
     }
 
     public class TableWithAllColumnTypesMapping : ClassMapping<TableWithAllColumnTypes>

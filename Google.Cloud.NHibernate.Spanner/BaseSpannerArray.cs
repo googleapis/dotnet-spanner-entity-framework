@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using Google.Api.Gax;
 using Google.Cloud.Spanner.Data;
 using NHibernate.Engine;
 using NHibernate.SqlTypes;
@@ -21,6 +20,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Linq;
 
 namespace Google.Cloud.NHibernate.Spanner
 {
@@ -28,7 +28,7 @@ namespace Google.Cloud.NHibernate.Spanner
     /// A wrapper around a List that implements the NHibernate IUserType interface.
     /// Use this type for ARRAY<?> columns.
     /// </summary>
-    public abstract class BaseSpannerArray<T> : IUserType, IEquatable<BaseSpannerArray<T>>
+    public abstract class BaseSpannerArray<T> : IUserType, IEquatable<BaseSpannerArray<T>>, ISpannerType
     {
         public List<T> Array { get; }
 
@@ -38,22 +38,55 @@ namespace Google.Cloud.NHibernate.Spanner
 
         public BaseSpannerArray(List<T> array)
         {
-            Array = GaxPreconditions.CheckNotNull(array, nameof(array));
+            Array = array;
         }
 
-        public SqlType[] SqlTypes => new[] { new SqlType(DbType.Object) };
+        public SqlType[] SqlTypes => new[] { new SpannerSqlType(GetSpannerDbType()) };
         public abstract System.Type ReturnedType { get; }
         public bool IsMutable => false;
 
-        public override bool Equals(object other) => (other is BaseSpannerArray<T> bsa) && Equals(bsa);
+        public override bool Equals(object other)
+        {
+            if (other is BaseSpannerArray<T> otherArray)
+            {
+                return Equals(otherArray);
+            }
+            return false;
+        }
 
-        public bool Equals(BaseSpannerArray<T> other) => object.Equals(Array, other?.Array);
+        public bool Equals(BaseSpannerArray<T> other)
+        {
+            if (other == null)
+            {
+                return false;
+            }
+            if (Array == null && other.Array == null)
+            {
+                return true;
+            }
+            if (Array == null || other.Array == null)
+            {
+                return false;
+            }
+            return Array.SequenceEqual(other.Array);
+        }
+
+        bool IUserType.Equals(object x, object y)
+        {
+            if (x == null && y == null)
+            {
+                return true;
+            }
+            if (x is BaseSpannerArray<T> arrayX && y is BaseSpannerArray<T> arrayY)
+            {
+                return arrayX.Equals(arrayY);
+            }
+            return false;
+        }
 
         public override int GetHashCode() => Array.GetHashCode();
 
         public override string ToString() => Array.ToString();
-
-        public new bool Equals(object x, object y) => object.Equals(x, y);
 
         public int GetHashCode(object x) => x?.GetHashCode() ?? 0;
         
@@ -61,11 +94,13 @@ namespace Google.Cloud.NHibernate.Spanner
 
         protected abstract SpannerDbType GetArrayElementType();
 
+        public SpannerDbType GetSpannerDbType() => SpannerDbType.ArrayOf(GetArrayElementType());
+
         public void NullSafeSet(DbCommand cmd, object value, int index, ISessionImplementor session)
         {
             if (cmd.Parameters[index] is SpannerParameter spannerParameter)
             {
-                spannerParameter.SpannerDbType = SpannerDbType.ArrayOf(GetArrayElementType());
+                spannerParameter.SpannerDbType = GetSpannerDbType();
                 if (value is BaseSpannerArray<T> bsa)
                 {
                     spannerParameter.Value = bsa.Array;
