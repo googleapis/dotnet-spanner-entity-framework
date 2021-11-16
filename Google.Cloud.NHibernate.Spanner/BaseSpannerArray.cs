@@ -51,6 +51,10 @@ namespace Google.Cloud.NHibernate.Spanner
             {
                 return Equals(otherArray);
             }
+            if (other == null)
+            {
+                return Array == null;
+            }
             return false;
         }
 
@@ -58,7 +62,7 @@ namespace Google.Cloud.NHibernate.Spanner
         {
             if (other == null)
             {
-                return false;
+                return Array == null;
             }
             if (Array == null && other.Array == null)
             {
@@ -80,6 +84,14 @@ namespace Google.Cloud.NHibernate.Spanner
             if (x is BaseSpannerArray<T> arrayX && y is BaseSpannerArray<T> arrayY)
             {
                 return arrayX.Equals(arrayY);
+            }
+            if (x is BaseSpannerArray<T> {Array: null} && y == null)
+            {
+                return true;
+            }
+            if (y is BaseSpannerArray<T> {Array: null} && x == null)
+            {
+                return true;
             }
             return false;
         }

@@ -45,13 +45,13 @@ namespace Google.Cloud.NHibernate.Spanner
 
         public override bool Equals(object other) => (other is SpannerNumeric sn) && Equals(sn);
 
-        public bool Equals(SpannerNumeric other) => object.Equals(Value, other?.Value);
+        public bool Equals(SpannerNumeric other) => Equals(Value, other?.Value);
 
         public override int GetHashCode() => Value.GetHashCode();
 
         public override string ToString() => Value.ToString();
 
-        public new bool Equals(object x, object y) => object.Equals(x, y);
+        bool IUserType.Equals(object x, object y) => Equals(x, y);
 
         public int GetHashCode(object x) => x?.GetHashCode() ?? 0;
 

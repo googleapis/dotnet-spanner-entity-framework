@@ -67,7 +67,27 @@ namespace Google.Cloud.NHibernate.Spanner
 
         public override bool Equals(object other) => (other is SpannerDate sd) && Equals(sd);
 
-        public bool Equals(SpannerDate other) => Year == other.Year && Month == other.Month && Day == other.Day;
+        public bool Equals(SpannerDate other)
+        {
+            if (other == null)
+            {
+                return false;
+            }
+            return Year == other.Year && Month == other.Month && Day == other.Day;
+        }
+
+        bool IUserType.Equals(object x, object y)
+        {
+            if (x == null && y == null)
+            {
+                return true;
+            }
+            if (x is SpannerDate dateX && y is SpannerDate dateY)
+            {
+                return dateX.Equals(dateY);
+            }
+            return false;
+        }
 
         public int CompareTo(SpannerDate other)
         {
@@ -75,18 +95,6 @@ namespace Google.Cloud.NHibernate.Spanner
             if (Month != other.Month) return Month.CompareTo(other.Month);
             return Day.CompareTo(other.Day);
         }
-
-        public static bool operator ==(SpannerDate lhs, SpannerDate rhs) => lhs.Equals(rhs);
-
-        public static bool operator !=(SpannerDate lhs, SpannerDate rhs) => !lhs.Equals(rhs);
-
-        public static bool operator >(SpannerDate lhs, SpannerDate rhs) => lhs.CompareTo(rhs) > 0;
-
-        public static bool operator <(SpannerDate lhs, SpannerDate rhs) => lhs.CompareTo(rhs) < 0;
-
-        public static bool operator >=(SpannerDate lhs, SpannerDate rhs) => lhs.CompareTo(rhs) >= 0;
-
-        public static bool operator <=(SpannerDate lhs, SpannerDate rhs) => lhs.CompareTo(rhs) <= 0;
 
         public override int GetHashCode() => (Year, Month, Day).GetHashCode();
 
@@ -130,8 +138,6 @@ namespace Google.Cloud.NHibernate.Spanner
         public uint ToUInt32(IFormatProvider provider) => throw new InvalidCastException();
 
         public ulong ToUInt64(IFormatProvider provider) => throw new InvalidCastException();
-
-        public new bool Equals(object x, object y) => object.Equals(x, y);
 
         public int GetHashCode(object x) => x?.GetHashCode() ?? 0;
 

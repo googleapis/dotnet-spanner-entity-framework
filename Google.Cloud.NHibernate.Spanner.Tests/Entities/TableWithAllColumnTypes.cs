@@ -17,6 +17,7 @@ using NHibernate.Mapping.ByCode;
 using NHibernate.Mapping.ByCode.Conformist;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 
 namespace Google.Cloud.NHibernate.Spanner.Tests.Entities
@@ -48,6 +49,39 @@ namespace Google.Cloud.NHibernate.Spanner.Tests.Entities
         public virtual SpannerJsonArray ColJsonArray { get; set; }
         public virtual string ColComputed { get; set; }
         public virtual string ASC { get; set; }
+
+        public override bool Equals(object other)
+        {
+            if (other is TableWithAllColumnTypes o)
+            {
+                return Equals(ColInt64, o.ColInt64)
+                       && Equals(ColFloat64, o.ColFloat64)
+                       && Equals(ColNumeric, o.ColNumeric)
+                       && Equals(ColBool, o.ColBool)
+                       && Equals(ColString, o.ColString)
+                       && Equals(ColStringMax, o.ColStringMax)
+                       && Equals(ColBytes, o.ColBytes)
+                       && Equals(ColBytesMax, o.ColBytesMax)
+                       && Equals(ColDate, o.ColDate)
+                       && Equals(ColTimestamp, o.ColTimestamp)
+                       && Equals(ColJson, o.ColJson)
+                       && Equals(ColCommitTs, o.ColCommitTs)
+                       && Equals(ColComputed, o.ColComputed)
+                       && Equals(ColInt64Array?.Array, o.ColInt64Array?.Array) || ColInt64Array != null && o.ColInt64Array != null && ColInt64Array.Array.SequenceEqual(o.ColInt64Array.Array)
+                       && Equals(ColFloat64Array?.Array, o.ColFloat64Array?.Array) || ColFloat64Array != null && o.ColFloat64Array != null && ColFloat64Array.Array.SequenceEqual(o.ColFloat64Array.Array)
+                       && Equals(ColNumericArray?.Array, o.ColNumericArray?.Array) || ColNumericArray != null && o.ColNumericArray != null && ColNumericArray.Array.SequenceEqual(o.ColNumericArray.Array)
+                       && Equals(ColBoolArray?.Array, o.ColBoolArray?.Array) || ColBoolArray != null && o.ColBoolArray != null && ColBoolArray.Array.SequenceEqual(o.ColBoolArray.Array)
+                       && Equals(ColStringArray?.Array, o.ColStringArray?.Array) || ColStringArray != null && o.ColStringArray != null && ColStringArray.Array.SequenceEqual(o.ColStringArray.Array)
+                       && Equals(ColStringMaxArray?.Array, o.ColStringMaxArray?.Array) || ColStringMaxArray != null && o.ColStringMaxArray != null && ColStringMaxArray.Array.SequenceEqual(o.ColStringMaxArray.Array)
+                       && Equals(ColBytesArray?.Array, o.ColBytesArray?.Array) || ColBytesArray != null && o.ColBytesArray != null && ColBytesArray.Array.SequenceEqual(o.ColBytesArray.Array)
+                       && Equals(ColBytesMaxArray?.Array, o.ColBytesMaxArray?.Array) || ColBytesMaxArray != null && o.ColBytesMaxArray != null && ColBytesMaxArray.Array.SequenceEqual(o.ColBytesMaxArray.Array)
+                       && Equals(ColDateArray?.Array, o.ColDateArray?.Array) || ColDateArray != null && o.ColDateArray != null && ColDateArray.Array.SequenceEqual(o.ColDateArray.Array)
+                       && Equals(ColTimestampArray?.Array, o.ColTimestampArray?.Array) || ColTimestampArray != null && o.ColTimestampArray != null && ColTimestampArray.Array.SequenceEqual(o.ColTimestampArray.Array)
+                       && Equals(ColJsonArray?.Array, o.ColJsonArray?.Array) || ColJsonArray != null && o.ColJsonArray != null && ColJsonArray.Array.SequenceEqual(o.ColJsonArray.Array)
+                    ;
+            }
+            return false;
+        }
     }
 
     public class TableWithAllColumnTypesMapping : ClassMapping<TableWithAllColumnTypes>

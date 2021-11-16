@@ -594,35 +594,74 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
                 new []{new []{"Test"}}));
             
             using var session = _fixture.SessionFactory.OpenSession();
-            var row = new TableWithAllColumnTypes
-            {
-                ColBool = true,
-                ColBoolArray = new SpannerBoolArray(new List<bool?> { true, false, true }),
-                ColBytes = new byte[] { 1, 2, 3 },
-                ColBytesMax = Encoding.UTF8.GetBytes("This is a long string"),
-                ColBytesArray = new SpannerBytesArray(new List<byte[]> { new byte[] { 3, 2, 1 }, new byte[] { }, new byte[] { 4, 5, 6 } }),
-                ColBytesMaxArray = new SpannerBytesArray(new List<byte[]> { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2"), Encoding.UTF8.GetBytes("string 3") }),
-                ColDate = new SpannerDate(2020, 12, 28),
-                ColDateArray = new SpannerDateArray(new List<DateTime?> { new DateTime(2020, 12, 28), new DateTime(2010, 1, 1) }),
-                ColFloat64 = 3.14D,
-                ColFloat64Array = new SpannerFloat64Array(new List<double?> { 3.14D, 6.626D }),
-                ColInt64 = 1L,
-                ColInt64Array = new SpannerInt64Array(new List<long?> { 1L, 2L, 4L, 8L }),
-                ColNumeric = new SpannerNumeric((V1.SpannerNumeric)3.14m),
-                ColNumericArray = new SpannerNumericArray(new List<V1.SpannerNumeric?> { (V1.SpannerNumeric)3.14m, (V1.SpannerNumeric)6.626m }),
-                ColString = "some string",
-                ColStringArray = new SpannerStringArray(new List<string> { "string1", "string2", "string3" }),
-                ColStringMax = "some longer string",
-                ColStringMaxArray = new SpannerStringArray(new List<string> { "longer string1", "longer string2", "longer string3" }),
-                ColTimestamp = new DateTime(2020, 12, 28, 15, 16, 28, 148, DateTimeKind.Utc).AddTicks(1839288),
-                ColTimestampArray = new SpannerTimestampArray(new List<DateTime?> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288) }),
-                ColJson = new SpannerJson("{\"key1\": \"value1\", \"key2\": \"value2\"}"),
-                ColJsonArray = new SpannerJsonArray(new List<string>{ "{\"key1\": \"value1\", \"key2\": \"value2\"}", "{\"key1\": \"value3\", \"key2\": \"value4\"}" }),
-            };
+            var row = CreateRowWithAllColumnTypes();
             await session.SaveAsync(row);
             await session.FlushAsync();
+            VerifyTableWithAllColumnTypesParameters(row, insertSql);
+        }
+
+        [Fact]
+        public async Task CanUpdateRecordWithAllTypes()
+        {
+            var updateSql =
+                "UPDATE TableWithAllColumnTypes SET ColFloat64 = @p0, ColNumeric = @p1, ColBool = @p2, ColString = @p3, ColStringMax = @p4, ColBytes = @p5, ColBytesMax = @p6, ColDate = @p7, ColTimestamp = @p8, ColJson = @p9, ColCommitTs = @p10, ColInt64Array = @p11, ColFloat64Array = @p12, ColNumericArray = @p13, ColBoolArray = @p14, ColStringArray = @p15, ColStringMaxArray = @p16, ColBytesArray = @p17, ColBytesMaxArray = @p18, ColDateArray = @p19, ColTimestampArray = @p20, ColJsonArray = @p21, ASC = @p22 WHERE ColInt64 = @p23";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(updateSql, StatementResult.CreateUpdateCount(1L));
+            var selectSql =
+                "SELECT tablewitha_.ColComputed as colcomput24_1_ FROM TableWithAllColumnTypes tablewitha_ WHERE tablewitha_.ColInt64=@p0";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(selectSql, StatementResult.CreateResultSet(
+                new[] { new Tuple<V1.TypeCode, string>(V1.TypeCode.String, "colcomput24_1_") },
+                new[] { new[] { "Test" } }));
+
+            using var session = _fixture.SessionFactory.OpenSession();
+            var row = CreateRowWithAllColumnTypes();
+            await session.UpdateAsync(row);
+            await session.FlushAsync();
+            VerifyTableWithAllColumnTypesParameters(row, updateSql);
+        }
+        
+        private TableWithAllColumnTypes CreateRowWithAllColumnTypes() => 
+            new TableWithAllColumnTypes
+            {
+                ColBool = true,
+                ColBoolArray = new SpannerBoolArray(new List<bool?> { true, false, true, null }),
+                ColBytes = new byte[] { 1, 2, 3 },
+                ColBytesMax = Encoding.UTF8.GetBytes("This is a long string"),
+                ColBytesArray = new SpannerBytesArray(new List<byte[]>
+                    { new byte[] { 3, 2, 1 }, new byte[] { }, new byte[] { 4, 5, 6 }, null }),
+                ColBytesMaxArray = new SpannerBytesArray(new List<byte[]>
+                {
+                    Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2"),
+                    Encoding.UTF8.GetBytes("string 3"), null
+                }),
+                ColDate = new SpannerDate(2020, 12, 28),
+                ColDateArray = new SpannerDateArray(new List<DateTime?>
+                    { new DateTime(2020, 12, 28), new DateTime(2010, 1, 1), null }),
+                ColFloat64 = 3.14D,
+                ColFloat64Array = new SpannerFloat64Array(new List<double?> { 3.14D, 6.626D, null }),
+                ColInt64 = 1L,
+                ColInt64Array = new SpannerInt64Array(new List<long?> { 1L, 2L, 4L, 8L, null }),
+                ColNumeric = new SpannerNumeric((V1.SpannerNumeric)3.14m),
+                ColNumericArray = new SpannerNumericArray(new List<V1.SpannerNumeric?>
+                    { (V1.SpannerNumeric)3.14m, (V1.SpannerNumeric)6.626m, null }),
+                ColString = "some string",
+                ColStringArray = new SpannerStringArray(new List<string> { "string1", "string2", "string3", null }),
+                ColStringMax = "some longer string",
+                ColStringMaxArray = new SpannerStringArray(new List<string>
+                    { "longer string1", "longer string2", "longer string3", null }),
+                ColTimestamp = new DateTime(2020, 12, 28, 15, 16, 28, 148, DateTimeKind.Utc).AddTicks(1839288),
+                ColTimestampArray = new SpannerTimestampArray(new List<DateTime?>
+                    { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), null }),
+                ColJson = new SpannerJson("{\"key1\": \"value1\", \"key2\": \"value2\"}"),
+                ColJsonArray = new SpannerJsonArray(new List<string>
+                {
+                    "{\"key1\": \"value1\", \"key2\": \"value2\"}", "{\"key1\": \"value3\", \"key2\": \"value4\"}", null
+                }),
+            };
+
+        private void VerifyTableWithAllColumnTypesParameters(TableWithAllColumnTypes row, string sql)
+        {
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(r => r is V1.ExecuteSqlRequest sqlRequest && sqlRequest.Sql == insertSql).Select(r => r as V1.ExecuteSqlRequest),
+                _fixture.SpannerMock.Requests.Where(r => r is V1.ExecuteSqlRequest sqlRequest && sqlRequest.Sql == sql).Select(r => r as V1.ExecuteSqlRequest),
                 request =>
                 {
                     Assert.Collection(request.ParamTypes,
@@ -762,7 +801,7 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
                     );
                 });
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(r => r is V1.ExecuteSqlRequest sqlRequest && sqlRequest.Sql == insertSql).Select(r => r as V1.ExecuteSqlRequest),
+                _fixture.SpannerMock.Requests.Where(r => r is V1.ExecuteSqlRequest sqlRequest && sqlRequest.Sql == sql).Select(r => r as V1.ExecuteSqlRequest),
                 request =>
                 {
                     Assert.Collection(request.Params.Fields,
@@ -829,7 +868,8 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
                                 value => Assert.Equal(row.ColInt64Array.Array[0]!.Value.ToString(), value.StringValue),
                                 value => Assert.Equal(row.ColInt64Array.Array[1]!.Value.ToString(), value.StringValue),
                                 value => Assert.Equal(row.ColInt64Array.Array[2]!.Value.ToString(), value.StringValue),
-                                value => Assert.Equal(row.ColInt64Array.Array[3]!.Value.ToString(), value.StringValue)
+                                value => Assert.Equal(row.ColInt64Array.Array[3]!.Value.ToString(), value.StringValue),
+                                value => Assert.Equal(Value.KindOneofCase.NullValue, value.KindCase)
                             );
                         },
                         param =>
@@ -837,7 +877,8 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
                             Assert.Equal("p12", param.Key);
                             Assert.Collection(param.Value.ListValue.Values,
                                 value => Assert.Equal(row.ColFloat64Array.Array[0]!.Value, value.NumberValue),
-                                value => Assert.Equal(row.ColFloat64Array.Array[1]!.Value, value.NumberValue)
+                                value => Assert.Equal(row.ColFloat64Array.Array[1]!.Value, value.NumberValue),
+                                value => Assert.Equal(Value.KindOneofCase.NullValue, value.KindCase)
                             );
                         },
                         param =>
@@ -845,7 +886,8 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
                             Assert.Equal("p13", param.Key);
                             Assert.Collection(param.Value.ListValue.Values,
                                 value => Assert.Equal(row.ColNumericArray.Array[0]!.Value.ToString(), value.StringValue),
-                                value => Assert.Equal(row.ColNumericArray.Array[1]!.Value.ToString(), value.StringValue)
+                                value => Assert.Equal(row.ColNumericArray.Array[1]!.Value.ToString(), value.StringValue),
+                                value => Assert.Equal(Value.KindOneofCase.NullValue, value.KindCase)
                             );
                         },
                         param =>
@@ -854,7 +896,8 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
                             Assert.Collection(param.Value.ListValue.Values,
                                 value => Assert.Equal(row.ColBoolArray.Array[0]!.Value, value.BoolValue),
                                 value => Assert.Equal(row.ColBoolArray.Array[1]!.Value, value.BoolValue),
-                                value => Assert.Equal(row.ColBoolArray.Array[2]!.Value, value.BoolValue)
+                                value => Assert.Equal(row.ColBoolArray.Array[2]!.Value, value.BoolValue),
+                                value => Assert.Equal(Value.KindOneofCase.NullValue, value.KindCase)
                             );
                         },
                         param =>
@@ -863,7 +906,8 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
                             Assert.Collection(param.Value.ListValue.Values,
                                 value => Assert.Equal(row.ColStringArray.Array[0], value.StringValue),
                                 value => Assert.Equal(row.ColStringArray.Array[1], value.StringValue),
-                                value => Assert.Equal(row.ColStringArray.Array[2], value.StringValue)
+                                value => Assert.Equal(row.ColStringArray.Array[2], value.StringValue),
+                                value => Assert.Equal(Value.KindOneofCase.NullValue, value.KindCase)
                             );
                         },
                         param =>
@@ -872,7 +916,8 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
                             Assert.Collection(param.Value.ListValue.Values,
                                 value => Assert.Equal(row.ColStringMaxArray.Array[0], value.StringValue),
                                 value => Assert.Equal(row.ColStringMaxArray.Array[1], value.StringValue),
-                                value => Assert.Equal(row.ColStringMaxArray.Array[2], value.StringValue)
+                                value => Assert.Equal(row.ColStringMaxArray.Array[2], value.StringValue),
+                                value => Assert.Equal(Value.KindOneofCase.NullValue, value.KindCase)
                             );
                         },
                         param =>
@@ -881,7 +926,8 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
                             Assert.Collection(param.Value.ListValue.Values,
                                 value => Assert.Equal(Convert.ToBase64String(row.ColBytesArray.Array[0]), value.StringValue),
                                 value => Assert.Equal(Convert.ToBase64String(row.ColBytesArray.Array[1]), value.StringValue),
-                                value => Assert.Equal(Convert.ToBase64String(row.ColBytesArray.Array[2]), value.StringValue)
+                                value => Assert.Equal(Convert.ToBase64String(row.ColBytesArray.Array[2]), value.StringValue),
+                                value => Assert.Equal(Value.KindOneofCase.NullValue, value.KindCase)
                             );
                         },
                         param =>
@@ -890,7 +936,8 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
                             Assert.Collection(param.Value.ListValue.Values,
                                 value => Assert.Equal(Convert.ToBase64String(row.ColBytesMaxArray.Array[0]), value.StringValue),
                                 value => Assert.Equal(Convert.ToBase64String(row.ColBytesMaxArray.Array[1]), value.StringValue),
-                                value => Assert.Equal(Convert.ToBase64String(row.ColBytesMaxArray.Array[2]), value.StringValue)
+                                value => Assert.Equal(Convert.ToBase64String(row.ColBytesMaxArray.Array[2]), value.StringValue),
+                                value => Assert.Equal(Value.KindOneofCase.NullValue, value.KindCase)
                             );
                         },
                         param =>
@@ -898,14 +945,16 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
                             Assert.Equal("p19", param.Key);
                             Assert.Collection(param.Value.ListValue.Values,
                                 value => Assert.Equal(SpannerDate.FromDateTime(row.ColDateArray.Array[0]!.Value).ToString(), value.StringValue),
-                                value => Assert.Equal(SpannerDate.FromDateTime(row.ColDateArray.Array[1]!.Value).ToString(), value.StringValue)
+                                value => Assert.Equal(SpannerDate.FromDateTime(row.ColDateArray.Array[1]!.Value).ToString(), value.StringValue),
+                                value => Assert.Equal(Value.KindOneofCase.NullValue, value.KindCase)
                             );
                         },
                         param =>
                         {
                             Assert.Equal("p20", param.Key);
                             Assert.Collection(param.Value.ListValue.Values,
-                                value => Assert.Equal(row.ColTimestampArray.Array[0]!.Value.ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ"), value.StringValue)
+                                value => Assert.Equal(row.ColTimestampArray.Array[0]!.Value.ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ"), value.StringValue),
+                                value => Assert.Equal(Value.KindOneofCase.NullValue, value.KindCase)
                             );
                         },
                         param =>
@@ -913,7 +962,8 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
                             Assert.Equal("p21", param.Key);
                             Assert.Collection(param.Value.ListValue.Values,
                                 value => Assert.Equal(row.ColJsonArray.Array[0], value.StringValue),
-                                value => Assert.Equal(row.ColJsonArray.Array[1], value.StringValue)
+                                value => Assert.Equal(row.ColJsonArray.Array[1], value.StringValue),
+                                value => Assert.Equal(Value.KindOneofCase.NullValue, value.KindCase)
                             );
                         },
                         param =>
@@ -930,6 +980,48 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
                         }
                     );
                 });
+        }
+
+        [Fact]
+        public async Task CanInsertRecordWithAllTypesWithNullValues()
+        {
+            var insertSql = "INSERT INTO TableWithAllColumnTypes (ColFloat64, ColNumeric, ColBool, ColString, ColStringMax, ColBytes, ColBytesMax, ColDate, ColTimestamp, ColJson, ColCommitTs, ColInt64Array, ColFloat64Array, ColNumericArray, ColBoolArray, ColStringArray, ColStringMaxArray, ColBytesArray, ColBytesMaxArray, ColDateArray, ColTimestampArray, ColJsonArray, ASC, ColInt64) VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22, @p23)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateUpdateCount(1L));
+            var selectSql =
+                "SELECT tablewitha_.ColComputed as colcomput24_1_ FROM TableWithAllColumnTypes tablewitha_ WHERE tablewitha_.ColInt64=@p0";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(selectSql, StatementResult.CreateResultSet(
+                new[]{ new Tuple<V1.TypeCode, string>(V1.TypeCode.String, "colcomput24_1_")},
+                new []{new []{"test"}}));
+            
+            using var session = _fixture.SessionFactory.OpenSession();
+            var row = new TableWithAllColumnTypes { ColInt64 = 1L };
+            await session.SaveAsync(row);
+            await session.FlushAsync();
+
+            var request = _fixture.SpannerMock.Requests.OfType<V1.ExecuteSqlRequest>().First(req => req.Sql == insertSql);
+            foreach (var param in request.Params.Fields)
+            {
+                // Only the id should be filled.
+                if (param.Key == "p23")
+                {
+                    Assert.Equal("1", param.Value.StringValue);
+                }
+                else
+                {
+                    Assert.Equal(Value.KindOneofCase.NullValue, param.Value.KindCase);
+                }
+            }
+        }
+
+        [Fact]
+        public async Task CanSelectTableWithAllColumnTypes()
+        {
+            var sql = "SELECT tablewitha0_.ColInt64 as colint1_1_0_, tablewitha0_.ColFloat64 as colfloat2_1_0_, tablewitha0_.ColNumeric as colnumeric3_1_0_, tablewitha0_.ColBool as colbool4_1_0_, tablewitha0_.ColString as colstring5_1_0_, tablewitha0_.ColStringMax as colstringm6_1_0_, tablewitha0_.ColBytes as colbytes7_1_0_, tablewitha0_.ColBytesMax as colbytesma8_1_0_, tablewitha0_.ColDate as coldate9_1_0_, tablewitha0_.ColTimestamp as coltimest10_1_0_, tablewitha0_.ColJson as coljson11_1_0_, tablewitha0_.ColCommitTs as colcommit12_1_0_, tablewitha0_.ColInt64Array as colint13_1_0_, tablewitha0_.ColFloat64Array as colfloat14_1_0_, tablewitha0_.ColNumericArray as colnumeri15_1_0_, tablewitha0_.ColBoolArray as colboolar16_1_0_, tablewitha0_.ColStringArray as colstring17_1_0_, tablewitha0_.ColStringMaxArray as colstring18_1_0_, tablewitha0_.ColBytesArray as colbytesa19_1_0_, tablewitha0_.ColBytesMaxArray as colbytesm20_1_0_, tablewitha0_.ColDateArray as coldatear21_1_0_, tablewitha0_.ColTimestampArray as coltimest22_1_0_, tablewitha0_.ColJsonArray as coljsonar23_1_0_, tablewitha0_.ColComputed as colcomput24_1_0_, tablewitha0_.ASC as asc25_1_0_ FROM TableWithAllColumnTypes tablewitha0_ WHERE tablewitha0_.ColInt64=@p0";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, CreateTableWithAllColumnTypesResultSet(CreateRowWithAllColumnTypes()));
+            using var session = _fixture.SessionFactory.OpenSession();
+            var row = await session.GetAsync<TableWithAllColumnTypes>(1L);
+            var compare = CreateRowWithAllColumnTypes();
+            Assert.Equal(compare, row);
         }
 
         [SkippableFact]
@@ -1019,6 +1111,69 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
                 }
             ));
             return selectFullNameSql;
+        }
+
+        private StatementResult CreateTableWithAllColumnTypesResultSet(TableWithAllColumnTypes row)
+        {
+            return StatementResult.CreateResultSet(new List<Tuple<V1.Type, string>>
+            {
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Int64}, "colint1_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Float64}, "colfloat2_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Numeric}, "colnumeric3_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Bool}, "colbool4_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.String}, "colstring5_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.String}, "colstringm6_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Bytes}, "colbytes7_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Bytes}, "colbytesma8_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Date}, "coldate9_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Timestamp}, "coltimest10_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Json}, "coljson11_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Timestamp}, "colcommit12_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Int64}}, "colint13_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Float64}}, "colfloat14_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Numeric}}, "colnumeri15_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Bool}}, "colboolar16_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.String}}, "colstring17_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.String}}, "colstring18_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Bytes}}, "colbytesa19_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Bytes}}, "colbytesm20_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Date}}, "coldatear21_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Timestamp}}, "coltimest22_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Json}}, "coljsonar23_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Bytes}, "colcomput24_1_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Bytes}, "asc25_1_0_")
+            }, new List<object[]>
+                {
+                    new object[]
+                    {
+                        row.ColInt64,
+                        row.ColFloat64,
+                        row.ColNumeric.Value,
+                        row.ColBool,
+                        row.ColString,
+                        row.ColStringMax,
+                        row.ColBytes,
+                        row.ColBytesMax,
+                        row.ColDate.ToDateTime(),
+                        row.ColTimestamp,
+                        row.ColJson.Json,
+                        row.ColCommitTs,
+                        row.ColInt64Array.Array,
+                        row.ColFloat64Array.Array,
+                        row.ColNumericArray.Array,
+                        row.ColBoolArray.Array,
+                        row.ColStringArray.Array,
+                        row.ColStringMaxArray.Array,
+                        row.ColBytesArray.Array,
+                        row.ColBytesMaxArray.Array,
+                        row.ColDateArray.Array,
+                        row.ColTimestampArray.Array,
+                        row.ColJsonArray.Array,
+                        row.ASC,
+                        row.ColComputed
+                    },
+                }
+            );
         }
     }
 }

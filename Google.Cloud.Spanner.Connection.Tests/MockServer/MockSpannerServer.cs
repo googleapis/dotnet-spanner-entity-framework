@@ -113,7 +113,7 @@ namespace Google.Cloud.Spanner.Connection.MockServer
             }
             foreach (var rowValue in rows)
             {
-                    var row = new ListValue();
+                var row = new ListValue();
                 var colIndex = 0;
                 foreach (var value in rowValue)
                 {

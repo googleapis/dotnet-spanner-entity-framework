@@ -64,6 +64,8 @@ namespace Google.Cloud.Spanner.Connection.MockServer
                         throw new ArgumentException("SpannerStruct cannot be used for string parameters", nameof(value));
                     }
                     return new Value { StringValue = Convert.ToString(value, InvariantCulture) };
+                case TypeCode.Json:
+                    return new Value { StringValue = Convert.ToString(value, InvariantCulture) };
                 case TypeCode.Int64:
                     return new Value
                     {

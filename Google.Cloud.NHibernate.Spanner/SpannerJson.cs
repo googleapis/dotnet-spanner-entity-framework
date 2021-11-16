@@ -51,7 +51,7 @@ namespace Google.Cloud.NHibernate.Spanner
 
         public override string ToString() => Json ?? "null";
 
-        public new bool Equals(object x, object y) => object.Equals(x, y);
+        bool IUserType.Equals(object x, object y) => object.Equals(x, y);
 
         public int GetHashCode(object x) => x?.GetHashCode() ?? 0;
 
