@@ -27,18 +27,24 @@ namespace Google.Cloud.Spanner.Connection
     {
         private readonly IList<SpannerCommand> _commands = new List<SpannerCommand>();
 
+        public SpannerRetriableBatchCommand()
+        {
+        }
+
         internal SpannerRetriableBatchCommand(SpannerRetriableConnection connection)
         {
             Connection = connection;
         }
 
-        public SpannerRetriableConnection Connection { get; private set; }
+        public SpannerRetriableConnection Connection { get; set; }
 
         public SpannerRetriableTransaction Transaction { get; set; }
 
         public void Add(string sql) => _commands.Add(Connection.SpannerConnection.CreateDmlCommand(sql));
 
         public void Add(SpannerCommand command) => _commands.Add(command);
+
+        public void Add(SpannerRetriableCommand command) => _commands.Add(command.SpannerCommand);
 
         internal SpannerBatchCommand CreateSpannerBatchCommand()
         {
@@ -52,7 +58,10 @@ namespace Google.Cloud.Spanner.Connection
             return batch;
         }
 
-        public IReadOnlyList<long> ExecuteNonQuery() => Transaction.ExecuteNonQueryWithRetry(this);
+        public IEnumerable<long> ExecuteNonQuery() =>
+            Transaction == null
+            ? CreateSpannerBatchCommand().ExecuteNonQuery() 
+            : Transaction.ExecuteNonQueryWithRetry(this);
 
         public Task<IReadOnlyList<long>> ExecuteNonQueryAsync(CancellationToken cancellationToken = default) =>
             Transaction == null

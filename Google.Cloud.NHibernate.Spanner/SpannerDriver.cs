@@ -54,7 +54,7 @@ namespace Google.Cloud.NHibernate.Spanner
         public override bool UseNamedPrefixInSql => true;
         public override bool UseNamedPrefixInParameter => true;
         public override string NamedPrefix => "@";
-        public System.Type BatcherFactoryClass => typeof(GenericBatchingBatcherFactory);
+        public System.Type BatcherFactoryClass => typeof(SpannerBatcherFactory);
         
         protected override void InitializeParameter(DbParameter dbParam, string name, SqlType sqlType)
         {

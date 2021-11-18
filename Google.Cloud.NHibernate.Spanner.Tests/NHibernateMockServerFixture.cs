@@ -43,6 +43,7 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
             });
             var mapper = new ModelMapper();
             mapper.AddMapping<SingerMapping>();
+            mapper.AddMapping<AlbumMapping>();
             mapper.AddMapping<TableWithAllColumnTypesMapping>();
             var mapping = mapper.CompileMappingForAllExplicitlyAddedEntities();
             nhConfig.AddMapping(mapping);

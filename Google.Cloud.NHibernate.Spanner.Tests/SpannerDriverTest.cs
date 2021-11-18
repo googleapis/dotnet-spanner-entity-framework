@@ -584,9 +584,9 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
             var insertSql = "INSERT INTO TableWithAllColumnTypes (ColFloat64, ColNumeric, ColBool, ColString, ColStringMax, ColBytes, ColBytesMax, ColDate, ColTimestamp, ColJson, ColCommitTs, ColInt64Array, ColFloat64Array, ColNumericArray, ColBoolArray, ColStringArray, ColStringMaxArray, ColBytesArray, ColBytesMaxArray, ColDateArray, ColTimestampArray, ColJsonArray, ASC, ColInt64) VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22, @p23)";
             _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateUpdateCount(1L));
             var selectSql =
-                "SELECT tablewitha_.ColComputed as colcomput24_1_ FROM TableWithAllColumnTypes tablewitha_ WHERE tablewitha_.ColInt64=@p0";
+                "SELECT tablewitha_.ColComputed as colcomput24_2_ FROM TableWithAllColumnTypes tablewitha_ WHERE tablewitha_.ColInt64=@p0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(selectSql, StatementResult.CreateResultSet(
-                new[]{ new Tuple<V1.TypeCode, string>(V1.TypeCode.String, "colcomput24_1_")},
+                new[]{ new Tuple<V1.TypeCode, string>(V1.TypeCode.String, "colcomput24_2_")},
                 new []{new []{"Test"}}));
             
             using var session = _fixture.SessionFactory.OpenSession();
@@ -603,9 +603,9 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
                 "UPDATE TableWithAllColumnTypes SET ColFloat64 = @p0, ColNumeric = @p1, ColBool = @p2, ColString = @p3, ColStringMax = @p4, ColBytes = @p5, ColBytesMax = @p6, ColDate = @p7, ColTimestamp = @p8, ColJson = @p9, ColCommitTs = @p10, ColInt64Array = @p11, ColFloat64Array = @p12, ColNumericArray = @p13, ColBoolArray = @p14, ColStringArray = @p15, ColStringMaxArray = @p16, ColBytesArray = @p17, ColBytesMaxArray = @p18, ColDateArray = @p19, ColTimestampArray = @p20, ColJsonArray = @p21, ASC = @p22 WHERE ColInt64 = @p23";
             _fixture.SpannerMock.AddOrUpdateStatementResult(updateSql, StatementResult.CreateUpdateCount(1L));
             var selectSql =
-                "SELECT tablewitha_.ColComputed as colcomput24_1_ FROM TableWithAllColumnTypes tablewitha_ WHERE tablewitha_.ColInt64=@p0";
+                "SELECT tablewitha_.ColComputed as colcomput24_2_ FROM TableWithAllColumnTypes tablewitha_ WHERE tablewitha_.ColInt64=@p0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(selectSql, StatementResult.CreateResultSet(
-                new[] { new Tuple<V1.TypeCode, string>(V1.TypeCode.String, "colcomput24_1_") },
+                new[] { new Tuple<V1.TypeCode, string>(V1.TypeCode.String, "colcomput24_2_") },
                 new[] { new[] { "Test" } }));
 
             using var session = _fixture.SessionFactory.OpenSession();
@@ -984,9 +984,9 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
             var insertSql = "INSERT INTO TableWithAllColumnTypes (ColFloat64, ColNumeric, ColBool, ColString, ColStringMax, ColBytes, ColBytesMax, ColDate, ColTimestamp, ColJson, ColCommitTs, ColInt64Array, ColFloat64Array, ColNumericArray, ColBoolArray, ColStringArray, ColStringMaxArray, ColBytesArray, ColBytesMaxArray, ColDateArray, ColTimestampArray, ColJsonArray, ASC, ColInt64) VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22, @p23)";
             _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateUpdateCount(1L));
             var selectSql =
-                "SELECT tablewitha_.ColComputed as colcomput24_1_ FROM TableWithAllColumnTypes tablewitha_ WHERE tablewitha_.ColInt64=@p0";
+                "SELECT tablewitha_.ColComputed as colcomput24_2_ FROM TableWithAllColumnTypes tablewitha_ WHERE tablewitha_.ColInt64=@p0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(selectSql, StatementResult.CreateResultSet(
-                new[]{ new Tuple<V1.TypeCode, string>(V1.TypeCode.String, "colcomput24_1_")},
+                new[]{ new Tuple<V1.TypeCode, string>(V1.TypeCode.String, "colcomput24_2_")},
                 new []{new []{"test"}}));
             
             using var session = _fixture.SessionFactory.OpenSession();
@@ -1012,7 +1012,7 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
         [Fact]
         public async Task CanSelectTableWithAllColumnTypes()
         {
-            var sql = "SELECT tablewitha0_.ColInt64 as colint1_1_0_, tablewitha0_.ColFloat64 as colfloat2_1_0_, tablewitha0_.ColNumeric as colnumeric3_1_0_, tablewitha0_.ColBool as colbool4_1_0_, tablewitha0_.ColString as colstring5_1_0_, tablewitha0_.ColStringMax as colstringm6_1_0_, tablewitha0_.ColBytes as colbytes7_1_0_, tablewitha0_.ColBytesMax as colbytesma8_1_0_, tablewitha0_.ColDate as coldate9_1_0_, tablewitha0_.ColTimestamp as coltimest10_1_0_, tablewitha0_.ColJson as coljson11_1_0_, tablewitha0_.ColCommitTs as colcommit12_1_0_, tablewitha0_.ColInt64Array as colint13_1_0_, tablewitha0_.ColFloat64Array as colfloat14_1_0_, tablewitha0_.ColNumericArray as colnumeri15_1_0_, tablewitha0_.ColBoolArray as colboolar16_1_0_, tablewitha0_.ColStringArray as colstring17_1_0_, tablewitha0_.ColStringMaxArray as colstring18_1_0_, tablewitha0_.ColBytesArray as colbytesa19_1_0_, tablewitha0_.ColBytesMaxArray as colbytesm20_1_0_, tablewitha0_.ColDateArray as coldatear21_1_0_, tablewitha0_.ColTimestampArray as coltimest22_1_0_, tablewitha0_.ColJsonArray as coljsonar23_1_0_, tablewitha0_.ColComputed as colcomput24_1_0_, tablewitha0_.ASC as asc25_1_0_ FROM TableWithAllColumnTypes tablewitha0_ WHERE tablewitha0_.ColInt64=@p0";
+            var sql = "SELECT tablewitha0_.ColInt64 as colint1_2_0_, tablewitha0_.ColFloat64 as colfloat2_2_0_, tablewitha0_.ColNumeric as colnumeric3_2_0_, tablewitha0_.ColBool as colbool4_2_0_, tablewitha0_.ColString as colstring5_2_0_, tablewitha0_.ColStringMax as colstringm6_2_0_, tablewitha0_.ColBytes as colbytes7_2_0_, tablewitha0_.ColBytesMax as colbytesma8_2_0_, tablewitha0_.ColDate as coldate9_2_0_, tablewitha0_.ColTimestamp as coltimest10_2_0_, tablewitha0_.ColJson as coljson11_2_0_, tablewitha0_.ColCommitTs as colcommit12_2_0_, tablewitha0_.ColInt64Array as colint13_2_0_, tablewitha0_.ColFloat64Array as colfloat14_2_0_, tablewitha0_.ColNumericArray as colnumeri15_2_0_, tablewitha0_.ColBoolArray as colboolar16_2_0_, tablewitha0_.ColStringArray as colstring17_2_0_, tablewitha0_.ColStringMaxArray as colstring18_2_0_, tablewitha0_.ColBytesArray as colbytesa19_2_0_, tablewitha0_.ColBytesMaxArray as colbytesm20_2_0_, tablewitha0_.ColDateArray as coldatear21_2_0_, tablewitha0_.ColTimestampArray as coltimest22_2_0_, tablewitha0_.ColJsonArray as coljsonar23_2_0_, tablewitha0_.ColComputed as colcomput24_2_0_, tablewitha0_.ASC as asc25_2_0_ FROM TableWithAllColumnTypes tablewitha0_ WHERE tablewitha0_.ColInt64=@p0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, CreateTableWithAllColumnTypesResultSet(CreateRowWithAllColumnTypes()));
             using var session = _fixture.SessionFactory.OpenSession();
             var row = await session.GetAsync<TableWithAllColumnTypes>(1L);
@@ -1034,49 +1034,6 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
                 Assert.NotNull(entry);
                 Assert.Contains("nhibernate", entry.Value);
             });
-        }
-
-        [SkippableFact]
-        public async Task InsertMultipleSingers_UsesBatch()
-        {
-            Skip.If(true, "Batching not yet implemented");
-            using var session = _fixture.SessionFactory.OpenSession();
-
-            // Setup results.
-            var insertSql = "INSERT INTO Singer (FirstName, LastName, BirthDate, SingerId) VALUES (@p0, @p1, @p2, @p3)";
-            _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateUpdateCount(1L));
-            var selectFullNameSql = AddSelectSingerFullNameResult("Alice Morrison", 0);
-
-            var tx = session.BeginTransaction();
-            
-            await session.SaveAsync(new Singer
-            {
-                SingerId = 1L,
-                FirstName = "Alice",
-                LastName = "Morrison",
-            });
-            await session.SaveAsync(new Singer
-            {
-                SingerId = 2L,
-                FirstName = "Alice",
-                LastName = "Morrison",
-            });
-            await tx.CommitAsync();
-            await session.FlushAsync();
-
-            Assert.Collection(
-                _fixture.SpannerMock.Requests.OfType<V1.ExecuteSqlRequest>(),
-                request =>
-                {
-                    Assert.Equal(insertSql, request.Sql);
-                    Assert.NotNull(request.Transaction?.Id);
-                },
-                request =>
-                {
-                    Assert.Equal(selectFullNameSql, request.Sql);
-                    Assert.Null(request.Transaction?.Id);
-                }
-            );
         }
 
         private static string GetSelectSingerSql() =>
@@ -1129,31 +1086,31 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
         {
             return StatementResult.CreateResultSet(new List<Tuple<V1.Type, string>>
             {
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Int64}, "colint1_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Float64}, "colfloat2_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Numeric}, "colnumeric3_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Bool}, "colbool4_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.String}, "colstring5_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.String}, "colstringm6_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Bytes}, "colbytes7_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Bytes}, "colbytesma8_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Date}, "coldate9_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Timestamp}, "coltimest10_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Json}, "coljson11_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Timestamp}, "colcommit12_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Int64}}, "colint13_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Float64}}, "colfloat14_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Numeric}}, "colnumeri15_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Bool}}, "colboolar16_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.String}}, "colstring17_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.String}}, "colstring18_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Bytes}}, "colbytesa19_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Bytes}}, "colbytesm20_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Date}}, "coldatear21_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Timestamp}}, "coltimest22_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Json}}, "coljsonar23_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Bytes}, "colcomput24_1_0_"),
-                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Bytes}, "asc25_1_0_")
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Int64}, "colint1_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Float64}, "colfloat2_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Numeric}, "colnumeric3_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Bool}, "colbool4_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.String}, "colstring5_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.String}, "colstringm6_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Bytes}, "colbytes7_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Bytes}, "colbytesma8_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Date}, "coldate9_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Timestamp}, "coltimest10_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Json}, "coljson11_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Timestamp}, "colcommit12_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Int64}}, "colint13_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Float64}}, "colfloat14_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Numeric}}, "colnumeri15_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Bool}}, "colboolar16_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.String}}, "colstring17_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.String}}, "colstring18_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Bytes}}, "colbytesa19_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Bytes}}, "colbytesm20_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Date}}, "coldatear21_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Timestamp}}, "coltimest22_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Json}}, "coljsonar23_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Bytes}, "colcomput24_2_0_"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Bytes}, "asc25_2_0_")
             }, new List<object[]>
                 {
                     new object[]

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using System.Collections.Generic;
+using NHibernate.Mapping.ByCode.Conformist;
 
 namespace Google.Cloud.NHibernate.Spanner.Tests.Entities
 {
@@ -22,11 +22,20 @@ namespace Google.Cloud.NHibernate.Spanner.Tests.Entities
         {
         }
 
-        public long AlbumId { get; set; }
-        public string Title { get; set; }
-        public SpannerDate? ReleaseDate { get; set; }
-        public long SingerId { get; set; }
-
+        public virtual long AlbumId { get; set; }
+        public virtual string Title { get; set; }
+        public virtual SpannerDate ReleaseDate { get; set; }
         public virtual Singer Singer { get; set; }
+    }
+
+    public class AlbumMapping : ClassMapping<Album>
+    {
+        public AlbumMapping()
+        {
+            Id(x => x.AlbumId);
+            Property(x => x.Title);
+            Property(x => x.ReleaseDate);
+            ManyToOne<Singer>(x => x.Singer);
+        }
     }
 }
