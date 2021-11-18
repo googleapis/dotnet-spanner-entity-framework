@@ -17,15 +17,11 @@ using Google.Cloud.Spanner.Connection;
 using Google.Cloud.Spanner.Connection.MockServer;
 using Google.Cloud.Spanner.Data;
 using Google.Protobuf.WellKnownTypes;
-using NHibernate;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Linq;
 using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
-using System.Transactions;
 using Xunit;
 using IsolationLevel = System.Data.IsolationLevel;
 using V1 = Google.Cloud.Spanner.V1;
@@ -1022,6 +1018,22 @@ namespace Google.Cloud.NHibernate.Spanner.Tests
             var row = await session.GetAsync<TableWithAllColumnTypes>(1L);
             var compare = CreateRowWithAllColumnTypes();
             Assert.Equal(compare, row);
+        }
+
+        [Fact]
+        public async Task RequestIncludesEfCoreClientHeader()
+        {
+            using var session = _fixture.SessionFactory.OpenSession();
+            AddSingerResult(GetSelectSingerSql());
+            await session.GetAsync<Singer>(1L);
+
+            Assert.NotEmpty(_fixture.SpannerMock.Contexts);
+            Assert.All(_fixture.SpannerMock.Contexts, context =>
+            {
+                var entry = context.RequestHeaders.Get("x-goog-api-client");
+                Assert.NotNull(entry);
+                Assert.Contains("nhibernate", entry.Value);
+            });
         }
 
         [SkippableFact]

@@ -1,29 +1,32 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 using Google.Cloud.NHibernate.Spanner.Tests.Entities;
-using Google.Cloud.Spanner.Connection;
 using Google.Cloud.Spanner.Connection.MockServer;
-using Google.Cloud.Spanner.Data;
 using Grpc.Core;
 using NHibernate;
 using NHibernate.Cfg;
-using NHibernate.Connection;
 using NHibernate.Mapping.ByCode;
-using NHibernate.Transaction;
 using NHibernate.Util;
-using System.Data.Common;
-using System.Threading;
-using System.Threading.Tasks;
+using System;
 
 namespace Google.Cloud.NHibernate.Spanner.Tests
 {
     // ReSharper disable once ClassNeverInstantiated.Global
-    internal class TestConnectionProvider : ConnectionProvider
+    internal class TestConnectionProvider : SpannerConnectionProvider
     {
-        public override DbConnection GetConnection(string connectionString)
-            => new SpannerRetriableConnection(new SpannerConnection(connectionString, ChannelCredentials.Insecure));
-
-        public override Task<DbConnection> GetConnectionAsync(string connectionString,
-            CancellationToken cancellationToken)
-            => Task.FromResult(GetConnection(connectionString));
+        public override ChannelCredentials ChannelCredentials { get => ChannelCredentials.Insecure; set => throw new InvalidOperationException(); }
     }
     
     public class NHibernateMockServerFixture : SpannerMockServerFixture
