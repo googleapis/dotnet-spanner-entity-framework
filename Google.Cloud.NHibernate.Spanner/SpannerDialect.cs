@@ -71,6 +71,8 @@ namespace Google.Cloud.NHibernate.Spanner
 
 		public override bool SupportsLimitOffset => true;
 
+		public override int MaxAliasLength => 128;
+
 		public override SqlString GetLimitString(SqlString queryString, SqlString offset, SqlString limit)
 		{
 			SqlStringBuilder pagingBuilder = new SqlStringBuilder();
