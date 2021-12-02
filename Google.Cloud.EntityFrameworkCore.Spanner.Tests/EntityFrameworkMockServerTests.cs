@@ -2217,6 +2217,105 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             );
         }
 
+        [CombinatorialData]
+        [Theory]
+        public async Task CanQueryAllTypes(bool useTransaction)
+        {
+            var sql = "SELECT * FROM TableWithAllTypes";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, CreateTableWithAllColumnTypesResultSet());
+            string connectionString = $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
+            using var connection = new SpannerRetriableConnection(new SpannerConnection(connectionString, ChannelCredentials.Insecure));
+            using var cmd = connection.CreateSelectCommand(sql);
+            SpannerRetriableTransaction transaction = null;
+            if (useTransaction)
+            {
+                transaction = await connection.BeginTransactionAsync();
+                cmd.Transaction = transaction;
+            }
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                Assert.Equal(1L, reader.GetInt64(0));
+                Assert.Equal(1L, reader.GetFieldValue<long>(0));
+                Assert.Equal(3.14d, reader.GetDouble(1));
+                Assert.Equal(3.14d, reader.GetFieldValue<double>(1));
+                Assert.Equal(SpannerNumeric.FromDecimal(3.14m, LossOfPrecisionHandling.Throw), reader.GetFieldValue<SpannerNumeric>(2));
+                Assert.True(reader.GetBoolean(3));
+                Assert.True(reader.GetFieldValue<bool>(3));
+                Assert.Equal("test", reader.GetString(4));
+                Assert.Equal("test", reader.GetFieldValue<string>(4));
+                Assert.Equal(Encoding.Unicode.GetBytes("test"), reader.GetFieldValue<byte[]>(5));
+                Assert.Equal(new DateTime(2021, 12, 1), reader.GetDateTime(6));
+                Assert.Equal(new DateTime(2021, 12, 1), reader.GetFieldValue<DateTime>(6));
+                Assert.Equal(new DateTime(2021, 12, 1, 11, 17, 2, DateTimeKind.Utc), reader.GetDateTime(7));
+                Assert.Equal(new DateTime(2021, 12, 1, 11, 17, 2, DateTimeKind.Utc), reader.GetFieldValue<DateTime>(7));
+                Assert.Equal("{\"key1\": \"value1\", \"key2\": \"value2\"}", reader.GetString(8));
+                Assert.Equal("{\"key1\": \"value1\", \"key2\": \"value2\"}", reader.GetFieldValue<string>(8));
+                Assert.Equal(new List<long?>{1L, 2L, 4L, null}, reader.GetFieldValue<List<long?>>(9));
+                Assert.Equal(new List<double?>{3.14d, 6.626d, null}, reader.GetFieldValue<List<double?>>(10));
+                Assert.Equal(new List<SpannerNumeric?> { SpannerNumeric.Zero, SpannerNumeric.Epsilon, SpannerNumeric.MaxValue, null}, reader.GetFieldValue<List<SpannerNumeric?>>(11));
+                Assert.Equal(new List<bool?>{true, false, null}, reader.GetFieldValue<List<bool?>>(12));
+                Assert.Equal(new List<string>{"test1", "test2", null}, reader.GetFieldValue<List<string>>(13));
+                Assert.Equal(new List<byte[]>{Encoding.Unicode.GetBytes("test1"), Encoding.Unicode.GetBytes("test2"), null}, reader.GetFieldValue<List<byte[]>>(14));
+                Assert.Equal(new List<DateTime?>{new DateTime(2021, 12, 1), new DateTime(2000, 2, 29), null}, reader.GetFieldValue<List<DateTime?>>(15));
+                Assert.Equal(new List<DateTime?>{new DateTime(2021, 12, 1, 11, 17, 2, DateTimeKind.Utc), null}, reader.GetFieldValue<List<DateTime?>>(16));
+                Assert.Equal(new List<string>{"{\"key1\": \"value1\", \"key2\": \"value2\"}", "{\"key1\": \"value3\", \"key2\": \"value4\"}", null}, reader.GetFieldValue<List<string>>(17));
+            }
+            if (useTransaction)
+            {
+                await transaction.CommitAsync();
+            }
+        }
+        
+        internal static StatementResult CreateTableWithAllColumnTypesResultSet()
+        {
+            return StatementResult.CreateResultSet(new List<Tuple<V1.Type, string>>
+            {
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Int64}, "Int64"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Float64}, "Float64"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Numeric}, "Numeric"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Bool}, "Bool"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.String}, "String"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Bytes}, "Bytes"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Date}, "Date"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Timestamp}, "Timestamp"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Json}, "Json"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Int64}}, "Int64Array"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Float64}}, "Float64Array"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Numeric}}, "NumericArray"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Bool}}, "BoolArray"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.String}}, "StringArray"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Bytes}}, "BytesArray"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Date}}, "DateArray"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Timestamp}}, "TimestampArray"),
+                Tuple.Create(new V1.Type{ Code = V1.TypeCode.Array, ArrayElementType = new V1.Type {Code = V1.TypeCode.Json}}, "JsonArray"),
+            }, new List<object[]>
+                {
+                    new object[]
+                    {
+                        1L,
+                        3.14d,
+                        SpannerNumeric.FromDecimal(3.14m, LossOfPrecisionHandling.Throw),
+                        true,
+                        "test",
+                        Encoding.Unicode.GetBytes("test"),
+                        new DateTime(2021, 12, 1),
+                        new DateTime(2021, 12, 1, 11, 17, 2, DateTimeKind.Utc),
+                        "{\"key1\": \"value1\", \"key2\": \"value2\"}",
+                        new List<long?>{1L, 2L, 4L, null},
+                        new List<double?>{3.14d, 6.626d, null},
+                        new List<SpannerNumeric?> { SpannerNumeric.Zero, SpannerNumeric.Epsilon, SpannerNumeric.MaxValue, null},
+                        new List<bool?>{true, false, null},
+                        new List<string>{"test1", "test2", null},
+                        new List<byte[]>{Encoding.Unicode.GetBytes("test1"), Encoding.Unicode.GetBytes("test2"), null},
+                        new List<DateTime?>{new DateTime(2021, 12, 1), new DateTime(2000, 2, 29), null},
+                        new List<DateTime?>{new DateTime(2021, 12, 1, 11, 17, 2, DateTimeKind.Utc), null},
+                        new List<string>{"{\"key1\": \"value1\", \"key2\": \"value2\"}", "{\"key1\": \"value3\", \"key2\": \"value4\"}", null},
+                    },
+                }
+            );
+        }
+
         [Fact]
         public async Task RequestIncludesEfCoreClientHeader()
         {
