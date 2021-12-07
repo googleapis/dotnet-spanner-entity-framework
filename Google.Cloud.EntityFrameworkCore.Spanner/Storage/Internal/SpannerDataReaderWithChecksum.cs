@@ -282,6 +282,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             return _spannerDataReader.GetValue(ordinal);
         }
 
+        public override T GetFieldValue<T>(int ordinal)
+        {
+            return _spannerDataReader.GetFieldValue<T>(ordinal);
+        }
+
         public override int GetValues(object[] values)
         {
             return _spannerDataReader.GetValues(values);

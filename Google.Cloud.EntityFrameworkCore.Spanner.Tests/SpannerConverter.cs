@@ -83,6 +83,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                         StringValue = StripTimePart(
                             XmlConvert.ToString(Convert.ToDateTime(value, InvariantCulture), XmlDateTimeSerializationMode.Utc))
                     };
+                case TypeCode.Json:
+                    if (value is string stringValue)
+                    {
+                        return new Value { StringValue = stringValue };
+                    }
+                    throw new ArgumentException("JSON values must be given as string");
                 case TypeCode.Array:
                     if (value is IEnumerable enumerable)
                     {
