@@ -1236,8 +1236,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 new SpannerParameter("ColFloat64Array", SpannerDbType.ArrayOf(SpannerDbType.Float64), row.ColFloat64Array),
                 new SpannerParameter("ColInt64", SpannerDbType.Int64, row.ColInt64),
                 new SpannerParameter("ColInt64Array", SpannerDbType.ArrayOf(SpannerDbType.Int64), row.ColInt64Array),
-                new SpannerParameter("ColJson", db.IsEmulator ? SpannerDbType.String : SpannerDbType.Json, row.ColJson.RootElement.ToString()),
-                new SpannerParameter("ColJsonArray", SpannerDbType.ArrayOf(db.IsEmulator ? SpannerDbType.String : SpannerDbType.Json), row.ColJsonArray.Select(v => v?.RootElement.ToString())),
+                new SpannerParameter("ColJson", SpannerDbType.Json, row.ColJson.RootElement.ToString()),
+                new SpannerParameter("ColJsonArray", SpannerDbType.ArrayOf(SpannerDbType.Json), row.ColJsonArray.Select(v => v?.RootElement.ToString())),
                 new SpannerParameter("ColNumeric", SpannerDbType.Numeric, row.ColNumeric),
                 new SpannerParameter("ColNumericArray", SpannerDbType.ArrayOf(SpannerDbType.Numeric), row.ColNumericArray),
                 new SpannerParameter("ColString", SpannerDbType.String, row.ColString),
@@ -1260,9 +1260,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                               VALUES
                               ({ row.ColBool}, { row.ColBoolArray}, { row.ColBytes}, { row.ColBytesMax}, { row.ColBytesArray}, { row.ColBytesMaxArray},
                                { row.ColDate}, { row.ColDateArray}, { row.ColFloat64}, { row.ColFloat64Array}, { row.ColInt64}, { row.ColInt64Array},
-                               { (db.IsEmulator ? (object) row.ColJson.RootElement.ToString() : row.ColJson)},
-                               { (db.IsEmulator ? (object) row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToList() : row.ColJsonArray)},
-                               { row.ColNumeric}, { row.ColNumericArray}, { row.ColString}, { row.ColStringArray},
+                               { row.ColJson}, { row.ColJsonArray}, { row.ColNumeric}, { row.ColNumericArray}, { row.ColString}, { row.ColStringArray},
                                { row.ColStringMax}, { row.ColStringMaxArray}, { row.ColTimestamp}, { row.ColTimestampArray})"
             );
             Assert.Equal(1, updateCount2);
@@ -1282,9 +1280,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                                {18}, {19}, {20}, {21})",
                                row.ColBool, row.ColBoolArray, row.ColBytes, row.ColBytesMax, row.ColBytesArray, row.ColBytesMaxArray,
                                row.ColDate, row.ColDateArray, row.ColFloat64, row.ColFloat64Array, row.ColInt64, row.ColInt64Array,
-                               db.IsEmulator ? (object) row.ColJson.RootElement.ToString() : row.ColJson,
-                               db.IsEmulator ? (object) row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToList() : row.ColJsonArray,
-                               row.ColNumeric, row.ColNumericArray, row.ColString, row.ColStringArray,
+                               row.ColJson, row.ColJsonArray, row.ColNumeric, row.ColNumericArray, row.ColString, row.ColStringArray,
                                row.ColStringMax, row.ColStringMaxArray, row.ColTimestamp, row.ColTimestampArray
             );
             Assert.Equal(1, updateCount3);
