@@ -18,13 +18,15 @@ using System.Linq.Expressions;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 {
-    internal class SpannerIntervalExpression : SqlExpression
+    internal class SpannerIntervalExpression : SpannerValueExpression
     {
         private readonly ISqlExpressionFactory _sqlExpressionFactory;
         private readonly string _intervalName;
         private readonly SqlExpression _intervalFragment;
         private readonly SqlExpression _intervalNameFragment;
         private readonly SqlExpression _value;
+
+        internal override SqlExpression Value => _value;
 
         internal SpannerIntervalExpression(ISqlExpressionFactory sqlExpressionFactory, SqlExpression value, string intervalName) : base(value.Type, value.TypeMapping)
         {
@@ -35,7 +37,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             _intervalNameFragment = _sqlExpressionFactory.Fragment($" {_intervalName}");
         }
 
-        public override void Print(ExpressionPrinter expressionPrinter)
+        protected override void Print(ExpressionPrinter expressionPrinter)
         {
         }
 

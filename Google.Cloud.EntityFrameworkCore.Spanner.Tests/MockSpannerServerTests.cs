@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Api.Gax.Grpc.GrpcNetClient;
 using Google.Cloud.Spanner.Data;
 using V1 = Google.Cloud.Spanner.V1;
 using Google.Protobuf;
@@ -20,6 +21,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Xunit;
 using Google.Cloud.Spanner.V1;
+using Grpc.Net.Client;
 using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
@@ -38,10 +40,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public void BatchCreateSessions()
         {
+            var channel = GrpcChannel.ForAddress($"http://{_fixture.Endpoint}", new GrpcChannelOptions{Credentials = ChannelCredentials.Insecure});
             SpannerClientBuilder builder = new SpannerClientBuilder
             {
-                Endpoint = _fixture.Endpoint,
-                ChannelCredentials = ChannelCredentials.Insecure
+                CallInvoker = channel.CreateCallInvoker(),
+                GrpcAdapter = GrpcNetClientAdapter.Default,
             };
             SpannerClient client = builder.Build();
             BatchCreateSessionsRequest request = new BatchCreateSessionsRequest

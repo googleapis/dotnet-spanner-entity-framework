@@ -53,9 +53,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.TestUtilities
             return optionsBuilder;
         }
 
-        public ModelBuilder CreateConventionBuilder(bool skipValidation = false)
+        public ModelBuilder CreateConventionBuilder(bool skipValidation = false, IServiceProvider serviceProvider = null)
         {
-            var conventionSet = CreateContextServices().GetRequiredService<IConventionSetBuilder>()
+            var conventionSet = (serviceProvider ?? CreateContextServices())
+                .GetRequiredService<IConventionSetBuilder>()
                 .CreateConventionSet();
 
             if (skipValidation)

@@ -91,7 +91,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
 
         private sealed class ExtensionInfo : RelationalExtensionInfo
         {
-            private long? _serviceProviderHash;
+            private int? _serviceProviderHash;
             private string _logFragment;
 
             public ExtensionInfo(IDbContextOptionsExtension extension)
@@ -114,11 +114,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
                 }
             }
 
-            public override long GetServiceProviderHashCode()
+            public override int GetServiceProviderHashCode()
             {
                 if (_serviceProviderHash == null)
                 {
-                    _serviceProviderHash = (base.GetServiceProviderHashCode() * 397) ^ 0L;
+                    _serviceProviderHash = (base.GetServiceProviderHashCode() * 397) ^ 0;
                 }
 
                 return _serviceProviderHash.Value;

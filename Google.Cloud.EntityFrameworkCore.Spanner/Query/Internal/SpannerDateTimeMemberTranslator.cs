@@ -13,6 +13,8 @@
 // limitations under the License.
 
 using JetBrains.Annotations;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using System;
@@ -55,7 +57,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         public virtual SqlExpression Translate(
             SqlExpression instance,
             MemberInfo member,
-            System.Type returnType)
+            System.Type returnType,
+            IDiagnosticsLogger<DbLoggerCategory.Query> logger)
         {
             var declaringType = member.DeclaringType;
 

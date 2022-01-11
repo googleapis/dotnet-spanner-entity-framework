@@ -13,12 +13,14 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using Google.Api.Gax.Grpc.GrpcNetClient;
 using Google.Api.Gax.ResourceNames;
 using Google.Cloud.Spanner.Admin.Instance.V1;
 using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1.Internal.Logging;
 using Grpc.Core;
+using Grpc.Net.Client;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -118,8 +120,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             // Check if the instance exists and if not create it.
             var adminClientBuilder = new InstanceAdminClientBuilder
             {
-                EmulatorDetection = EmulatorDetection.EmulatorOrProduction
+                EmulatorDetection = EmulatorDetection.EmulatorOrProduction,
+                GrpcAdapter = GrpcNetClientAdapter.Default,
             };
+            if (Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST") != null)
+            {
+                var channel = GrpcChannel.ForAddress($"http://{Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST")}", new GrpcChannelOptions{Credentials = ChannelCredentials.Insecure});
+                adminClientBuilder.CallInvoker = channel.CreateCallInvoker();
+                adminClientBuilder.EmulatorDetection = EmulatorDetection.None;
+            }
             var instanceAdminClient = adminClientBuilder.Build();
 
             InstanceName instanceName = InstanceName.FromProjectInstance(ProjectId, SpannerInstance);

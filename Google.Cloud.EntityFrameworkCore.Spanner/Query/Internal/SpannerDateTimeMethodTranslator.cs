@@ -14,6 +14,8 @@
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using JetBrains.Annotations;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using System;
@@ -64,7 +66,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             _sqlExpressionFactory = sqlExpressionFactory;
         }
 
-        public virtual SqlExpression Translate(SqlExpression instance, MethodInfo method, IReadOnlyList<SqlExpression> arguments)
+        public virtual SqlExpression Translate(
+            SqlExpression instance,
+            MethodInfo method,
+            IReadOnlyList<SqlExpression> arguments,
+            IDiagnosticsLogger<DbLoggerCategory.Query> logger)
         {
             if (s_addYearsMethodInfo.Equals(method) && IsValidDate(instance))
             {

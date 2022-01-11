@@ -14,9 +14,11 @@
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Metadata;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
+using Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models;
 using Google.Cloud.EntityFrameworkCore.Spanner.Tests.TestUtilities;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -74,7 +76,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                         }
                      },
                 PrimaryKey = new AddPrimaryKeyOperation { Columns = new[] { "AlbumId" } },
-                CheckConstraints = { new CreateCheckConstraintOperation { Name = "Chk_Title_Length_Equal", Sql = "CHARACTER_LENGTH(Title) > 0" } },
+                CheckConstraints = { new AddCheckConstraintOperation { Name = "Chk_Title_Length_Equal", Sql = "CHARACTER_LENGTH(Title) > 0" } },
                 ForeignKeys =
                      {
                         new AddForeignKeyOperation
@@ -574,7 +576,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
 
         public virtual void CreateCheckConstraintOperation_with_name()
             => Generate(
-                new CreateCheckConstraintOperation
+                new AddCheckConstraintOperation
                 {
                     Table = "Singers",
                     Name = "Chk_Title_Length_Equal",
@@ -628,8 +630,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
             => Generate(
                 new InsertDataOperation
                 {
-                    Table = "Singer",
+                    Table = "Singers",
                     Columns = new[] { "SingerId", "FirstName", "LastName" },
+                    ColumnTypes = new []{ "INT64", "STRING", "STRING" },
+                    
                     Values = new object[,] {
                         { 1, "Marc", "Richards" }, { 2, "Catalina", "Smith" }, { 3, "Alice", "Trentor" }, { 4, "Lea", "Martin" }
                     }
@@ -639,7 +643,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
             => Generate(
                 new DeleteDataOperation
                 {
-                    Table = "Singer",
+                    Table = "Singers",
                     KeyColumns = new[] { "SingerId" },
                     KeyValues = new object[,] { { 1 }, { 3 } }
                 });
@@ -648,7 +652,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
             => Generate(
                 new DeleteDataOperation
                 {
-                    Table = "Singer",
+                    Table = "Singers",
                     KeyColumns = new[] { "FirstName", "LastName" },
                     KeyValues = new object[,] { { "Dorothy", null }, { "Curt", "Lee" } }
                 });
@@ -657,7 +661,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
             => Generate(
                 new UpdateDataOperation
                 {
-                    Table = "Singer",
+                    Table = "Singers",
                     KeyColumns = new[] { "SingerId" },
                     KeyValues = new object[,] { { 1 }, { 4 } },
                     Columns = new[] { "FirstName" },
@@ -668,7 +672,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
             => Generate(
                 new UpdateDataOperation
                 {
-                    Table = "Album",
+                    Table = "Albums",
                     KeyColumns = new[] { "SingerId", "AlbumId" },
                     KeyValues = new object[,] { { 1, 1 }, { 1, 2 } },
                     Columns = new[] { "Title" },
@@ -679,7 +683,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
             => Generate(
                 new UpdateDataOperation
                 {
-                    Table = "Singer",
+                    Table = "Singers",
                     KeyColumns = new[] { "SingerId" },
                     KeyValues = new object[,] { { 1 }, { 4 } },
                     Columns = new[] { "FirstName", "LastName" },
@@ -757,13 +761,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
         protected virtual void Generate(Action<ModelBuilder> buildAction, params MigrationOperation[] operation)
         {
             var modelBuilder = TestHelpers.CreateConventionBuilder();
-
+            modelBuilder.Entity<Singers>();
+            modelBuilder.Entity<Albums>();
             modelBuilder.Model.RemoveAnnotation(CoreAnnotationNames.ProductVersion);
-
+            
             buildAction(modelBuilder);
 
-            var batch = TestHelpers.CreateContextServices().GetRequiredService<IMigrationsSqlGenerator>()
-                .Generate(operation, modelBuilder.Model);
+            var finalizedModel = modelBuilder.Model.FinalizeModel();
+            var services = TestHelpers.CreateContextServices();
+            services.GetRequiredService<IModelRuntimeInitializer>().Initialize(finalizedModel);
+            
+            var batch = services
+                .GetRequiredService<IMigrationsSqlGenerator>()
+                .Generate(operation, finalizedModel);
 
             Sql = string.Join(EOL, batch.Select(b => b.CommandText));
         }

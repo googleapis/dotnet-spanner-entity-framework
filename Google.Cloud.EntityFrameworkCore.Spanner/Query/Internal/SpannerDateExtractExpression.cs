@@ -18,12 +18,14 @@ using System.Linq.Expressions;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 {
-    internal class SpannerDateExtractExpression : SqlExpression
+    internal class SpannerDateExtractExpression : SpannerValueExpression
     {
         private readonly ISqlExpressionFactory _sqlExpressionFactory;
         private readonly string _dateTimePartName;
         private readonly SqlExpression _fromFragment;
         private readonly SqlExpression _value;
+
+        internal override SqlExpression Value => _value;
 
         internal SpannerDateExtractExpression(ISqlExpressionFactory sqlExpressionFactory, SqlExpression value, string dateTimePartName)
             : base(value.Type, value.TypeMapping)
@@ -34,7 +36,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             _fromFragment = _sqlExpressionFactory.Fragment($"{_dateTimePartName} FROM ");
         }
 
-        public override void Print(ExpressionPrinter expressionPrinter)
+        protected override void Print(ExpressionPrinter expressionPrinter)
         {
         }
 

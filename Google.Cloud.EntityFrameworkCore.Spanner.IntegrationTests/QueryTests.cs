@@ -554,7 +554,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             var calculatedFullName = await db.Singers
                 .Where(s => new long[] { singerId }.Contains(s.SingerId))
-                .Select(s => s.FirstName + " " + s.LastName)
+                .Select(s => string.Concat(s.FirstName, " ", s.LastName))
                 .FirstOrDefaultAsync();
 
             Assert.Equal("Alice Morrison", calculatedFullName);

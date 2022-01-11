@@ -24,6 +24,7 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Query;
@@ -50,8 +51,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                 .TryAdd<IDatabaseProvider, DatabaseProvider<SpannerOptionsExtension>>()
                 .TryAdd<IRelationalTypeMappingSource, SpannerTypeMappingSource>()
                 .TryAdd<ISqlGenerationHelper, SpannerSqlGenerationHelper>()
-                .TryAdd<IMigrationsAnnotationProvider, SpannerMigrationsAnnotationProvider>()
+                .TryAdd<IRelationalAnnotationProvider, SpannerRelationalAnnotationProvider>()
                 .TryAdd<IProviderConventionSetBuilder, SpannerConventionSetBuilder>()
+                .TryAdd<IRelationalParameterBasedSqlProcessorFactory, SpannerParameterBasedSqlProcessorFactory>()
                 .TryAdd<IUpdateSqlGenerator, SpannerUpdateSqlGenerator>()
                 .TryAdd<IBatchExecutor, SpannerBatchExecutor>()
                 .TryAdd<IModificationCommandBatchFactory, SpannerModificationCommandBatchFactory>()
@@ -59,6 +61,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                 .TryAdd<IMethodCallTranslatorProvider, SpannerMethodCallTranslatorProvider>()
                 .TryAdd<IMemberTranslatorProvider, SpannerMemberTranslatorProvider>()
                 .TryAdd<IRelationalConnection>(p => p.GetService<ISpannerRelationalConnection>())
+                .TryAdd<IRelationalTransactionFactory, SpannerRelationalTransactionFactory>()
                 .TryAdd<IModelValidator, SpannerModelValidator>()
                 .TryAddProviderSpecificServices(p => p.TryAddSingleton(_ => SpannerModelValidationConnectionProvider.Instance))
                 .TryAdd<IMigrationsSqlGenerator, SpannerMigrationsSqlGenerator>()
@@ -70,6 +73,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                   .TryAddScoped<ISpannerRelationalConnection, SpannerRelationalConnection>()
                 );
             builder.TryAddCoreServices();
+            serviceCollection.AddEntityFrameworkProxies();
             return serviceCollection;
         }
     }

@@ -64,6 +64,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
     `BirthDate` DATE,
     `Picture` BYTES(MAX)
 )PRIMARY KEY (`SingerId`)
+
 CREATE TABLE `TableWithAllColumnTypes` (
     `ColInt64` INT64 NOT NULL,
     `ColFloat64` FLOAT64,
@@ -90,6 +91,7 @@ CREATE TABLE `TableWithAllColumnTypes` (
     `ColGuid` STRING(36),
     `ColComputed` STRING(MAX) AS (ARRAY_TO_STRING(ColStringArray, ',')) STORED
 )PRIMARY KEY (`ColInt64`)
+
 CREATE TABLE `Venues` (
     `Code` STRING(10) NOT NULL,
     `Name` STRING(100),
@@ -97,6 +99,7 @@ CREATE TABLE `Venues` (
     `Capacity` INT64,
     `Ratings` ARRAY<FLOAT64>
 )PRIMARY KEY (`Code`)
+
 CREATE TABLE `Albums` (
     `AlbumId` INT64 NOT NULL,
     `Title` STRING(100) NOT NULL,
@@ -105,6 +108,7 @@ CREATE TABLE `Albums` (
     `MarketingBudget` INT64,
  CONSTRAINT `FK_Albums_Singers` FOREIGN KEY (`SingerId`) REFERENCES `Singers` (`SingerId`),
 )PRIMARY KEY (`AlbumId`)
+
 CREATE TABLE `Concerts` (
     `VenueCode` STRING(10) NOT NULL,
     `StartTime` TIMESTAMP NOT NULL,
@@ -113,6 +117,7 @@ CREATE TABLE `Concerts` (
  CONSTRAINT `FK_Concerts_Singers` FOREIGN KEY (`SingerId`) REFERENCES `Singers` (`SingerId`),
  CONSTRAINT `FK_Concerts_Venues` FOREIGN KEY (`VenueCode`) REFERENCES `Venues` (`Code`),
 )PRIMARY KEY (`VenueCode`, `StartTime`, `SingerId`)
+
 CREATE TABLE `Tracks` (
     `AlbumId` INT64 NOT NULL,
     `TrackId` INT64 NOT NULL,
@@ -120,9 +125,10 @@ CREATE TABLE `Tracks` (
     `Duration` NUMERIC,
     `LyricsLanguages` ARRAY<STRING(2)>,
     `Lyrics` ARRAY<STRING(MAX)>,
-CONSTRAINT `Chk_Languages_Lyrics_Length_Equal` CHECK (ARRAY_LENGTH(LyricsLanguages) = ARRAY_LENGTH(Lyrics)),
+CONSTRAINT `CK_Tracks_Chk_Languages_Lyrics_Length_Equal` CHECK (ARRAY_LENGTH(LyricsLanguages) = ARRAY_LENGTH(Lyrics)),
 )PRIMARY KEY (`AlbumId`, `TrackId`),
  INTERLEAVE IN PARENT `Albums` ON DELETE NO ACTION 
+
 
 CREATE TABLE `Performances` (
     `VenueCode` STRING(10) NOT NULL,
@@ -132,14 +138,19 @@ CREATE TABLE `Performances` (
     `AlbumId` INT64 NOT NULL,
     `TrackId` INT64 NOT NULL,
     `Rating` FLOAT64,
+ CONSTRAINT `FK_Performances_Concerts` FOREIGN KEY (`VenueCode`, `ConcertStartTime`, `SingerId`) REFERENCES `Concerts` (`VenueCode`, `StartTime`, `SingerId`),
  CONSTRAINT `FK_Performances_Singers` FOREIGN KEY (`SingerId`) REFERENCES `Singers` (`SingerId`),
  CONSTRAINT `FK_Performances_Tracks` FOREIGN KEY (`AlbumId`, `TrackId`) REFERENCES `Tracks` (`AlbumId`, `TrackId`),
- CONSTRAINT `FK_Performances_Concerts` FOREIGN KEY (`VenueCode`, `ConcertStartTime`, `SingerId`) REFERENCES `Concerts` (`VenueCode`, `StartTime`, `SingerId`),
 )PRIMARY KEY (`VenueCode`, `SingerId`, `StartTime`)
+
 CREATE INDEX `AlbumsByAlbumTitle2` ON `Albums` (`Title`) STORING (`MarketingBudget`, `ReleaseDate`)
+
 CREATE INDEX `Idx_Singers_FullName` ON `Singers` (`FullName`)
+
 CREATE NULL_FILTERED INDEX `IDX_TableWithAllColumnTypes_ColDate_ColCommitTS` ON `TableWithAllColumnTypes` (`ColDate`, `ColCommitTS`)
+
 CREATE UNIQUE INDEX `Idx_Tracks_AlbumId_Title` ON `Tracks` (`TrackId`, `Title`)
+
 ";
             Assert.Equal(script, generatedScript);
         }

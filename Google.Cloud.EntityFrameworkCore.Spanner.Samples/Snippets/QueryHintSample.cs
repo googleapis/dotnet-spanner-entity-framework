@@ -91,7 +91,7 @@ public static class QueryHintSample
             return result;
         }
 
-        public override Task<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
             DbCommand command,
             CommandEventData eventData,
             InterceptionResult<DbDataReader> result,
@@ -99,7 +99,7 @@ public static class QueryHintSample
         {
             ManipulateCommand(command);
 
-            return Task.FromResult(result);
+            return ValueTask.FromResult(result);
         }
 
         /// <summary>

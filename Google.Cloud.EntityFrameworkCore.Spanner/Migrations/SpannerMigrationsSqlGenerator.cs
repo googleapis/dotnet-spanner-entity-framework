@@ -321,11 +321,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
                 .Append(")");
         }
 
-        private static string GetCorrectedColumnType(string columnType)
+        private static string GetCorrectedColumnType(string columnType, int? maxLength)
         {
             columnType = columnType.ToUpperInvariant();
             return s_columnTypeMap.TryGetValue(columnType, out string convertedColumnType)
-                ? convertedColumnType
+                ? (maxLength ?? 0) > 0 ? convertedColumnType.Replace("(MAX)", $"({maxLength})") : convertedColumnType
                 : columnType;
         }
 
@@ -351,7 +351,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
             builder
                 .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(name))
                 .Append(" ")
-                .Append(GetCorrectedColumnType(columnType));
+                .Append(GetCorrectedColumnType(columnType, operation.MaxLength));
 
             if (!operation.IsNullable)
             {
@@ -381,7 +381,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
             builder
                 .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(name))
                 .Append(" ")
-                .Append(GetCorrectedColumnType(operation.ColumnType ?? GetColumnType(schema, table, name, operation, model)));
+                .Append(GetCorrectedColumnType(operation.ColumnType ?? GetColumnType(schema, table, name, operation, model), operation.MaxLength));
 
             if (!operation.IsNullable)
             {

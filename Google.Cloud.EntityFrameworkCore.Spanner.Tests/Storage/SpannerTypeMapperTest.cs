@@ -17,6 +17,7 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Tests.TestUtilities;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
@@ -440,7 +441,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
                 property.SetIsUnicode(unicode);
             }
 
-            return CreateTypeMapper().GetMapping(property);
+            var model = property.DeclaringEntityType.Model.FinalizeModel();
+            return CreateTypeMapper().GetMapping(model.FindEntityType(property.DeclaringEntityType.ClrType)!.GetProperty(property.Name));
         }
 
         private static IRelationalTypeMappingSource CreateTypeMapper()

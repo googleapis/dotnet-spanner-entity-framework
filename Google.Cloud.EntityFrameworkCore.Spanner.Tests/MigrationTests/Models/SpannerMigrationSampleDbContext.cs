@@ -146,9 +146,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
 
                 entity.Property(e => e.ColInt64).ValueGeneratedNever();
 
-                entity.Property(e => e.ColBytes).HasColumnType("BYTES(100)");
+                entity.Property(e => e.ColBytes).HasMaxLength(100);
 
-                entity.Property(e => e.ColBytesArray).HasColumnType("ARRAY<BYTES(100)>");
+                entity.Property(e => e.ColBytesArray).HasMaxLength(100);
 
                 entity.Property(e => e.ColBytesMax);
 
@@ -164,7 +164,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
 
                 entity.Property(e => e.ColString).HasMaxLength(100);
 
-                entity.Property(e => e.ColStringArray).HasColumnType("ARRAY<STRING(100)>");
+                entity.Property(e => e.ColStringArray).HasMaxLength(100);
 
                 entity.Property(e => e.ColStringMax);
 
@@ -185,7 +185,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
 
                 entity.Property(e => e.Lyrics);
 
-                entity.Property(e => e.LyricsLanguages).HasColumnType("ARRAY<STRING(2)>");
+                entity.Property(e => e.LyricsLanguages).HasMaxLength(2);
 
                 entity.Property(e => e.Title)
                     .IsRequired()

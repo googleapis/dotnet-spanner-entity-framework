@@ -12,57 +12,63 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using Grpc.Core;
+using Microsoft.AspNetCore;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using System;
 using System.Linq;
+using System.Net;
 
-namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
+namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests;
+
+public class SpannerMockServerFixture : IDisposable
 {
-    public class SpannerMockServerFixture : IDisposable
+    private readonly Random _random = new Random();
+
+    private readonly IWebHost _host;
+
+    public MockSpannerService SpannerMock { get; }
+    public MockDatabaseAdminService DatabaseAdminMock { get; }
+    public string Endpoint => $"localhost:{Port}";
+    public string Host => "localhost";
+    public int Port { get; }
+
+    public SpannerMockServerFixture()
     {
-        private readonly Random _random = new Random();
-
-        private readonly Server _server;
-        public MockSpannerService SpannerMock { get; }
-        public MockDatabaseAdminService DatabaseAdminMock { get; }
-        public string Endpoint
+        SpannerMock = new MockSpannerService();
+        DatabaseAdminMock = new MockDatabaseAdminService();
+            
+        var endpoint = IPEndPoint.Parse("127.0.0.1:0");
+        var builder = WebHost.CreateDefaultBuilder();
+        builder.UseStartup(webHostBuilderContext => new Startup(webHostBuilderContext.Configuration, SpannerMock, DatabaseAdminMock));
+        builder.ConfigureKestrel(options =>
         {
-            get
-            {
-                return $"{_server.Ports.ElementAt(0).Host}:{_server.Ports.ElementAt(0).BoundPort}";
-            }
-        }
-        public string Host { get { return _server.Ports.ElementAt(0).Host; } }
-        public int Port { get { return _server.Ports.ElementAt(0).BoundPort; } }
+            // Setup a HTTP/2 endpoint without TLS.
+            options.Listen(endpoint, o => o.Protocols = HttpProtocols.Http2);
+        });
+        _host = builder.Build();
+        _host.Start();
+        var address = _host.ServerFeatures.Get<IServerAddressesFeature>()!.Addresses.First();
+        var uri = new Uri(address);
+        Port = uri.Port;
+    }
 
-        public SpannerMockServerFixture()
-        {
-            SpannerMock = new MockSpannerService();
-            DatabaseAdminMock = new MockDatabaseAdminService();
-            _server = new Server
-            {
-                Services = { Google.Cloud.Spanner.V1.Spanner.BindService(SpannerMock), Google.Cloud.Spanner.Admin.Database.V1.DatabaseAdmin.BindService(DatabaseAdminMock) },
-                Ports = { new ServerPort("localhost", 0, ServerCredentials.Insecure) }
-            };
-            _server.Start();
-        }
+    public void Dispose()
+    {
+        _host.StopAsync().Wait();
+    }
 
-        public void Dispose()
-        {
-            _server.ShutdownAsync().Wait();
-        }
+    public long RandomLong()
+    {
+        return RandomLong(0, long.MaxValue);
+    }
 
-        public long RandomLong()
-        {
-            return RandomLong(0, long.MaxValue);
-        }
-
-        public long RandomLong(long min, long max)
-        {
-            byte[] buf = new byte[8];
-            _random.NextBytes(buf);
-            long longRand = BitConverter.ToInt64(buf, 0);
-            return (Math.Abs(longRand % (max - min)) + min);
-        }
+    public long RandomLong(long min, long max)
+    {
+        byte[] buf = new byte[8];
+        _random.NextBytes(buf);
+        long longRand = BitConverter.ToInt64(buf, 0);
+        return (Math.Abs(longRand % (max - min)) + min);
     }
 }
