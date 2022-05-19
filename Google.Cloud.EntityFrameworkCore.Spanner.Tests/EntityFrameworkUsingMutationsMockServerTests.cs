@@ -29,6 +29,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Xunit;
+using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
 using V1 = Google.Cloud.Spanner.V1;
 
 #pragma warning disable EF1001

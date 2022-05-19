@@ -23,6 +23,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using Xunit;
+using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
 {

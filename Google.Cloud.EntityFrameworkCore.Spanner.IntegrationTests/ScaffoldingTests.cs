@@ -23,6 +23,7 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {

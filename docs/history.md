@@ -1,3 +1,10 @@
+# Version 1.1.0, released 2022-01-04
+
+- [Commit fdc22c1](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/fdc22c1) fix: DataReader.GetFieldValue<T> could fail for array types ([#144](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/144))
+- [Commit 031d842](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/031d842) chore: cast COLUMN\_DEFAULT value to STRING ([#145](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/145))
+- [Commit 0f90c7f](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/0f90c7f) feat: add helper method for getting SpannerConnection + PDML sample ([#133](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/133))
+- [Commit ce757fb](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/ce757fb) samples: add a quick start sample ([#128](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/128))
+
 # Version 1.0.0, released 2021-09-09
 
 - [Commit baee99b](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/baee99b) feat: support single stale reads ([#120](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/120))
