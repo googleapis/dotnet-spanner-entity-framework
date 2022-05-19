@@ -82,6 +82,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 _sqlExpressionFactory.Function(
                 function,
                 new[] { instance },
+                true,
+                new []{true},
                 returnType));
         }
     }

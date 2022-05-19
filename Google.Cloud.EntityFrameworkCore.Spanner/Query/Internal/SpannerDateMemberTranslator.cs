@@ -66,6 +66,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                     var extract = _sqlExpressionFactory.Function(
                         "EXTRACT",
                         new[] { new SpannerDateExtractExpression(_sqlExpressionFactory, instance, datePart) },
+                        /* return value is nullable = */true,
+                        /* arguments that propagate nullability = */new []{true}, 
                         returnType);
                     if (datePart == "DAYOFWEEK")
                     {

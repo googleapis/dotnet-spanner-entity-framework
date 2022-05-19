@@ -231,10 +231,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 
         private SqlExpression TranslateStaticFunction(string function, IReadOnlyList<SqlExpression> arguments, System.Type returnType)
         {
+            var nullabilityPropagation = new bool[arguments.Count];
+            Array.Fill(nullabilityPropagation, true);
             return _sqlExpressionFactory.ApplyDefaultTypeMapping(
                 _sqlExpressionFactory.Function(
                 function,
                 arguments,
+                true,
+                nullabilityPropagation,
                 returnType));
         }
 
@@ -244,6 +248,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 _sqlExpressionFactory.Function(
                 function,
                 new[] { instance },
+                true,
+                new []{true},
                 returnType));
         }
 
@@ -253,6 +259,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 _sqlExpressionFactory.Function(
                 function,
                 new[] { instance, arg },
+                true,
+                new []{true, true},
                 returnType));
         }
 
@@ -262,6 +270,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 _sqlExpressionFactory.Function(
                 function,
                 new[] { instance, arg1, arg2 },
+                true,
+                new []{true, true, true},
                 returnType));
         }
     }

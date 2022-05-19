@@ -44,6 +44,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             return base.GetOperator(binaryExpression);
         }
 
+        [Obsolete]
         protected override string GenerateOperator(SqlBinaryExpression binaryExpression) =>
             GetOperator(binaryExpression);
 

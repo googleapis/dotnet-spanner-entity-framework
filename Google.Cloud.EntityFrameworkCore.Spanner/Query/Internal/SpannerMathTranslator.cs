@@ -105,10 +105,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                         return null;
                     }
                 }
+                var nullabilityPropagation = new bool[arguments.Count];
+                Array.Fill(nullabilityPropagation, true);
                 return _sqlExpressionFactory.ApplyDefaultTypeMapping(
                     _sqlExpressionFactory.Function(
                         sqlFunctionName,
                         arguments,
+                        true,
+                        nullabilityPropagation,
                         method.ReturnType));
             }
             if (s_spannerNumericToDecimalMethodInfo.Equals(method))

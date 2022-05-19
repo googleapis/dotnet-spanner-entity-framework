@@ -53,16 +53,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.TestUtilities
             return optionsBuilder;
         }
 
-        public ModelBuilder CreateConventionBuilder(bool skipValidation = false, IServiceProvider serviceProvider = null)
+        public ModelBuilder CreateConventionBuilder(IServiceProvider serviceProvider = null)
         {
             var conventionSet = (serviceProvider ?? CreateContextServices())
                 .GetRequiredService<IConventionSetBuilder>()
                 .CreateConventionSet();
-
-            if (skipValidation)
-            {
-                ConventionSet.Remove(conventionSet.ModelFinalizedConventions, typeof(ValidatingConvention));
-            }
 
             return new ModelBuilder(conventionSet);
         }

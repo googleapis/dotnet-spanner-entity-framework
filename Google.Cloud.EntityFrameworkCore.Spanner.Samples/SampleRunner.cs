@@ -20,16 +20,18 @@ using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
 using Grpc.Core;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
 {
     /// <summary>
     /// Main class for running a sample from the Snippets directory.
-    /// Usage: `dotnet run <SampleName>`
+    /// Usage: `dotnet run SampleName`
     /// Example: `dotnet run AddEntitySample`
     /// 
     /// The SampleRunner will automatically start a docker container with a Spanner emulator and execute
@@ -196,7 +198,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
 
         private static async Task CreateSampleDataModel(string connectionString)
         {
-            var codeBaseUrl = new Uri(Assembly.GetExecutingAssembly().CodeBase);
+            var codeBaseUrl = new Uri(Assembly.GetExecutingAssembly().Location);
             var codeBasePath = Uri.UnescapeDataString(codeBaseUrl.AbsolutePath);
             var dirPath = Path.GetDirectoryName(codeBasePath);
             var fileName = Path.Combine(dirPath, "SampleModel/SampleDataModel.sql");
@@ -205,10 +207,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
             for (var i = 0; i < statements.Length; i++)
             {
                 // Remove license header from script
-                if (statements[i].IndexOf("/*") >= 0 && statements[i].IndexOf("*/") >= 0)
+                if (statements[i].IndexOf("/*", StringComparison.Ordinal) >= 0 && statements[i].IndexOf("*/", StringComparison.Ordinal) >= 0)
                 {
-                    int startIndex = statements[i].IndexOf("/*");
-                    int endIndex = statements[i].IndexOf("*/", startIndex) + "*/".Length;
+                    int startIndex = statements[i].IndexOf("/*", StringComparison.Ordinal);
+                    int endIndex = statements[i].IndexOf("*/", startIndex, StringComparison.Ordinal) + "*/".Length;
                     statements[i] = statements[i].Remove(startIndex, endIndex - startIndex);
                 }
                 statements[i] = statements[i].Trim(new char[] { '\r', '\n' });
@@ -231,13 +233,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
 
         private static void PrintValidSampleNames()
         {
-            string nspace = null;
-            var sampleClasses = from t in Assembly.GetExecutingAssembly().GetTypes()
-                                where t.IsClass && t.Namespace == nspace && t.Name.EndsWith("Sample")
-                                select t;
+            var sampleClasses = GetSampleClasses();
             Console.Error.WriteLine("");
             Console.Error.WriteLine("Supported samples:");
             sampleClasses.ToList().ForEach(t => Console.Error.WriteLine($"  * {t.Name}"));
+        }
+
+        private static IEnumerable<System.Type> GetSampleClasses()
+        {
+            return from t in Assembly.GetExecutingAssembly().GetTypes()
+                where t.IsClass && t.Name.EndsWith("Sample")
+                select t;
         }
     }
 }

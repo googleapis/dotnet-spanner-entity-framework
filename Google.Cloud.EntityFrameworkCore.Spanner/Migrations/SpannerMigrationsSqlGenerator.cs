@@ -154,7 +154,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
             DropIndexOperation operation,
             IModel model,
             MigrationCommandListBuilder builder,
-            bool terminate)
+            bool terminate = true)
         {
             GaxPreconditions.CheckNotNull(operation, nameof(operation));
             GaxPreconditions.CheckNotNull(builder, nameof(builder));
@@ -210,7 +210,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
             CreateTableOperation operation,
             IModel model,
             MigrationCommandListBuilder builder,
-            bool terminate)
+            bool terminate = true)
         {
             builder
                 .Append("CREATE TABLE ")

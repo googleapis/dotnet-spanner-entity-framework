@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <AssemblyName>SampleRunner</AssemblyName>
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>

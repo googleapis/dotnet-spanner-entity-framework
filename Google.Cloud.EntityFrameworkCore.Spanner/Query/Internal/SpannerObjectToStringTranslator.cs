@@ -102,6 +102,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 return _sqlExpressionFactory.ApplyDefaultTypeMapping(_sqlExpressionFactory.Function(
                     "FORMAT_TIMESTAMP",
                     new[] { _sqlExpressionFactory.Constant("%FT%H:%M:%E*SZ"), instance, _sqlExpressionFactory.Constant("UTC") },
+                    true,
+                    new []{false, true, false},
                     typeof(string)
                 ));
             }

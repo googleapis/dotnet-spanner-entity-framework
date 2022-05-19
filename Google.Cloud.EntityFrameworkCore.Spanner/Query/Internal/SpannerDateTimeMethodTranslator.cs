@@ -139,7 +139,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             SqlExpression value = _sqlExpressionFactory.ApplyDefaultTypeMapping(arguments[0]);
             if (value.TypeMapping != null && value.TypeMapping.StoreTypeNameBase == "FLOAT64")
             {
-                value = _sqlExpressionFactory.ApplyDefaultTypeMapping(_sqlExpressionFactory.Function("CAST", new[] { value, _sqlExpressionFactory.Fragment("INT64") }, typeof(long)));
+                value = _sqlExpressionFactory.ApplyDefaultTypeMapping(
+                    _sqlExpressionFactory.Function(
+                        "CAST",
+                        new[] { value, _sqlExpressionFactory.Fragment("INT64") },
+                        true,
+                        new []{true},
+                        typeof(long)));
             }
             if (multiplier != 1L)
             {
@@ -154,6 +160,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 _sqlExpressionFactory.Function(
                 function,
                 new[] { instance, arg },
+                true,
+                new []{true, true},
                 returnType));
         }
     }

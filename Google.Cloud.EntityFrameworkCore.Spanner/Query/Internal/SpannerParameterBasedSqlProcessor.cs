@@ -14,7 +14,7 @@ public class SpannerParameterBasedSqlProcessor : RelationalParameterBasedSqlProc
     
     protected override SelectExpression ProcessSqlNullability(
         SelectExpression selectExpression,
-        IReadOnlyDictionary<string, object?> parametersValues,
+        IReadOnlyDictionary<string, object> parametersValues,
         out bool canCache)
         => new SpannerSqlNullabilityProcessor(Dependencies, UseRelationalNulls).Process(
             selectExpression, parametersValues, out canCache);

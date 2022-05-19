@@ -43,7 +43,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Scaffolding
             var codeGenerator = new SpannerCodeGenerator(
                 new ProviderCodeGeneratorDependencies(Enumerable.Empty<IProviderCodeGeneratorPlugin>()));
 
+#pragma warning disable 0618
             var providerOptions = new MethodCallCodeFragment("SetProviderOption");
+#pragma warning restore 0618
 
             var result = codeGenerator.GenerateUseProvider("Source=projects/p1/instances/i1/databases/d1", providerOptions);
 

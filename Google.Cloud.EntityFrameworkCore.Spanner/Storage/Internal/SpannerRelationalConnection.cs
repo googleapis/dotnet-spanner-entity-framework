@@ -102,6 +102,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             var optionsBuilder = new DbContextOptionsBuilder();
             optionsBuilder.UseSpanner(masterConn);
 
+#pragma warning disable EF1001
             var dependencies = new RelationalConnectionDependencies(
                 optionsBuilder.Options,
                 Dependencies.TransactionLogger,
@@ -110,6 +111,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 Dependencies.RelationalTransactionFactory,
                 Dependencies.CurrentContext,
                 Dependencies.RelationalCommandBuilderFactory);
+#pragma warning restore EF1001
             return new SpannerRelationalConnection(dependencies);
         }
     }

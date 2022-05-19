@@ -37,7 +37,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
         public SpannerMigrationsAnnotationProviderTest()
         {
             _services = SpannerTestHelpers.Instance.CreateContextServices();
-            _modelBuilder = SpannerTestHelpers.Instance.CreateConventionBuilder(false, _services);
+            _modelBuilder = SpannerTestHelpers.Instance.CreateConventionBuilder(_services);
             _annotations = new SpannerRelationalAnnotationProvider(new RelationalAnnotationProviderDependencies());
         }
 
