@@ -24,6 +24,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Microsoft.EntityFrameworkCore.Update;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
 {
@@ -399,10 +400,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
             MigrationCommandListBuilder builder,
             bool terminate = true)
         {
+            var commands = GenerateModificationCommands(operation, model);
             var sqlBuilder = new StringBuilder();
             ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).AppendBulkInsertOperation(
                 sqlBuilder,
-                operation.GenerateModificationCommands(model).ToList(),
+                commands.ToList(),
                 0);
 
             builder.Append(sqlBuilder.ToString());

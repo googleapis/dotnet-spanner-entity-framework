@@ -90,7 +90,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 
         public virtual ResultSetMapping AppendBulkInsertOperation(
             StringBuilder commandStringBuilder,
-            IReadOnlyList<ModificationCommand> modificationCommands,
+            IReadOnlyList<IReadOnlyModificationCommand> modificationCommands,
             int commandPosition)
         {
             if (modificationCommands.Count == 1
@@ -107,7 +107,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 
         private ResultSetMapping AppendBulkInsertValues(
             StringBuilder commandStringBuilder,
-            IReadOnlyList<IModificationCommand> modificationCommands)
+            IReadOnlyList<IReadOnlyModificationCommand> modificationCommands)
         {
             var writeOperations = modificationCommands[0].ColumnModifications.ToList();
 

@@ -193,15 +193,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            // Skipped for now. It seems that migration insert data operations are broken.
-            // migrationBuilder.InsertData(
-            //     table: "Authors",
-            //     columns: new[] { "AuthorId", "FirstName", "LastName" },
-            //     values: new object[,]
-            //     {
-            //         { 1L, "Belinda", "Stiles" },
-            //         { 2L, "Kelly", "Houser" }
-            //     });
+            migrationBuilder.InsertData(
+                table: "Authors",
+                columns: new[] { "AuthorId", "FirstName", "LastName" },
+                columnTypes: new []{ "INT64", "STRING", "STRING" },
+                values: new object[,]
+                {
+                    { 1L, "Belinda", "Stiles" },
+                    { 2L, "Kelly", "Houser" }
+                });
 
             migrationBuilder.CreateIndex(
                 name: "IX_AllColTypes_ColDate_ColCommitTimestamp",
