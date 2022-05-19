@@ -16,6 +16,7 @@ using System;
 using System.Collections.Generic;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.V1;
+using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
 {
