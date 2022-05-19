@@ -25,6 +25,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Xunit;
+using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
