@@ -22,7 +22,7 @@ using System.Linq;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 {
     /// <summary>
-    ///     This is internal functionality and not intended for public use.
+    /// This is internal functionality and not intended for public use.
     /// </summary>
     public class SpannerRelationalAnnotationProvider : RelationalAnnotationProvider
     {
@@ -35,6 +35,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
         {
         }
 
+        /// <inheritdoc />
         public override IEnumerable<IAnnotation> For(IColumn column, bool designTime)
         {
             var baseAnnotations = base.For(column, designTime);
@@ -50,6 +51,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             return baseAnnotations;
         }
 
+        /// <inheritdoc />
         public override IEnumerable<IAnnotation> For(ITable table, bool designTime)
         {
             var baseAnnotations = base.For(table, designTime);
@@ -69,6 +71,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             return baseAnnotations;
         }
 
+        /// <inheritdoc />
         public override IEnumerable<IAnnotation> For(ITableIndex tableIndex, bool designTime)
         {
             var indexAnnotations = base.For(tableIndex, designTime);

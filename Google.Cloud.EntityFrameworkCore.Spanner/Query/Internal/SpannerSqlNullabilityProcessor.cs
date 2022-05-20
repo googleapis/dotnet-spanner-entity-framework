@@ -18,13 +18,18 @@ using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal;
 
+/// <inheritdoc />
 public class SpannerSqlNullabilityProcessor : SqlNullabilityProcessor
 {
+    /// <summary>
+    /// Only for internal use.
+    /// </summary>
     public SpannerSqlNullabilityProcessor([NotNull] RelationalParameterBasedSqlProcessorDependencies dependencies, bool useRelationalNulls) :
         base(dependencies, useRelationalNulls)
     {
     }
 
+    /// <inheritdoc />
     protected override SqlExpression VisitCustomSqlExpression(
         SqlExpression sqlExpression,
         bool allowOptimizedExpansion,

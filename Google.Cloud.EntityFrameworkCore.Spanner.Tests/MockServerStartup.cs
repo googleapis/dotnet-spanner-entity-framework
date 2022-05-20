@@ -20,21 +20,32 @@ using Microsoft.Extensions.Hosting;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests;
 
+/// <summary>
+/// Helper class for starting an in-memory mock Spanner server that is used for testing.
+/// </summary>
 public class MockServerStartup
 {
-    public IConfiguration Configuration { get; }
-        
+    /// <summary>
+    /// The in-mem Spanner service.
+    /// </summary>
     private MockSpannerService MockSpannerService { get; }
 
+    /// <summary>
+    /// The in-mem Spanner database admin service for executing DDL operations.
+    /// </summary>
     private MockDatabaseAdminService MockDatabaseAdminService { get; }
         
-    public MockServerStartup(IConfiguration configuration, MockSpannerService mockSpannerService, MockDatabaseAdminService mockDatabaseAdminService)
+    public MockServerStartup(MockSpannerService mockSpannerService, MockDatabaseAdminService mockDatabaseAdminService)
     {
-        Configuration = configuration;
         MockSpannerService = mockSpannerService;
         MockDatabaseAdminService = mockDatabaseAdminService;
     }
 
+    /// <summary>
+    /// Configures the services that will be available on this gRPC server.
+    /// This method is called by reflection when the tests are started.
+    /// </summary>
+    /// <param name="services">The services collection where the services should be added</param>
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddGrpc();
@@ -42,6 +53,11 @@ public class MockServerStartup
         services.AddSingleton(MockDatabaseAdminService);
     }
 
+    /// <summary>
+    /// Configures the gRPC server. This method is called by reflection when the tests are started.
+    /// </summary>
+    /// <param name="app">The builder for the application that will be hosting the service</param>
+    /// <param name="env">The webhost environment that is hosting the service</param>
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
         if (env.IsDevelopment())

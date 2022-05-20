@@ -19,13 +19,18 @@ using System.Collections.Generic;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal;
 
+/// <inheritdoc />
 public class SpannerParameterBasedSqlProcessor : RelationalParameterBasedSqlProcessor
 {
+    /// <summary>
+    /// Only for internal use.
+    /// </summary>
     public SpannerParameterBasedSqlProcessor([NotNull] RelationalParameterBasedSqlProcessorDependencies dependencies, bool useRelationalNulls) :
         base(dependencies, useRelationalNulls)
     {
     }
     
+    /// <inheritdoc />
     protected override SelectExpression ProcessSqlNullability(
         SelectExpression selectExpression,
         IReadOnlyDictionary<string, object> parametersValues,

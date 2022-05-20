@@ -41,7 +41,7 @@ public class SpannerMockServerFixture : IDisposable
             
         var endpoint = IPEndPoint.Parse("127.0.0.1:0");
         var builder = WebHost.CreateDefaultBuilder();
-        builder.UseStartup(webHostBuilderContext => new MockServerStartup(webHostBuilderContext.Configuration, SpannerMock, DatabaseAdminMock));
+        builder.UseStartup(webHostBuilderContext => new MockServerStartup(SpannerMock, DatabaseAdminMock));
         builder.ConfigureKestrel(options =>
         {
             // Setup a HTTP/2 endpoint without TLS.

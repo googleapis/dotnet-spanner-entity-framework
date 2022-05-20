@@ -21,12 +21,17 @@ using System.Data.Common;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 
+/// <inheritdoc />
 public class SpannerRelationalTransaction : RelationalTransaction
 {
+    /// <summary>
+    /// Only for internal use.
+    /// </summary>
     public SpannerRelationalTransaction([NotNull] IRelationalConnection connection, [NotNull] DbTransaction transaction, Guid transactionId, IDiagnosticsLogger<DbLoggerCategory.Database.Transaction> logger, bool transactionOwned, [NotNull] ISqlGenerationHelper sqlGenerationHelper) :
         base(connection, transaction, transactionId, logger, transactionOwned, sqlGenerationHelper)
     {
     }
     
+    /// <inheritdoc />
     public override bool SupportsSavepoints => false;
 }

@@ -20,8 +20,12 @@ using System.Data.Common;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 
+/// <inheritdoc />
 public class SpannerRelationalTransactionFactory : RelationalTransactionFactory
 {
+    /// <summary>
+    /// Only for internal use.
+    /// </summary>
     public SpannerRelationalTransactionFactory(RelationalTransactionFactoryDependencies dependencies) :
         base(dependencies)
     {

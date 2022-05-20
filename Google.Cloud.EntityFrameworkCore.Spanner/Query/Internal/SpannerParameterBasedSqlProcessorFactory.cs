@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore.Query;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal;
 
+/// <inheritdoc />
 public class SpannerParameterBasedSqlProcessorFactory : IRelationalParameterBasedSqlProcessorFactory
 {
     public SpannerParameterBasedSqlProcessorFactory(RelationalParameterBasedSqlProcessorDependencies dependencies)
@@ -25,6 +26,7 @@ public class SpannerParameterBasedSqlProcessorFactory : IRelationalParameterBase
 
     protected virtual RelationalParameterBasedSqlProcessorDependencies Dependencies { get; }
 
+    /// <inheritdoc />
     public virtual RelationalParameterBasedSqlProcessor Create(bool useRelationalNulls)
         => new SpannerParameterBasedSqlProcessor(Dependencies, useRelationalNulls);
 }

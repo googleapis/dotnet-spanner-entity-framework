@@ -31,13 +31,18 @@ using System.Threading.Tasks;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 {
 #pragma warning disable EF1001
+    /// <inheritdoc />
     internal class SpannerBatchExecutor : BatchExecutor
     {
+        /// <summary>
+        /// Only for internal use.
+        /// </summary>
         public SpannerBatchExecutor([NotNull] ICurrentDbContext currentContext, IDiagnosticsLogger<DbLoggerCategory.Update> updateLogger) :
             base(currentContext, updateLogger)
         {
         }
 
+        /// <inheritdoc />
         public override int Execute(IEnumerable<ModificationCommandBatch> commandBatches, IRelationalConnection connection)
         {
             // Convert the list of batches to a list to prevent it from being re-generated each time that we iterate over the enumerator.
@@ -70,6 +75,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             return SpannerCount(batchesList);
         }
 
+        /// <inheritdoc />
         public override async Task<int> ExecuteAsync(IEnumerable<ModificationCommandBatch> commandBatches, IRelationalConnection connection, CancellationToken cancellationToken = default)
         {
             // Convert the list of batches to a list to prevent it from being re-generated each time that we iterate over the enumerator.
