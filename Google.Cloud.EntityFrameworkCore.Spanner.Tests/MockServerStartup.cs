@@ -1,3 +1,17 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -6,7 +20,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests;
 
-public class Startup
+public class MockServerStartup
 {
     public IConfiguration Configuration { get; }
         
@@ -14,7 +28,7 @@ public class Startup
 
     private MockDatabaseAdminService MockDatabaseAdminService { get; }
         
-    public Startup(IConfiguration configuration, MockSpannerService mockSpannerService, MockDatabaseAdminService mockDatabaseAdminService)
+    public MockServerStartup(IConfiguration configuration, MockSpannerService mockSpannerService, MockDatabaseAdminService mockDatabaseAdminService)
     {
         Configuration = configuration;
         MockSpannerService = mockSpannerService;
@@ -26,8 +40,6 @@ public class Startup
         services.AddGrpc();
         services.AddSingleton(MockSpannerService);
         services.AddSingleton(MockDatabaseAdminService);
-        // services.AddSingleton(Google.Cloud.Spanner.V1.Spanner.BindService(MockSpannerService));
-        // services.AddSingleton(Google.Cloud.Spanner.Admin.Database.V1.DatabaseAdmin.BindService(MockDatabaseAdminService));
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -36,7 +48,6 @@ public class Startup
         {
             app.UseDeveloperExceptionPage();
         }
-        // app.UseHttpsRedirection();
         app.UseRouting();
         app.UseEndpoints(endpoints =>
         {

@@ -196,7 +196,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
             migrationBuilder.InsertData(
                 table: "Authors",
                 columns: new[] { "AuthorId", "FirstName", "LastName" },
-                columnTypes: new []{ "INT64", "STRING", "STRING" },
                 values: new object[,]
                 {
                     { 1L, "Belinda", "Stiles" },

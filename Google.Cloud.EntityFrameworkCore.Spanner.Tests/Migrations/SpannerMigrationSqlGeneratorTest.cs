@@ -439,10 +439,9 @@ CONSTRAINT `Chk_Title_Length_Equal` CHECK (CHARACTER_LENGTH(Title) > 0),
                 }));
         }
 
-        [SkippableFact]
+        [Fact]
         public override void InsertDataOperation()
         {
-            Skip.If(true, "Does not seem to work in EF Core 6");
             base.InsertDataOperation();
             AssertSql(@"INSERT INTO `Singers` (`SingerId`, `FirstName`, `LastName`)
 VALUES (1, 'Marc', 'Richards'),

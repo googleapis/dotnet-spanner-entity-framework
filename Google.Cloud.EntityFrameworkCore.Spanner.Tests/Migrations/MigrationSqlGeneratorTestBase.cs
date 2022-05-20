@@ -633,8 +633,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                 {
                     Table = "Singers",
                     Columns = new[] { "SingerId", "FirstName", "LastName" },
-                    ColumnTypes = new []{ "INT64", "STRING", "STRING" },
-                    
                     Values = new object[,] {
                         { 1, "Marc", "Richards" }, { 2, "Catalina", "Smith" }, { 3, "Alice", "Trentor" }, { 4, "Lea", "Martin" }
                     }

@@ -240,10 +240,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
         }
 
         private static IEnumerable<System.Type> GetSampleClasses()
-        {
-            return from t in Assembly.GetExecutingAssembly().GetTypes()
+            => from t in Assembly.GetExecutingAssembly().GetTypes()
                 where t.IsClass && t.Name.EndsWith("Sample")
                 select t;
-        }
     }
 }

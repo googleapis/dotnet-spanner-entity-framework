@@ -30,8 +30,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
     {
         internal const string PendingCommitTimestampValue = "PENDING_COMMIT_TIMESTAMP()";
 
-        // internal SpannerPendingCommitTimestampColumnModification(IUpdateEntry entry, IProperty property, bool sensitiveLoggingEnabled)
-        //     : base(entry, property, () => "", false, true, false, false, false, sensitiveLoggingEnabled)
         internal SpannerPendingCommitTimestampColumnModification(IUpdateEntry entry, IProperty property, bool sensitiveLoggingEnabled)
             : base(new ColumnModificationParameters
             {
