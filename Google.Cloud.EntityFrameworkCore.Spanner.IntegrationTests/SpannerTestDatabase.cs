@@ -121,14 +121,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             var adminClientBuilder = new InstanceAdminClientBuilder
             {
                 EmulatorDetection = EmulatorDetection.EmulatorOrProduction,
-                GrpcAdapter = GrpcNetClientAdapter.Default,
             };
-            if (Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST") != null)
-            {
-                var channel = GrpcChannel.ForAddress($"http://{Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST")}", new GrpcChannelOptions{Credentials = ChannelCredentials.Insecure});
-                adminClientBuilder.CallInvoker = channel.CreateCallInvoker();
-                adminClientBuilder.EmulatorDetection = EmulatorDetection.None;
-            }
             var instanceAdminClient = adminClientBuilder.Build();
 
             InstanceName instanceName = InstanceName.FromProjectInstance(ProjectId, SpannerInstance);
