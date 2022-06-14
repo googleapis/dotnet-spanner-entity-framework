@@ -18,6 +18,11 @@ using Grpc.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using Microsoft.AspNetCore;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using V1 = Google.Cloud.Spanner.V1;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks
@@ -26,22 +31,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks
     {
         private readonly Random _random = new Random();
 
-        private readonly Server _server;
-        public MockSpannerService SpannerMock { get; }
+        private readonly IWebHost _host;
 
-        public string Endpoint
-        {
-            get
-            {
-                return $"{_server.Ports.ElementAt(0).Host}:{_server.Ports.ElementAt(0).BoundPort}";
-            }
-        }
-        public string Host { get { return _server.Ports.ElementAt(0).Host; } }
-        public int Port { get { return _server.Ports.ElementAt(0).BoundPort; } }
+        public MockSpannerService SpannerMock { get; }
+        
+        public MockDatabaseAdminService DatabaseAdminMock { get; }
+
+        public string Endpoint => $"localhost:{Port}";
+        public string Host => "localhost";
+        public int Port { get; }
 
         public BenchmarkServer()
         {
             SpannerMock = new MockSpannerService();
+            DatabaseAdminMock = new MockDatabaseAdminService();
 
             // Setup standard query results.
             var selectOneSingerEF = $"SELECT s.SingerId, s.BirthDate, s.FirstName, s.FullName, s.LastName, s.Picture{Environment.NewLine}FROM Singers AS s{Environment.NewLine}WHERE s.SingerId = @__p_0{Environment.NewLine}LIMIT 1";
@@ -91,17 +94,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks
             SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql) + selectMultipleSingersEF, ExecutionTime.FromMillis(4, 2));
             SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql) + selectMultipleSingers, ExecutionTime.FromMillis(4, 2));
 
-            _server = new Server
+            var endpoint = IPEndPoint.Parse("127.0.0.1:0");
+            var builder = WebHost.CreateDefaultBuilder();
+            builder.UseStartup(webHostBuilderContext => new MockServerStartup(SpannerMock, DatabaseAdminMock));
+            builder.ConfigureKestrel(options =>
             {
-                Services = { V1.Spanner.BindService(SpannerMock) },
-                Ports = { new ServerPort("localhost", 0, ServerCredentials.Insecure) }
-            };
-            _server.Start();
+                // Setup a HTTP/2 endpoint without TLS.
+                options.Listen(endpoint, o => o.Protocols = HttpProtocols.Http2);
+            });
+            _host = builder.Build();
+            _host.Start();
+            var address = _host.ServerFeatures.Get<IServerAddressesFeature>()!.Addresses.First();
+            var uri = new Uri(address);
+            Port = uri.Port;
         }
 
         public void Dispose()
         {
-            _server.ShutdownAsync().Wait();
+            _host.StopAsync().Wait();
         }
 
         private string AddFindSingerResult(string sql)

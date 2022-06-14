@@ -763,7 +763,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
             modelBuilder.Entity<Singers>();
             modelBuilder.Entity<Albums>();
             modelBuilder.Model.RemoveAnnotation(CoreAnnotationNames.ProductVersion);
-            
+
             buildAction(modelBuilder);
 
             var finalizedModel = modelBuilder.Model.FinalizeModel();

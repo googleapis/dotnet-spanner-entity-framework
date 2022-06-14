@@ -40,11 +40,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public void BatchCreateSessions()
         {
-            var channel = GrpcChannel.ForAddress($"http://{_fixture.Endpoint}", new GrpcChannelOptions{Credentials = ChannelCredentials.Insecure});
-            SpannerClientBuilder builder = new SpannerClientBuilder
+            var builder = new SpannerClientBuilder
             {
-                CallInvoker = channel.CreateCallInvoker(),
-                GrpcAdapter = GrpcNetClientAdapter.Default,
+                Endpoint = $"http://{_fixture.Endpoint}",
+                ChannelCredentials = Grpc.Core.ChannelCredentials.Insecure
             };
             SpannerClient client = builder.Build();
             BatchCreateSessionsRequest request = new BatchCreateSessionsRequest
