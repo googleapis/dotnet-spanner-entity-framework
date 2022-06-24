@@ -125,7 +125,7 @@ CREATE TABLE `Tracks` (
     `Duration` NUMERIC,
     `LyricsLanguages` ARRAY<STRING(2)>,
     `Lyrics` ARRAY<STRING(MAX)>,
-CONSTRAINT `CK_Tracks_Chk_Languages_Lyrics_Length_Equal` CHECK (ARRAY_LENGTH(LyricsLanguages) = ARRAY_LENGTH(Lyrics)),
+CONSTRAINT `Chk_Languages_Lyrics_Length_Equal` CHECK (ARRAY_LENGTH(LyricsLanguages) = ARRAY_LENGTH(Lyrics)),
 )PRIMARY KEY (`AlbumId`, `TrackId`),
  INTERLEAVE IN PARENT `Albums` ON DELETE NO ACTION 
 
