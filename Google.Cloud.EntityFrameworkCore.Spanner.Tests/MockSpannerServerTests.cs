@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using Google.Api.Gax.Grpc.GrpcNetClient;
 using Google.Cloud.Spanner.Data;
 using V1 = Google.Cloud.Spanner.V1;
 using Google.Protobuf;
@@ -21,7 +20,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Xunit;
 using Google.Cloud.Spanner.V1;
-using Grpc.Net.Client;
 using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests

@@ -13,14 +13,12 @@
 // limitations under the License.
 
 using Google.Api.Gax;
-using Google.Api.Gax.Grpc.GrpcNetClient;
 using Google.Api.Gax.ResourceNames;
 using Google.Cloud.Spanner.Admin.Instance.V1;
 using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1.Internal.Logging;
 using Grpc.Core;
-using Grpc.Net.Client;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
