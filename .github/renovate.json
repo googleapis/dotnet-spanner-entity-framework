@@ -4,6 +4,6 @@
     ":disableDependencyDashboard"
   ],
   "ignorePaths": [
-    ".kokoro/**",
+    ".kokoro/**"
   ]
 }
