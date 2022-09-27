@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "simple",
+  "changelog-path": "docs/history.md",
+  "include-component-in-tag": true,
+  "include-v-in-tag": false,
+  "packages": {
+    ".": {
+      "component": "Google.Cloud.EntityFrameworkCore.Spanner",
+      "extra-files": [
+        {
+          "type": "xml",
+          "path": "Google.Cloud.EntityFrameworkCore.Spanner/Google.Cloud.EntityFrameworkCore.Spanner.csproj",
+          "xpath": "//Project/PropertyGroup/Version"
+        }
+      ]
+    }
+  }
+}
