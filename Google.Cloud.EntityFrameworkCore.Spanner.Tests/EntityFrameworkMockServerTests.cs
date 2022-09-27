@@ -955,6 +955,50 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task CanUseStringConcat()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT CONCAT(`s`.`FirstName`, ' ', `s`.`LastName`, CAST(`s`.`SingerId` AS STRING)){Environment.NewLine}" + 
+                      $"FROM `Singers` AS `s`{Environment.NewLine}" + 
+                      "LIMIT 1";
+            AddFindSingerResult(sql);
+
+            await db.Singers
+                .Select(s => string.Concat(s.FirstName, " ", s.LastName, s.SingerId.ToString()))
+                .FirstOrDefaultAsync();
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanUseStringPlus()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT (COALESCE(`s`.`FirstName`, '')||' ')||`s`.`LastName`{Environment.NewLine}" + 
+                      $"FROM `Singers` AS `s`{Environment.NewLine}" + 
+                      "LIMIT 1";
+            AddFindSingerResult(sql);
+
+            await db.Singers
+                .Select(s => s.FirstName + " " + s.LastName)
+                .FirstOrDefaultAsync();
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                }
+            );
+        }
+
+        [Fact]
         public async Task CanUseRegexReplace()
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
@@ -1013,8 +1057,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT DATE_ADD(`s`.`BirthDate`, INTERVAL 1 YEAR){Environment.NewLine}" +
-                $"FROM `Singers` AS `s`{Environment.NewLine}WHERE (`s`.`SingerId` = @__singerId_0) " +
-                $"AND `s`.`BirthDate` IS NOT NULL";
+                $"FROM `Singers` AS `s`{Environment.NewLine}" +
+                $"WHERE (`s`.`SingerId` = @__singerId_0) AND (`s`.`BirthDate` IS NOT NULL)";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1065,8 +1109,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT DATE_ADD(`s`.`BirthDate`, INTERVAL 1 MONTH){Environment.NewLine}" +
-                $"FROM `Singers` AS `s`{Environment.NewLine}WHERE (`s`.`SingerId` = @__singerId_0) " +
-                $"AND `s`.`BirthDate` IS NOT NULL";
+                $"FROM `Singers` AS `s`{Environment.NewLine}" +
+                $"WHERE (`s`.`SingerId` = @__singerId_0) AND (`s`.`BirthDate` IS NOT NULL)";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1117,8 +1161,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT DATE_ADD(`s`.`BirthDate`, INTERVAL 1 DAY){Environment.NewLine}" +
-                $"FROM `Singers` AS `s`{Environment.NewLine}WHERE (`s`.`SingerId` = @__singerId_0) " +
-                $"AND `s`.`BirthDate` IS NOT NULL";
+                $"FROM `Singers` AS `s`{Environment.NewLine}" +
+                $"WHERE (`s`.`SingerId` = @__singerId_0) AND (`s`.`BirthDate` IS NOT NULL)";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -2331,10 +2375,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             await db.Singers.FindAsync(1L);
 
-            Assert.NotEmpty(_fixture.SpannerMock.Contexts);
-            Assert.All(_fixture.SpannerMock.Contexts, context =>
+            Assert.NotEmpty(_fixture.SpannerMock.Headers);
+            Assert.All(_fixture.SpannerMock.Headers, headers =>
             {
-                var entry = context.RequestHeaders.Get("x-goog-api-client");
+                var entry = headers.Get("x-goog-api-client");
                 Assert.NotNull(entry);
                 Assert.Contains("efcore", entry.Value);
             });

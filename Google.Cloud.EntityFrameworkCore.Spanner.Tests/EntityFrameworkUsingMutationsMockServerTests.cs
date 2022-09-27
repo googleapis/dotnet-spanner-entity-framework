@@ -311,7 +311,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Empty(_fixture.SpannerMock.Requests.Where(r => r is ExecuteBatchDmlRequest));
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(r => r is CommitRequest).Select(r => r as CommitRequest),
+                _fixture.SpannerMock.Requests.OfType<CommitRequest>(),
                 r =>
                 {
                     Assert.Collection(
@@ -351,7 +351,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Empty(_fixture.SpannerMock.Requests.Where(r => r is ExecuteBatchDmlRequest));
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(r => r is ExecuteSqlRequest).Select(r => r as ExecuteSqlRequest),
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 r =>
                 {
                     Assert.Equal("1", r.Params.Fields["p0"].StringValue); // SingerId
@@ -359,7 +359,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             );
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(r => r is CommitRequest).Select(r => r as CommitRequest),
+                _fixture.SpannerMock.Requests.OfType<CommitRequest>(),
                 r =>
                 {
                     Assert.Collection(
@@ -607,9 +607,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     var columns = request.Mutations[0].Insert.Columns;
                     var index = 0;
                     
-                    Assert.Equal("ColCommitTS", columns[index]);
-                    Assert.Equal(Value.KindOneofCase.StringValue, values[index].KindCase);
-                    Assert.Equal("spanner.commit_timestamp()", values[index++].StringValue);
                     Assert.Equal("ColInt64", columns[index]);
                     Assert.Equal(Value.KindOneofCase.StringValue, values[index].KindCase);
                     Assert.Equal("1", values[index++].StringValue);
@@ -641,6 +638,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.Equal("ColBytesMaxArray", columns[index]);
                     Assert.Equal(Value.KindOneofCase.ListValue, values[index].KindCase);
                     Assert.Empty(values[index++].ListValue.Values);
+                    Assert.Equal("ColCommitTS", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.StringValue, values[index].KindCase);
+                    Assert.Equal("spanner.commit_timestamp()", values[index++].StringValue);
                     Assert.Equal("ColDate", columns[index]);
                     Assert.Equal(Value.KindOneofCase.StringValue, values[index].KindCase);
                     Assert.Equal("2000-01-01", values[index++].StringValue);

@@ -1,6 +1,8 @@
 # Google.Cloud.EntityFrameworkCore.Spanner
 [Google Cloud Spanner](https://cloud.google.com/spanner/docs/) database provider for [Entity Framework Core](https://docs.microsoft.com/en-us/ef/core/).
 
+This version targets Entity Framework Core version 6.0 and .NET 6.
+
 Known limitations are listed in the [issues](https://github.com/cloudspannerecosystem/dotnet-spanner-entity-framework/issues?q=is%3Aissue+is%3Aopen+label%3A%22known+limitation%22) list.
 All supported features have been tested and verified to work with the test configurations. There may be configurations and/or data model variations that have not
 yet been covered by the tests and that show unexpected behavior. Please report any problems that you might encounter by [creating a new issue](https://github.com/cloudspannerecosystem/dotnet-spanner-entity-framework/issues/new).

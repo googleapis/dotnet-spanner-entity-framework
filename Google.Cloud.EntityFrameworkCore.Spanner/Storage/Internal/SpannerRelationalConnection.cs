@@ -46,9 +46,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         public MutationUsage MutationUsage { get; }
 
-        /// <inheritdoc />
-        public override bool IsMultipleActiveResultSetsEnabled => true;
-
         private SpannerConnectionStringBuilder ConnectionStringBuilder { get; }
 
         /// <inheritdoc />
@@ -105,7 +102,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             var optionsBuilder = new DbContextOptionsBuilder();
             optionsBuilder.UseSpanner(masterConn);
 
-            return new SpannerRelationalConnection(Dependencies.With(optionsBuilder.Options));
+#pragma warning disable EF1001
+            var dependencies = new RelationalConnectionDependencies(
+                optionsBuilder.Options,
+                Dependencies.TransactionLogger,
+                Dependencies.ConnectionLogger,
+                Dependencies.ConnectionStringResolver,
+                Dependencies.RelationalTransactionFactory,
+                Dependencies.CurrentContext,
+                Dependencies.RelationalCommandBuilderFactory);
+#pragma warning restore EF1001
+            return new SpannerRelationalConnection(dependencies);
         }
     }
 }

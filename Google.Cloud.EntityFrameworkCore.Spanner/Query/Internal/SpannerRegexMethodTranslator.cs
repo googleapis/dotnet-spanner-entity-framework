@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
 using JetBrains.Annotations;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.RegularExpressions;
 
@@ -48,7 +52,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             _sqlExpressionFactory = sqlExpressionFactory;
         }
 
-        public virtual SqlExpression Translate(SqlExpression instance, MethodInfo method, IReadOnlyList<SqlExpression> arguments)
+        public virtual SqlExpression Translate(
+            SqlExpression instance, 
+            MethodInfo method,
+            IReadOnlyList<SqlExpression> arguments,
+            IDiagnosticsLogger<DbLoggerCategory.Query> logger)
         {
             if (s_isMatchMethodInfo.Equals(method))
             {
@@ -81,10 +89,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 
         private SqlExpression TranslateStaticFunction(string function, IReadOnlyList<SqlExpression> arguments, System.Type returnType)
         {
+            var nullabilityPropagation = new bool[arguments.Count];
+            Array.Fill(nullabilityPropagation, true);
             return _sqlExpressionFactory.ApplyDefaultTypeMapping(
                 _sqlExpressionFactory.Function(
                 function,
                 arguments,
+                true,
+                nullabilityPropagation,
                 returnType));
         }
 
@@ -94,6 +106,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 _sqlExpressionFactory.Function(
                 function,
                 new[] { instance, arg },
+                true,
+                new []{true, true},
                 returnType));
         }
 
@@ -103,6 +117,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 _sqlExpressionFactory.Function(
                 function,
                 new[] { instance, arg1, arg2 },
+                true,
+                new []{true,true,true},
                 returnType));
         }
     }

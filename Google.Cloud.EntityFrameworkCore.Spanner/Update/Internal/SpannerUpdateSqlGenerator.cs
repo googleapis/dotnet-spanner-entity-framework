@@ -41,7 +41,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 
         protected override ISqlGenerationHelper SqlGenerationHelper { get => _sqlGenerationHelper; }
 
-        protected override void AppendIdentityWhereCondition(StringBuilder commandStringBuilder, ColumnModification columnModification)
+        protected override void AppendIdentityWhereCondition(StringBuilder commandStringBuilder, IColumnModification columnModification)
         {
             commandStringBuilder.Append(" TRUE ");
         }
@@ -58,8 +58,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         internal string GenerateSelectAffectedSql(
             string table,
             string schema,
-            IReadOnlyList<ColumnModification> readOperations,
-            IReadOnlyList<ColumnModification> conditionOperations,
+            IReadOnlyList<IColumnModification> readOperations,
+            IReadOnlyList<IColumnModification> conditionOperations,
             int commandPosition)
         {
             var commandStringBuilder = new StringBuilder();
@@ -81,7 +81,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// </summary>
         internal string GenerateSelectConcurrencyCheckSql(
             string table,
-            IReadOnlyList<ColumnModification> conditionOperations)
+            IReadOnlyList<IColumnModification> conditionOperations)
         {
             var concurrencyBuilder = new StringBuilder($"SELECT 1 FROM `{table}` ");
             AppendWhereClause(concurrencyBuilder, conditionOperations);
@@ -90,7 +90,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 
         public virtual ResultSetMapping AppendBulkInsertOperation(
             StringBuilder commandStringBuilder,
-            IReadOnlyList<ModificationCommand> modificationCommands,
+            IReadOnlyList<IReadOnlyModificationCommand> modificationCommands,
             int commandPosition)
         {
             if (modificationCommands.Count == 1
@@ -107,7 +107,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 
         private ResultSetMapping AppendBulkInsertValues(
             StringBuilder commandStringBuilder,
-            IReadOnlyList<ModificationCommand> modificationCommands)
+            IReadOnlyList<IReadOnlyModificationCommand> modificationCommands)
         {
             var writeOperations = modificationCommands[0].ColumnModifications.ToList();
 
@@ -118,11 +118,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 
             AppendInsertCommandHeader(commandStringBuilder, name, schema, writeOperations);
             AppendValuesHeader(commandStringBuilder, writeOperations);
-            AppendValues(commandStringBuilder, writeOperations);
+            AppendValues(commandStringBuilder, name, schema, writeOperations);
             for (var i = 1; i < modificationCommands.Count; i++)
             {
                 commandStringBuilder.AppendLine(",");
-                AppendValues(commandStringBuilder, modificationCommands[i].ColumnModifications.Where(o => o.IsWrite).ToList());
+                AppendValues(commandStringBuilder, name, schema, modificationCommands[i].ColumnModifications.Where(o => o.IsWrite).ToList());
             }
 
             commandStringBuilder.AppendLine(SqlGenerationHelper.StatementTerminator);

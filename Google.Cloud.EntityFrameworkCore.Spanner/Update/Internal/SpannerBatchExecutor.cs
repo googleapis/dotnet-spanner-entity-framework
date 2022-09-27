@@ -14,7 +14,10 @@
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using JetBrains.Annotations;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Infrastructure.Internal;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.EntityFrameworkCore.Update.Internal;
@@ -28,13 +31,18 @@ using System.Threading.Tasks;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 {
 #pragma warning disable EF1001
+    /// <inheritdoc />
     internal class SpannerBatchExecutor : BatchExecutor
-#pragma warning restore EF1001
     {
-        public SpannerBatchExecutor([NotNull] ICurrentDbContext currentContext, [NotNull] IExecutionStrategyFactory executionStrategyFactory) : base(currentContext, executionStrategyFactory)
+        /// <summary>
+        /// Only for internal use.
+        /// </summary>
+        public SpannerBatchExecutor([NotNull] ICurrentDbContext currentContext, IDiagnosticsLogger<DbLoggerCategory.Update> updateLogger) :
+            base(currentContext, updateLogger)
         {
         }
 
+        /// <inheritdoc />
         public override int Execute(IEnumerable<ModificationCommandBatch> commandBatches, IRelationalConnection connection)
         {
             // Convert the list of batches to a list to prevent it from being re-generated each time that we iterate over the enumerator.
@@ -67,6 +75,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             return SpannerCount(batchesList);
         }
 
+        /// <inheritdoc />
         public override async Task<int> ExecuteAsync(IEnumerable<ModificationCommandBatch> commandBatches, IRelationalConnection connection, CancellationToken cancellationToken = default)
         {
             // Convert the list of batches to a list to prevent it from being re-generated each time that we iterate over the enumerator.
@@ -79,7 +88,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 await base.ExecuteAsync(batchesList, connection, cancellationToken);
 #pragma warning restore EF1001
                 // Results that need to be propagated after an update are executed after the batch has been saved.
-                // This ensures that when implict transactions are being used the updated value is fetched after the
+                // This ensures that when implicit transactions are being used the updated value is fetched after the
                 // transaction has been committed. This makes it possible to use mutations for implicit transactions
                 // and still automatically propagate computed columns.
                 foreach (var batch in batchesList)
