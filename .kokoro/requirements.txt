@@ -126,9 +126,9 @@ gcp-releasetool==1.8.7 \
     --hash=sha256:3d2a67c9db39322194afb3b427e9cb0476ce8f2a04033695f0aeb63979fc2b37 \
     --hash=sha256:5e4d28f66e90780d77f3ecf1e9155852b0c3b13cbccb08ab07e66b2357c8da8d
     # via -r requirements.in
-google-auth==2.11.0 \
-    --hash=sha256:be62acaae38d0049c21ca90f27a23847245c9f161ff54ede13af2cb6afecbac9 \
-    --hash=sha256:ed65ecf9f681832298e29328e1ef0a3676e3732b2e56f41532d45f70a22de0fb
+google-auth==2.11.1 \
+    --hash=sha256:516e6623038b81430dd062a1a25ecd24f173d7c15cdf4e48a9e78bc87e97aeec \
+    --hash=sha256:53bdc0c2b4e25895575779caef4cfb3a6bdff1b7b32dc38a654d71aba35bb5f8
     # via gcp-releasetool
 idna==3.4 \
     --hash=sha256:814f528e8dead7d329833b91c5faa87d60bf71824cd12a7530b5526063d02cb4 \
