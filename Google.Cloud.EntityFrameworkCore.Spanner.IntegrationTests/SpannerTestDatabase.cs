@@ -118,7 +118,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             // Check if the instance exists and if not create it.
             var adminClientBuilder = new InstanceAdminClientBuilder
             {
-                EmulatorDetection = EmulatorDetection.EmulatorOrProduction
+                EmulatorDetection = EmulatorDetection.EmulatorOrProduction,
             };
             var instanceAdminClient = adminClientBuilder.Build();
 

@@ -43,7 +43,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Scaffolding
             var codeGenerator = new SpannerCodeGenerator(
                 new ProviderCodeGeneratorDependencies(Enumerable.Empty<IProviderCodeGeneratorPlugin>()));
 
+#pragma warning disable 0618
             var providerOptions = new MethodCallCodeFragment("SetProviderOption");
+#pragma warning restore 0618
 
             var result = codeGenerator.GenerateUseProvider("Source=projects/p1/instances/i1/databases/d1", providerOptions);
 
@@ -56,7 +58,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Scaffolding
                     var nestedClosure = Assert.IsType<NestedClosureCodeFragment>(a);
 
                     Assert.Equal("x", nestedClosure.Parameter);
-                    Assert.Same(providerOptions, nestedClosure.MethodCall);
+                    Assert.Same(providerOptions, nestedClosure.MethodCalls[0]);
                 });
             Assert.Null(result.ChainedCall);
         }

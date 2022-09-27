@@ -18,6 +18,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Update;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 {
@@ -30,7 +31,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         internal const string PendingCommitTimestampValue = "PENDING_COMMIT_TIMESTAMP()";
 
         internal SpannerPendingCommitTimestampColumnModification(IUpdateEntry entry, IProperty property, bool sensitiveLoggingEnabled)
-            : base(entry, property, () => "", false, true, false, false, false, sensitiveLoggingEnabled)
+            : base(new ColumnModificationParameters
+            {
+                ColumnName = property.GetTableColumnMappings().First().Column.Name,
+                TypeMapping = property.GetTableColumnMappings().First().TypeMapping,
+                Entry = entry,
+                Property = property,
+                GenerateParameterName = () => "",
+                IsRead = false,
+                IsWrite = true,
+                IsKey = false,
+                IsCondition = false,
+                SensitiveLoggingEnabled = sensitiveLoggingEnabled,
+            })
         {
         }
 
@@ -58,10 +71,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
     /// </summary>
     internal class SpannerPendingCommitTimestampModificationCommand : ModificationCommand
     {
-        private readonly ModificationCommand _delegate;
+        private readonly IReadOnlyModificationCommand _delegate;
         private readonly IReadOnlyList<ColumnModification> _columnModifications;
 
-        internal SpannerPendingCommitTimestampModificationCommand(ModificationCommand cmd, bool sensitiveLoggingEnabled) : base(cmd.TableName, cmd.Schema, cmd.ColumnModifications, sensitiveLoggingEnabled)
+        internal SpannerPendingCommitTimestampModificationCommand(IReadOnlyModificationCommand cmd, bool sensitiveLoggingEnabled) :
+            base(new ModificationCommandParameters
+            {
+                TableName = cmd.TableName,
+                Schema = cmd.Schema,
+                SensitiveLoggingEnabled = sensitiveLoggingEnabled,
+            })
         {
             _delegate = cmd;
             List<ColumnModification> columnModifications = new List<ColumnModification>(cmd.ColumnModifications.Count);
@@ -102,7 +121,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 
         public override bool RequiresResultPropagation => _delegate.RequiresResultPropagation;
 
-        internal static bool HasCommitTimestampColumn(ModificationCommand modificationCommand)
+        internal static bool HasCommitTimestampColumn(IReadOnlyModificationCommand modificationCommand)
         {
             foreach (var entry in modificationCommand.Entries)
             {

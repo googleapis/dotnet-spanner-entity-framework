@@ -22,6 +22,9 @@ using Microsoft.EntityFrameworkCore.Storage;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Infrastructure.Internal;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
@@ -69,8 +72,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         /// <inheritdoc />
         public override bool HasTables()
-            => Dependencies.ExecutionStrategyFactory
-                .Create()
+            => Dependencies.ExecutionStrategy
                 .Execute(
                     _connection,
                     connection => (bool)CreateHasTablesCommand()
@@ -84,7 +86,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         /// <inheritdoc />
         public override Task<bool> HasTablesAsync(CancellationToken cancellationToken = default)
-            => Dependencies.ExecutionStrategyFactory.Create().ExecuteAsync(
+            => Dependencies.ExecutionStrategy.ExecuteAsync(
                 _connection,
                 async (connection, ct) => (bool)await CreateHasTablesCommand()
                         .ExecuteScalarAsync(
@@ -152,8 +154,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <inheritdoc />
         public override void CreateTables()
         {
-            var operations = Dependencies.ModelDiffer.GetDifferences(null, Dependencies.Model);
-            var commands = Dependencies.MigrationsSqlGenerator.Generate(operations, Dependencies.Model);
+            var model = Dependencies.CurrentContext.Context.GetService<IDesignTimeModel>().Model;
+            var operations = Dependencies.ModelDiffer.GetDifferences(null, model.GetRelationalModel());
+            var commands = Dependencies.MigrationsSqlGenerator.Generate(operations, model);
 
             Dependencies.MigrationCommandExecutor.ExecuteNonQuery(commands, _connection);
         }
@@ -161,8 +164,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <inheritdoc />
         public override async Task CreateTablesAsync(CancellationToken cancellationToken = default)
         {
-            var operations = Dependencies.ModelDiffer.GetDifferences(null, Dependencies.Model);
-            var commands = Dependencies.MigrationsSqlGenerator.Generate(operations, Dependencies.Model);
+            var model = Dependencies.CurrentContext.Context.GetService<IDesignTimeModel>().Model;
+            var operations = Dependencies.ModelDiffer.GetDifferences(null, model.GetRelationalModel());
+            var commands = Dependencies.MigrationsSqlGenerator.Generate(operations, model);
 
             await Dependencies.MigrationCommandExecutor.ExecuteNonQueryAsync(commands, _connection,
                 cancellationToken).ConfigureAwait(false);

@@ -36,7 +36,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             StatementTerminator = statementTerminator;
         }
 
-        public RelationalSqlGenerationHelperDependencies Dependencies { get; }
+        public new RelationalSqlGenerationHelperDependencies Dependencies { get; }
 
         // Spanner does not support multiple statements per query or in DDL. So in all cases, adding a
         // terminating semicolon just causes issues -- so we return an empty string for the statement

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System.Reflection;
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Scaffolding;
@@ -32,10 +33,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
         }
 
         public override MethodCallCodeFragment GenerateUseProvider(string connectionString, MethodCallCodeFragment providerOptions)
-        => new MethodCallCodeFragment(
-                nameof(SpannerDbContextOptionsExtensions.UseSpanner),
+#pragma warning disable 0618
+        => new (nameof(SpannerDbContextOptionsExtensions.UseSpanner),
                 providerOptions == null
                     ? new object[] { connectionString }
                     : new object[] { connectionString, new NestedClosureCodeFragment("x", providerOptions) });
+#pragma warning restore 0618
     }
 }

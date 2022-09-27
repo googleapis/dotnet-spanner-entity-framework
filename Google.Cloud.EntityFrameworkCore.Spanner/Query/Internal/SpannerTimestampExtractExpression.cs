@@ -18,13 +18,15 @@ using System.Linq.Expressions;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 {
-    internal class SpannerTimestampExtractExpression : SqlExpression
+    internal class SpannerTimestampExtractExpression : SpannerValueExpression
     {
         private readonly ISqlExpressionFactory _sqlExpressionFactory;
         private readonly string _dateTimePartName;
         private readonly SqlExpression _fromFragment;
         private readonly SqlExpression _timezoneFragment;
         private readonly SqlExpression _value;
+
+        internal override SqlExpression Value => _value;
 
         internal SpannerTimestampExtractExpression(ISqlExpressionFactory sqlExpressionFactory, SqlExpression value, string dateTimePartName) : base(value.Type, value.TypeMapping)
         {
@@ -35,7 +37,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             _timezoneFragment = _sqlExpressionFactory.Fragment(" AT TIME ZONE 'UTC'");
         }
 
-        public override void Print(ExpressionPrinter expressionPrinter)
+        protected override void Print(ExpressionPrinter expressionPrinter)
         {
         }
 

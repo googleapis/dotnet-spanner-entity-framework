@@ -52,7 +52,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
                     .HasMaxLength(100);
 
                 entity.HasIndex(e => e.Title)
-                    .HasName("AlbumsByAlbumTitle2")
+                    .HasDatabaseName("AlbumsByAlbumTitle2")
                     .Storing(a => new { a.MarketingBudget, a.ReleaseDate });
 
                 entity.HasOne(d => d.Singer)
@@ -116,7 +116,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
                     .HasName("PRIMARY_KEY");
 
                 entity.HasIndex(e => e.FullName)
-                    .HasName("Idx_Singers_FullName");
+                    .HasDatabaseName("Idx_Singers_FullName");
 
                 entity.Property(e => e.SingerId).ValueGeneratedNever();
 
@@ -141,14 +141,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
                     .HasName("PRIMARY_KEY");
 
                 entity.HasIndex(e => new { e.ColDate, e.ColCommitTs })
-                    .HasName("IDX_TableWithAllColumnTypes_ColDate_ColCommitTS")
+                    .HasDatabaseName("IDX_TableWithAllColumnTypes_ColDate_ColCommitTS")
                     .IsNullFiltered();
 
                 entity.Property(e => e.ColInt64).ValueGeneratedNever();
 
-                entity.Property(e => e.ColBytes).HasColumnType("BYTES(100)");
+                entity.Property(e => e.ColBytes).HasMaxLength(100);
 
-                entity.Property(e => e.ColBytesArray).HasColumnType("ARRAY<BYTES(100)>");
+                entity.Property(e => e.ColBytesArray).HasMaxLength(100);
 
                 entity.Property(e => e.ColBytesMax);
 
@@ -164,7 +164,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
 
                 entity.Property(e => e.ColString).HasMaxLength(100);
 
-                entity.Property(e => e.ColStringArray).HasColumnType("ARRAY<STRING(100)>");
+                entity.Property(e => e.ColStringArray).HasMaxLength(100);
 
                 entity.Property(e => e.ColStringMax);
 
@@ -180,12 +180,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
                 entity.HasCheckConstraint("Chk_Languages_Lyrics_Length_Equal", "ARRAY_LENGTH(LyricsLanguages) = ARRAY_LENGTH(Lyrics)");
 
                 entity.HasIndex(e => new { e.TrackId, e.Title })
-                    .HasName("Idx_Tracks_AlbumId_Title")
+                    .HasDatabaseName("Idx_Tracks_AlbumId_Title")
                     .IsUnique();
 
                 entity.Property(e => e.Lyrics);
 
-                entity.Property(e => e.LyricsLanguages).HasColumnType("ARRAY<STRING(2)>");
+                entity.Property(e => e.LyricsLanguages).HasMaxLength(2);
 
                 entity.Property(e => e.Title)
                     .IsRequired()
@@ -207,10 +207,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
 
                 entity.Property(e => e.Name).HasMaxLength(100);
             });
-
-            OnModelCreatingPartial(modelBuilder);
         }
-
-        partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
     }
 }

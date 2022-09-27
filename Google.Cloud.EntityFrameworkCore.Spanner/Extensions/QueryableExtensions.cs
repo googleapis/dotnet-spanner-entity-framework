@@ -100,13 +100,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
             return result;
         }
 
-        public override Task<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
             DbCommand command,
             CommandEventData eventData,
             InterceptionResult<DbDataReader> result,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(ReaderExecuting(command, eventData, result));
+            return ValueTask.FromResult(ReaderExecuting(command, eventData, result));
         }
 
         private static void ManipulateCommand(SpannerRetriableCommand command)

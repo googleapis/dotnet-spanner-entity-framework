@@ -13,6 +13,8 @@
 // limitations under the License.
 
 using JetBrains.Annotations;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using System;
@@ -101,7 +103,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 
         private static readonly MethodInfo s_joinMethodInfo
             = typeof(string).GetRuntimeMethod(nameof(string.Join), new[] { typeof(string), typeof(IEnumerable<string>) });
+        
+        private static readonly MethodInfo s_concatMethodInfoTwoArgs
+            = typeof(string).GetRuntimeMethod(nameof(string.Concat), new[] { typeof(string), typeof(string) })!;
 
+        private static readonly MethodInfo s_concatMethodInfoThreeArgs
+            = typeof(string).GetRuntimeMethod(nameof(string.Concat), new[] { typeof(string), typeof(string), typeof(string) })!;
+
+        private static readonly MethodInfo s_concatMethodInfoFourArgs
+            = typeof(string).GetRuntimeMethod(
+                nameof(string.Concat), new[] { typeof(string), typeof(string), typeof(string), typeof(string) })!;
+        
         private readonly ISqlExpressionFactory _sqlExpressionFactory;
 
         public SpannerStringMethodTranslator([NotNull] ISqlExpressionFactory sqlExpressionFactory)
@@ -109,7 +121,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             _sqlExpressionFactory = sqlExpressionFactory;
         }
 
-        public virtual SqlExpression Translate(SqlExpression instance, MethodInfo method, IReadOnlyList<SqlExpression> arguments)
+        public virtual SqlExpression Translate(
+            SqlExpression instance,
+            MethodInfo method,
+            IReadOnlyList<SqlExpression> arguments,
+            IDiagnosticsLogger<DbLoggerCategory.Query> logger)
         {
             if (s_containsMethodInfo.Equals(method))
             {
@@ -197,16 +213,32 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             {
                 return TranslateTwoArgFunction("ARRAY_TO_STRING", arguments[1], arguments[0], _sqlExpressionFactory.Constant(""), typeof(string));
             }
+            if (s_concatMethodInfoTwoArgs.Equals(method))
+            {
+                return TranslateStaticFunction("CONCAT", arguments, typeof(string));
+            }
+            if (s_concatMethodInfoThreeArgs.Equals(method))
+            {
+                return TranslateStaticFunction("CONCAT", arguments, typeof(string));
+            }
+            if (s_concatMethodInfoFourArgs.Equals(method))
+            {
+                return TranslateStaticFunction("CONCAT", arguments, typeof(string));
+            }
 
             return null;
         }
 
         private SqlExpression TranslateStaticFunction(string function, IReadOnlyList<SqlExpression> arguments, System.Type returnType)
         {
+            var nullabilityPropagation = new bool[arguments.Count];
+            Array.Fill(nullabilityPropagation, true);
             return _sqlExpressionFactory.ApplyDefaultTypeMapping(
                 _sqlExpressionFactory.Function(
                 function,
                 arguments,
+                true,
+                nullabilityPropagation,
                 returnType));
         }
 
@@ -216,6 +248,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 _sqlExpressionFactory.Function(
                 function,
                 new[] { instance },
+                true,
+                new []{true},
                 returnType));
         }
 
@@ -225,6 +259,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 _sqlExpressionFactory.Function(
                 function,
                 new[] { instance, arg },
+                true,
+                new []{true, true},
                 returnType));
         }
 
@@ -234,6 +270,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 _sqlExpressionFactory.Function(
                 function,
                 new[] { instance, arg1, arg2 },
+                true,
+                new []{true, true, true},
                 returnType));
         }
     }

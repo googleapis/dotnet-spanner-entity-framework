@@ -31,7 +31,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         {
         }
 
-        protected override string GenerateOperator(SqlBinaryExpression binaryExpression)
+        protected override string GetOperator(SqlBinaryExpression binaryExpression)
         {
             if (binaryExpression.OperatorType == ExpressionType.Add)
             {
@@ -41,8 +41,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                     return "||";
                 }
             }
-            return base.GenerateOperator(binaryExpression);
+            return base.GetOperator(binaryExpression);
         }
+
+        [Obsolete]
+        protected override string GenerateOperator(SqlBinaryExpression binaryExpression) =>
+            GetOperator(binaryExpression);
 
         protected override void GenerateLimitOffset(SelectExpression selectExpression)
         {

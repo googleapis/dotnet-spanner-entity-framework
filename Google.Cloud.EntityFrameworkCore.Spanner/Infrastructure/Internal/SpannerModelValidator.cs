@@ -140,17 +140,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
 
                 foreach (var entityType in model.GetEntityTypes())
                 {
-                    var table = entityType.GetTableName();
+                    var table = StoreObjectIdentifier.Table(entityType.GetTableName());
                     var pk = entityType.FindPrimaryKey();
                     if (pk == null)
                     {
                         // This is handled by the base validator.
                         continue;
                     }
-                    var keyColumns = pk.Properties.Select(p => p.GetColumnName()).ToList();
-                    if (tableKeyColumns.TryGetValue(table, out var allIndexedDbColumns))
+                    var keyColumns = pk.Properties.Select(p => p.GetColumnName(table)).ToList();
+                    if (tableKeyColumns.TryGetValue(table.Name, out var allIndexedDbColumns))
                     {
-                        if (!allIndexedDbColumns.Where(dbKeyColumns => Enumerable.SequenceEqual(keyColumns, dbKeyColumns)).Any())
+                        if (!allIndexedDbColumns.Any(dbKeyColumns => keyColumns.SequenceEqual(dbKeyColumns)))
                         {
                             throw new InvalidOperationException($"No primary key or other unique index was found in the database for table {table} for key column(s) ({string.Join(", ", keyColumns)}). {_disableValidationHint}");
                         }

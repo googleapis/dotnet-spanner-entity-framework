@@ -24,6 +24,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Microsoft.EntityFrameworkCore.Update;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
 {
@@ -154,7 +155,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
             DropIndexOperation operation,
             IModel model,
             MigrationCommandListBuilder builder,
-            bool terminate)
+            bool terminate = true)
         {
             GaxPreconditions.CheckNotNull(operation, nameof(operation));
             GaxPreconditions.CheckNotNull(builder, nameof(builder));
@@ -210,7 +211,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
             CreateTableOperation operation,
             IModel model,
             MigrationCommandListBuilder builder,
-            bool terminate)
+            bool terminate = true)
         {
             builder
                 .Append("CREATE TABLE ")
@@ -321,11 +322,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
                 .Append(")");
         }
 
-        private static string GetCorrectedColumnType(string columnType)
+        private static string GetCorrectedColumnType(string columnType, int? maxLength)
         {
             columnType = columnType.ToUpperInvariant();
             return s_columnTypeMap.TryGetValue(columnType, out string convertedColumnType)
-                ? convertedColumnType
+                ? (maxLength ?? 0) > 0 ? convertedColumnType.Replace("(MAX)", $"({maxLength})") : convertedColumnType
                 : columnType;
         }
 
@@ -351,7 +352,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
             builder
                 .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(name))
                 .Append(" ")
-                .Append(GetCorrectedColumnType(columnType));
+                .Append(GetCorrectedColumnType(columnType, operation.MaxLength));
 
             if (!operation.IsNullable)
             {
@@ -381,7 +382,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
             builder
                 .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(name))
                 .Append(" ")
-                .Append(GetCorrectedColumnType(operation.ColumnType ?? GetColumnType(schema, table, name, operation, model)));
+                .Append(GetCorrectedColumnType(operation.ColumnType ?? GetColumnType(schema, table, name, operation, model), operation.MaxLength));
 
             if (!operation.IsNullable)
             {
@@ -399,10 +400,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
             MigrationCommandListBuilder builder,
             bool terminate = true)
         {
+            var commands = GenerateModificationCommands(operation, model);
             var sqlBuilder = new StringBuilder();
             ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).AppendBulkInsertOperation(
                 sqlBuilder,
-                operation.GenerateModificationCommands(model).ToList(),
+                commands.ToList(),
                 0);
 
             builder.Append(sqlBuilder.ToString());

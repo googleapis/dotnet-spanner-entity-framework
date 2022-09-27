@@ -13,6 +13,8 @@
 // limitations under the License.
 
 using JetBrains.Annotations;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using System.Reflection;
@@ -37,7 +39,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             _sqlExpressionFactory = sqlExpressionFactory;
         }
 
-        public SqlExpression Translate(SqlExpression instance, MemberInfo member, System.Type returnType)
+        public SqlExpression Translate(
+            SqlExpression instance,
+            MemberInfo member,
+            System.Type returnType,
+            IDiagnosticsLogger<DbLoggerCategory.Query> logger)
         {
             if (s_lengthMethodInfo.Equals(member))
             {
@@ -53,6 +59,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 _sqlExpressionFactory.Function(
                 function,
                 new[] { instance },
+                true,
+                new []{true},
                 returnType));
         }
     }

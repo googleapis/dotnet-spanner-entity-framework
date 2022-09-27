@@ -555,6 +555,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             var calculatedFullName = await db.Singers
                 .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => string.Concat(s.FirstName, " ", s.LastName))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("Alice Morrison", calculatedFullName);
+        }
+
+        [Fact]
+        public async Task CanUseStringPlus()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            var calculatedFullName = await db.Singers
+                .Where(s => new [] { singerId }.Contains(s.SingerId))
                 .Select(s => s.FirstName + " " + s.LastName)
                 .FirstOrDefaultAsync();
 

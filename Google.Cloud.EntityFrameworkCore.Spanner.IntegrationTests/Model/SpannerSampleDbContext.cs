@@ -111,7 +111,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                     .HasName("PRIMARY_KEY");
 
                 entity.HasIndex(e => e.FullName)
-                    .HasName("Idx_Singers_FullName");
+                    .HasDatabaseName("Idx_Singers_FullName");
 
                 entity.Property(e => e.SingerId).ValueGeneratedNever();
 
@@ -135,7 +135,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                     .HasName("PRIMARY_KEY");
 
                 entity.HasIndex(e => new { e.ColDate, e.ColCommitTs })
-                    .HasName("IDX_TableWithAllColumnTypes_ColDate_ColCommitTS")
+                    .HasDatabaseName("IDX_TableWithAllColumnTypes_ColDate_ColCommitTS")
                     .HasAnnotation("Spanner:IsNullFiltered", true);
 
                 entity.Property(e => e.ColInt64).ValueGeneratedNever();
@@ -173,7 +173,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                 entity.HasAnnotation("CONSTRAINT `Chk_Languages_Lyrics_Length_Equal`", "CHECK ARRAY_LENGTH(LyricsLanguages) = ARRAY_LENGTH(Lyrics)");
 
                 entity.HasIndex(e => new { e.TrackId, e.Title })
-                    .HasName("Idx_Tracks_AlbumId_Title")
+                    .HasDatabaseName("Idx_Tracks_AlbumId_Title")
                     .IsUnique();
 
                 entity.Property(e => e.Lyrics).HasColumnType("ARRAY<STRING(2621440)>");
@@ -200,10 +200,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 
                 entity.Property(e => e.Name).HasMaxLength(100);
             });
-
-            OnModelCreatingPartial(modelBuilder);
         }
-
-        partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
     }
 }

@@ -48,7 +48,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
     internal sealed class SpannerModificationCommandBatch : ModificationCommandBatch
     {
         private readonly IRelationalTypeMappingSource _typeMapper;
-        private readonly List<ModificationCommand> _modificationCommands = new List<ModificationCommand>();
+        private readonly List<IReadOnlyModificationCommand> _modificationCommands = new List<IReadOnlyModificationCommand>();
         private readonly List<SpannerRetriableCommand> _propagateResultsCommands = new List<SpannerRetriableCommand>();
         private readonly char _statementTerminator;
         private readonly bool _hasExplicitTransaction;
@@ -76,7 +76,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// <summary>
         /// This is internal functionality and not intended for public use.
         /// </summary>
-        public override IReadOnlyList<ModificationCommand> ModificationCommands => _modificationCommands;
+        public override IReadOnlyList<IReadOnlyModificationCommand> ModificationCommands => _modificationCommands;
 
         /// <summary>
         /// The affected rows per modification command in this batch. This property is only valid after the batch has been executed.
@@ -100,18 +100,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// </param>
         /// <returns> The factory. </returns>
         private IRelationalValueBufferFactory CreateValueBufferFactory(
-            [NotNull] IReadOnlyList<ColumnModification> columnModifications)
+            [NotNull] IReadOnlyList<IColumnModification> columnModifications)
             => Dependencies.ValueBufferFactoryFactory
                 .Create(
                     columnModifications
                         .Where(c => c.IsRead)
-                        .Select(c => new TypeMaterializationInfo(c.Property.ClrType, c.Property, _typeMapper))
+                        .Select(c => new TypeMaterializationInfo(c.Property.ClrType, c.Property, _typeMapper.FindMapping(c.Property)))
                         .ToArray());
 
         /// <summary>
         /// This is internal functionality and not intended for public use.
         /// </summary>
-        public override bool AddCommand(ModificationCommand modificationCommand)
+        public override bool AddCommand(IReadOnlyModificationCommand modificationCommand)
         {
             if (SpannerPendingCommitTimestampModificationCommand.HasCommitTimestampColumn(modificationCommand))
             {
@@ -183,7 +183,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 // transaction as the mutations, so it is guaranteed that the value that we read here will still be valid
                 // when the mutations are committed.
                 var operations = modificationCommand.ColumnModifications;
-                var hasConcurrencyCondition = operations.Where(o => o.IsCondition && o.IsConcurrencyToken).Any();
+                var hasConcurrencyCondition = operations.Any(o => o.IsCondition && (o.Property?.IsConcurrencyToken ?? false));
                 if (hasConcurrencyCondition)
                 {
                     var conditionOperations = operations.Where(o => o.IsCondition).ToList();
@@ -355,7 +355,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             return Tuple.Create(cmd, selectCommands);
         }
 
-        private Tuple<SpannerCommand, SpannerRetriableCommand> CreateSpannerDmlCommand(SpannerRetriableConnection connection, ModificationCommand modificationCommand, int commandPosition)
+        private Tuple<SpannerCommand, SpannerRetriableCommand> CreateSpannerDmlCommand(SpannerRetriableConnection connection, IReadOnlyModificationCommand modificationCommand, int commandPosition)
         {
             var builder = new StringBuilder();
             ResultSetMapping res;
@@ -400,7 +400,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         private SpannerRetriableCommand CreateSpannerMutationCommand(
             SpannerRetriableConnection spannerConnection,
             SpannerRetriableTransaction transaction,
-            ModificationCommand modificationCommand)
+            IReadOnlyModificationCommand modificationCommand)
         {
             var cmd = modificationCommand.EntityState switch
             {
@@ -419,14 +419,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// 
         /// ConcurrencyToken conditions are not included in mutation commands, as these do not support a WHERE clause or other filtering.
         /// </summary>
-        private void AppendWriteParameters(ModificationCommand modificationCommand, DbCommand cmd, bool useColumnName, bool includeConcurrencyTokenConditions)
+        private void AppendWriteParameters(IReadOnlyModificationCommand modificationCommand, DbCommand cmd, bool useColumnName, bool includeConcurrencyTokenConditions)
         {
             foreach (var columnModification in modificationCommand.ColumnModifications.Where(
-                o => o.UseOriginalValueParameter && (includeConcurrencyTokenConditions || !(o.IsCondition && o.IsConcurrencyToken))))
+                o => o.UseOriginalValueParameter && (includeConcurrencyTokenConditions || !(o.IsCondition && (o.Property?.IsConcurrencyToken ?? false))))
+                         .OrderBy(m => m.Property!.GetIndex()))
             {
                 cmd.Parameters.Add(CreateParameter(columnModification, cmd, UseValue.Original, useColumnName));
             }
-            foreach (var columnModification in modificationCommand.ColumnModifications.Where(o => o.UseCurrentValueParameter))
+            foreach (var columnModification in modificationCommand.ColumnModifications.Where(o => o.UseCurrentValueParameter)
+                         .OrderBy(m => m.Property!.GetIndex()))
             {
                 cmd.Parameters.Add(CreateParameter(columnModification, cmd, UseValue.Current, useColumnName));
             }
@@ -435,7 +437,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// <summary>
         /// Creates a SELECT command for a result that needs to be propagated after the update.
         /// </summary>
-        private SpannerRetriableCommand CreateSelectedAffectedCommand(SpannerRetriableConnection connection, ModificationCommand modificationCommand, string sql)
+        private SpannerRetriableCommand CreateSelectedAffectedCommand(SpannerRetriableConnection connection, IReadOnlyModificationCommand modificationCommand, string sql)
         {
             var selectCommand = connection.CreateSelectCommand(sql);
             foreach (var columnModification in modificationCommand.ColumnModifications)
@@ -451,7 +453,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// <summary>
         /// Creates a SpannerParameter for a command and sets the correct type.
         /// </summary>
-        private DbParameter CreateParameter(ColumnModification columnModification, DbCommand cmd, UseValue useValue, bool useColumnName)
+        private DbParameter CreateParameter(IColumnModification columnModification, DbCommand cmd, UseValue useValue, bool useColumnName)
         {
             string paramName;
             if (useColumnName)
