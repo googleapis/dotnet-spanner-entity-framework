@@ -1,11 +1,24 @@
-# Version 1.1.0, released 2022-01-04
+# Changelog
+
+## [2.0.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-1.1.0...Google.Cloud.EntityFrameworkCore.Spanner-2.0.0) (2022-09-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* migrate to Entity Framework Core 6.0 (#152)
+
+### Features
+
+* migrate to Entity Framework Core 6.0 ([#152](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/152)) ([a6e27aa](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/a6e27aa25c9deeab7022284bb1a21e79976a54de))
+
+## Version 1.1.0, released 2022-01-04
 
 - [Commit fdc22c1](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/fdc22c1) fix: DataReader.GetFieldValue<T> could fail for array types ([#144](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/144))
 - [Commit 031d842](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/031d842) chore: cast COLUMN\_DEFAULT value to STRING ([#145](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/145))
 - [Commit 0f90c7f](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/0f90c7f) feat: add helper method for getting SpannerConnection + PDML sample ([#133](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/133))
 - [Commit ce757fb](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/ce757fb) samples: add a quick start sample ([#128](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/128))
 
-# Version 1.0.0, released 2021-09-09
+## Version 1.0.0, released 2021-09-09
 
 - [Commit baee99b](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/baee99b) feat: support single stale reads ([#120](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/120))
 - [Commit 429486c](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/429486c) fix: use build instead of revision in version ([#118](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/118))
@@ -13,7 +26,7 @@
 - [Commit 0c4b76a](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/0c4b76a) test: use unicode for random strings ([#115](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/115))
 - [Commit 1869689](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/1869689) test: rollback should not clear the \_abortNextStatement flag ([#110](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/110))
 
-# Version 0.2.0, released 2021-09-03
+## Version 0.2.0, released 2021-09-03
 
 - [Commit 6664d8d](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/6664d8d) test: add test to verify the use of DDL batches ([#92](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/92))
 - [Commit 68256c9](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/68256c9) chore(deps): update dependency xunit to v2.4.1 ([#97](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/97))
@@ -33,6 +46,6 @@
 - [Commit 122db74](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/122db74) docs: instructions on how to build and publish NuGet package locally. ([#77](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/77))
 - [Commit c0d13dc](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/c0d13dc) feat: validate entity model against database ([#76](https://github.com/googleapis/dotnet-spanner-entity-framework/pull/76))
 
-# Version 0.1.0, released 2021-04-08
+## Version 0.1.0, released 2021-04-08
 
 Initial release.
