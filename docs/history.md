@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.0.0...Google.Cloud.EntityFrameworkCore.Spanner-2.0.1) (2022-09-29)
+
+
+### Bug Fixes
+
+* update requirements hash ([#197](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/197)) ([8fad68b](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/8fad68bd745a687d2ab7d3ea8b9d0cbc55d7715a))
+
 ## [2.0.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-1.1.0...Google.Cloud.EntityFrameworkCore.Spanner-2.0.0) (2022-09-28)
 
 
