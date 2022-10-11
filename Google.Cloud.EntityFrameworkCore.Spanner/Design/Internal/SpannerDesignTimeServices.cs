@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Microsoft.EntityFrameworkCore.Design;
@@ -36,10 +37,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Design.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public virtual void ConfigureDesignTimeServices(IServiceCollection serviceCollection)
-            => serviceCollection
-                .AddSingleton<IRelationalTypeMappingSource, SpannerTypeMappingSource>()
-                .AddSingleton<IDatabaseModelFactory, SpannerDatabaseModelFactory>()
-                .AddSingleton<IProviderConfigurationCodeGenerator, SpannerCodeGenerator>()
-                .AddSingleton<IAnnotationCodeGenerator, SpannerAnnotationCodeGenerator>();
+        {
+            serviceCollection.AddEntityFrameworkSpanner();
+            new EntityFrameworkRelationalDesignServicesBuilder(serviceCollection)
+                .TryAdd<IAnnotationCodeGenerator, SpannerAnnotationCodeGenerator>()
+                .TryAdd<IDatabaseModelFactory, SpannerDatabaseModelFactory>()
+                .TryAdd<IProviderConfigurationCodeGenerator, SpannerCodeGenerator>()
+                .TryAddCoreServices();
+        }
     }
 }
