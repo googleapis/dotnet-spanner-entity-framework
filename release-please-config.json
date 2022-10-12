@@ -12,6 +12,11 @@
           "type": "xml",
           "path": "Google.Cloud.EntityFrameworkCore.Spanner/Google.Cloud.EntityFrameworkCore.Spanner.csproj",
           "xpath": "//Project/PropertyGroup/Version"
+        },
+        {
+          "type": "xml",
+          "path": "Google.Cloud.EntityFrameworkCore.Spanner/Google.Cloud.EntityFrameworkCore.Spanner.csproj",
+          "xpath": "//Project/PropertyGroup/PackageVersion"
         }
       ]
     }
