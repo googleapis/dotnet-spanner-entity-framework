@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.4](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.0.3...Google.Cloud.EntityFrameworkCore.Spanner-2.0.4) (2022-11-26)
+
+
+### Bug Fixes
+
+* missing select column TABLE_NAME ([#251](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/251)) ([165b087](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/165b0875d42dfd27100150bef03d915ad9df5cad))
+
 ## [2.0.3](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.0.2...Google.Cloud.EntityFrameworkCore.Spanner-2.0.3) (2022-10-11)
 
 
