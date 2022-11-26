@@ -239,9 +239,9 @@ idna==3.4 \
     # via
     #   -r requirements.txt
     #   requests
-importlib-metadata==5.0.0 \
-    --hash=sha256:da31db32b304314d044d3c12c79bd59e307889b287ad12ff387b3500835fc2ab \
-    --hash=sha256:ddb0e35065e8938f867ed4928d0ae5bf2a53b7773871bfe6bcc7e4fcdc7dea43
+importlib-metadata==5.1.0 \
+    --hash=sha256:d5059f9f1e8e41f80e9c56c2ee58811450c31984dfa625329ffd7c0dad88a73b \
+    --hash=sha256:d84d17e21670ec07990e1044a99efe8d615d860fd176fc29ef5c306068fda313
     # via
     #   -r requirements.txt
     #   keyring
