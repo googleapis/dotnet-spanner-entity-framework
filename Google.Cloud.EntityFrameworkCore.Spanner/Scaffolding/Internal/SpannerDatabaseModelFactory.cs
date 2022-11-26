@@ -111,7 +111,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
         {
             using var command = connection.CreateCommand();
             var commandText = @"
-                SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT,
+                SELECT TABLE_NAME, COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE, CAST(COLUMN_DEFAULT AS STRING) AS COLUMN_DEFAULT,
                        IS_GENERATED, GENERATION_EXPRESSION
                 FROM INFORMATION_SCHEMA.COLUMNS
                 WHERE TABLE_CATALOG = '' AND TABLE_SCHEMA = ''
