@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.6](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.0.5...Google.Cloud.EntityFrameworkCore.Spanner-2.0.6) (2022-11-29)
+
+
+### Bug Fixes
+
+* Conflicting dependency for charset-normalizer ([#257](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/257)) ([e4b4e58](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/e4b4e58b01eb59ca3f41c7b6834c0a8f892e6766))
+
 ## [2.0.5](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.0.4...Google.Cloud.EntityFrameworkCore.Spanner-2.0.5) (2022-11-29)
 
 
