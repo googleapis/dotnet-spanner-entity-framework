@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.5](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.0.4...Google.Cloud.EntityFrameworkCore.Spanner-2.0.5) (2022-11-29)
+
+
+### Bug Fixes
+
+* Conflicting dependency for Protobuf version ([#255](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/255)) ([03f39ef](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/03f39efc14822bd95c99e5fa4ec7fe96afa2a17f))
+
 ## [2.0.4](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.0.3...Google.Cloud.EntityFrameworkCore.Spanner-2.0.4) (2022-11-26)
 
 
