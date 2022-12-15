@@ -41,14 +41,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         private readonly SpannerDbType _complexType;
         private readonly System.Type _clrType;
-        private readonly bool _isArrayType;
+        internal readonly bool IsArrayType;
 
         public SpannerComplexTypeMapping(SpannerDbType complexType, System.Type clrType, bool unicode = false, int? size = null)
             : base(complexType.ToString(), clrType, unicode: unicode, size: size)
         {
             _complexType = complexType;
             _clrType = clrType;
-            _isArrayType = SpannerComplexTypeMapping.s_arrayTypes.Contains(complexType);
+            IsArrayType = SpannerComplexTypeMapping.s_arrayTypes.Contains(complexType);
         }
 
         public override RelationalTypeMapping Clone(string storeType, int? size) =>
@@ -68,7 +68,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 throw new ArgumentException($"Spanner-specific type mapping {GetType().Name} being used with non-Spanner parameter type {parameter.GetType().Name}");
 
             base.ConfigureParameter(parameter);
-            if (!_isArrayType && Size.HasValue && Size.Value > 0)
+            if (!IsArrayType && Size.HasValue && Size.Value > 0)
             {
                 parameter.Size = Size.Value;
             }

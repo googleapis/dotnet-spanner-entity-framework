@@ -16,6 +16,7 @@ using Google.Api.Gax;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using System;
+using System.Collections;
 using System.Linq.Expressions;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
@@ -27,6 +28,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         {
         }
 
+        protected override Expression VisitExtension(Expression extensionExpression)
+        {
+            return extensionExpression switch
+            {
+                SpannerContainsExpression containsExpression => VisitContains(containsExpression),
+                _ => base.VisitExtension(extensionExpression),
+            };
+        }
+
         protected override void GenerateTop(SelectExpression selectExpression)
         {
         }
@@ -35,12 +45,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         {
             if (binaryExpression.OperatorType == ExpressionType.Add)
             {
-                if ((binaryExpression.Left.TypeMapping.StoreTypeNameBase == "STRING" || binaryExpression.Left.TypeMapping.StoreTypeNameBase == "BYTES")
-                    && (binaryExpression.Right.TypeMapping.StoreTypeNameBase == "STRING" || binaryExpression.Right.TypeMapping.StoreTypeNameBase == "BYTES"))
+                if ((binaryExpression.Left.TypeMapping.StoreTypeNameBase == "STRING" ||
+                     binaryExpression.Left.TypeMapping.StoreTypeNameBase == "BYTES")
+                    && (binaryExpression.Right.TypeMapping.StoreTypeNameBase == "STRING" ||
+                        binaryExpression.Right.TypeMapping.StoreTypeNameBase == "BYTES"))
                 {
                     return "||";
                 }
             }
+
             return base.GetOperator(binaryExpression);
         }
 
@@ -72,6 +85,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                     // We can't get the value here, so we need to just set a very high value.
                     limit = long.MaxValue / 2;
                 }
+
                 Sql.AppendLine().Append($"LIMIT {limit}");
             }
 
@@ -79,6 +93,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             {
                 return;
             }
+
             Sql.Append(" OFFSET ");
             Visit(selectExpression.Offset);
         }
@@ -88,20 +103,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             switch (sqlFunctionExpression.Name)
             {
                 case "CAST":
-                    {
-                        Sql.Append(sqlFunctionExpression.Name);
-                        Sql.Append("(");
+                {
+                    Sql.Append(sqlFunctionExpression.Name);
+                    Sql.Append("(");
 
-                        Visit(sqlFunctionExpression.Arguments[0]);
+                    Visit(sqlFunctionExpression.Arguments[0]);
 
-                        Sql.Append(" AS ");
+                    Sql.Append(" AS ");
 
-                        Visit(sqlFunctionExpression.Arguments[1]);
+                    Visit(sqlFunctionExpression.Arguments[1]);
 
-                        Sql.Append(")");
+                    Sql.Append(")");
 
-                        return sqlFunctionExpression;
-                    }
+                    return sqlFunctionExpression;
+                }
                 case "LN":
                 case "LOG":
                 case "LOG10":
@@ -121,6 +136,55 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             }
 
             return base.VisitSqlFunction(sqlFunctionExpression);
+        }
+
+        protected virtual Expression VisitContains(SpannerContainsExpression containsExpression)
+        {
+            var valueRequiresParentheses = ValueRequiresParentheses(containsExpression.Values);
+            Visit(containsExpression.Item);
+            Sql.Append(containsExpression.IsNegated ? " NOT IN " : " IN ");
+
+            if (valueRequiresParentheses)
+            {
+                Sql.Append("(");
+            }
+
+            if (containsExpression.Values is SqlConstantExpression constantValuesExpression
+                && constantValuesExpression.Value is IEnumerable constantValues)
+            {
+                var first = true;
+                foreach (var item in constantValues)
+                {
+                    if (!first)
+                    {
+                        Sql.Append(", ");
+                    }
+
+                    first = false;
+                    Sql.Append(constantValuesExpression.TypeMapping?.GenerateSqlLiteral(item) ??
+                               item?.ToString() ?? "NULL");
+                }
+            }
+            else
+            {
+                Visit(containsExpression.Values);
+            }
+
+            if (valueRequiresParentheses)
+            {
+                Sql.Append(")");
+            }
+
+            return containsExpression;
+
+            static bool ValueRequiresParentheses(SqlExpression valueExpression)
+            {
+                return valueExpression switch
+                {
+                    SqlFunctionExpression => false,
+                    _ => true,
+                };
+            }
         }
     }
 }

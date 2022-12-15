@@ -1134,6 +1134,94 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Equal(id, selectedId);
         }
 
+        
+        [Fact]
+        public async Task CanFilterOnArrayColumnContainsConstant()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id, ColStringArray = new List<string> { "1", "2" } }
+            );
+            await db.SaveChangesAsync();
+
+            var selectedId = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id && t.ColStringArray.Contains("2"))
+                .Select(t => t.ColInt64)
+                .FirstOrDefaultAsync();
+            Assert.Equal(id, selectedId);
+        }
+        
+        [Fact]
+        public async Task CanFilterOnArrayParameterContainsColumn()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id, ColStringArray = new List<string> { "1", "2" } }
+            );
+            await db.SaveChangesAsync();
+
+            var selectedId = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id && new []{id}.Contains(t.ColInt64))
+                .Select(t => t.ColInt64)
+                .FirstOrDefaultAsync();
+            Assert.Equal(id, selectedId);
+        }
+        
+        [Fact]
+        public async Task CanFilterOnArrayColumnContainsParameter()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id, ColStringArray = new List<string> { "1", "2" } }
+            );
+            await db.SaveChangesAsync();
+
+            var itemParameter = "2";
+            
+            var selectedId = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id && t.ColStringArray.Contains(itemParameter))
+                .Select(t => t.ColInt64)
+                .FirstOrDefaultAsync();
+            Assert.Equal(id, selectedId);
+        }
+        
+        [Fact]
+        public async Task CanFilterOnArrayDoesNotContainItem()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id, ColStringArray = new List<string> { "1", "2" } }
+            );
+            await db.SaveChangesAsync();
+
+            var selectedId = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id && !t.ColStringArray.Contains("3"))
+                .Select(t => t.ColInt64)
+                .FirstOrDefaultAsync();
+            Assert.Equal(id, selectedId);
+        }
+        
+        [Fact]
+        public async Task CanFilterOnArrayContainsNegative()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id, ColStringArray = new List<string> { "1", "2" } }
+            );
+            await db.SaveChangesAsync();
+            
+            var noResult = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id && t.ColStringArray.Contains("3"))
+                .Select(t => t.ColInt64)
+                .ToListAsync();
+            Assert.Empty(noResult);
+        }
+        
         [Fact]
         public async Task CanQueryRawSqlWithParameters()
         {

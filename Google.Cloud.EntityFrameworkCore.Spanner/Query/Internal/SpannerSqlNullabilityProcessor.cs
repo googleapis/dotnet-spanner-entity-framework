@@ -24,7 +24,8 @@ public class SpannerSqlNullabilityProcessor : SqlNullabilityProcessor
     /// <summary>
     /// Only for internal use.
     /// </summary>
-    public SpannerSqlNullabilityProcessor([NotNull] RelationalParameterBasedSqlProcessorDependencies dependencies, bool useRelationalNulls) :
+    public SpannerSqlNullabilityProcessor([NotNull] RelationalParameterBasedSqlProcessorDependencies dependencies,
+        bool useRelationalNulls) :
         base(dependencies, useRelationalNulls)
     {
     }
@@ -37,10 +38,19 @@ public class SpannerSqlNullabilityProcessor : SqlNullabilityProcessor
     {
         _ = sqlExpression switch
         {
-            SpannerValueExpression valueExpression => Visit(valueExpression.Value, allowOptimizedExpansion, out nullable),
+            SpannerValueExpression valueExpression => Visit(valueExpression.Value, allowOptimizedExpansion,
+                out nullable),
+            SpannerContainsExpression containsExpression => VisitSpannerContains(containsExpression, out nullable),
             _ => base.VisitCustomSqlExpression(sqlExpression, allowOptimizedExpansion, out nullable),
         };
         return sqlExpression;
     }
-    
+
+    protected virtual SqlExpression VisitSpannerContains(SpannerContainsExpression containsExpression, out bool nullable)
+    {
+        var item = Visit(containsExpression.Item, out var itemNullable);
+        var values = Visit(containsExpression.Values, out var _);
+        nullable = false;
+        return containsExpression.Update(item, values);
+    }
 }

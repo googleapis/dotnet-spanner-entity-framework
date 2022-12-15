@@ -50,6 +50,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                 .TryAdd<LoggingDefinitions, SpannerLoggingDefinitions>()
                 .TryAdd<IDatabaseProvider, DatabaseProvider<SpannerOptionsExtension>>()
                 .TryAdd<IRelationalTypeMappingSource, SpannerTypeMappingSource>()
+                .TryAdd<ISqlExpressionFactory, SpannerSqlExpressionFactory>()
                 .TryAdd<ISqlGenerationHelper, SpannerSqlGenerationHelper>()
                 .TryAdd<IRelationalAnnotationProvider, SpannerRelationalAnnotationProvider>()
                 .TryAdd<IProviderConventionSetBuilder, SpannerConventionSetBuilder>()
