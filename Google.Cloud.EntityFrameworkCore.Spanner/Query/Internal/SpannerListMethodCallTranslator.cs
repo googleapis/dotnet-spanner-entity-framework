@@ -40,29 +40,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         private static readonly MethodInfo Enumerable_Contains =
             typeof(Enumerable).GetTypeInfo().GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
                 .Single(m => m.Name == nameof(Enumerable.Contains) && m.GetParameters().Length == 2);
-        
-        private static readonly HashSet<MethodInfo> s_containsMethods = new HashSet<MethodInfo>
-        {
-            typeof(List<decimal>).GetRuntimeMethod(nameof(List<decimal>.Contains), new[] { typeof(decimal) }),
-            typeof(List<decimal>).GetRuntimeMethod(nameof(List<decimal?>.Contains), new[] { typeof(decimal?) }),
-            typeof(List<decimal>).GetRuntimeMethod(nameof(List<SpannerNumeric>.Contains),
-                new[] { typeof(SpannerNumeric) }),
-            typeof(List<decimal>).GetRuntimeMethod(nameof(List<SpannerNumeric?>.Contains),
-                new[] { typeof(SpannerNumeric?) }),
-            typeof(List<decimal>).GetRuntimeMethod(nameof(List<bool?>.Contains), new[] { typeof(bool?) }),
-            typeof(List<decimal>).GetRuntimeMethod(nameof(List<bool?>.Contains), new[] { typeof(bool?) }),
-            typeof(List<decimal>).GetRuntimeMethod(nameof(List<double>.Contains), new[] { typeof(double) }),
-            typeof(List<decimal>).GetRuntimeMethod(nameof(List<double?>.Contains), new[] { typeof(double?) }),
-            typeof(List<decimal>).GetRuntimeMethod(nameof(List<long>.Contains), new[] { typeof(long) }),
-            typeof(List<decimal>).GetRuntimeMethod(nameof(List<long?>.Contains), new[] { typeof(long?) }),
-            typeof(List<decimal>).GetRuntimeMethod(nameof(List<SpannerDate>.Contains), new[] { typeof(SpannerDate) }),
-            typeof(List<decimal>).GetRuntimeMethod(nameof(List<SpannerDate?>.Contains), new[] { typeof(SpannerDate?) }),
-            typeof(List<decimal>).GetRuntimeMethod(nameof(List<DateTime>.Contains), new[] { typeof(DateTime) }),
-            typeof(List<decimal>).GetRuntimeMethod(nameof(List<DateTime?>.Contains), new[] { typeof(DateTime?) }),
-            typeof(List<decimal>).GetRuntimeMethod(nameof(List<byte[]>.Contains), new[] { typeof(byte[]) }),
-            typeof(List<decimal>).GetRuntimeMethod(nameof(List<byte?[]>.Contains), new[] { typeof(byte?[]) }),
-            typeof(List<decimal>).GetRuntimeMethod(nameof(List<string>.Contains), new[] { typeof(string) }),
-        };
 
         public SpannerListMethodCallTranslator([NotNull] SpannerSqlExpressionFactory sqlExpressionFactory)
         {
