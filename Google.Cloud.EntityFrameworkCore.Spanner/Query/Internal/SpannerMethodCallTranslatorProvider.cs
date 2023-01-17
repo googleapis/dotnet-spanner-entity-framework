@@ -28,7 +28,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         public SpannerMethodCallTranslatorProvider([NotNull] RelationalMethodCallTranslatorProviderDependencies dependencies)
             : base(dependencies)
         {
-            var sqlExpressionFactory = dependencies.SqlExpressionFactory;
+            var sqlExpressionFactory = (SpannerSqlExpressionFactory) dependencies.SqlExpressionFactory;
 
             AddTranslators(
                 new IMethodCallTranslator[]
@@ -39,6 +39,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                     new SpannerRegexMethodTranslator(sqlExpressionFactory),
                     new SpannerDateTimeMethodTranslator(sqlExpressionFactory),
                     new SpannerMathTranslator(sqlExpressionFactory),
+                    new SpannerListMethodCallTranslator(sqlExpressionFactory),
                 });
         }
     }
