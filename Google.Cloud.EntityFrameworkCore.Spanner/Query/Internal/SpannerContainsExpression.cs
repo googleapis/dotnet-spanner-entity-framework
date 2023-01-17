@@ -23,13 +23,16 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal;
 
+/// <summary>
+/// Only for internal use.
+/// </summary>
 public class SpannerContainsExpression : SqlExpression
 {
     public SqlExpression Values { get; }
     public SqlExpression Item { get; }
     public virtual bool IsNegated { get; }
     
-    public SpannerContainsExpression(
+    internal SpannerContainsExpression(
         SqlExpression item,
         SqlExpression values,
         bool negated, 
@@ -67,7 +70,10 @@ public class SpannerContainsExpression : SqlExpression
                 }
 
                 first = false;
-                expressionPrinter.Append(constantValuesExpression.TypeMapping?.GenerateSqlLiteral(item) ?? item?.ToString() ?? "NULL");
+                expressionPrinter.Append(
+                    constantValuesExpression.TypeMapping?.GenerateSqlLiteral(item)
+                    ?? item?.ToString()
+                    ?? "NULL");
             }
         }
         else
@@ -78,6 +84,7 @@ public class SpannerContainsExpression : SqlExpression
         expressionPrinter.Append(")");
     }
     
+    /// <inheritdoc />
     public override bool Equals(object? obj)
         => obj is not null
            && (ReferenceEquals(this, obj)
