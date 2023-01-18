@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.0.6...Google.Cloud.EntityFrameworkCore.Spanner-2.1.0) (2023-01-18)
+
+
+### Features
+
+* Support for IEnumerable&lt;T&gt;.Contains (item IN values) with column values ([#270](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/270)) ([16ffa4d](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/16ffa4dd6541b22dda2b84ec910cc517eb668f79))
+
 ## [2.0.6](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.0.5...Google.Cloud.EntityFrameworkCore.Spanner-2.0.6) (2022-11-29)
 
 
