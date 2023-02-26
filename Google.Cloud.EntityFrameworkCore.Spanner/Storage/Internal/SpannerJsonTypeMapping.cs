@@ -52,11 +52,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
             if (value is JsonDocument jd)
             {
-                return $"'{jd.RootElement.ToString()}'";
+                return $"JSON '{jd.RootElement.ToString()}'";
             }
             if (value is string s)
             {
-                return $"'{s}'";
+                return $"JSON '{s}'";
             }
             throw new ArgumentException($"{value} is not valid for database type JSON");
         }

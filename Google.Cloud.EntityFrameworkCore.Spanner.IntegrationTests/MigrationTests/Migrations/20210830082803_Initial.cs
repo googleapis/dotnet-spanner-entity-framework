@@ -199,7 +199,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                 values: new object[,]
                 {
                     { 1L, "Belinda", "Stiles" },
-                    { 2L, "Kelly", "Houser" }
+                    { 2L, "Kelly", "Houser" },
+                    { 3L, "Barnie", "Stones\nWith\nNewline"}
                 });
 
             migrationBuilder.CreateIndex(

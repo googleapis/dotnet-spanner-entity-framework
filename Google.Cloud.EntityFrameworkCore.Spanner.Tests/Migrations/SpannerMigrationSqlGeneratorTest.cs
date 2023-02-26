@@ -444,10 +444,10 @@ CONSTRAINT `Chk_Title_Length_Equal` CHECK (CHARACTER_LENGTH(Title) > 0),
         {
             base.InsertDataOperation();
             AssertSql(@"INSERT INTO `Singers` (`SingerId`, `FirstName`, `LastName`)
-VALUES (1, 'Marc', 'Richards'),
-(2, 'Catalina', 'Smith'),
-(3, 'Alice', 'Trentor'),
-(4, 'Lea', 'Martin');
+VALUES (1, '''Marc''', '''Richards'''),
+(2, '''Catalina''', '''Smith'''),
+(3, '''Alice''', '''Trentor'''),
+(4, '''Lea''', '''Martin''');
 ");
         }
 
@@ -467,9 +467,9 @@ WHERE `SingerId` = 3;
         {
             base.DeleteDataOperation_composite_key();
             AssertSql(@"DELETE FROM `Singers`
-WHERE `FirstName` = 'Dorothy' AND `LastName` IS NULL;
+WHERE `FirstName` = '''Dorothy''' AND `LastName` IS NULL;
 DELETE FROM `Singers`
-WHERE `FirstName` = 'Curt' AND `LastName` = 'Lee';
+WHERE `FirstName` = '''Curt''' AND `LastName` = '''Lee''';
 ");
         }
 
@@ -477,9 +477,9 @@ WHERE `FirstName` = 'Curt' AND `LastName` = 'Lee';
         public override void UpdateDataOperation_simple_key()
         {
             base.UpdateDataOperation_simple_key();
-            AssertSql(@"UPDATE `Singers` SET `FirstName` = 'Christopher'
+            AssertSql(@"UPDATE `Singers` SET `FirstName` = '''Christopher'''
 WHERE `SingerId` = 1;
-UPDATE `Singers` SET `FirstName` = 'Lisa'
+UPDATE `Singers` SET `FirstName` = '''Lisa'''
 WHERE `SingerId` = 4;
 ");
         }
@@ -488,9 +488,9 @@ WHERE `SingerId` = 4;
         public override void UpdateDataOperation_composite_key()
         {
             base.UpdateDataOperation_composite_key();
-            AssertSql(@"UPDATE `Albums` SET `Title` = 'Total Junk'
+            AssertSql(@"UPDATE `Albums` SET `Title` = '''Total Junk'''
 WHERE `SingerId` = 1 AND `AlbumId` = 1;
-UPDATE `Albums` SET `Title` = 'Terrified'
+UPDATE `Albums` SET `Title` = '''Terrified'''
 WHERE `SingerId` = 1 AND `AlbumId` = 2;
 ");
         }
@@ -499,9 +499,9 @@ WHERE `SingerId` = 1 AND `AlbumId` = 2;
         public override void UpdateDataOperation_multiple_columns()
         {
             base.UpdateDataOperation_multiple_columns();
-            AssertSql(@"UPDATE `Singers` SET `FirstName` = 'Gregory', `LastName` = 'Davis'
+            AssertSql(@"UPDATE `Singers` SET `FirstName` = '''Gregory''', `LastName` = '''Davis'''
 WHERE `SingerId` = 1;
-UPDATE `Singers` SET `FirstName` = 'Katherine', `LastName` = 'Palmer'
+UPDATE `Singers` SET `FirstName` = '''Katherine''', `LastName` = '''Palmer'''
 WHERE `SingerId` = 4;
 ");
         }
