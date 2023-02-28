@@ -44,11 +44,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
             var formattedVersion = $"{version.Major}.{version.Minor}.{version.Build}";
             _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateException(MockSpannerService.CreateDatabaseNotFoundException("d1")));
             _fixture.SpannerMock.AddOrUpdateStatementResult(
-                $"INSERT INTO `EFMigrationsHistory` (`MigrationId`, `ProductVersion`)\nVALUES ('20210309110233_Initial', '{formattedVersion}')",
+                $"INSERT INTO `EFMigrationsHistory` (`MigrationId`, `ProductVersion`)\nVALUES ('''20210309110233_Initial''', '''{formattedVersion}''')",
                 StatementResult.CreateUpdateCount(1)
             );
             _fixture.SpannerMock.AddOrUpdateStatementResult(
-                $"INSERT INTO `EFMigrationsHistory` (`MigrationId`, `ProductVersion`)\nVALUES ('20210830_V2', '{formattedVersion}')",
+                $"INSERT INTO `EFMigrationsHistory` (`MigrationId`, `ProductVersion`)\nVALUES ('''20210830_V2''', '''{formattedVersion}''')",
                 StatementResult.CreateUpdateCount(1)
             );
             using var db = new MockMigrationSampleDbContext(ConnectionString);

@@ -75,5 +75,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 ? _maxSpecificSize
                 : 0;
         }
+
+        protected override string GenerateNonNullSqlLiteral(object value)
+            => $"'''{value}'''";
     }
 }

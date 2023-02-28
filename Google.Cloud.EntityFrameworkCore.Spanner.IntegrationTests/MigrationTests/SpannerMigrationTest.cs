@@ -502,7 +502,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     ArticleId = 1,
                     Author = new Author
                     {
-                        AuthorId = 3,
+                        AuthorId = 4,
                         FirstName = "Calvin",
                         LastName = "Saunders"
                     },

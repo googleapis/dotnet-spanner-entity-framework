@@ -28,6 +28,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -332,7 +333,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task CanReadWithExactStaleness()
         {
-            var sql = AddFindSingerResult($"-- exact_staleness: 5.5{Environment.NewLine}{Environment.NewLine}" +
+            var sql = AddFindSingerResult($"-- exact_staleness: 5{CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator}5{Environment.NewLine}{Environment.NewLine}" +
                                           $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
                                           $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                                           $"WHERE `s`.`SingerId` = @__id_0{Environment.NewLine}LIMIT 1");
@@ -885,7 +886,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE (@__fullName_0 = '') OR STARTS_WITH(`s`.`FullName`, @__fullName_0)";
+                $"WHERE (@__fullName_0 = '''''') OR STARTS_WITH(`s`.`FullName`, @__fullName_0)";
             AddFindSingerResult(sql);
 
             var fullName = "Alice M";
@@ -910,7 +911,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE (@__fullName_0 = '') OR ENDS_WITH(`s`.`FullName`, @__fullName_0)";
+                $"WHERE (@__fullName_0 = '''''') OR ENDS_WITH(`s`.`FullName`, @__fullName_0)";
             AddFindSingerResult(sql);
 
             var fullName = " Morrison";
@@ -958,7 +959,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task CanUseStringConcat()
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
-            var sql = $"SELECT CONCAT(`s`.`FirstName`, ' ', `s`.`LastName`, CAST(`s`.`SingerId` AS STRING)){Environment.NewLine}" + 
+            var sql = $"SELECT CONCAT(`s`.`FirstName`, ''' ''', `s`.`LastName`, CAST(`s`.`SingerId` AS STRING)){Environment.NewLine}" + 
                       $"FROM `Singers` AS `s`{Environment.NewLine}" + 
                       "LIMIT 1";
             AddFindSingerResult(sql);
@@ -980,7 +981,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task CanUseStringPlus()
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
-            var sql = $"SELECT (COALESCE(`s`.`FirstName`, '')||' ')||`s`.`LastName`{Environment.NewLine}" + 
+            var sql = $"SELECT (COALESCE(`s`.`FirstName`, '''''')||''' ''')||`s`.`LastName`{Environment.NewLine}" + 
                       $"FROM `Singers` AS `s`{Environment.NewLine}" + 
                       "LIMIT 1";
             AddFindSingerResult(sql);
@@ -1852,7 +1853,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task CanUseDateTimeToString()
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
-            var sql = $"SELECT FORMAT_TIMESTAMP('%FT%H:%M:%E*SZ', COALESCE(`t`.`ColTimestamp`, TIMESTAMP '0001-01-01T00:00:00Z'), 'UTC')" +
+            var sql = $"SELECT FORMAT_TIMESTAMP('''%FT%H:%M:%E*SZ''', COALESCE(`t`.`ColTimestamp`, TIMESTAMP '0001-01-01T00:00:00Z'), '''UTC''')" +
                 $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0" +
                 $"{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
