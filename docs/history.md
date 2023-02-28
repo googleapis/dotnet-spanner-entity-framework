@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.1.0...Google.Cloud.EntityFrameworkCore.Spanner-2.1.1) (2023-02-28)
+
+
+### Bug Fixes
+
+* prevent errors with newlines by using triple-quoted literals ([#283](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/283)) ([a6c5c8e](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/a6c5c8e515ecbb2c1bd76141fe6e983d0b712c76)), closes [#273](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/273)
+
 ## [2.1.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.0.6...Google.Cloud.EntityFrameworkCore.Spanner-2.1.0) (2023-01-18)
 
 

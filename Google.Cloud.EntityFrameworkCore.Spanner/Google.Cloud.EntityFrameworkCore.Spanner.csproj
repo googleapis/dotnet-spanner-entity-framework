@@ -14,8 +14,8 @@
     <RepositoryType>git</RepositoryType>
     <PackageTags>spanner;entity framework;Google;Cloud;efcore</PackageTags>
     <PackageIcon>NuGetIcon.png</PackageIcon>
-    <Version>2.1.0</Version>
-    <PackageVersion>2.1.0</PackageVersion>
+    <Version>2.1.1</Version>
+    <PackageVersion>2.1.1</PackageVersion>
   </PropertyGroup>
 
   <ItemGroup>
