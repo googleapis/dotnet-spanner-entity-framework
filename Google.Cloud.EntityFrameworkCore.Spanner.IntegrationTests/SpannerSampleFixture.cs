@@ -88,6 +88,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Logger.DefaultLogger.Debug($"Ready to run tests");
         }
 
+        protected virtual bool UseEnsureCreated => false;
+
         private void ClearTables()
         {
             using var con = GetConnection();
@@ -117,6 +119,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         /// </summary>
         private void CreateTables()
         {
+            if (UseEnsureCreated)
+            {
+                using var db = new TestSpannerSampleDbContext(DatabaseName);
+                db.Database.EnsureCreated();
+                return;
+            }
             var dirPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             const string sampleModel = "SampleDataModel.sql";
             var fileName = Path.Combine(dirPath, sampleModel);

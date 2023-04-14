@@ -29,11 +29,16 @@ using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
-    public class QueryTests : IClassFixture<SpannerSampleFixture>
+    public class QueryTestFixture : SpannerSampleFixture
     {
-        private readonly SpannerSampleFixture _fixture;
+        protected override bool UseEnsureCreated => true;
+    }
 
-        public QueryTests(SpannerSampleFixture fixture) => _fixture = fixture;
+    public class QueryTests : IClassFixture<QueryTestFixture>
+    {
+        private readonly QueryTestFixture _fixture;
+
+        public QueryTests(QueryTestFixture fixture) => _fixture = fixture;
 
         [Fact]
         public async Task CanFilterOnProperty()
