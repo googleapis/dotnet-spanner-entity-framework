@@ -74,10 +74,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
             // In that case we should also skip the further validation, as the differences
             // could be a result of migrations that still need to be executed.
             var facadeExtensions = nameof(RelationalDatabaseFacadeExtensions);
+            var databaseFacade = nameof(DatabaseFacade);
             var migrateMethods = new List<string>
             {
                 nameof(RelationalDatabaseFacadeExtensions.Migrate),
                 nameof(RelationalDatabaseFacadeExtensions.MigrateAsync),
+                nameof(DatabaseFacade.EnsureCreated),
+                nameof(DatabaseFacade.EnsureCreatedAsync),
+                nameof(DatabaseFacade.EnsureDeleted),
+                nameof(DatabaseFacade.EnsureDeletedAsync)
             };
             var migrationsOperations = nameof(MigrationsOperations);
             var migrationsOperationsMethods = new List<string>
@@ -93,7 +98,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
             do
             {
                 method = new StackFrame(skipFrames, false).GetMethod();
-                if (method != null && migrateMethods.Contains(method.Name) && facadeExtensions.Equals(method.DeclaringType.Name))
+                if (method != null && migrateMethods.Contains(method.Name) && (facadeExtensions.Equals(method.DeclaringType.Name) || databaseFacade.Equals(method.DeclaringType.Name)))
                 {
                     return;
                 }

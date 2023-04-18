@@ -120,6 +120,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                 entity.Property(e => e.FullName)
                     .IsRequired()
                     .HasMaxLength(400)
+                    .HasComputedColumnSql("(COALESCE(FirstName || ' ', '') || LastName) STORED")
                     .ValueGeneratedOnAddOrUpdate();
 
                 entity.Property(e => e.LastName)
@@ -187,8 +188,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                 entity.HasOne(d => d.Album)
                     .WithMany(p => p.Tracks)
                     .HasForeignKey(d => d.AlbumId)
-                    .OnDelete(DeleteBehavior.ClientSetNull)
-                    .HasConstraintName("PK_Albums");
+                    .OnDelete(DeleteBehavior.ClientSetNull);
             });
 
             modelBuilder.Entity<Venues>(entity =>
