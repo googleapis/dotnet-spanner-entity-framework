@@ -71,6 +71,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
             if (_containerId != null)
             {
                 await _dockerClient.Containers.KillContainerAsync(_containerId, new ContainerKillParameters());
+                await _dockerClient.Containers.RemoveContainerAsync(_containerId, new ContainerRemoveParameters());
             }
         }
 
