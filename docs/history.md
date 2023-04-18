@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.2](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.1.1...Google.Cloud.EntityFrameworkCore.Spanner-2.1.2) (2023-04-18)
+
+
+### Bug Fixes
+
+* EnsureCreated should skip validation before migration ([#287](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/287)) ([9c7c356](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/9c7c35622f7578165585dd8bb238957dd41e8419)), closes [#286](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/286)
+
 ## [2.1.1](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.1.0...Google.Cloud.EntityFrameworkCore.Spanner-2.1.1) (2023-02-28)
 
 
