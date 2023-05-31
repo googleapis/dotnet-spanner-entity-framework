@@ -22,7 +22,6 @@ using System.Threading.Tasks;
 using System;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using System.Collections.Concurrent;
-using Xunit.Abstractions;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 {

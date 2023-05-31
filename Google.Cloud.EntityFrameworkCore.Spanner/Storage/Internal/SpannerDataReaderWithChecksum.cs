@@ -23,7 +23,6 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Transactions;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
