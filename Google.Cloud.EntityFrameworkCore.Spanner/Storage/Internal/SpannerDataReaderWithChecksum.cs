@@ -71,7 +71,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         //     _spannerDataReader.Close();
         //     base.Close();
         // }
-
+        //
         // protected override void Dispose(bool disposing)
         // {
         //     _spannerDataReader.Dispose();
