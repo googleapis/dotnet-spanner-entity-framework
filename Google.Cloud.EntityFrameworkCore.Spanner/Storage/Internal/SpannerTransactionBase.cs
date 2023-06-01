@@ -13,6 +13,8 @@
 // limitations under the License.
 
 using Google.Cloud.Spanner.Data;
+using Google.Cloud.Spanner.V1.Internal.Logging;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
@@ -48,6 +50,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             }
             Disposed = true;
             base.Dispose(disposing);
+            GC.SuppressFinalize(this);
+        }
+
+        ~SpannerTransactionBase()
+        {
+            Logger.DefaultLogger?.Warn("Transaction was not disposed properly. This caused a session leak.");
         }
 
         /// <inheritdoc/>

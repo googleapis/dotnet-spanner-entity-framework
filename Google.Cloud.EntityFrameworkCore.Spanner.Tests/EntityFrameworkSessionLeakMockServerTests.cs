@@ -16,24 +16,18 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
-using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
@@ -55,15 +49,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            if (!optionsBuilder.IsConfigured)
+            if (optionsBuilder.IsConfigured)
             {
-                var builder = new SpannerConnectionStringBuilder(_connectionString, ChannelCredentials.Insecure);
-                builder.SessionPoolManager = _manager;
-                optionsBuilder
-                    .UseSpanner(new SpannerConnection(builder), _ => SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false))
-                    .UseMutations(MutationUsage.Never)
-                    .UseLazyLoadingProxies();
+                return;
             }
+            var builder = new SpannerConnectionStringBuilder(_connectionString, ChannelCredentials.Insecure)
+            {
+                SessionPoolManager = _manager
+            };
+            optionsBuilder
+                .UseSpanner(new SpannerConnection(builder), _ => SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false))
+                .UseMutations(MutationUsage.Never)
+                .UseLazyLoadingProxies();
         }
     }
 
@@ -2084,6 +2081,60 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             // by the above transactions.
             var exception = await Assert.ThrowsAsync<SpannerException>(() => db.Database.BeginTransactionAsync());
             Assert.Equal(ErrorCode.ResourceExhausted, exception.ErrorCode);
+        }
+
+        [Fact]
+        public async Task MultipleReadWriteTransactionsWithUsingBlocks_DoesNotHoldOnToSessionsForTooLong()
+        {
+            AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
+                                $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+
+            using var db = CreateContext();
+
+            using (var transaction1 = await db.Database.BeginTransactionAsync())
+            {
+                Assert.NotNull(await db.Singers.FindAsync(1L));
+                await transaction1.CommitAsync();
+            }
+
+            using (var transaction2 = await db.Database.BeginTransactionAsync())
+            {
+                Assert.NotNull(await db.Singers.FindAsync(2L));
+                await transaction2.CommitAsync();
+            }
+
+            // This works, because the two previous transactions were disposed.
+            using var transaction3 = await db.Database.BeginTransactionAsync();
+            await transaction3.CommitAsync();
+        }
+
+        [Fact]
+        public async Task NestedTransactionsStartNewTransactions()
+        {
+            AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
+                                $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+
+            using var db1 = CreateContext();
+            using (var transaction1 = await db1.Database.BeginTransactionAsync())
+            {
+                Assert.NotNull(await db1.Singers.FindAsync(1L));
+                using var db2 = CreateContext();
+                using (var transaction2 = await db2.Database.BeginTransactionAsync())
+                {
+                    Assert.NotNull(await db2.Singers.FindAsync(2L));
+                    
+                    // This will now fail because the 2 sessions that the pool is allowed to hold are
+                    // still checked out by the above transactions.
+                    using var db3 = CreateContext();
+                    var exception = await Assert.ThrowsAsync<SpannerException>(() => db3.Database.BeginTransactionAsync());
+                    Assert.Equal(ErrorCode.ResourceExhausted, exception.ErrorCode);
+                    
+                    await transaction2.CommitAsync();
+                }
+                await transaction1.CommitAsync();
+            }
         }
 
         [Fact]
