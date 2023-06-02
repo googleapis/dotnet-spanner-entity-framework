@@ -13,8 +13,6 @@
 // limitations under the License.
 
 using Google.Cloud.Spanner.Data;
-using Google.Cloud.Spanner.V1.Internal.Logging;
-using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
