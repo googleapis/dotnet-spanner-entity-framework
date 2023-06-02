@@ -50,12 +50,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             }
             Disposed = true;
             base.Dispose(disposing);
-            GC.SuppressFinalize(this);
-        }
-
-        ~SpannerTransactionBase()
-        {
-            Logger.DefaultLogger?.Warn("Transaction was not disposed properly. This caused a session leak.");
         }
 
         /// <inheritdoc/>

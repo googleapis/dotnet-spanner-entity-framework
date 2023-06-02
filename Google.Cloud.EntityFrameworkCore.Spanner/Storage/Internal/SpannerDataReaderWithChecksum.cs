@@ -65,19 +65,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         private SpannerDataReader _spannerDataReader;
 
-        // TODO: Uncomment these methods.
-        // public override void Close()
-        // {
-        //     _spannerDataReader.Close();
-        //     base.Close();
-        // }
-        //
-        // protected override void Dispose(bool disposing)
-        // {
-        //     _spannerDataReader.Dispose();
-        //     base.Dispose(disposing);
-        // }
-
         /// <inheritdoc />
         public override bool Read() => Task.Run(() => ReadAsync(CancellationToken.None)).ResultWithUnwrappedExceptions();
 
