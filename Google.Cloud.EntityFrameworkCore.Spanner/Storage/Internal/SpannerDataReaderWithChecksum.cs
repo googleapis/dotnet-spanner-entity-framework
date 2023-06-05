@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using Google.Apis.Testing;
 using Google.Cloud.Spanner.Data;
 using Google.Protobuf;
 using System;
@@ -58,6 +59,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public override bool IsClosed => _spannerDataReader.IsClosed;
 
         public override int RecordsAffected => _spannerDataReader.RecordsAffected;
+
+        [VisibleForTestOnly]
+        internal SpannerDataReader SpannerDataReader => _spannerDataReader;
 
         public override object this[string name] => _spannerDataReader[name];
 

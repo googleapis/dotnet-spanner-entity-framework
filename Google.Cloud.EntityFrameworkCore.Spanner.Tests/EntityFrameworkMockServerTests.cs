@@ -2279,6 +2279,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 cmd.Transaction = transaction;
             }
             using var reader = await cmd.ExecuteReaderAsync();
+            if (useTransaction)
+            {
+                Assert.False(((SpannerDataReaderWithChecksum)reader).SpannerDataReader.IsClosed);
+            }
             while (await reader.ReadAsync())
             {
                 Assert.Equal(1L, reader.GetInt64(0));
@@ -2306,6 +2310,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 Assert.Equal(new List<DateTime?>{new DateTime(2021, 12, 1), new DateTime(2000, 2, 29), null}, reader.GetFieldValue<List<DateTime?>>(15));
                 Assert.Equal(new List<DateTime?>{new DateTime(2021, 12, 1, 11, 17, 2, DateTimeKind.Utc), null}, reader.GetFieldValue<List<DateTime?>>(16));
                 Assert.Equal(new List<string>{"{\"key1\": \"value1\", \"key2\": \"value2\"}", "{\"key1\": \"value3\", \"key2\": \"value4\"}", null}, reader.GetFieldValue<List<string>>(17));
+            }
+            await reader.DisposeAsync();
+            if (useTransaction)
+            {
+                Assert.True(((SpannerDataReaderWithChecksum)reader).SpannerDataReader.IsClosed);
             }
             if (useTransaction)
             {
