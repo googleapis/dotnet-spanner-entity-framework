@@ -29,17 +29,26 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
     public class AbortedTransactionsTests : IClassFixture<SpannerMockServerFixture>
     {
         private readonly SpannerMockServerFixture _fixture;
+        private readonly SessionPoolManager _manager;
 
         public AbortedTransactionsTests(SpannerMockServerFixture service)
         {
             _fixture = service;
             _fixture.SpannerMock.Reset();
+            
+            var options = new V1.SessionPoolOptions();
+            options.MinimumPooledSessions = 4;
+            options.MaximumActiveSessions = 8;
+            options.WaitOnResourcesExhausted = V1.ResourcesExhaustedBehavior.Fail;
+            _manager = SessionPoolManager.Create(options);
         }
 
         private SpannerRetriableConnection CreateConnection()
         {
             var connectionString = $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
-            return new SpannerRetriableConnection(new SpannerConnection(connectionString, ChannelCredentials.Insecure));
+            var builder = new SpannerConnectionStringBuilder(connectionString, ChannelCredentials.Insecure);
+            builder.SessionPoolManager = _manager;
+            return new SpannerRetriableConnection(new SpannerConnection(builder));
         }
 
         [Fact]
@@ -387,6 +396,70 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             }
         }
 
+        [Fact]
+        public async Task ReadWriteTransaction_Using_DoesNotLeakSession()
+        {
+            string sql = $"SELECT Id FROM Foo WHERE Id={_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1));
+            using var connection = CreateConnection();
+            await connection.OpenAsync();
+            for (var i = 0; i < _manager.SessionPoolOptions.MaximumActiveSessions + 2; i++)
+            {
+                using var transaction = await connection.BeginTransactionAsync();
+                var cmd = connection.CreateSelectCommand(sql);
+                cmd.Transaction = transaction;
+                using (var reader = await cmd.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        Assert.Equal(1, reader.GetInt64(reader.GetOrdinal("Id")));
+                    }
+                }
+                await transaction.CommitAsync();
+            }
+        }
+
+        [Fact]
+        public async Task ReadWriteTransaction_WithoutUsing_LeaksSession()
+        {
+            string sql = $"SELECT Id FROM Foo WHERE Id={_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1));
+            using var connection = CreateConnection();
+            await connection.OpenAsync();
+            var transactions = new List<SpannerRetriableTransaction>();
+            for (var i = 0; i < _manager.SessionPoolOptions.MaximumActiveSessions + 1; i++)
+            {
+                try
+                {
+                    // NOTE: This does not have a 'using' declaration, and is also not disposed in any other way.
+                    var transaction = await connection.BeginTransactionAsync();
+                    // The above line of code should fail when we have used all the sessions.
+                    Assert.True(i <= _manager.SessionPoolOptions.MaximumActiveSessions);
+                    // Keep track of all transactions that we have started, so we can dispose of them later.
+                    transactions.Add(transaction);
+                    var cmd = connection.CreateSelectCommand(sql);
+                    cmd.Transaction = transaction;
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            Assert.Equal(1, reader.GetInt64(reader.GetOrdinal("Id")));
+                        }
+                    }
+                    await transaction.CommitAsync();
+                }
+                catch (SpannerException exception)
+                {
+                    Assert.Equal(ErrorCode.ResourceExhausted, exception.ErrorCode);
+                    Assert.Equal(_manager.SessionPoolOptions.MaximumActiveSessions, i);
+                }
+                finally
+                {
+                    transactions.ForEach(transaction => transaction.Dispose());
+                }
+            }
+        }
+
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
@@ -407,6 +480,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 Assert.Equal(ErrorCode.NotFound, e.ErrorCode);
                 Assert.Contains("Table not found: Foo", e.InnerException.Message);
             }
+
             // Abort the transaction on the mock server. The transaction should be able to internally retry.
             _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
             if (enableInternalRetries)
