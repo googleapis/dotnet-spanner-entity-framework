@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using Google.Apis.Testing;
 using Google.Cloud.Spanner.Data;
 using Google.Protobuf;
 using System;
@@ -59,11 +60,26 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         public override int RecordsAffected => _spannerDataReader.RecordsAffected;
 
+        [VisibleForTestOnly]
+        internal SpannerDataReader SpannerDataReader => _spannerDataReader;
+
         public override object this[string name] => _spannerDataReader[name];
 
         public override object this[int ordinal] => _spannerDataReader[ordinal];
 
         private SpannerDataReader _spannerDataReader;
+
+        public override void Close()
+        {
+            _spannerDataReader.Close();
+            base.Close();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            _spannerDataReader.Dispose();
+            base.Dispose(disposing);
+        }
 
         /// <inheritdoc />
         public override bool Read() => Task.Run(() => ReadAsync(CancellationToken.None)).ResultWithUnwrappedExceptions();

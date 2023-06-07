@@ -13,5 +13,7 @@
 // limitations under the License.
 
 using Microsoft.EntityFrameworkCore.Design;
+using System.Runtime.CompilerServices;
 
 [assembly: DesignTimeProviderServices("Google.Cloud.EntityFrameworkCore.Spanner.Design.Internal.SpannerDesignTimeServices")]
+[assembly:InternalsVisibleTo("Google.Cloud.EntityFrameworkCore.Spanner.Tests")]
