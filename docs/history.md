@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.3](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.1.2...Google.Cloud.EntityFrameworkCore.Spanner-2.1.3) (2023-06-09)
+
+
+### Bug Fixes
+
+* dispose the underlying SpannerDataReader ([#293](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/293)) ([95526b5](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/95526b5c0cd0de3f23e75dcb9af54c783005e635))
+
 ## [2.1.2](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.1.1...Google.Cloud.EntityFrameworkCore.Spanner-2.1.2) (2023-04-18)
 
 
