@@ -21,11 +21,11 @@
   <ItemGroup>
     <PackageReference Include="Google.Cloud.Spanner.Data" Version="4.5.0"/>
     <PackageReference Include="JetBrains.Annotations" Version="2022.3.1" PrivateAssets="All"/>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="6.0.16" PrivateAssets="All"/>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="6.0.16"/>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="6.0.16"/>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="6.0.21" PrivateAssets="All"/>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="6.0.21"/>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="6.0.21"/>
     <PackageReference Include="OpenTelemetry.Api" Version="1.5.0"/>
-    <PackageReference Include="System.Text.Json" Version="6.0.7"/>
+    <PackageReference Include="System.Text.Json" Version="6.0.8"/>
   </ItemGroup>
 
   <ItemGroup>
