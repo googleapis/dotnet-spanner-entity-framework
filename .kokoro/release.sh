@@ -14,6 +14,8 @@ SCRIPT_DIR=$(dirname "$SCRIPT")
 cd $SCRIPT_DIR
 cd ..
 
+dotnet tool restore
+
 source $SCRIPT_DIR/populatesecrets.sh
 
 # Only populate secrets if we have to.
@@ -64,6 +66,7 @@ then
     package_owner="google-cloud"
     pkg_nuget_api_key=$GOOGLE_CLOUD_NUGET_API_KEY
 
+    dotnet generate-sbom $pkg
     dotnet nuget push -s https://api.nuget.org/v3/index.json -k $pkg_nuget_api_key $pkg
   done
   cd ../..
