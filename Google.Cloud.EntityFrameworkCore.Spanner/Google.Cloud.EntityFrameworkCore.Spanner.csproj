@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Description>Google Cloud Spanner database provider for Entity Framework Core.</Description>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <AssemblyName>Google.Cloud.EntityFrameworkCore.Spanner</AssemblyName>
     <RootNamespace>Google.Cloud.EntityFrameworkCore.Spanner</RootNamespace>
     <LangVersion>latest</LangVersion>
