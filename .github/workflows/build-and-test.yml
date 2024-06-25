@@ -9,16 +9,25 @@ on:
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dotnet: [ "6.0", "8.0" ]
     steps:
     - uses: actions/checkout@v4
     - name: Setup .NET
+      id: setup
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 6.0.x
+        dotnet-version: ${{matrix.dotnet}}.x
+    - run: dotnet --version
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore -p:TargetFramework=net${{ matrix.dotnet }}
     - name: Build
-      run: dotnet build --no-restore
+      run: dotnet build --no-restore --framework net${{ matrix.dotnet }}
+    - name: Create global.json file
+      run: "echo '{\"sdk\":{\"version\": \"${{ steps.setup.outputs.dotnet-version }}\"}}' > ./global.json"
+    - run: dotnet --version
     - name: Unit Tests
       working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.Tests
       run: dotnet test --no-build --verbosity normal
