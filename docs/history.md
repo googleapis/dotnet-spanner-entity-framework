@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.4](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.1.3...Google.Cloud.EntityFrameworkCore.Spanner-2.1.4) (2024-06-25)
+
+
+### Bug Fixes
+
+* add missing async methods ([#400](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/400)) ([3f988b9](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/3f988b95aa724647bf2a011f3a7afc01d3f59c40))
+
 ## [2.1.3](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.1.2...Google.Cloud.EntityFrameworkCore.Spanner-2.1.3) (2023-06-09)
 
 
