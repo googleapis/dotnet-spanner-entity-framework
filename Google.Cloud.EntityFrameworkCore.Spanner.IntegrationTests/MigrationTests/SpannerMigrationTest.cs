@@ -73,7 +73,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
 
             // Update category
             var category = await context.Categories.FindAsync(1L);
-            category!.CategoryName = "Dairy Products";
+            Assert.NotNull(category);
+            category.CategoryName = "Dairy Products";
             category.CategoryDescription = "Cheeses";
             await context.SaveChangesAsync();
 
