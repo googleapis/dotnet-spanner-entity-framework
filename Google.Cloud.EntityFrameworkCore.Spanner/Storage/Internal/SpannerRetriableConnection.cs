@@ -17,7 +17,6 @@ using Google.Cloud.Spanner.Data;
 using System;
 using System.Data;
 using System.Data.Common;
-using System.Runtime.Intrinsics.Arm;
 using System.Threading;
 using System.Threading.Tasks;
 
