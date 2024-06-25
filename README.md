@@ -147,27 +147,27 @@ so for numeric types will lead to an overflow exception for `INT64` and `NUMERIC
 
 Non-nullable primitive types can be replaced by the corresponding nullable type. That is, `bool?` can be used instead of `bool` etc.
 
-| Spanner Type | Default Clr Type | Other Possible Clr Types |
-|--------------|------------------|--------------------------|
-| BOOL         | bool             |                          |
-| BYTES        | byte[]           |                          |
-| STRING       | string           | char, Guid, Regex        |
+| Spanner Type | Default Clr Type | Other Possible Clr Types                     |
+|--------------|------------------|----------------------------------------------|
+| BOOL         | bool             |                                              |
+| BYTES        | byte[]           |                                              |
+| STRING       | string           | char, Guid, Regex                            |
 | INT64        | long             | int, short, byte, ulong, uint, ushort, sbyte |
-| FLOAT64      | double           | float                    |
-| NUMERIC      | SpannerNumeric   | decimal                  |
-| DATE         | SpannerDate      |                          |
-| TIMESTAMP    | DateTime         |                          |
+| FLOAT64      | double           | float                                        |
+| NUMERIC      | SpannerNumeric   |                                              |
+| DATE         | SpannerDate      |                                              |
+| TIMESTAMP    | DateTime         |                                              |
 
 Array types are mapped to lists by default. The corresponding Clr array type of the default base type can also be used.
 
 | Array Type         | Default Clr Type       | Other Possible Clr Types |
-|--------------------|------------------------|---------------------------
+|--------------------|------------------------|--------------------------|
 | ARRAY\<BOOL\>      | List\<bool\>           | bool[]                   |
 | ARRAY\<BYTES\>     | List\<byte[]\>         | byte[][]                 |
 | ARRAY\<STRING\>    | List\<string\>         | string[]                 |
 | ARRAY\<INT64\>     | List\<long\>           | long[]                   |
 | ARRAY\<FLOAT64\>   | List\<double\>         | double[]                 |
-| ARRAY\<NUMERIC\>   | List\<SpannerNumeric\> | List\<decimal\>, SpannerNumeric[], decimal[] |
+| ARRAY\<NUMERIC\>   | List\<SpannerNumeric\> | SpannerNumeric[]         |
 | ARRAY\<DATE\>      | List\<SpannerDate\>    | SpannerDate[]            |
 | ARRAY\<TIMESTAMP\> | List\<DateTime\>       | DateTime[]               |
 
