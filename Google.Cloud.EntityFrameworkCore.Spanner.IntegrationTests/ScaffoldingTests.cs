@@ -77,7 +77,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         [InlineData("ColTimestamp", "TIMESTAMP")]
         [InlineData("ColTimestampArray", "ARRAY<TIMESTAMP>")]
         [SkippableTheory]
-        public async void AllColumnTypesAreGenerated(string name, string type)
+        public async Task AllColumnTypesAreGenerated(string name, string type)
         {
             Skip.If(SpannerFixtureBase.IsEmulator && type.Contains("JSON"), "Emulator does not the JSON data type yet");
             using var connection = _fixture.GetConnection();
@@ -141,7 +141,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
-        public async void CanInsertAndUpdateSinger()
+        public async Task CanInsertAndUpdateSinger()
         {
             var singerId = _fixture.RandomLong();
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
@@ -199,7 +199,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
-        public async void CanInsertAndUpdateAlbum()
+        public async Task CanInsertAndUpdateAlbum()
         {
             var singerId = _fixture.RandomLong();
             var albumId = _fixture.RandomLong();
@@ -275,7 +275,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
-        public async void CanInsertAndUpdateTrack()
+        public async Task CanInsertAndUpdateTrack()
         {
             var singerId = _fixture.RandomLong();
             var albumId = _fixture.RandomLong();
@@ -350,7 +350,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
-        public async void CanInsertAndUpdateConcertsAndPerformances()
+        public async Task CanInsertAndUpdateConcertsAndPerformances()
         {
             var singerId = _fixture.RandomLong();
             var albumId = _fixture.RandomLong();
@@ -423,11 +423,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 var singer = await db.Singers.FindAsync(singerId);
                 Assert.NotNull(singer);
                 Assert.Collection(singer.Concerts, c => Assert.Equal(c, concert));
-                Assert.Equal(1, singer.Concerts.Count);
+                Assert.Single(singer.Concerts);
                 var venue = await db.Venues.FindAsync(venueCode);
                 Assert.NotNull(venue);
                 Assert.Collection(venue.Concerts, c => Assert.Equal(c, concert));
-                Assert.Equal(1, venue.Concerts.Count);
+                Assert.Single(venue.Concerts);
 
                 // Check the track
                 var track = await db.Tracks.FindAsync(albumId, trackId);
@@ -461,7 +461,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
-        public async void CanInsertAndUpdateRowWithAllDataTypes()
+        public async Task CanInsertAndUpdateRowWithAllDataTypes()
         {
             var id = _fixture.RandomLong();
             var today = SpannerDate.FromDateTime(DateTime.SpecifyKind(DateTime.Today, DateTimeKind.Unspecified));
@@ -615,7 +615,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
-        public async void CanInsertAndUpdateNullValues()
+        public async Task CanInsertAndUpdateNullValues()
         {
             var id = _fixture.RandomLong();
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
@@ -768,7 +768,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
-        public async void CanInsertAndUpdateNullValuesInArrays()
+        public async Task CanInsertAndUpdateNullValuesInArrays()
         {
             var id = _fixture.RandomLong();
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
@@ -842,7 +842,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
-        public async void CanDeleteData()
+        public async Task CanDeleteData()
         {
             var singerId = _fixture.RandomLong();
             var albumId = _fixture.RandomLong();
