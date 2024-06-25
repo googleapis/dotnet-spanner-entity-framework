@@ -25,9 +25,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
         }
 
-        public override RelationalTypeMapping Clone(string storeType, int? size)
-            => new SpannerDoubleTypeMapping();
-
         protected override string GenerateNonNullSqlLiteral(object value)
             => base.GenerateNonNullSqlLiteral(Convert.ToDouble(value));
     }

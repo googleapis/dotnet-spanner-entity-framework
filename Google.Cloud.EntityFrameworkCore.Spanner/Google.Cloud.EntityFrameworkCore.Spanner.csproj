@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Description>Google Cloud Spanner database provider for Entity Framework Core.</Description>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <AssemblyName>Google.Cloud.EntityFrameworkCore.Spanner</AssemblyName>
     <RootNamespace>Google.Cloud.EntityFrameworkCore.Spanner</RootNamespace>
     <LangVersion>latest</LangVersion>
@@ -21,11 +21,11 @@
   <ItemGroup>
     <PackageReference Include="Google.Cloud.Spanner.Data" Version="4.6.0"/>
     <PackageReference Include="JetBrains.Annotations" Version="2023.2.0" PrivateAssets="All"/>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="6.0.21" PrivateAssets="All"/>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="6.0.21"/>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="6.0.21"/>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.5" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="8.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.5" />
     <PackageReference Include="OpenTelemetry.Api" Version="1.5.1"/>
-    <PackageReference Include="System.Text.Json" Version="6.0.8"/>
+    <PackageReference Include="System.Text.Json" Version="8.0.3" />
   </ItemGroup>
 
   <ItemGroup>

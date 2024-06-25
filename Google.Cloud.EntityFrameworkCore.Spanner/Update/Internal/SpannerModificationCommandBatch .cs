@@ -78,6 +78,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// </summary>
         public override IReadOnlyList<IReadOnlyModificationCommand> ModificationCommands => _modificationCommands;
 
+        public override bool RequiresTransaction { get; }
+        public override bool AreMoreBatchesExpected { get; }
+
         /// <summary>
         /// The affected rows per modification command in this batch. This property is only valid after the batch has been executed.
         /// </summary>
@@ -99,19 +102,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         ///     being modified such that a ValueBuffer with appropriate slots can be created.
         /// </param>
         /// <returns> The factory. </returns>
-        private IRelationalValueBufferFactory CreateValueBufferFactory(
-            [NotNull] IReadOnlyList<IColumnModification> columnModifications)
-            => Dependencies.ValueBufferFactoryFactory
-                .Create(
-                    columnModifications
-                        .Where(c => c.IsRead)
-                        .Select(c => new TypeMaterializationInfo(c.Property.ClrType, c.Property, _typeMapper.FindMapping(c.Property)))
-                        .ToArray());
+        // private IRelationalValueBufferFactory CreateValueBufferFactory(
+        //     [NotNull] IReadOnlyList<IColumnModification> columnModifications)
+        //     => Dependencies.ValueBufferFactoryFactory
+        //         .Create(
+        //             columnModifications
+        //                 .Where(c => c.IsRead)
+        //                 .Select(c => new TypeMaterializationInfo(c.Property.ClrType, c.Property, _typeMapper.FindMapping(c.Property)))
+        //                 .ToArray());
 
         /// <summary>
         /// This is internal functionality and not intended for public use.
         /// </summary>
-        public override bool AddCommand(IReadOnlyModificationCommand modificationCommand)
+        public override bool TryAddCommand(IReadOnlyModificationCommand modificationCommand)
         {
             if (SpannerPendingCommitTimestampModificationCommand.HasCommitTimestampColumn(modificationCommand))
             {
@@ -122,6 +125,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 _modificationCommands.Add(modificationCommand);
             }
             return true;
+        }
+
+        public override void Complete(bool moreBatchesExpected)
+        {
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -224,7 +232,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 // This SELECT command will be executed outside of the current implicit transaction.
                 // The propagation query is skipped if the batch uses an explicit transaction, as it will not be able
                 // to read the new value anyways.
-                if (modificationCommand.RequiresResultPropagation && !_hasExplicitTransaction)
+                if (/*modificationCommand.RequiresResultPropagation &&*/ !_hasExplicitTransaction)
                 {
                     var keyOperations = operations.Where(o => o.IsKey).ToList();
                     var readOperations = operations.Where(o => o.IsRead).ToList();
@@ -308,20 +316,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             {
                 return;
             }
-            int index = 0;
-            foreach (var modificationCommand in _modificationCommands)
-            {
-                if (modificationCommand.RequiresResultPropagation)
-                {
-                    using var reader = await _propagateResultsCommands[index].ExecuteReaderAsync(cancellationToken);
-                    if (await reader.ReadAsync(cancellationToken))
-                    {
-                        var valueBufferFactory = CreateValueBufferFactory(modificationCommand.ColumnModifications);
-                        modificationCommand.PropagateResults(valueBufferFactory.Create(reader));
-                    }
-                    index++;
-                }
-            }
+            // int index = 0;
+            // foreach (var modificationCommand in _modificationCommands)
+            // {
+            //     if (modificationCommand.RequiresResultPropagation)
+            //     {
+            //         using var reader = await _propagateResultsCommands[index].ExecuteReaderAsync(cancellationToken);
+            //         if (await reader.ReadAsync(cancellationToken))
+            //         {
+            //             var valueBufferFactory = CreateValueBufferFactory(modificationCommand.ColumnModifications);
+            //             modificationCommand.PropagateResults(valueBufferFactory.Create(reader));
+            //         }
+            //         index++;
+            //     }
+            // }
         }
 
         /// <summary>
@@ -376,7 +384,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             }
             string dml;
             SpannerRetriableCommand selectCommand = null;
-            if (res != ResultSetMapping.NoResultSet)
+            if (res != ResultSetMapping.NoResults)
             {
                 var commandTexts = builder.ToString().Split(_statementTerminator);
                 dml = commandTexts[0];

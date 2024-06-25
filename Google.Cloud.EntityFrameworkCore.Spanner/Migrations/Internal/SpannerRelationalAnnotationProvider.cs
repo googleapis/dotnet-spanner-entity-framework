@@ -58,13 +58,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             
             foreach (var mapping in table.EntityTypeMappings)
             {
-                var interleaveInParentAnnotation = mapping.EntityType.FindAnnotation(SpannerAnnotationNames.InterleaveInParent);
+                var interleaveInParentAnnotation = mapping.FindAnnotation(SpannerAnnotationNames.InterleaveInParent);
                 if (interleaveInParentAnnotation != null)
                 {
                     return baseAnnotations.Concat(new[]
                         {
                             interleaveInParentAnnotation,
-                            mapping.EntityType.FindAnnotation(SpannerAnnotationNames.InterleaveInParentOnDelete)
+                            mapping.FindAnnotation(SpannerAnnotationNames.InterleaveInParentOnDelete)
                         });
                 }
             }
