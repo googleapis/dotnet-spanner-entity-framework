@@ -47,6 +47,29 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
                 return;
             }
             var sampleName = args[0];
+            if (sampleName.Equals("All"))
+            {
+                // Run all samples. This is used to test that all samples are runnable.
+                RunAllSamples();
+            }
+            else
+            {
+                RunSample(sampleName, false);
+            }
+        }
+        
+
+        private static void RunAllSamples()
+        {
+            var sampleClasses = GetSampleClasses();
+            foreach (var sample in sampleClasses)
+            {
+                RunSample(sample.Name, true);
+            }
+        }
+
+        private static void RunSample(string sampleName, bool failOnException)
+        {
             if (sampleName.EndsWith("Sample"))
             {
                 sampleName = sampleName.Substring(0, sampleName.Length - "Sample".Length);
@@ -66,19 +89,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
             catch (Exception e)
             {
                 Console.WriteLine($"Running sample failed: {e.Message}");
+                if (failOnException)
+                {
+                    throw;
+                }
             }
         }
 
-        internal static async Task RunSampleAsync(Func<string, Task> sampleMethod)
+        private static async Task RunSampleAsync(Func<string, Task> sampleMethod)
         {
-            Environment.SetEnvironmentVariable("SPANNER_EMULATOR_HOST", "localhost:9010");
             var emulatorRunner = new EmulatorRunner();
             try
             {
                 Console.WriteLine("");
                 Console.WriteLine("Starting emulator...");
-                emulatorRunner.StartEmulator().WaitWithUnwrappedExceptions();
+                var portBinding = await emulatorRunner.StartEmulator();
+                Console.WriteLine($"Emulator started on port {portBinding.HostPort}");
                 Console.WriteLine("");
+                Environment.SetEnvironmentVariable("SPANNER_EMULATOR_HOST", $"localhost:{portBinding.HostPort}");
 
                 var projectId = "sample-project";
                 var instanceId = "sample-instance";
@@ -97,6 +125,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
             catch (Exception e)
             {
                 Console.WriteLine($"Running sample failed: {e.Message}");
+                throw;
             }
             finally
             {
