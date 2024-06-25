@@ -71,14 +71,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
 
         internal static async Task RunSampleAsync(Func<string, Task> sampleMethod)
         {
-            Environment.SetEnvironmentVariable("SPANNER_EMULATOR_HOST", "localhost:9010");
             var emulatorRunner = new EmulatorRunner();
             try
             {
                 Console.WriteLine("");
                 Console.WriteLine("Starting emulator...");
-                emulatorRunner.StartEmulator().WaitWithUnwrappedExceptions();
+                var portBinding = await emulatorRunner.StartEmulator();
+                Console.WriteLine($"Emulator started on port {portBinding.HostPort}");
                 Console.WriteLine("");
+                Environment.SetEnvironmentVariable("SPANNER_EMULATOR_HOST", $"localhost:{portBinding.HostPort}");
 
                 var projectId = "sample-project";
                 var instanceId = "sample-instance";
