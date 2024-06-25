@@ -17,6 +17,7 @@ using Docker.DotNet.Models;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
@@ -61,6 +62,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
             _containerId = response.ID;
             await _dockerClient.Containers.StartContainerAsync(_containerId, null);
             var inspectResponse = await _dockerClient.Containers.InspectContainerAsync(_containerId);
+            Thread.Sleep(500);
             return inspectResponse.NetworkSettings.Ports["9010/tcp"][0];
         }
 
