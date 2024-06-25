@@ -205,7 +205,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         internal async Task<object> ExecuteScalarWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken)
         {
-            using var reader = await ExecuteDbDataReaderWithRetryAsync(command, cancellationToken);
+            using var reader = await ExecuteDbDataReaderWithRetryImplAsync(command, cancellationToken);
             if (await reader.ReadAsync(cancellationToken))
             {
                 return reader.GetValue(0);
@@ -215,9 +215,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         }
 
         protected internal override DbDataReader ExecuteDbDataReaderWithRetry(SpannerCommand command)
-            => Task.Run(() => ExecuteDbDataReaderWithRetryAsync(command, CancellationToken.None)).ResultWithUnwrappedExceptions();
+            => Task.Run(() => ExecuteDbDataReaderWithRetryImplAsync(command, CancellationToken.None)).ResultWithUnwrappedExceptions();
 
-        internal async Task<SpannerDataReaderWithChecksum> ExecuteDbDataReaderWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken)
+        protected async internal override Task<DbDataReader> ExecuteDbDataReaderWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken)
+           => await ExecuteDbDataReaderWithRetryImplAsync(command, cancellationToken);
+
+        internal async Task<SpannerDataReaderWithChecksum> ExecuteDbDataReaderWithRetryImplAsync(SpannerCommand command, CancellationToken cancellationToken)
         {
             // This method does not need a retry loop as it is not actually executing the query. Instead,
             // that will be deferred until the first call to DbDataReader.Read().

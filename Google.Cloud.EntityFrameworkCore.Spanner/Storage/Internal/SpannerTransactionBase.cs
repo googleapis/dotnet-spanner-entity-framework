@@ -97,5 +97,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// the entire transaction if the result stream returns an Aborted error.
         /// </returns>
         protected internal abstract DbDataReader ExecuteDbDataReaderWithRetry(SpannerCommand command);
+
+        /// <summary>
+        /// Executes a <see cref="SpannerCommand"/> a query and returns the result as a
+        /// <see cref="DbDataReader"/> that will retry the entire transaction if the query or any
+        /// of the results of the underlying stream of PartialResultSets returns an Aborted error.
+        /// </summary>
+        /// <param name="command">The command to execute. Must be a DML or mutation command.</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns>
+        /// The results of the query as a <see cref="DbDataReader"/> that will automatically retry
+        /// the entire transaction if the result stream returns an Aborted error.
+        /// </returns>
+        protected internal abstract Task<DbDataReader> ExecuteDbDataReaderWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken);
     }
 }
