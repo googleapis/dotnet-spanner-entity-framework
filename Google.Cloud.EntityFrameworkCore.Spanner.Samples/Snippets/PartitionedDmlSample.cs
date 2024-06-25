@@ -41,7 +41,7 @@ public static class PartitionedDmlSample
         // For this we first need to get the underlying SpannerConnection.
         var connection = context.Database.GetSpannerConnection();
         // Execute a Partitioned DML statement using the connection.
-        using var cmd = connection.CreateDmlCommand("DELETE FROM Singers /*WHERE TRUE*/");
+        using var cmd = connection.CreateDmlCommand("DELETE FROM Singers WHERE TRUE");
         var deleted = await cmd.ExecutePartitionedUpdateAsync();
 
         Console.WriteLine($"Deleted {deleted} Singer records using Partitioned DML");
