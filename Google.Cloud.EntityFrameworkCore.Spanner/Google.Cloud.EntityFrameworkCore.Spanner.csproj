@@ -20,7 +20,7 @@
 
   <ItemGroup>
     <PackageReference Include="Google.Cloud.Spanner.Data" Version="4.6.0"/>
-    <PackageReference Include="JetBrains.Annotations" Version="2023.2.0" PrivateAssets="All"/>
+    <PackageReference Include="JetBrains.Annotations" Version="2023.3.0" PrivateAssets="All"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="6.0.31" PrivateAssets="All"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="6.0.31"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="6.0.31"/>
