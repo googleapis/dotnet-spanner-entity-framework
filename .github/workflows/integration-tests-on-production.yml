@@ -34,7 +34,7 @@ jobs:
       with:
         credentials_json: '${{ secrets.GCP_SA_KEY }}'
     - name: Setup GCloud
-      uses: google-github-actions/setup-gcloud@v1
+      uses: google-github-actions/setup-gcloud@v2
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
     - name: Restore dependencies
