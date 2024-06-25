@@ -97,7 +97,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         }
 
         /// <inheritdoc/>
-        protected async internal override Task<DbDataReader> ExecuteDbDataReaderWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken)
+        protected internal override async Task<DbDataReader> ExecuteDbDataReaderWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken)
         {
             GaxPreconditions.CheckState(!Disposed, "This transaction has been disposed");
             command.Transaction = SpannerTransaction;

@@ -214,13 +214,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             return null;
         }
 
+        /// <inheritdoc/>
         protected internal override DbDataReader ExecuteDbDataReaderWithRetry(SpannerCommand command)
             => Task.Run(() => ExecuteDbDataReaderWithRetryImplAsync(command, CancellationToken.None)).ResultWithUnwrappedExceptions();
 
-        protected async internal override Task<DbDataReader> ExecuteDbDataReaderWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken)
+        /// <inheritdoc/>
+        protected internal override async Task<DbDataReader> ExecuteDbDataReaderWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken)
            => await ExecuteDbDataReaderWithRetryImplAsync(command, cancellationToken);
 
-        internal async Task<SpannerDataReaderWithChecksum> ExecuteDbDataReaderWithRetryImplAsync(SpannerCommand command, CancellationToken cancellationToken)
+        private async Task<SpannerDataReaderWithChecksum> ExecuteDbDataReaderWithRetryImplAsync(SpannerCommand command, CancellationToken cancellationToken)
         {
             // This method does not need a retry loop as it is not actually executing the query. Instead,
             // that will be deferred until the first call to DbDataReader.Read().

@@ -111,7 +111,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             return _spannerCommand.ExecuteReader();
         }
 
-        protected async override Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+        protected override async Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
         {
             if (_transaction != null)
             {
@@ -121,9 +121,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             // These don't need retry protection as the ephemeral transaction used by the client library is a read-only transaction.
             if (TimestampBound != null)
             {
-                return await _spannerCommand.ExecuteReaderAsync(TimestampBound);
+                return await _spannerCommand.ExecuteReaderAsync(TimestampBound, cancellationToken);
             }
-            return await _spannerCommand.ExecuteReaderAsync();
+            return await _spannerCommand.ExecuteReaderAsync(cancellationToken);
 
         }
 

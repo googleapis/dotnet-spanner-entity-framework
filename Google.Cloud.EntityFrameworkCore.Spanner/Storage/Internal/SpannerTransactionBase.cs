@@ -103,7 +103,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <see cref="DbDataReader"/> that will retry the entire transaction if the query or any
         /// of the results of the underlying stream of PartialResultSets returns an Aborted error.
         /// </summary>
-        /// <param name="command">The command to execute. Must be a DML or mutation command.</param>
+        /// <param name="command">The command to execute. Must be a query.</param>
         /// <param name="cancellationToken"></param>
         /// <returns>
         /// The results of the query as a <see cref="DbDataReader"/> that will automatically retry

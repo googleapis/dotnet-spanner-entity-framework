@@ -218,8 +218,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <inheritdoc/>
         public override void Open() => SpannerConnection.Open();
 
+        /// <inheritdoc/>
         public override Task OpenAsync(CancellationToken cancellationToken) => SpannerConnection.OpenAsync(cancellationToken);
 
+        /// <inheritdoc/>
         public override Task CloseAsync() => SpannerConnection.CloseAsync();
     }
 }
