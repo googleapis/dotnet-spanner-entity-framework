@@ -72,14 +72,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
             Assert.Equal(2, rowCount);
 
             // Update category
-            var category = await context.Categories.FindAsync(1L);
+            var category = await context.Categories.FindAsync(3L);
             Assert.NotNull(category);
             category.CategoryName = "Dairy Products";
             category.CategoryDescription = "Cheeses";
             await context.SaveChangesAsync();
 
             // Get updated category from db
-            category = await context.Categories.FindAsync(1L);
+            category = await context.Categories.FindAsync(3L);
             Assert.NotNull(category);
             Assert.Equal("Dairy Products", category.CategoryName);
             Assert.Equal("Cheeses", category.CategoryDescription);
@@ -351,7 +351,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
         }
 
         [Fact]
-        public async Task CanInsertOrderDetils()
+        public async Task CanInsertOrderDetails()
         {
             using var context = new TestMigrationDbContext(_fixture.DatabaseName);
             context.OrderDetails.Add(new OrderDetail
