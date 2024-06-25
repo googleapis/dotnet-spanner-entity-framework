@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore;
@@ -25,7 +24,7 @@ using System.Threading.Tasks;
 using Xunit;
 using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
 
-namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
+namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTests
 {
     public class SpannerMigrationTest : IClassFixture<MigrationTestFixture>
     {
@@ -37,7 +36,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public async Task AllTablesAreGenerated()
         {
             using var connection = _fixture.GetConnection();
-            var tableNames = new string[] { "Products", "Categories", "Orders", "OrderDetails", "Articles", "Authors" };
+            var tableNames = new [] { "Products", "Categories", "Orders", "OrderDetails", "Articles", "Authors" };
             var tables = new SpannerParameterCollection
             {
                 { "tables", SpannerDbType.ArrayOf(SpannerDbType.String), tableNames }
@@ -74,12 +73,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             // Update category
             var category = await context.Categories.FindAsync(1L);
-            category.CategoryName = "Dairy Products";
+            category!.CategoryName = "Dairy Products";
             category.CategoryDescription = "Cheeses";
             await context.SaveChangesAsync();
 
             // Get updated category from db
             category = await context.Categories.FindAsync(1L);
+            Assert.NotNull(category);
             Assert.Equal("Dairy Products", category.CategoryName);
             Assert.Equal("Cheeses", category.CategoryDescription);
         }
@@ -98,6 +98,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             var rowCount = await context.SaveChangesAsync();
             Assert.Equal(1, rowCount);
             var row = await context.AllColTypes.FindAsync(1);
+            Assert.NotNull(row);
             Assert.Null(row.ColTimestamp);
             Assert.Null(row.ColShort);
             Assert.Null(row.ColInt);
@@ -105,15 +106,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             // Update from null to non-null.
             row.ColBool = true;
-            row.ColBoolArray = new bool[] { true, false };
+            row.ColBoolArray = new [] { true, false };
             row.ColBytes = Encoding.UTF8.GetBytes("string 1");
-            row.ColBytesArray = new byte[][] { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2") };
+            row.ColBytesArray = new [] { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2") };
             row.ColBoolList = new List<bool> { false, true };
             row.ColTimestampList = new List<DateTime> { DateTime.Now, DateTime.Now.AddDays(1) };
             await context.SaveChangesAsync();
 
             // Retrieve updated row from database
             row = await context.AllColTypes.FindAsync(1);
+            Assert.NotNull(row);
             Assert.NotNull(row.ColBool);
             Assert.NotNull(row.ColBoolArray);
             Assert.NotNull(row.ColBytes);
@@ -133,6 +135,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             // Retrieve updated row from database
             row = await context.AllColTypes.FindAsync(1);
+            Assert.NotNull(row);
             Assert.Null(row.ColBool);
             Assert.Null(row.ColBoolArray);
             Assert.Null(row.ColBytes);
@@ -152,19 +155,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 {
                     Id = 10,
                     ColBool = true,
-                    ColBoolArray = new bool[] { true, false },
+                    ColBoolArray = new [] { true, false },
                     ColBoolList = new List<bool> { false, true },
                     ColBytes = Encoding.UTF8.GetBytes("string 1"),
-                    ColBytesArray = new byte[][] { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2") },
+                    ColBytesArray = new [] { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2") },
                     ColBytesList = new List<byte[]> { Encoding.UTF8.GetBytes("string 3"), Encoding.UTF8.GetBytes("string 4") },
                     ColTimestamp = new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288),
-                    ColTimestampArray = new DateTime[] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now },
+                    ColTimestampArray = new [] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now },
                     ColTimestampList = new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now },
                     ColDecimal = (SpannerNumeric)10.100m,
-                    ColDecimalArray = new SpannerNumeric[] { (SpannerNumeric)10.1m, (SpannerNumeric)13.5m },
+                    ColDecimalArray = new [] { (SpannerNumeric)10.1m, (SpannerNumeric)13.5m },
                     ColDecimalList = new List<SpannerNumeric> { (SpannerNumeric)10.1m, (SpannerNumeric)13.5m },
                     ColDouble = 12.01,
-                    ColDoubleArray = new double[] { 12.01, 12.02 },
+                    ColDoubleArray = new [] { 12.01, 12.02 },
                     ColDoubleList = new List<double> { 13.01, 13.02 },
                     ColFloat = 15.999f,
                     ColGuid = guid,
@@ -177,12 +180,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     ColLongList = new List<long> { 20, 25 },
                     ColShort = 10,
                     ColString = "String 1",
-                    ColStringArray = new string[] { "string1", "string2", "string3" },
+                    ColStringArray = new [] { "string1", "string2", "string3" },
                     ColStringList = new List<string> { "string4", "string5" },
                     ColUint = 12,
                     ColDate = new SpannerDate(2021, 1, 1),
-                    ColDateArray = new SpannerDate[] { new SpannerDate(2021, 1, 1), new SpannerDate(2021, 1, 2) },
-                    ColDateList = new List<SpannerDate> { new SpannerDate(2021, 1, 3), new SpannerDate(2021, 1, 4) },
+                    ColDateArray = new [] { new SpannerDate(2021, 1, 1), new SpannerDate(2021, 1, 2) },
+                    ColDateList = new List<SpannerDate> { new (2021, 1, 3), new (2021, 1, 4) },
                     ColByte = 10,
                     ColSbyte = -120,
                     ColULong = 1000000,
@@ -199,21 +202,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using (var context = new TestMigrationDbContext(_fixture.DatabaseName))
             {
                 var row = await context.AllColTypes.FindAsync(10);
+                Assert.NotNull(row);
                 Assert.Equal(10, row.Id);
                 Assert.True(row.ColBool);
-                Assert.Equal(new bool[] { true, false }, row.ColBoolArray);
+                Assert.Equal(new [] { true, false }, row.ColBoolArray);
                 Assert.Equal(new List<bool> { false, true }, row.ColBoolList);
                 Assert.Equal(Encoding.UTF8.GetBytes("string 1"), row.ColBytes);
-                Assert.Equal(new byte[][] { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2") }, row.ColBytesArray);
+                Assert.Equal(new [] { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2") }, row.ColBytesArray);
                 Assert.Equal(new List<byte[]> { Encoding.UTF8.GetBytes("string 3"), Encoding.UTF8.GetBytes("string 4") }, row.ColBytesList);
                 Assert.Equal(new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), row.ColTimestamp);
-                Assert.Equal(new DateTime[] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now }, row.ColTimestampArray);
+                Assert.Equal(new [] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now }, row.ColTimestampArray);
                 Assert.Equal(new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(1839288), now }, row.ColTimestampList);
                 Assert.Equal((SpannerNumeric)10.100m, row.ColDecimal);
-                Assert.Equal(new SpannerNumeric[] { (SpannerNumeric)10.1m, (SpannerNumeric)13.5m }, row.ColDecimalArray);
+                Assert.Equal(new [] { (SpannerNumeric)10.1m, (SpannerNumeric)13.5m }, row.ColDecimalArray);
                 Assert.Equal(new List<SpannerNumeric> { (SpannerNumeric)10.1m, (SpannerNumeric)13.5m }, row.ColDecimalList);
                 Assert.Equal(12.01, row.ColDouble);
-                Assert.Equal(new double[] { 12.01, 12.02 }, row.ColDoubleArray);
+                Assert.Equal(new [] { 12.01, 12.02 }, row.ColDoubleArray);
                 Assert.Equal(new List<double> { 13.01, 13.02 }, row.ColDoubleList);
                 Assert.Equal(15.999f, row.ColFloat);
                 Assert.Equal(guid, row.ColGuid);
@@ -231,12 +235,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<long> { 20, 25 }, row.ColLongList);
                 Assert.Equal((short)10, row.ColShort);
                 Assert.Equal("String 1", row.ColString);
-                Assert.Equal(new string[] { "string1", "string2", "string3" }, row.ColStringArray);
+                Assert.Equal(new [] { "string1", "string2", "string3" }, row.ColStringArray);
                 Assert.Equal(new List<string> { "string4", "string5" }, row.ColStringList);
                 Assert.Equal((uint)12, row.ColUint);
                 Assert.Equal(new SpannerDate(2021, 1, 1), row.ColDate);
-                Assert.Equal(new SpannerDate[] { new SpannerDate(2021, 1, 1), new SpannerDate(2021, 1, 2) }, row.ColDateArray);
-                Assert.Equal(new List<SpannerDate> { new SpannerDate(2021, 1, 3), new SpannerDate(2021, 1, 4) }, row.ColDateList);
+                Assert.Equal(new [] { new SpannerDate(2021, 1, 1), new SpannerDate(2021, 1, 2) }, row.ColDateArray);
+                Assert.Equal(new List<SpannerDate> { new (2021, 1, 3), new (2021, 1, 4) }, row.ColDateList);
                 Assert.Equal((byte)10, row.ColByte);
                 Assert.Equal((sbyte)-120, row.ColSbyte);
                 Assert.Equal((ulong)1000000, row.ColULong);
@@ -254,19 +258,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
                 // Update rows
                 row.ColBool = false;
-                row.ColBoolArray = new bool[] { false, true, false };
+                row.ColBoolArray = new [] { false, true, false };
                 row.ColBoolList = new List<bool> { true, true };
                 row.ColBytes = Encoding.UTF8.GetBytes("This string has changed");
-                row.ColBytesArray = new byte[][] { Encoding.UTF8.GetBytes("string change 1"), Encoding.UTF8.GetBytes("string change 2") };
+                row.ColBytesArray = new [] { Encoding.UTF8.GetBytes("string change 1"), Encoding.UTF8.GetBytes("string change 2") };
                 row.ColBytesList = new List<byte[]> { Encoding.UTF8.GetBytes("string change 3"), Encoding.UTF8.GetBytes("string change 4") };
                 row.ColTimestamp = new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000);
-                row.ColTimestampArray = new DateTime[] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000), now };
+                row.ColTimestampArray = new [] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000), now };
                 row.ColTimestampList = new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(500), now };
                 row.ColDecimal = (SpannerNumeric)10.5m;
-                row.ColDecimalArray = new SpannerNumeric[] { (SpannerNumeric)20.1m, (SpannerNumeric)30.5m };
+                row.ColDecimalArray = new [] { (SpannerNumeric)20.1m, (SpannerNumeric)30.5m };
                 row.ColDecimalList = new List<SpannerNumeric> { (SpannerNumeric)50m, (SpannerNumeric)15.5m };
                 row.ColDouble = 15;
-                row.ColDoubleArray = new double[] { 15.5 };
+                row.ColDoubleArray = new [] { 15.5 };
                 row.ColDoubleList = new List<double> { 30.9 };
                 row.ColFloat = 16.52f;
                 row.ColInt = 200;
@@ -280,12 +284,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row.ColLongList = new List<long> { 25, 26 };
                 row.ColShort = 1;
                 row.ColString = "Updated String 1";
-                row.ColStringArray = new string[] { "string1 Updated" };
+                row.ColStringArray = new [] { "string1 Updated" };
                 row.ColStringList = new List<string> { "string2 Updated" };
                 row.ColUint = 3;
                 row.ColDate = new SpannerDate(2021, 1, 2);
-                row.ColDateArray = new SpannerDate[] { new SpannerDate(2021, 1, 3), new SpannerDate(2021, 1, 4) };
-                row.ColDateList = new List<SpannerDate> { new SpannerDate(2021, 1, 5), new SpannerDate(2021, 1, 6) };
+                row.ColDateArray = new [] { new SpannerDate(2021, 1, 3), new SpannerDate(2021, 1, 4) };
+                row.ColDateList = new List<SpannerDate> { new (2021, 1, 5), new (2021, 1, 6) };
                 row.ColByte = 20;
                 row.ColSbyte = -101;
                 row.ColULong = 2000000;
@@ -299,20 +303,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using (var context = new TestMigrationDbContext(_fixture.DatabaseName))
             {
                 var row = await context.AllColTypes.FindAsync(10);
+                Assert.NotNull(row);
                 Assert.False(row.ColBool);
-                Assert.Equal(new bool[] { false, true, false }, row.ColBoolArray);
+                Assert.Equal(new [] { false, true, false }, row.ColBoolArray);
                 Assert.Equal(new List<bool> { true, true }, row.ColBoolList);
                 Assert.Equal(Encoding.UTF8.GetBytes("This string has changed"), row.ColBytes);
-                Assert.Equal(new byte[][] { Encoding.UTF8.GetBytes("string change 1"), Encoding.UTF8.GetBytes("string change 2") }, row.ColBytesArray);
+                Assert.Equal(new [] { Encoding.UTF8.GetBytes("string change 1"), Encoding.UTF8.GetBytes("string change 2") }, row.ColBytesArray);
                 Assert.Equal(new List<byte[]> { Encoding.UTF8.GetBytes("string change 3"), Encoding.UTF8.GetBytes("string change 4") }, row.ColBytesList);
                 Assert.Equal(new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000), row.ColTimestamp);
-                Assert.Equal(new DateTime[] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000), now }, row.ColTimestampArray);
+                Assert.Equal(new [] { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(5000), now }, row.ColTimestampArray);
                 Assert.Equal(new List<DateTime> { new DateTime(2020, 12, 28, 15, 16, 28, 148).AddTicks(500), now }, row.ColTimestampList);
                 Assert.Equal((SpannerNumeric)10.5m, row.ColDecimal);
-                Assert.Equal(new SpannerNumeric[] { (SpannerNumeric)20.1m, (SpannerNumeric)30.5m }, row.ColDecimalArray);
+                Assert.Equal(new [] { (SpannerNumeric)20.1m, (SpannerNumeric)30.5m }, row.ColDecimalArray);
                 Assert.Equal(new List<SpannerNumeric> { (SpannerNumeric)50m, (SpannerNumeric)15.5m }, row.ColDecimalList);
                 Assert.Equal(15, row.ColDouble);
-                Assert.Equal(new double[] { 15.5 }, row.ColDoubleArray);
+                Assert.Equal(new [] { 15.5 }, row.ColDoubleArray);
                 Assert.Equal(new List<double> { 30.9 }, row.ColDoubleList);
                 Assert.Equal(16.52f, row.ColFloat);
                 Assert.Equal(200, row.ColInt);
@@ -329,12 +334,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<long> { 25, 26 }, row.ColLongList);
                 Assert.Equal((short)1, row.ColShort);
                 Assert.Equal("Updated String 1", row.ColString);
-                Assert.Equal(new string[] { "string1 Updated" }, row.ColStringArray);
+                Assert.Equal(new [] { "string1 Updated" }, row.ColStringArray);
                 Assert.Equal(new List<string> { "string2 Updated" }, row.ColStringList);
                 Assert.Equal((uint)3, row.ColUint);
                 Assert.Equal(new SpannerDate(2021, 1, 2), row.ColDate);
-                Assert.Equal(new SpannerDate[] { new SpannerDate(2021, 1, 3), new SpannerDate(2021, 1, 4) }, row.ColDateArray);
-                Assert.Equal(new List<SpannerDate> { new SpannerDate(2021, 1, 5), new SpannerDate(2021, 1, 6) }, row.ColDateList);
+                Assert.Equal(new [] { new SpannerDate(2021, 1, 3), new SpannerDate(2021, 1, 4) }, row.ColDateArray);
+                Assert.Equal(new List<SpannerDate> { new (2021, 1, 5), new (2021, 1, 6) }, row.ColDateList);
                 Assert.Equal((byte)20, row.ColByte);
                 Assert.Equal((sbyte)-101, row.ColSbyte);
                 Assert.Equal((ulong)2000000, row.ColULong);
@@ -383,7 +388,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
-        public async void CanDeleteData()
+        public async Task CanDeleteData()
         {
             using var context = new TestMigrationDbContext(_fixture.DatabaseName);
 
@@ -562,10 +567,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 LastName = "Ritchie"
             };
             context.Authors.Add(author);
-            var rowCount = await context.SaveChangesAsync();
+            await context.SaveChangesAsync();
             await transaction.CommitAsync();
 
             author = await context.Authors.FindAsync(10L);
+            Assert.NotNull(author);
             Assert.Equal("Loren Ritchie", author.FullName);
         }
 
