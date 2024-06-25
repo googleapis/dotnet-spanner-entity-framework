@@ -17,6 +17,7 @@ using Google.Cloud.Spanner.Data;
 using System;
 using System.Data;
 using System.Data.Common;
+using System.Runtime.Intrinsics.Arm;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -217,5 +218,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         /// <inheritdoc/>
         public override void Open() => SpannerConnection.Open();
+
+        public override Task OpenAsync(CancellationToken cancellationToken) => SpannerConnection.OpenAsync(cancellationToken);
+
+        public override Task CloseAsync() => SpannerConnection.CloseAsync();
     }
 }
