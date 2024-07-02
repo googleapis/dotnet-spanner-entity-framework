@@ -304,8 +304,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// Commits the database transaction asynchronously.
         /// </summary>
         /// <param name="cancellationToken">A cancellation token used for this task.</param>
+        public override Task CommitAsync(CancellationToken cancellationToken = default) => CommitAndReturnCommitTimestampAsync(cancellationToken);
+
+        /// <summary>
+        /// Commits the database transaction asynchronously and returns the commit timestamp.
+        /// </summary>
+        /// <param name="cancellationToken">A cancellation token used for this task.</param>
         /// <returns>Returns the UTC timestamp when the data was written to the database.</returns>
-        public new async Task<DateTime> CommitAsync(CancellationToken cancellationToken = default)
+        public async Task<DateTime> CommitAndReturnCommitTimestampAsync(CancellationToken cancellationToken = default)
         {
             var tracer = TracerProviderExtension.GetTracer();
             using var span = tracer.StartActiveSpan(TracerProviderExtension.SPAN_NAME_COMMIT);
