@@ -303,6 +303,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <summary>
         /// Commits the database transaction asynchronously.
         /// </summary>
+        /// <seealso cref="CommitAndReturnCommitTimestampAsync"/>
         /// <param name="cancellationToken">A cancellation token used for this task.</param>
         public override Task CommitAsync(CancellationToken cancellationToken = default) => CommitAndReturnCommitTimestampAsync(cancellationToken);
 

@@ -63,7 +63,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var cmd = connection.CreateDmlCommand(sql);
             cmd.Transaction = transaction;
             var updateCount = await cmd.ExecuteNonQueryAsync();
-            await transaction.CommitAsync();
+            var commitTimestamp = await transaction.CommitAndReturnCommitTimestampAsync();
+            Assert.NotEqual(DateTime.UnixEpoch, commitTimestamp);
             Assert.Equal(1, updateCount);
             Assert.Equal(0, transaction.RetryCount);
         }
