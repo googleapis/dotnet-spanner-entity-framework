@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.5](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.1.4...Google.Cloud.EntityFrameworkCore.Spanner-2.1.5) (2024-07-10)
+
+
+### Bug Fixes
+
+* add missing BeginDbTransactionAsync and CommitAsync async methods ([#409](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/409)) ([493a786](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/493a7864be81bb7356b291ff309be2451544f63c))
+
 ## [2.1.4](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.1.3...Google.Cloud.EntityFrameworkCore.Spanner-2.1.4) (2024-06-25)
 
 
