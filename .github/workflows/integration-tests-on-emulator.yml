@@ -9,6 +9,10 @@ on:
 jobs:
   integration-tests-on-emulator:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dotnet: [ "6.0", "8.0" ]
     services:
       emulator:
         image: gcr.io/cloud-spanner-emulator/emulator:latest
@@ -19,16 +23,20 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Setup .NET
+      id: setup
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 6.0.x
+        dotnet-version: ${{matrix.dotnet}}.x
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore -p:TargetFramework=net${{matrix.dotnet}}
     - name: Build
-      run: dotnet build --no-restore
+      run: dotnet build --no-restore --framework net${{matrix.dotnet}}
+    - name: Create global.json file
+      run: "echo '{\"sdk\":{\"version\": \"${{ steps.setup.outputs.dotnet-version }}\"}}' > ./global.json"
+    - run: dotnet --version
     - name: Integration Tests on Emulator
       working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
-      run: dotnet test --verbosity normal
+      run: dotnet test --no-build --verbosity normal
       env:
         JOB_TYPE: test
         SPANNER_EMULATOR_HOST: localhost:9010
