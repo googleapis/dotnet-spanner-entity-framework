@@ -14,6 +14,7 @@
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel;
 using System;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 /// <summary>
@@ -98,6 +99,7 @@ public static class CommitTimestampSample
             {
                 Code = "CON",
                 Name = "Concert Hall",
+                Description = JsonDocument.Parse("{\"Capacity\": 1000, \"Type\": \"Building\"}"),
                 Active = true,
             });
         }
