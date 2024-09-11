@@ -25,7 +25,7 @@ using V1 = Google.Cloud.Spanner.V1;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 {
-    public partial class TestEntity
+    public class TestEntity
     {
         public long Id { get; set; }
 
