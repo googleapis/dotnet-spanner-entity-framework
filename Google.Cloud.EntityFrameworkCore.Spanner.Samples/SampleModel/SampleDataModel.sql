@@ -47,10 +47,11 @@ CREATE TABLE Tracks (
 CREATE UNIQUE INDEX Idx_Tracks_AlbumId_Title ON Tracks (AlbumId, Title);
 
 CREATE TABLE Venues (
-  Code      STRING(10) NOT NULL,
-  Name      STRING(100),
-  Active    BOOL NOT NULL,
-  Version   INT64 NOT NULL,
+  Code        STRING(10) NOT NULL,
+  Name        STRING(100),
+  Description JSON,
+  Active      BOOL NOT NULL,
+  Version     INT64 NOT NULL,
 ) PRIMARY KEY (Code);
 
 CREATE TABLE Concerts (
