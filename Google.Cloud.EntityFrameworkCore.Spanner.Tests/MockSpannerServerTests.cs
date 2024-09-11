@@ -41,7 +41,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var builder = new SpannerClientBuilder
             {
                 Endpoint = $"http://{_fixture.Endpoint}",
-                ChannelCredentials = Grpc.Core.ChannelCredentials.Insecure
+                ChannelCredentials = ChannelCredentials.Insecure
             };
             SpannerClient client = builder.Build();
             BatchCreateSessionsRequest request = new BatchCreateSessionsRequest

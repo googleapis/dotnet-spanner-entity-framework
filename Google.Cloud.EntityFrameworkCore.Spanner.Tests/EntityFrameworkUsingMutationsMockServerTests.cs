@@ -107,7 +107,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Equal(1L, updateCount);
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is CommitRequest).Select(request => (CommitRequest)request),
+                _fixture.SpannerMock.Requests.OfType<CommitRequest>(),
                 request => {
                     Assert.Single(request.Mutations);
                     var mutation = request.Mutations[0];
@@ -139,7 +139,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Equal(1L, updateCount);
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is CommitRequest).Select(request => (CommitRequest)request),
+                _fixture.SpannerMock.Requests.OfType<CommitRequest>(),
                 request => {
                     Assert.Single(request.Mutations);
                     var mutation = request.Mutations[0];
@@ -179,7 +179,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Equal(1L, updateCount);
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is CommitRequest).Select(request => (CommitRequest)request),
+                _fixture.SpannerMock.Requests.OfType<CommitRequest>(),
                 request => {
                     Assert.Single(request.Mutations);
                     var mutation = request.Mutations[0];
@@ -281,7 +281,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Equal(1L, updateCount);
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is CommitRequest).Select(request => (CommitRequest)request),
+                _fixture.SpannerMock.Requests.OfType<CommitRequest>(),
                 request =>
                 {
                     Assert.Single(request.Mutations);
@@ -485,7 +485,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             await db.SaveChangesAsync();
 
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is CommitRequest).Select(request => (CommitRequest)request),
+                _fixture.SpannerMock.Requests.OfType<CommitRequest>(),
                 request =>
                 {
                     Assert.Single(request.Mutations);
@@ -539,7 +539,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.DoesNotContain(_fixture.SpannerMock.Requests, request => request is ExecuteBatchDmlRequest);
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request => Assert.Equal(selectSql.Trim(), request.Sql.Trim())
             );
             Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
@@ -550,7 +550,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 requestType => Assert.Equal(typeof(ExecuteSqlRequest), requestType)
             );
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is CommitRequest).Select(request => (CommitRequest)request),
+                _fixture.SpannerMock.Requests.OfType<CommitRequest>(),
                 request =>
                 {
                     Assert.Single(request.Mutations);
@@ -708,7 +708,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.Equal("2000-01-01T00:00:00Z", values[index++].StringValue);
                     Assert.Equal("ColTimestampArray", columns[index]);
                     Assert.Equal(Value.KindOneofCase.ListValue, values[index].KindCase);
-                    Assert.Collection(values[index++].ListValue.Values,
+                    Assert.Collection(values[index].ListValue.Values,
                         v => Assert.Equal("2000-01-01T00:00:00.001Z", v.StringValue),
                         v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
                         v => Assert.Equal("2000-01-01T00:00:00.002Z", v.StringValue)
