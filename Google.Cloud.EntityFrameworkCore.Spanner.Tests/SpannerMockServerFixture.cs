@@ -22,9 +22,10 @@ using System.Net;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests;
 
+// ReSharper disable once ClassNeverInstantiated.Global
 public class SpannerMockServerFixture : IDisposable
 {
-    private readonly Random _random = new Random();
+    private readonly Random _random = new ();
 
     private readonly IWebHost _host;
 
@@ -41,7 +42,7 @@ public class SpannerMockServerFixture : IDisposable
             
         var endpoint = IPEndPoint.Parse("127.0.0.1:0");
         var builder = WebHost.CreateDefaultBuilder();
-        builder.UseStartup(webHostBuilderContext => new MockServerStartup(SpannerMock, DatabaseAdminMock));
+        builder.UseStartup(_ => new MockServerStartup(SpannerMock, DatabaseAdminMock));
         builder.ConfigureKestrel(options =>
         {
             // Setup a HTTP/2 endpoint without TLS.
@@ -59,16 +60,11 @@ public class SpannerMockServerFixture : IDisposable
         _host.StopAsync().Wait();
     }
 
-    public long RandomLong()
+    public long RandomLong(long min = 0, long max = long.MaxValue)
     {
-        return RandomLong(0, long.MaxValue);
-    }
-
-    public long RandomLong(long min, long max)
-    {
-        byte[] buf = new byte[8];
+        var buf = new byte[8];
         _random.NextBytes(buf);
-        long longRand = BitConverter.ToInt64(buf, 0);
+        var longRand = BitConverter.ToInt64(buf, 0);
         return (Math.Abs(longRand % (max - min)) + min);
     }
 }

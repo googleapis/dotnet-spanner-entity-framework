@@ -17,6 +17,7 @@ using Docker.DotNet.Models;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
@@ -38,7 +39,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
         /// <summary>
         /// Downloads the latest Spanner emulator docker image and starts the emulator on port 9010.
         /// </summary>
-        internal async Task StartEmulator()
+        internal async Task<PortBinding> StartEmulator()
         {
             await PullEmulatorImage();
             var response = await _dockerClient.Containers.CreateContainerAsync(new CreateContainerParameters
@@ -54,13 +55,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
                 {
                     PortBindings = new Dictionary<string, IList<PortBinding>>
                     {
-                        {"9010", new List<PortBinding> {new PortBinding {HostPort = "9010"}}}
+                        {"9010", default}
                     },
-                    PublishAllPorts = true
                 }
             });
             _containerId = response.ID;
             await _dockerClient.Containers.StartContainerAsync(_containerId, null);
+            var inspectResponse = await _dockerClient.Containers.InspectContainerAsync(_containerId);
+            Thread.Sleep(500);
+            return inspectResponse.NetworkSettings.Ports["9010/tcp"][0];
         }
 
         /// <summary>

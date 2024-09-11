@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Google.Cloud.Spanner.Data;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
@@ -24,10 +25,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         public BasicsTests(SingleTableFixture fixture) => _fixture = fixture;
 
         [Fact]
-        public async void CanInsertOrUpdateData()
+        public async Task CanInsertOrUpdateData()
         {
             using var con = _fixture.GetConnection();
-            await con.RunWithRetriableTransactionAsync(async (transaction) =>
+            await con.RunWithRetriableTransactionAsync(async (_) =>
             {
                 var cmd = con.CreateInsertOrUpdateCommand("TestTable", new SpannerParameterCollection
                 {

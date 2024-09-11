@@ -38,9 +38,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
     {
         public enum StatementResultType
         {
-            RESULT_SET,
-            UPDATE_COUNT,
-            EXCEPTION
+            ResultSet,
+            UpdateCount,
+            Exception
         }
 
         public StatementResultType Type { get; }
@@ -127,19 +127,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
         private StatementResult(ResultSet resultSet)
         {
-            Type = StatementResultType.RESULT_SET;
+            Type = StatementResultType.ResultSet;
             ResultSet = resultSet;
         }
 
         private StatementResult(long updateCount)
         {
-            Type = StatementResultType.UPDATE_COUNT;
+            Type = StatementResultType.UpdateCount;
             UpdateCount = updateCount;
         }
 
         private StatementResult(Exception exception)
         {
-            Type = StatementResultType.EXCEPTION;
+            Type = StatementResultType.Exception;
             Exception = exception;
         }
     }
@@ -243,11 +243,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
         private class PartialResultSetsEnumerator : IEnumerator<PartialResultSet>
         {
-            private static readonly int MAX_ROWS_IN_CHUNK = 1;
+            private static readonly int s_maxRowsInChunk = 1;
 
             private readonly ResultSet _resultSet;
             private bool _first = true;
-            private int _currentRow = 0;
+            private int _currentRow;
             private PartialResultSet _current;
 
             public PartialResultSetsEnumerator(ResultSet resultSet)
@@ -275,7 +275,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     return false;
                 }
                 int recordCount = 0;
-                while (recordCount < MAX_ROWS_IN_CHUNK && _currentRow < _resultSet.Rows.Count)
+                while (recordCount < s_maxRowsInChunk && _currentRow < _resultSet.Rows.Count)
                 {
                     _current.Values.Add(_resultSet.Rows.ElementAt(_currentRow).Values);
                     recordCount++;
@@ -294,28 +294,28 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             }
         }
 
-        private static readonly Empty EMPTY = new Empty();
-        private static readonly TransactionOptions SINGLE_USE = new TransactionOptions { ReadOnly = new TransactionOptions.Types.ReadOnly { Strong = true, ReturnReadTimestamp = false } };
+        private static readonly Empty s_empty = new ();
+        private static readonly TransactionOptions s_singleUse = new() { ReadOnly = new TransactionOptions.Types.ReadOnly { Strong = true, ReturnReadTimestamp = false } };
 
-        private readonly object _lock = new object();
-        private readonly ConcurrentDictionary<string, StatementResult> _results = new ConcurrentDictionary<string, StatementResult>();
-        private ConcurrentQueue<IMessage> _requests = new ConcurrentQueue<IMessage>();
-        private ConcurrentQueue<ServerCallContext> _contexts = new ConcurrentQueue<ServerCallContext>();
+        private readonly object _lock = new();
+        private readonly ConcurrentDictionary<string, StatementResult> _results = new();
+        private ConcurrentQueue<IMessage> _requests = new();
+        private ConcurrentQueue<ServerCallContext> _contexts = new();
         private ConcurrentQueue<Grpc.Core.Metadata> _headers = new ();
         private int _sessionCounter;
         private int _transactionCounter;
-        private readonly ConcurrentDictionary<SessionName, Session> _sessions = new ConcurrentDictionary<SessionName, Session>();
-        private readonly ConcurrentDictionary<ByteString, Transaction> _transactions = new ConcurrentDictionary<ByteString, Transaction>();
-        private readonly ConcurrentDictionary<ByteString, TransactionOptions> _transactionOptions = new ConcurrentDictionary<ByteString, TransactionOptions>();
-        private readonly ConcurrentDictionary<ByteString, bool> _abortedTransactions = new ConcurrentDictionary<ByteString, bool>();
-        private bool _abortNextStatement = false;
-        private readonly ConcurrentDictionary<string, ExecutionTime> _executionTimes = new ConcurrentDictionary<string, ExecutionTime>();
+        private readonly ConcurrentDictionary<SessionName, Session> _sessions = new();
+        private readonly ConcurrentDictionary<ByteString, Transaction> _transactions = new();
+        private readonly ConcurrentDictionary<ByteString, TransactionOptions> _transactionOptions = new();
+        private readonly ConcurrentDictionary<ByteString, bool> _abortedTransactions = new();
+        private bool _abortNextStatement;
+        private readonly ConcurrentDictionary<string, ExecutionTime> _executionTimes = new();
 
         public void AddOrUpdateStatementResult(string sql, StatementResult result)
         {
             _results.AddOrUpdate(sql.Trim(),
                 result,
-                (string sql, StatementResult existing) => result
+                (_, _) => result
             );
         }
 
@@ -323,14 +323,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             _executionTimes.AddOrUpdate(method,
                 executionTime,
-                (string method, ExecutionTime existing) => executionTime
+                (_, _) => executionTime
             );
         }
 
         internal void AbortTransaction(TransactionId transactionId)
         {
             var prop = transactionId.GetType().GetProperty("Id", BindingFlags.Instance | BindingFlags.NonPublic);
-            var id = (string) prop.GetValue(transactionId);
+            var id = (string) prop!.GetValue(transactionId);
             _abortedTransactions.TryAdd(ByteString.FromBase64(id), true);
         }
 
@@ -395,7 +395,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _headers.Enqueue(context.RequestHeaders);
             TryFindSession(request.SessionAsSessionName);
             _transactions.TryRemove(request.TransactionId, out _);
-            return Task.FromResult(EMPTY);
+            return Task.FromResult(s_empty);
         }
 
         private Session CreateSession(DatabaseName database)
@@ -460,7 +460,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             if (selector == null)
             {
-                return BeginTransaction(session, SINGLE_USE, true);
+                return BeginTransaction(session, s_singleUse, true);
             }
             // TODO: Check that the selected transaction actually belongs to the given session.
             return selector.SelectorCase switch
@@ -541,7 +541,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _contexts.Enqueue(context);
             _headers.Enqueue(context.RequestHeaders);
             _sessions.TryRemove(request.SessionName, out _);
-            return Task.FromResult(EMPTY);
+            return Task.FromResult(s_empty);
         }
 
         private Session TryFindSession(SessionName name)
@@ -562,13 +562,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             executionTime?.SimulateExecutionTime();
             _ = TryFindSession(request.SessionAsSessionName);
             _ = FindOrBeginTransaction(request.SessionAsSessionName, request.Transaction);
-            ExecuteBatchDmlResponse response = new ExecuteBatchDmlResponse
+            var response = new ExecuteBatchDmlResponse
             {
                 // TODO: Return other statuses based on the mocked results.
-                Status = new Status()
+                Status = new Status
+                {
+                    Code = (int)StatusCode.OK
+                }
             };
-            response.Status.Code = (int)StatusCode.OK;
-            int index = 0;
+            var index = 0;
             foreach (var statement in request.Statements)
             {
                 if (response.Status.Code != (int)StatusCode.OK)
@@ -579,16 +581,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 {
                     switch (result.Type)
                     {
-                        case StatementResult.StatementResultType.RESULT_SET:
+                        case StatementResult.StatementResultType.ResultSet:
                             throw new RpcException(new Grpc.Core.Status(StatusCode.InvalidArgument, $"ResultSet is not a valid result type for BatchDml"));
-                        case StatementResult.StatementResultType.UPDATE_COUNT:
+                        case StatementResult.StatementResultType.UpdateCount:
                             if (_executionTimes.TryGetValue(nameof(ExecuteBatchDml) + statement.Sql, out executionTime))
                             {
                                 executionTime.SimulateExecutionTime();
                             }
                             response.ResultSets.Add(CreateUpdateCountResultSet(result.UpdateCount));
                             break;
-                        case StatementResult.StatementResultType.EXCEPTION:
+                        case StatementResult.StatementResultType.Exception:
                             if (index == 0)
                             {
                                 throw result.Exception;
@@ -617,11 +619,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             return new Status { Code = (int)StatusCode.Unknown, Message = e.Message };
         }
 
-        public override Task<ResultSet> ExecuteSql(ExecuteSqlRequest request, ServerCallContext context)
-        {
-            return base.ExecuteSql(request, context);
-        }
-
         public override async Task ExecuteStreamingSql(ExecuteSqlRequest request, IServerStreamWriter<PartialResultSet> responseStream, ServerCallContext context)
         {
             _requests.Enqueue(request);
@@ -633,19 +630,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 _executionTimes.TryGetValue(nameof(ExecuteStreamingSql), out executionTime);
             }
             executionTime?.SimulateExecutionTime();
-            Session session = TryFindSession(request.SessionAsSessionName);
-            Transaction tx = FindOrBeginTransaction(request.SessionAsSessionName, request.Transaction);
+            TryFindSession(request.SessionAsSessionName);
+            FindOrBeginTransaction(request.SessionAsSessionName, request.Transaction);
             if (_results.TryGetValue(request.Sql.Trim(), out StatementResult result))
             {
                 switch (result.Type)
                 {
-                    case StatementResult.StatementResultType.RESULT_SET:
+                    case StatementResult.StatementResultType.ResultSet:
                         await WriteResultSet(result.ResultSet, responseStream, executionTime);
                         break;
-                    case StatementResult.StatementResultType.UPDATE_COUNT:
+                    case StatementResult.StatementResultType.UpdateCount:
                         await WriteUpdateCount(result.UpdateCount, responseStream);
                         break;
-                    case StatementResult.StatementResultType.EXCEPTION:
+                    case StatementResult.StatementResultType.Exception:
                         throw result.Exception;
                     default:
                         throw new RpcException(new Grpc.Core.Status(StatusCode.InvalidArgument, $"Invalid result type {result.Type} for {request.Sql}"));
@@ -695,26 +692,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 Stats = new ResultSetStats { RowCountExact = updateCount }
             };
             return rs;
-        }
-
-        public override Task<PartitionResponse> PartitionQuery(PartitionQueryRequest request, ServerCallContext context)
-        {
-            return base.PartitionQuery(request, context);
-        }
-
-        public override Task<PartitionResponse> PartitionRead(PartitionReadRequest request, ServerCallContext context)
-        {
-            return base.PartitionRead(request, context);
-        }
-
-        public override Task<ResultSet> Read(ReadRequest request, ServerCallContext context)
-        {
-            return base.Read(request, context);
-        }
-
-        public override Task StreamingRead(ReadRequest request, IServerStreamWriter<PartialResultSet> responseStream, ServerCallContext context)
-        {
-            return base.StreamingRead(request, responseStream, context);
         }
     }
 

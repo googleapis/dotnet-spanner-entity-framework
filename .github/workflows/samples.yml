@@ -1,13 +1,11 @@
 name: .NET
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
 
 jobs:
-  unit-tests:
+  run-samples:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -19,6 +17,6 @@ jobs:
       run: dotnet restore
     - name: Build
       run: dotnet build --no-restore
-    - name: Unit Tests
-      working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.Tests
-      run: dotnet test --no-build --verbosity normal
+    - name: Run samples
+      working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.Samples
+      run: dotnet run All

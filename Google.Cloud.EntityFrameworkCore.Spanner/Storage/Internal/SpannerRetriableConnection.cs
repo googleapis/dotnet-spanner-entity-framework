@@ -159,6 +159,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         }
 
         /// <summary>
+        /// Asynchronously starts a database transaction.
+        /// </summary>
+        /// <param name="isolationLevel">One of the enumeration values that specifies the isolation level for the transaction to use.</param>
+        /// <param name="cancellationToken">A cancellation token used for this task.</param>
+        /// <returns>A task whose Result property is an object representing the new transaction.</returns>
+        protected async override ValueTask<DbTransaction> BeginDbTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken)
+            => await BeginTransactionAsync(isolationLevel, cancellationToken);
+
+        /// <summary>
         /// Creates a command that can be used for a query. It will automatically retry if the transaction aborts.
         /// </summary>
         /// <param name="sqlQueryStatement"></param>
@@ -217,5 +226,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         /// <inheritdoc/>
         public override void Open() => SpannerConnection.Open();
+
+        /// <inheritdoc/>
+        public override Task OpenAsync(CancellationToken cancellationToken) => SpannerConnection.OpenAsync(cancellationToken);
+
+        /// <inheritdoc/>
+        public override Task CloseAsync() => SpannerConnection.CloseAsync();
     }
 }
