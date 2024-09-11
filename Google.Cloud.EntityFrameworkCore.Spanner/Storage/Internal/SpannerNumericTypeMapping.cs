@@ -14,7 +14,6 @@
 
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data;
 using System.Data.Common;

@@ -309,8 +309,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 if (modificationCommand.ColumnModifications.Any(m => m.IsRead))
                 {
                     var cmd = _propagateResultsCommands[index];
-                    var reader = await _propagateResultsCommands[index].ExecuteReaderAsync(cancellationToken);
-                    using var relationalReader = CreateRelationalDataReader(connection, cmd, reader);
+                    using var reader = await _propagateResultsCommands[index].ExecuteReaderAsync(cancellationToken);
+                    var relationalReader = CreateRelationalDataReader(connection, cmd, reader);
                     while (await relationalReader.ReadAsync(cancellationToken))
                     {
                         modificationCommand.PropagateResults(relationalReader);

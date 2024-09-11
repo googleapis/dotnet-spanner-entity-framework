@@ -13,6 +13,8 @@
 // limitations under the License.
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions.Internal;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Grpc.Core;
@@ -50,7 +52,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             if (!optionsBuilder.IsConfigured)
             {
                 optionsBuilder
-                    .UseSpanner(new SpannerConnection(_connectionString, ChannelCredentials.Insecure))
+                    .UseSpanner(_connectionString, _ => SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false), ChannelCredentials.Insecure)
                     .UseLazyLoadingProxies();
             }
         }
@@ -144,6 +146,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             using var db = new TypeConversionDbContext(ConnectionString);
             var row = await db.TestEntities.FindAsync(1L);
+            Assert.NotNull(row);
             Assert.Equal(float.PositiveInfinity, row.FloatCol);
         }
 
