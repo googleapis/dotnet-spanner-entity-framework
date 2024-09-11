@@ -881,7 +881,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE (@__fullName_0 = '''''') OR STARTS_WITH(`s`.`FullName`, @__fullName_0)";
+                $"WHERE STARTS_WITH(`s`.`FullName`, @__fullName_0)";
             AddFindSingerResult(sql);
 
             var fullName = "Alice M";
@@ -906,7 +906,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE (@__fullName_0 = '''''') OR ENDS_WITH(`s`.`FullName`, @__fullName_0)";
+                $"WHERE ENDS_WITH(`s`.`FullName`, @__fullName_0)";
             AddFindSingerResult(sql);
 
             var fullName = " Morrison";
@@ -1054,7 +1054,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT DATE_ADD(`s`.`BirthDate`, INTERVAL 1 YEAR){Environment.NewLine}" +
                 $"FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE (`s`.`SingerId` = @__singerId_0) AND (`s`.`BirthDate` IS NOT NULL)";
+                $"WHERE `s`.`SingerId` = @__singerId_0 AND `s`.`BirthDate` IS NOT NULL";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1106,7 +1106,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT DATE_ADD(`s`.`BirthDate`, INTERVAL 1 MONTH){Environment.NewLine}" +
                 $"FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE (`s`.`SingerId` = @__singerId_0) AND (`s`.`BirthDate` IS NOT NULL)";
+                $"WHERE `s`.`SingerId` = @__singerId_0 AND `s`.`BirthDate` IS NOT NULL";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1158,7 +1158,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT DATE_ADD(`s`.`BirthDate`, INTERVAL 1 DAY){Environment.NewLine}" +
                 $"FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE (`s`.`SingerId` = @__singerId_0) AND (`s`.`BirthDate` IS NOT NULL)";
+                $"WHERE `s`.`SingerId` = @__singerId_0 AND `s`.`BirthDate` IS NOT NULL";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
