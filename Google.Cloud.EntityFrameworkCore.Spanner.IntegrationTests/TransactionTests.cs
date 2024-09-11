@@ -313,10 +313,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             }
         }
 
-        [SkippableFact]
+        [Fact]
         public async Task CanUseComputedColumnAndCommitTimestamp()
         {
-            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support inserting multiple rows in one table with a commit timestamp column in one transaction");
             var id1 = _fixture.RandomLong();
             var id2 = _fixture.RandomLong();
 
@@ -339,12 +338,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Equal(rows[0].ColCommitTs, rows[1].ColCommitTs);
         }
 
-        [SkippableTheory]
+        [Theory]
         [InlineData(false)]
         [InlineData(true)]
         public void TransactionRetry(bool disableInternalRetries)
         {
-            Skip.If(SpannerFixtureBase.IsEmulator, "Emulator does not support multiple simultanous transactions");
             const int transactions = 8;
             var aborted = new List<Exception>();
             var res = Parallel.For(0, transactions, (i, state) =>
