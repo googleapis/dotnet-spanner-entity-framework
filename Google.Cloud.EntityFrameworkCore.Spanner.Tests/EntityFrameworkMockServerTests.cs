@@ -1813,6 +1813,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var id = 1L;
             var converted = await db.TableWithAllColumnTypes
                 .Where(t => t.ColInt64 == id)
+                // ReSharper disable once SpecifyACultureInStringConversionExplicitly
                 .Select(t => t.ColFloat64.GetValueOrDefault().ToString())
                 .FirstOrDefaultAsync();
             Assert.Equal("3.0", converted);
@@ -1839,6 +1840,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var id = 1L;
             var converted = await db.TableWithAllColumnTypes
                 .Where(t => t.ColInt64 == id)
+                // ReSharper disable once SpecifyACultureInStringConversionExplicitly
                 .Select(t => t.ColDate.GetValueOrDefault().ToString())
                 .FirstOrDefaultAsync();
             Assert.Equal("2021-01-25", converted);
@@ -1865,6 +1867,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var id = 1L;
             var converted = await db.TableWithAllColumnTypes
                 .Where(t => t.ColInt64 == id)
+                // ReSharper disable once SpecifyACultureInStringConversionExplicitly
                 .Select(t => t.ColTimestamp.GetValueOrDefault().ToString())
                 .FirstOrDefaultAsync();
             Assert.Equal("2021-01-25T12:46:01.982784Z", converted);
