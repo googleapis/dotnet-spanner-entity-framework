@@ -54,10 +54,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         protected override ResultSetMapping AppendSelectAffectedCountCommand(
             StringBuilder commandStringBuilder,
             string name,
+#nullable enable
             string? schema,
+#nullable disable
             int commandPosition)
         {
-            // TODO: Figure out what to do with this?
+            // Spanner returns the affected rows as part of the metadata, meaning that the affected
+            // rows is not in the result set. We therefore return NoResults.
             return ResultSetMapping.NoResults;
         }
 

@@ -29,7 +29,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public override DbParameter CreateParameter(
             DbCommand command,
             string name,
+#nullable enable
             object? value,
+#nullable disable
             bool? nullable = null,
             ParameterDirection direction = ParameterDirection.Input)
         {
