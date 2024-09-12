@@ -14,8 +14,6 @@
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions.Internal;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
-using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Grpc.Core;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +23,7 @@ using System.Threading.Tasks;
 using Xunit;
 using V1 = Google.Cloud.Spanner.V1;
 
+#pragma warning disable EF1001
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 {
     public class TestEntity
@@ -42,7 +41,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
     {
         private readonly string _connectionString;
 
-        internal TypeConversionDbContext(string connectionString) : base()
+        internal TypeConversionDbContext(string connectionString)
         {
             _connectionString = connectionString;
         }
@@ -94,6 +93,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             using var db = new TypeConversionDbContext(ConnectionString);
             var row = await db.TestEntities.FindAsync(1L);
+            Assert.NotNull(row);
             Assert.Equal(1L, row.Id);
             Assert.Equal((byte)1, row.ByteCol);
             Assert.Equal(SpannerNumeric.Parse("3.14"), SpannerNumeric.FromDecimal(row.DecimalCol, LossOfPrecisionHandling.Truncate));

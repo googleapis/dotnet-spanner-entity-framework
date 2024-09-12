@@ -15,7 +15,6 @@
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Metadata;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
 {
@@ -177,7 +176,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
                     .HasKey(e => new { e.AlbumId, e.TrackId })
                     .HasName("PRIMARY_KEY");
 
-                entity.HasCheckConstraint("Chk_Languages_Lyrics_Length_Equal", "ARRAY_LENGTH(LyricsLanguages) = ARRAY_LENGTH(Lyrics)");
+                entity.ToTable(t => t.HasCheckConstraint("Chk_Languages_Lyrics_Length_Equal",
+                    "ARRAY_LENGTH(LyricsLanguages) = ARRAY_LENGTH(Lyrics)"));
 
                 entity.HasIndex(e => new { e.TrackId, e.Title })
                     .HasDatabaseName("Idx_Tracks_AlbumId_Title")
