@@ -211,7 +211,7 @@ CONSTRAINT `Chk_Title_Length_Equal` CHECK (CHARACTER_LENGTH(Title) > 0),
         [Fact]
         public virtual void AddColumnOperation_with_defaultValue()
         {
-            Assert.Throws<NotSupportedException>(() => Generate(
+            Generate(
                 new AddColumnOperation
                 {
                     Table = "Album",
@@ -219,8 +219,10 @@ CONSTRAINT `Chk_Title_Length_Equal` CHECK (CHARACTER_LENGTH(Title) > 0),
                     ClrType = typeof(DateTime),
                     ColumnType = "TIMESTAMP",
                     IsNullable = false,
-                    DefaultValue = DateTime.UtcNow
-                }));
+                    DefaultValueSql = "CURRENT_TIMESTAMP"
+                });
+            AssertSql(@"ALTER TABLE `Album` ADD `CreatedDate` TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+");
         }
 
         [Fact]
@@ -544,14 +546,15 @@ WHERE `SingerId` = 4;
         [Fact]
         public virtual void AlterColumnOperation_set_default_value()
         {
-            Assert.Throws<NotSupportedException>(() => Generate(
+            Generate(
                 new AlterColumnOperation
                 {
                     Table = "Singers",
                     Name = "Location",
                     ClrType = typeof(string),
-                    DefaultValue = "London"
-                }));
+                    DefaultValueSql = "'London'"
+                });
+            AssertSql(@"ALTER TABLE `Singers` ALTER COLUMN `Location` STRING(MAX) NOT NULL DEFAULT ('London')");
         }
 
         [Fact]
