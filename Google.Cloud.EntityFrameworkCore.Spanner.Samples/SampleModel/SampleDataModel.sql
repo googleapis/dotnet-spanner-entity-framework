@@ -39,6 +39,7 @@ CREATE TABLE Tracks (
   TrackId         INT64 NOT NULL,
   Title           STRING(200) NOT NULL,
   Duration        NUMERIC,
+  RecordedAt      TIMESTAMP DEFAULT (CURRENT_TIMESTAMP),
   LyricsLanguages ARRAY<STRING(2)>,
   Lyrics          ARRAY<STRING(MAX)>,
   Version         INT64 NOT NULL,

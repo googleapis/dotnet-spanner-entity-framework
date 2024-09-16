@@ -108,7 +108,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                 columns: table => new
                 {
                     OrderId = table.Column<long>(nullable: false),
-                    OrderDate = table.Column<DateTime>(nullable: false),
+                    OrderDate = table.Column<DateTime>(nullable: false, defaultValueSql: "current_timestamp"),
                     ShippedDate = table.Column<DateTime>(nullable: false),
                     ShipVia = table.Column<string>(nullable: true),
                     Freight = table.Column<float>(nullable: false),

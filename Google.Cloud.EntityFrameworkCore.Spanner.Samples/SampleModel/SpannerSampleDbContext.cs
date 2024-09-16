@@ -83,6 +83,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
                 entity
                     .InterleaveInParent(typeof(Album), OnDelete.Cascade)
                     .HasKey(entity => new { entity.AlbumId, entity.TrackId });
+                // Adding HasDefaultValueSql to the property makes sure that Entity Framework does
+                // not include the column in an INSERT statement if the property does not have an
+                // explicit value.
+                entity.Property(e => e.RecordedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
                 entity.Property(e => e.Version).IsConcurrencyToken();
             });
 

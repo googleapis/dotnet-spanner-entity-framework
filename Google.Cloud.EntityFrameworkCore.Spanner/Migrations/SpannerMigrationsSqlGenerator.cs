@@ -415,14 +415,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
             }
         }
 
-        protected override void DefaultValue(
-            object defaultValue,
-            string defaultValueSql,
-            string columnType, MigrationCommandListBuilder builder)
-        {
-            throw new NotSupportedException("Cloud Spanner does not support default column values.");
-        }
-
         protected override void Generate(CreateSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
             throw new NotSupportedException("Cloud Spanner does not support sequence generation feature.");

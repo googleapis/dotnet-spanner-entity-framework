@@ -577,6 +577,34 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
         }
 
         [Fact]
+        public async Task DefaultColumn()
+        {
+            using var context = new TestMigrationDbContext(_fixture.DatabaseName);
+            // Get the current timestamp from the server.
+            using var cmd = context.Database.GetDbConnection().CreateCommand();
+            cmd.CommandText = "SELECT CURRENT_TIMESTAMP";
+            var timestamp = (DateTime) (await cmd.ExecuteScalarAsync())!;
+            
+            using var transaction = await context.Database.BeginTransactionAsync();
+            var order = new Order
+            {
+                OrderId = 3,
+                Freight = 155555.10f,
+                ShipAddress = "Statue of Liberty-New York Access",
+                ShipCountry = "USA",
+                ShipCity = "New York",
+                ShipPostalCode = "10004"
+            };
+            context.Orders.Add(order);
+            await context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            order = await context.Orders.FindAsync(3L);
+            Assert.NotNull(order);
+            Assert.True(order.OrderDate.Ticks > timestamp.Ticks);
+        }
+
+        [Fact]
         public async Task CanSeedData()
         {
             using var context = new TestMigrationDbContext(_fixture.DatabaseName);
