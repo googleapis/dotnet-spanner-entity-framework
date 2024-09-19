@@ -184,6 +184,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                 entity.Property(e => e.Title)
                     .IsRequired()
                     .HasMaxLength(200);
+                entity.Property(e => e.RecordedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                 entity.HasOne(d => d.Album)
                     .WithMany(p => p.Tracks)
