@@ -1,10 +1,11 @@
-name: .NET
+name: integration-tests-on-production
 
 on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, target-entity-framework-8 ]
+  workflow_dispatch:
 
 jobs:
   check-env:
