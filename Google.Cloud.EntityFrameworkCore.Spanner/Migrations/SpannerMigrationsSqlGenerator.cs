@@ -20,6 +20,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
+using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -417,27 +418,50 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
 
         protected override void Generate(CreateSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException("Cloud Spanner does not support sequence generation feature.");
+            GaxPreconditions.CheckNotNull(operation, nameof(operation));
+            GaxPreconditions.CheckNotNull(builder, nameof(builder));
+            builder.Append("CREATE SEQUENCE ").Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Name, operation.Schema));
+            SequenceOptions(operation, model, builder);
+            EndStatement(builder);
+        }
+
+        protected override void SequenceOptions(
+            string schema,
+            string name,
+            SequenceOperation operation,
+            IModel model,
+            MigrationCommandListBuilder builder)
+        {
+            builder.Append(" OPTIONS (sequence_kind=bit_reversed_positive");
+            if (operation is CreateSequenceOperation createSequenceOperation && createSequenceOperation.StartValue != 1)
+            {
+                RelationalTypeMapping mapping = Dependencies.TypeMappingSource.GetMapping(createSequenceOperation.ClrType);
+                builder.Append(", start_with_counter=").Append(mapping.GenerateSqlLiteral(createSequenceOperation.StartValue));
+            }
+            builder.Append(")").AppendLine(Dependencies.SqlGenerationHelper.StatementTerminator);
         }
 
         protected override void Generate(AlterSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException("Cloud Spanner does not support sequence generation feature.");
+            throw new NotSupportedException("Spanner Entity Framework does not support alter sequence operations.");
         }
 
         protected override void Generate(RenameSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException("Cloud Spanner does not support sequence generation feature.");
+            throw new NotSupportedException("Spanner does not support renaming sequences.");
         }
 
         protected override void Generate(RestartSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
         {
-            throw new NotSupportedException("Cloud Spanner does not support sequence generation feature.");
-        }
-
-        protected override void Generate(DropSequenceOperation operation, IModel model, MigrationCommandListBuilder builder)
-        {
-            throw new NotSupportedException("Cloud Spanner does not support sequence generation feature.");
+            GaxPreconditions.CheckNotNull(operation, nameof(operation));
+            GaxPreconditions.CheckNotNull(builder, nameof(builder));
+            RelationalTypeMapping mapping = Dependencies.TypeMappingSource.GetMapping(typeof (long));
+            builder.Append("ALTER SEQUENCE ").Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Name, operation.Schema))
+                .Append(" OPTIONS (start_with_counter=")
+                .Append(mapping.GenerateSqlLiteral(operation.StartValue))
+                .Append(")")
+                .AppendLine(Dependencies.SqlGenerationHelper.StatementTerminator);
+            EndStatement(builder);
         }
 
         protected override void Generate(RenameColumnOperation operation, IModel model, MigrationCommandListBuilder builder)

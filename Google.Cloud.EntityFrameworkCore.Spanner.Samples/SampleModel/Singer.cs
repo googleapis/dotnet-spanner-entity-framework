@@ -27,9 +27,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
         }
 
         /// <summary>
-        /// Primary key of the Singer. Cloud Spanner does not support any server side key generation.
-        /// The key value must therefore be set or generated client side. Monotonically increasing values
-        /// are NOT recommended for PRIMARY KEYs: https://cloud.google.com/spanner/docs/schema-and-data-model#choosing_a_primary_key
+        /// Primary key of the Singer. This key value is a GUID generated client side. This is the recommended
+        /// type of primary key when using Entity Framework with Spanner. Client-side generated primary keys
+        /// can be used in combination with Batch DML, as these do not require a THEN RETURN clause to be
+        /// appended to the INSERT statement.
+        /// 
+        /// See TicketSale for an example of using a server-side generated primary key value using a
+        /// bit-reversed sequence.
         /// </summary>
         public Guid SingerId { get; set; }
         public string FirstName { get; set; }

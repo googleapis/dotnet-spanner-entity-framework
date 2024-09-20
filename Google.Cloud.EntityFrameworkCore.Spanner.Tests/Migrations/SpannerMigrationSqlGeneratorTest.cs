@@ -265,15 +265,15 @@ CONSTRAINT `Chk_Title_Length_Equal` CHECK (CHARACTER_LENGTH(Title) > 0),
         [Fact]
         public virtual void CreateSequenceOperation()
         {
-            Assert.Throws<NotSupportedException>(() => Generate(
-                new CreateSequenceOperation
-                {
-                    Name = "SpannerkHiLoSequence",
-                    StartValue = 3,
-                    IncrementBy = 1,
-                    ClrType = typeof(long),
-                    IsCyclic = true
-                }));
+            Generate(new CreateSequenceOperation 
+            {
+                Name = "SpannerHiLoSequence",
+                StartValue = 3,
+                IncrementBy = 1,
+                ClrType = typeof(long),
+                IsCyclic = true
+            });
+            AssertSql($"CREATE SEQUENCE `SpannerHiLoSequence` OPTIONS (sequence_kind=bit_reversed_positive, start_with_counter=3){Environment.NewLine}");
         }
 
         [Fact]
@@ -333,11 +333,11 @@ CONSTRAINT `Chk_Title_Length_Equal` CHECK (CHARACTER_LENGTH(Title) > 0),
         [Fact]
         public virtual void DropSequenceOperation()
         {
-            Assert.Throws<NotSupportedException>(() => Generate(
-                new DropSequenceOperation
-                {
-                    Name = "SpannerkHiLoSequence"
-                }));
+            Generate(new DropSequenceOperation 
+            {
+                Name = "SpannerHiLoSequence",
+            });
+            AssertSql($"DROP SEQUENCE `SpannerHiLoSequence`{Environment.NewLine}");
         }
 
         [Fact]
@@ -354,12 +354,12 @@ CONSTRAINT `Chk_Title_Length_Equal` CHECK (CHARACTER_LENGTH(Title) > 0),
         [Fact]
         public virtual void RestartSequenceOperation()
         {
-            Assert.Throws<NotSupportedException>(() => Generate(
-                new RestartSequenceOperation
-                {
-                    Name = "SpannerkHiLoSequence",
-                    StartValue = 1
-                }));
+            Generate(new RestartSequenceOperation 
+            {
+                Name = "SpannerHiLoSequence",
+                StartValue = 3,
+            });
+            AssertSql($"ALTER SEQUENCE `SpannerHiLoSequence` OPTIONS (start_with_counter=3){Environment.NewLine}");
         }
 
         [Fact]

@@ -80,3 +80,21 @@ CREATE TABLE Performances (
   CONSTRAINT FK_Performances_Singers FOREIGN KEY (SingerId) REFERENCES Singers (SingerId),
   CONSTRAINT FK_Performances_Tracks FOREIGN KEY (AlbumId, TrackId) REFERENCES Tracks (AlbumId, TrackId),
 ) PRIMARY KEY (VenueCode, StartTime, SingerId);
+
+CREATE SEQUENCE TicketSalesSequence OPTIONS (
+    sequence_kind='bit_reversed_positive',
+    start_with_counter=1,
+    skip_range_min=1,
+    skip_range_max=1000000
+);
+
+CREATE TABLE TicketSales (
+  TicketSaleId     INT64 NOT NULL DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE TicketSalesSequence)),
+  CustomerName     STRING(MAX) NOT NULL,
+  Seats            ARRAY<STRING(10)> NOT NULL,
+  VenueCode        STRING(10) NOT NULL,
+  ConcertStartTime TIMESTAMP NOT NULL,
+  SingerId         STRING(36) NOT NULL,
+  Version          INT64 NOT NULL,
+  CONSTRAINT FK_TicketSales_Concerts FOREIGN KEY (VenueCode, ConcertStartTime, SingerId) REFERENCES Concerts (VenueCode, StartTime, SingerId),
+) PRIMARY KEY (TicketSaleId);

@@ -1,0 +1,96 @@
+﻿// Copyright 2024 Google Inc. All Rights Reserved.
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// 
+//     http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+using Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel;
+using System;
+using System.Text.Json;
+using System.Threading.Tasks;
+
+/// <summary>
+/// This sample shows how to use a bit-reversed sequence to auto-generate a primary key value
+/// for an entity.
+/// 
+/// Run from the command line with `dotnet run BitReversedSequenceSample`
+/// </summary>
+public static class BitReversedSequenceSample
+{
+    public static async Task Run(string connectionString)
+    {
+        using var context = new SpannerSampleDbContext(connectionString);
+        var concert = await CreateDependentEntitiesAsync(context);
+
+        // Create a new TicketSale, add it to the context, and save the changes.
+        // TicketSale uses a bit-reversed sequence for primary key generation.
+        // The TicketSaleId column has a DEFAULT constraint that automatically
+        // fetches the next value from the bit-reversed sequence.
+        var ticketSale = await context.TicketSales.AddAsync(new TicketSale
+        {
+            CustomerName = "Lamar Chavez",
+            Seats = new []{"A10", "A11", "A12"},
+            Concert = concert,
+        });
+        var count = await context.SaveChangesAsync();
+
+        // SaveChangesAsync returns the total number of rows that was inserted/updated/deleted.
+        // It also automatically populates the TicketSaleId property.
+        Console.WriteLine($"Added {count} ticket sale with id {ticketSale.Entity.TicketSaleId}.");
+    }
+    
+
+    private static async Task<Concert> CreateDependentEntitiesAsync(SpannerSampleDbContext context)
+    {
+        var singer = new Singer
+        {
+            SingerId = Guid.NewGuid(),
+            FirstName = "Alice",
+            LastName = "Jameson",
+        };
+        await context.Singers.AddAsync(singer);
+        var album = new Album
+        {
+            AlbumId = Guid.NewGuid(),
+            Title = "Rainforest",
+            SingerId = singer.SingerId,
+        };
+        await context.Albums.AddAsync(album);
+        var track = new Track
+        {
+            AlbumId = album.AlbumId,
+            TrackId = 1,
+            Title = "Butterflies",
+        };
+        await context.Tracks.AddAsync(track);
+        if (await context.Venues.FindAsync("CON") == null)
+        {
+            await context.Venues.AddAsync(new Venue
+            {
+                Code = "CON",
+                Name = "Concert Hall",
+                Description = JsonDocument.Parse("{\"Capacity\": 1000, \"Type\": \"Building\"}"),
+                Active = true,
+            });
+        }
+        var concert = new Concert
+        {
+            VenueCode = "CON",
+            SingerId = singer.SingerId,
+            StartTime = new DateTime(2021, 1, 27, 18, 0, 0, DateTimeKind.Utc),
+            Title = "Alice Jameson - LIVE in Concert Hall",
+        };
+        await context.AddAsync(concert);
+
+        await context.SaveChangesAsync();
+        return concert;
+    }    
+}

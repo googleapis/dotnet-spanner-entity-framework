@@ -55,6 +55,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
         public virtual DbSet<Venue> Venues { get; set; }
         public virtual DbSet<Concert> Concerts { get; set; }
         public virtual DbSet<Performance> Performances { get; set; }
+        public virtual DbSet<TicketSale> TicketSales { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
             // Configure Entity Framework to use a Cloud Spanner database.
@@ -131,6 +132,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
 
                 entity.HasOne(d => d.Concert)
                     .WithMany(p => p.Performances)
+                    .HasForeignKey(d => new { d.VenueCode, d.ConcertStartTime, d.SingerId })
+                    .OnDelete(DeleteBehavior.ClientSetNull);
+            });
+            
+            modelBuilder.Entity<TicketSale>(ticketSale =>
+            {
+                // Entity Framework automatically assumes that primary keys with type long
+                // are auto-generated. It is therefore not necessary to specify that here.
+                ticketSale.HasKey(entity => new { entity.TicketSaleId });
+                ticketSale.Property(e => e.Version).IsConcurrencyToken();
+
+                ticketSale.HasOne(d => d.Concert)
+                    .WithMany(p => p.TicketSales)
                     .HasForeignKey(d => new { d.VenueCode, d.ConcertStartTime, d.SingerId })
                     .OnDelete(DeleteBehavior.ClientSetNull);
             });

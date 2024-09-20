@@ -72,6 +72,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
                     Assert.NotNull(update);
                     Assert.Collection(update.Statements,
                         sql => Assert.StartsWith("CREATE TABLE `Singers`", sql),
+                        sql => Assert.StartsWith("CREATE SEQUENCE `MySequence` OPTIONS (sequence_kind=bit_reversed_positive, start_with_counter=100", sql),
                         sql => Assert.StartsWith("CREATE TABLE `TableWithAllColumnTypes`", sql),
                         sql => Assert.StartsWith("CREATE TABLE `Venues`", sql),
                         sql => Assert.StartsWith("CREATE TABLE `Albums`", sql),

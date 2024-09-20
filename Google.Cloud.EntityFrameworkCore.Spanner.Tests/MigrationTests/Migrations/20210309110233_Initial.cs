@@ -41,10 +41,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                     table.PrimaryKey("PRIMARY_KEY", x => x.SingerId);
                 });
 
+            migrationBuilder.CreateSequence(name: "MySequence", startValue: 100);
             migrationBuilder.CreateTable(
                 name: "TableWithAllColumnTypes",
                 columns: table => new
                 {
+                    ColSequence = table.Column<long>(nullable: false, defaultValueSql: "(GET_NEXT_SEQUENCE_VALUE(SEQUENCE MySequence))"),
                     ColInt64 = table.Column<long>(nullable: false),
                     ColFloat64 = table.Column<double>(nullable: true),
                     ColNumeric = table.Column<SpannerNumeric>(nullable: true),
@@ -73,7 +75,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PRIMARY_KEY", x => x.ColInt64);
+                    table.PrimaryKey("PRIMARY_KEY", x => x.ColSequence);
                 });
 
             migrationBuilder.CreateTable(
