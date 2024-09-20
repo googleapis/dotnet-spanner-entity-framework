@@ -115,8 +115,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                 $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
-                new List<Tuple<V1.Type, string>> { },
-                new List<object[]> { }
+                new List<Tuple<V1.Type, string>>(),
+                new List<object[]>()
             ));
 
             using var db = CreateContext();
@@ -1662,6 +1662,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 var converted = await db.TableWithAllColumnTypes
                     .Where(t => t.ColInt64 == id)
+                    // ReSharper disable once SpecifyACultureInStringConversionExplicitly
                     .Select(t => t.ColFloat64.GetValueOrDefault().ToString())
                     .FirstOrDefaultAsync();
                 Assert.Equal("3.0", converted);
@@ -1691,6 +1692,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 var converted = await db.TableWithAllColumnTypes
                     .Where(t => t.ColInt64 == id)
+                    // ReSharper disable once SpecifyACultureInStringConversionExplicitly
                     .Select(t => t.ColDate.GetValueOrDefault().ToString())
                     .FirstOrDefaultAsync();
                 Assert.Equal("2021-01-25", converted);
@@ -1720,6 +1722,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 var converted = await db.TableWithAllColumnTypes
                     .Where(t => t.ColInt64 == id)
+                    // ReSharper disable once SpecifyACultureInStringConversionExplicitly
                     .Select(t => t.ColTimestamp.GetValueOrDefault().ToString())
                     .FirstOrDefaultAsync();
                 Assert.Equal("2021-01-25T12:46:01.982784Z", converted);
@@ -2197,6 +2200,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 // Create a query without actually executing it / getting the results.
                 var firstName = "Alice";
+                // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
                 db.Singers.Where(s => s.FirstName.Contains(firstName));
                 return Task.CompletedTask;
             });

@@ -76,10 +76,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         [InlineData("ColDateArray", "ARRAY<DATE>")]
         [InlineData("ColTimestamp", "TIMESTAMP")]
         [InlineData("ColTimestampArray", "ARRAY<TIMESTAMP>")]
-        [SkippableTheory]
+        [Theory]
         public async Task AllColumnTypesAreGenerated(string name, string type)
         {
-            Skip.If(SpannerFixtureBase.IsEmulator && type.Contains("JSON"), "Emulator does not the JSON data type yet");
             using var connection = _fixture.GetConnection();
             var parameters = new SpannerParameterCollection
             {
@@ -507,6 +506,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Re-get the row from the database.
+                // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataQuery
                 var row = await db.TableWithAllColumnTypes.FindAsync(id);
                 Assert.NotNull(row);
                 Assert.True(row.ColBool);
@@ -523,6 +523,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<SpannerNumeric?> { (SpannerNumeric)3.14m, (SpannerNumeric)6.626m }, row.ColNumericArray);
                 Assert.Equal(id, row.ColInt64);
                 Assert.Equal(new List<long?> { 1L, 2L, 4L, 8L }, row.ColInt64Array);
+                // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataUsage
                 Assert.Equal("{\"key\":\"value\"}", row.ColJson.RootElement.ToString());
                 Assert.Equal(new List<string>
                 {
@@ -530,6 +531,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     "{}",
                     "[]",
                     "{\"key2\":\"value2\"}"
+                    // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataUsage
                 }, row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToList());
                 Assert.Equal("some string", row.ColString);
                 Assert.Equal(new List<string> { "string1", "string2", "string3" }, row.ColStringArray);
@@ -576,6 +578,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
                 // Re-get the row from the database.
+                // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataQuery
                 var row = await db.TableWithAllColumnTypes.FindAsync(id);
                 Assert.NotNull(row);
                 Assert.False(row.ColBool);
@@ -591,7 +594,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal((SpannerNumeric?)1.234m, row.ColNumeric);
                 Assert.Equal(new List<SpannerNumeric?> { (SpannerNumeric)1.0m, (SpannerNumeric)1.1m, (SpannerNumeric)1.11m }, row.ColNumericArray);
                 Assert.Equal(new List<long?> { 500L, 1000L }, row.ColInt64Array);
+                // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataUsage
                 Assert.Equal("{}", row.ColJson.RootElement.ToString());
+                // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataUsage
                 Assert.Equal(new List<string> { "[]", "{}", null }, row.ColJsonArray.Select(v => v?.RootElement.ToString()));
                 Assert.Equal("some changed string", row.ColString);
                 Assert.Equal(new List<string> { "changed string1", "changed string2", "changed string3" }, row.ColStringArray);
@@ -630,6 +635,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
+                // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataQuery
                 var row = await db.TableWithAllColumnTypes.FindAsync(id);
                 Assert.NotNull(row);
                 Assert.Null(row.ColBool);
@@ -647,7 +653,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Null(row.ColNumeric);
                 Assert.Null(row.ColNumericArray);
                 Assert.Null(row.ColInt64Array);
+                // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataUsage
                 Assert.Null(row.ColJson);
+                // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataUsage
                 Assert.Null(row.ColJsonArray);
                 Assert.Null(row.ColString);
                 Assert.Null(row.ColStringArray);
@@ -683,6 +691,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
+                // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataQuery
                 var row = await db.TableWithAllColumnTypes.FindAsync(id);
                 Assert.NotNull(row);
                 Assert.NotNull(row.ColBool);
@@ -703,7 +712,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.NotNull(row.ColNumeric);
                 Assert.NotNull(row.ColNumericArray);
                 Assert.NotNull(row.ColInt64Array);
+                // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataUsage
                 Assert.NotNull(row.ColJson);
+                // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataUsage
                 Assert.NotNull(row.ColJsonArray);
                 Assert.NotNull(row.ColString);
                 Assert.NotNull(row.ColStringArray);
@@ -756,7 +767,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Null(row.ColNumeric);
                 Assert.Null(row.ColNumericArray);
                 Assert.Null(row.ColInt64Array);
+                // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataUsage
                 Assert.Null(row.ColJson);
+                // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataUsage
                 Assert.Null(row.ColJsonArray);
                 Assert.Null(row.ColString);
                 Assert.Null(row.ColStringArray);
@@ -795,6 +808,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
             {
+                // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataQuery
                 var row = await db.TableWithAllColumnTypes.FindAsync(id);
                 Assert.NotNull(row);
                 Assert.Equal(new List<bool?> { true, null, false }, row.ColBoolArray);
@@ -803,6 +817,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<SpannerDate?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) }, row.ColDateArray);
                 Assert.Equal(new List<double?> { 3.14, null, 6.662 }, row.ColFloat64Array);
                 Assert.Equal(new List<long?> { 100, null, 200 }, row.ColInt64Array);
+                // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataUsage
                 Assert.Equal(new List<string> { "{}", null, "[]" }, row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToList());
                 Assert.Equal(new List<SpannerNumeric?> { (SpannerNumeric)3.14m, null, (SpannerNumeric)6.662m }, row.ColNumericArray);
                 Assert.Equal(new List<string> { "string1", null, "string2" }, row.ColStringArray);
@@ -833,6 +848,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<SpannerDate?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) }, row.ColDateArray);
                 Assert.Equal(new List<double?> { 3.14, null, 6.662 }, row.ColFloat64Array);
                 Assert.Equal(new List<long?> { 100, null, 200 }, row.ColInt64Array);
+                // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataUsage
                 Assert.Equal(new List<string> { "{}", null, "[]" }, row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToList());
                 Assert.Equal(new List<SpannerNumeric?> { (SpannerNumeric)3.14m, null, (SpannerNumeric)6.662m }, row.ColNumericArray);
                 Assert.Equal(new List<string> { "string1", null, "string2" }, row.ColStringArray);

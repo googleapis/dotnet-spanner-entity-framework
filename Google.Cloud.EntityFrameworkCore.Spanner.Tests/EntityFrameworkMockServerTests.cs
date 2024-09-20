@@ -16,24 +16,20 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
@@ -46,7 +42,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
     {
         private readonly string _connectionString;
 
-        internal MockServerSampleDbContext(string connectionString) : base()
+        internal MockServerSampleDbContext(string connectionString)
         {
             _connectionString = connectionString;
         }
@@ -67,7 +63,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
     {
         private readonly string _connectionString;
 
-        internal MockServerVersionDbContext(string connectionString) : base()
+        internal MockServerVersionDbContext(string connectionString)
         {
             _connectionString = connectionString;
         }
@@ -106,9 +102,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                 $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
-                new List<Tuple<V1.Type, string>> { },
-                new List<object[]> { }
-            ));
+                new List<Tuple<V1.Type, string>>(),
+                new List<object[]>()));
 
             using var db = new MockServerSampleDbContext(ConnectionString);
             var singer = await db.Singers.FindAsync(1L);
@@ -124,6 +119,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             using var db = new MockServerSampleDbContext(ConnectionString);
             var singer = await db.Singers.FindAsync(1L);
+            Assert.NotNull(singer);
             Assert.Equal(1L, singer.SingerId);
             Assert.Null(singer.BirthDate);
             Assert.Equal("Alice", singer.FirstName);
@@ -132,7 +128,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.Null(singer.Picture);
 
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
@@ -140,7 +136,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             );
             // A read-only operation should not initiate and commit a transaction.
-            Assert.Empty(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
+            Assert.DoesNotContain(_fixture.SpannerMock.Requests, request => request is CommitRequest);
         }
 
         [Fact]
@@ -163,7 +159,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Equal(1L, updateCount);
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest).Select(request => (ExecuteBatchDmlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>(),
                 request =>
                 {
                     Assert.Single(request.Statements);
@@ -172,7 +168,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             );
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
                 {
                     Assert.Equal(selectFullNameSql, request.Sql);
@@ -204,12 +200,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             using var db = new MockServerSampleDbContext(ConnectionString);
             var singer = await db.Singers.FindAsync(1L);
+            Assert.NotNull(singer);
             singer.LastName = "Pieterson-Morrison";
             var updateCount = await db.SaveChangesAsync();
 
             Assert.Equal(1L, updateCount);
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest).Select(request => (ExecuteBatchDmlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>(),
                 request =>
                 {
                     Assert.Single(request.Statements);
@@ -218,7 +215,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             );
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
                 {
                     Assert.Equal(selectSingerSql, request.Sql);
@@ -246,7 +243,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Equal(1L, updateCount);
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest).Select(request => (ExecuteBatchDmlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>(),
                 request =>
                 {
                     Assert.Single(request.Statements);
@@ -254,8 +251,55 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.NotNull(request.Transaction?.Id);
                 }
             );
-            Assert.Empty(_fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest));
+            Assert.DoesNotContain(_fixture.SpannerMock.Requests, request => request is ExecuteSqlRequest);
             Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
+        }
+
+        [Fact]
+        public async Task InsertTrack_SelectsRecordedAt()
+        {
+            // Setup results.
+            var insertSql = $"INSERT INTO `Tracks` (`AlbumId`, `TrackId`, `Duration`, `Lyrics`, `LyricsLanguages`, `Title`){Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4, @p5)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateUpdateCount(1L));
+            var selectRecordedAt = AddSelectTrackRecordedAtResult();
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            db.Tracks.Add(new Tracks
+            {
+                AlbumId = 1L,
+                TrackId = 1L,
+                Title = "Test title",
+            });
+            var updateCount = await db.SaveChangesAsync();
+
+            Assert.Equal(1L, updateCount);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>(),
+                request =>
+                {
+                    Assert.Single(request.Statements);
+                    Assert.Equal(insertSql, request.Statements[0].Sql);
+                    Assert.NotNull(request.Transaction?.Id);
+                }
+            );
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(selectRecordedAt, request.Sql);
+                    Assert.Null(request.Transaction?.Id);
+                }
+            );
+            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
+
+            Assert.Collection(_fixture.SpannerMock.Requests
+                .Where(request => request is ExecuteBatchDmlRequest || request is CommitRequest || request is ExecuteSqlRequest)
+                .Select(request => request.GetType()),
+                request => Assert.Equal(typeof(ExecuteBatchDmlRequest), request),
+                request => Assert.Equal(typeof(CommitRequest), request),
+                request => Assert.Equal(typeof(ExecuteSqlRequest), request)
+            );
+
         }
 
         [Fact]
@@ -270,7 +314,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.NotNull(await db.Singers.FindAsync(1L));
 
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
@@ -278,8 +322,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             );
             Assert.Single(_fixture.SpannerMock.Requests
-                .Where(request => request is BeginTransactionRequest)
-                .Select(request => (BeginTransactionRequest)request)
+                .OfType<BeginTransactionRequest>()
                 .Where(request => request.Options?.ReadOnly?.Strong ?? false));
         }
 
@@ -295,7 +338,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.NotNull(await db.Singers.FindAsync(1L));
 
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
@@ -303,8 +346,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             );
             Assert.Single(_fixture.SpannerMock.Requests
-                .Where(request => request is BeginTransactionRequest)
-                .Select(request => (BeginTransactionRequest)request)
+                .OfType<BeginTransactionRequest>()
                 .Where(request => request.Options?.ReadOnly?.ExactStaleness?.Seconds == 10L));
         }
 
@@ -407,7 +449,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var today = SpannerDate.FromDateTime(DateTime.SpecifyKind(DateTime.Today, DateTimeKind.Unspecified));
             var now = DateTime.UtcNow;
             var id = 1L;
-            var rawSql = @$"INSERT INTO `TableWithAllColumnTypes` 
+            var rawSql = @"INSERT INTO `TableWithAllColumnTypes` 
                               (`ColBool`, `ColBoolArray`, `ColBytes`, `ColBytesMax`, `ColBytesArray`, `ColBytesMaxArray`,
                                `ColDate`, `ColDateArray`, `ColFloat64`, `ColFloat64Array`, `ColInt64`, `ColInt64Array`,
                                `ColNumeric`, `ColNumericArray`, `ColString`, `ColStringArray`, `ColStringMax`, `ColStringMaxArray`,
@@ -472,7 +514,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.Equal(1, updateCount);
             // Verify that the INSERT statement is the only one on the mock server.
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(r => r is ExecuteSqlRequest sqlRequest).Select(r => r as ExecuteSqlRequest),
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request => Assert.Equal(rawSql, request.Sql)
             );
         }
@@ -597,7 +639,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     await transaction.CommitAsync();
                 }
                 Assert.Collection(
-                    _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest).Select(request => (ExecuteBatchDmlRequest)request),
+                    _fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>(),
                     // The Batch DML request is sent twice to the server, as the statement is aborted during the first attempt.
                     request =>
                     {
@@ -670,7 +712,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     await transaction.CommitAsync();
                 }
                 Assert.Collection(
-                    _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                    _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                     // The ExecuteSqlRequest is sent twice to the server, as the statement is aborted during the first attempt.
                     request =>
                     {
@@ -704,7 +746,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Collection(singers, s => Assert.Equal("Morrison", s.LastName));
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
@@ -730,7 +772,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Collection(singers, s => Assert.Equal("Morrison", s.LastName));
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
@@ -756,7 +798,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Collection(singers, s => Assert.Equal("Morrison", s.LastName));
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
@@ -871,7 +913,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Collection(singers, s => Assert.Equal("Morrison", s.LastName));
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
@@ -896,7 +938,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Collection(singers, s => Assert.Equal("Morrison", s.LastName));
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
@@ -921,7 +963,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Collection(singers, s => Assert.Equal("Morrison", s.LastName));
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
@@ -946,7 +988,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Collection(singers, s => Assert.Equal("Morrison", s.LastName));
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
@@ -1653,7 +1695,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task CanUseSpannerDateProperties()
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
-            var sql = $"SELECT EXTRACT(YEAR FROM COALESCE(`t`.`ColDate`, DATE '0001-01-01')) AS `Year`, " +
+            var sql = "SELECT EXTRACT(YEAR FROM COALESCE(`t`.`ColDate`, DATE '0001-01-01')) AS `Year`, " +
                 "EXTRACT(MONTH FROM COALESCE(`t`.`ColDate`, DATE '0001-01-01')) AS `Month`, " +
                 "EXTRACT(DAY FROM COALESCE(`t`.`ColDate`, DATE '0001-01-01')) AS `Day`, " +
                 "EXTRACT(DAYOFYEAR FROM COALESCE(`t`.`ColDate`, DATE '0001-01-01')) AS `DayOfYear`, " +
@@ -1818,6 +1860,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var id = 1L;
             var converted = await db.TableWithAllColumnTypes
                 .Where(t => t.ColInt64 == id)
+                // ReSharper disable once SpecifyACultureInStringConversionExplicitly
                 .Select(t => t.ColFloat64.GetValueOrDefault().ToString())
                 .FirstOrDefaultAsync();
             Assert.Equal("3.0", converted);
@@ -1844,6 +1887,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var id = 1L;
             var converted = await db.TableWithAllColumnTypes
                 .Where(t => t.ColInt64 == id)
+                // ReSharper disable once SpecifyACultureInStringConversionExplicitly
                 .Select(t => t.ColDate.GetValueOrDefault().ToString())
                 .FirstOrDefaultAsync();
             Assert.Equal("2021-01-25", converted);
@@ -1870,6 +1914,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var id = 1L;
             var converted = await db.TableWithAllColumnTypes
                 .Where(t => t.ColInt64 == id)
+                // ReSharper disable once SpecifyACultureInStringConversionExplicitly
                 .Select(t => t.ColTimestamp.GetValueOrDefault().ToString())
                 .FirstOrDefaultAsync();
             Assert.Equal("2021-01-25T12:46:01.982784Z", converted);
@@ -2013,7 +2058,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             await db.SaveChangesAsync();
 
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest).Select(request => (ExecuteBatchDmlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>(),
                 request =>
                 {
                     Assert.Single(request.Statements);
@@ -2037,7 +2082,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             await db.SaveChangesAsync();
 
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest).Select(request => (ExecuteBatchDmlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>(),
                 request =>
                 {
                     Assert.Single(request.Statements);
@@ -2063,7 +2108,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 Assert.Equal("Morrison", singer.LastName);
             }
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
@@ -2091,11 +2136,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             await db.SaveChangesAsync();
 
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest).Select(request => (ExecuteBatchDmlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>(),
                 request => Assert.Collection(request.Statements, statement => Assert.Equal(sql, statement.Sql))
             );
             Assert.Collection(
-                _fixture.SpannerMock.Requests.Where(request => request is ExecuteSqlRequest).Select(request => (ExecuteSqlRequest)request),
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request => Assert.Equal(selectSql, request.Sql)
             );
             Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
@@ -2378,9 +2423,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                       $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                       $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
-                new List<Tuple<V1.Type, string>> { },
-                new List<object[]> { }
-            ));
+                new List<Tuple<V1.Type, string>>(),
+                new List<object[]>()));
 
             using var db = new MockServerSampleDbContext(ConnectionString);
             await db.Singers.FindAsync(1L);
@@ -2430,6 +2474,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             ));
             return selectFullNameSql;
+        }
+
+        private string AddSelectTrackRecordedAtResult()
+        {
+            var selectRecordedAt = $"{Environment.NewLine}SELECT `RecordedAt`{Environment.NewLine}FROM `Tracks`{Environment.NewLine}WHERE  TRUE  AND `AlbumId` = @p0 AND `TrackId` = @p1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(selectRecordedAt, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Timestamp, "RecordedAt"),
+                },
+                new List<object[]>
+                {
+                    new object[] { DateTime.Now },
+                }
+            ));
+            return selectRecordedAt;
         }
     }
 }

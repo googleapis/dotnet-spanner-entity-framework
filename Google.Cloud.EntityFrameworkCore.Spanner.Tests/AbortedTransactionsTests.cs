@@ -63,7 +63,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var cmd = connection.CreateDmlCommand(sql);
             cmd.Transaction = transaction;
             var updateCount = await cmd.ExecuteNonQueryAsync();
-            await transaction.CommitAsync();
+            var commitTimestamp = await transaction.CommitAndReturnCommitTimestampAsync();
+            Assert.NotEqual(DateTime.UnixEpoch, commitTimestamp);
             Assert.Equal(1, updateCount);
             Assert.Equal(0, transaction.RetryCount);
         }
@@ -118,7 +119,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
             cmd = connection.CreateDmlCommand($"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}");
             cmd.Transaction = transaction;
-            var e = await Assert.ThrowsAsync<SpannerAbortedDueToConcurrentModificationException>(() => cmd.ExecuteNonQueryAsync());
+            await Assert.ThrowsAsync<SpannerAbortedDueToConcurrentModificationException>(() => cmd.ExecuteNonQueryAsync());
             Assert.Equal(1, transaction.RetryCount);
         }
 
@@ -271,7 +272,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task ReadWriteTransaction_BatchDmlWithDifferentException_FailsRetry()
         {
-            string sql1 = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
+            var sql1 = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql1, StatementResult.CreateException(new RpcException(new Status(StatusCode.AlreadyExists, "Unique key constraint violation"))));
             using var connection = CreateConnection();
             await connection.OpenAsync();
@@ -279,15 +280,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var cmd = connection.CreateBatchDmlCommand();
             cmd.Transaction = transaction;
             cmd.Add(sql1);
-            try
-            {
-                await cmd.ExecuteNonQueryAsync();
-                Assert.True(false, "Missing expected exception");
-            }
-            catch (SpannerException e) when (e.ErrorCode == ErrorCode.AlreadyExists)
-            {
-                Assert.Contains("Unique key constraint violation", e.InnerException?.Message);
-            }
+            var exception = await Assert.ThrowsAsync<SpannerException>(() => cmd.ExecuteNonQueryAsync());
+            Assert.Contains("Unique key constraint violation", exception.InnerException?.Message);
 
             // Remove the error message for the udpate statement.
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql1, StatementResult.CreateUpdateCount(1));
@@ -478,6 +472,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 // Any query error is thrown by the first call to reader.ReadAsync();
                 var e = await Assert.ThrowsAsync<SpannerException>(() => reader.ReadAsync());
                 Assert.Equal(ErrorCode.NotFound, e.ErrorCode);
+                Assert.NotNull(e.InnerException);
                 Assert.Contains("Table not found: Foo", e.InnerException.Message);
             }
 
@@ -516,7 +511,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             // The retry should now fail.
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 2));
             _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
-            var e = await Assert.ThrowsAsync<SpannerAbortedDueToConcurrentModificationException>(() => transaction.CommitAsync());
+            await Assert.ThrowsAsync<SpannerAbortedDueToConcurrentModificationException>(() => transaction.CommitAsync());
             Assert.Equal(1, transaction.RetryCount);
         }
 
@@ -553,7 +548,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             ));
             _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
-            var e = await Assert.ThrowsAsync<SpannerAbortedDueToConcurrentModificationException>(() => transaction.CommitAsync());
+            await Assert.ThrowsAsync<SpannerAbortedDueToConcurrentModificationException>(() => transaction.CommitAsync());
             Assert.Equal(1, transaction.RetryCount);
         }
 
@@ -571,6 +566,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 // Any query error is thrown by the first call to reader.ReadAsync();
                 var e = await Assert.ThrowsAsync<SpannerException>(() => reader.ReadAsync());
+                Assert.NotNull(e.InnerException);
                 Assert.Contains("Table not found: Foo", e.InnerException.Message);
             }
 
@@ -596,6 +592,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 // Any query error is thrown by the first call to reader.ReadAsync();
                 var e = await Assert.ThrowsAsync<SpannerException>(() => reader.ReadAsync());
+                Assert.NotNull(e.InnerException);
                 Assert.Contains("Table not found: Foo", e.InnerException.Message);
             }
             // Remove the error returned by the query on the server and abort the transaction.
