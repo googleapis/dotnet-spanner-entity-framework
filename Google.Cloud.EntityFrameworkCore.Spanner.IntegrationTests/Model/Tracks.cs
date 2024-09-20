@@ -14,6 +14,7 @@
 
 using System.Collections.Generic;
 using Google.Cloud.Spanner.V1;
+using System;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 {
@@ -28,6 +29,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         public long TrackId { get; set; }
         public string Title { get; set; }
         public SpannerNumeric? Duration { get; set; }
+        public DateTime? RecordedAt { get; set; }
         public List<string> LyricsLanguages { get; set; }
         public List<string> Lyrics { get; set; }
 

@@ -41,7 +41,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var builder = new SpannerClientBuilder
             {
                 Endpoint = $"http://{_fixture.Endpoint}",
-                ChannelCredentials = Grpc.Core.ChannelCredentials.Insecure
+                ChannelCredentials = ChannelCredentials.Insecure
             };
             SpannerClient client = builder.Build();
             BatchCreateSessionsRequest request = new BatchCreateSessionsRequest
@@ -171,7 +171,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 await transaction.CommitAsync();
             }
             // Assert that the correct updates were sent.
-            Stack<IMessage> requests = new Stack<IMessage>(_fixture.SpannerMock.Requests);
+            // Ignore Rollback requests, as these are sent async and can come from other test cases.
+            Stack<IMessage> requests = new Stack<IMessage>(_fixture.SpannerMock.Requests.Where(request => request.GetType() != typeof(RollbackRequest)));
             Assert.Equal(typeof(CommitRequest), requests.Peek().GetType());
             CommitRequest commit = (CommitRequest)requests.Pop();
             Assert.Equal(2, commit.Mutations.Count);

@@ -13,20 +13,18 @@
 // limitations under the License.
 
 using System.Collections.Generic;
+using System.Text.Json;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
 {
-    public partial class Venue : VersionedEntity
+    // ReSharper disable once ClassWithVirtualMembersNeverInherited.Global
+    public class Venue : VersionedEntity
     {
-        public Venue()
-        {
-            Concerts = new HashSet<Concert>();
-        }
-
         public string Code { get; set; }
         public string Name { get; set; }
+        public JsonDocument Description { get; set; }
         public bool Active { get; set; }
 
-        public virtual ICollection<Concert> Concerts { get; set; }
+        public virtual ICollection<Concert> Concerts { get; set; } = new HashSet<Concert>();
     }
 }
