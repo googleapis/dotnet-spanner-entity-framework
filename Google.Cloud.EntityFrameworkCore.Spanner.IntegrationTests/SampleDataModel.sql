@@ -37,6 +37,7 @@ CREATE TABLE Tracks (
   TrackId         INT64 NOT NULL,
   Title           STRING(200) NOT NULL,
   Duration        NUMERIC,
+  RecordedAt      TIMESTAMP DEFAULT (CURRENT_TIMESTAMP),
   LyricsLanguages ARRAY<STRING(2)>,
   Lyrics          ARRAY<STRING(MAX)>,
   CONSTRAINT Chk_Languages_Lyrics_Length_Equal CHECK (ARRAY_LENGTH(LyricsLanguages) = ARRAY_LENGTH(Lyrics)),

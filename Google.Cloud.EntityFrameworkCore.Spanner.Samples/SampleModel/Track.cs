@@ -45,6 +45,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
         /// NUMERIC columns are mapped to <see cref="SpannerNumeric"/> by default.
         /// </summary>
         public SpannerNumeric? Duration { get; set; }
+        
+        /// <summary>
+        /// RecordedAt is set to CURRENT_TIMESTAMP using a DEFAULT constraint for the column.
+        /// </summary>
+        public DateTime? RecordedAt { get; set; }
 
         /// <summary>
         /// ARRAY columns are mapped to <see cref="List{T}"/> by default. Note that both

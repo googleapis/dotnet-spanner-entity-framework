@@ -48,6 +48,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 .HasAnnotation("UpdateCommitTimestamp", SpannerUpdateCommitTimestamp.OnInsertAndUpdate);
             });
 
+            modelBuilder.Entity<Order>()
+                .Property(o => o.OrderDate)
+                .HasDefaultValueSql("current_timestamp");
             modelBuilder.Entity<OrderDetail>()
                 .HasKey(c => new { c.OrderId, c.ProductId });
 

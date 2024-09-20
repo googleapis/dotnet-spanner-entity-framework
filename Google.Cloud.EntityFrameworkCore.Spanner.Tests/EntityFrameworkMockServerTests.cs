@@ -256,6 +256,53 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task InsertTrack_SelectsRecordedAt()
+        {
+            // Setup results.
+            var insertSql = $"INSERT INTO `Tracks` (`AlbumId`, `TrackId`, `Duration`, `Lyrics`, `LyricsLanguages`, `Title`){Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4, @p5)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateUpdateCount(1L));
+            var selectRecordedAt = AddSelectTrackRecordedAtResult();
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            db.Tracks.Add(new Tracks
+            {
+                AlbumId = 1L,
+                TrackId = 1L,
+                Title = "Test title",
+            });
+            var updateCount = await db.SaveChangesAsync();
+
+            Assert.Equal(1L, updateCount);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>(),
+                request =>
+                {
+                    Assert.Single(request.Statements);
+                    Assert.Equal(insertSql, request.Statements[0].Sql);
+                    Assert.NotNull(request.Transaction?.Id);
+                }
+            );
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(selectRecordedAt, request.Sql);
+                    Assert.Null(request.Transaction?.Id);
+                }
+            );
+            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
+
+            Assert.Collection(_fixture.SpannerMock.Requests
+                .Where(request => request is ExecuteBatchDmlRequest || request is CommitRequest || request is ExecuteSqlRequest)
+                .Select(request => request.GetType()),
+                request => Assert.Equal(typeof(ExecuteBatchDmlRequest), request),
+                request => Assert.Equal(typeof(CommitRequest), request),
+                request => Assert.Equal(typeof(ExecuteSqlRequest), request)
+            );
+
+        }
+
+        [Fact]
         public async Task CanUseReadOnlyTransaction()
         {
             var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
@@ -2427,6 +2474,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             ));
             return selectFullNameSql;
+        }
+
+        private string AddSelectTrackRecordedAtResult()
+        {
+            var selectRecordedAt = $"{Environment.NewLine}SELECT `RecordedAt`{Environment.NewLine}FROM `Tracks`{Environment.NewLine}WHERE  TRUE  AND `AlbumId` = @p0 AND `TrackId` = @p1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(selectRecordedAt, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Timestamp, "RecordedAt"),
+                },
+                new List<object[]>
+                {
+                    new object[] { DateTime.Now },
+                }
+            ));
+            return selectRecordedAt;
         }
     }
 }
