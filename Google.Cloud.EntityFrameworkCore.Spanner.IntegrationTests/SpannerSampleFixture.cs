@@ -51,24 +51,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
     }
 
-    internal class FullNameGenerator : ValueGenerator<string>
-    {
-        public override bool GeneratesTemporaryValues => false;
-
-        public override string Next(EntityEntry entry)
-        {
-            var singer = entry.Entity as Singers;
-            return (singer.FirstName ?? "") + " " + (singer.LastName ?? "");
-        }
-    }
-
     /// <summary>
     /// Base classes for test fixtures using the sample data model.
     /// If TEST_SPANNER_DATABASE is set to an existing database, that database will be used and the
     /// fixture assumes that the database already contains the sample data model. Any data in the
     /// existing database will be deleted.
     /// 
-    /// Otherwise a new database with the sample data model is automatically created and used. The
+    /// Otherwise, a new database with the sample data model is automatically created and used. The
     /// generated database is dropped when the fixture is disposed.
     /// </summary>
     public class SpannerSampleFixture : SpannerFixtureBase

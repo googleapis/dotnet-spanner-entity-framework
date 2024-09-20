@@ -352,7 +352,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     // The internal retry mechanism should be able to catch and retry
                     // all aborted transactions. If internal retries are disabled, multiple
                     // transactions will abort.
-                    InsertRandomSinger(disableInternalRetries).Wait();
+                    // The test uses Venue when being executed on the emulator, as the emulator
+                    // does not correctly return computed columns in a THEN RETURN clause.
+                    // Singer has the computed column FullName, which is only returned correctly
+                    // by a THEN RETURN clause on real Spanner.
+                    if (SpannerFixtureBase.IsEmulator)
+                    {
+                        InsertRandomVenue(disableInternalRetries).Wait();
+                    }
+                    else
+                    {
+                        InsertRandomSinger(disableInternalRetries).Wait();
+                    }
                 }
                 catch (AggregateException e) when (e.InnerException is SpannerException se && se.ErrorCode == ErrorCode.Aborted)
                 {
@@ -467,6 +478,54 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 else
                 {
                     existing.FirstName = firstName;
+                }
+                await context.SaveChangesAsync();
+            }
+            await transaction.CommitAsync();
+        }
+
+        private async Task InsertRandomVenue(bool disableInternalRetries)
+        {
+            var rnd = new Random(Guid.NewGuid().GetHashCode());
+            using var context = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            using var transaction = await context.Database.BeginTransactionAsync();
+            if (disableInternalRetries)
+            {
+                transaction.DisableInternalRetries();
+            }
+
+            var rows = rnd.Next(1, 10);
+            for (var row = 0; row < rows; row++)
+            {
+                // This test assumes that this is random enough and that the id's
+                // will never overlap during a test run.
+                var id = Guid.NewGuid().ToString()[..10];
+                var prefix = id;
+                // Name contains the same value as the primary key with a random suffix.
+                // This makes it possible to search for a venue using the name and knowing
+                // that the search will at most deliver one row (and it will be the same row each time).
+                var name = prefix + "-" + rnd.Next(10000).ToString("D4");
+
+                // Yes, this is highly inefficient, but that is intentional. This
+                // will cause a large number of the transactions to be aborted.
+                var existing = await context
+                    .Venues
+                    .Where(v => EF.Functions.Like(v.Name, prefix + "%"))
+                    .OrderBy(v => v.Name)
+                    .FirstOrDefaultAsync();
+
+                if (existing == null)
+                {
+                    context.Venues.Add(new Venues
+                    {
+                        Code = id,
+                        Name = name,
+                        Active = _fixture.RandomLong(rnd) % 2 == 1
+                    });
+                }
+                else
+                {
+                    existing.Name = name;
                 }
                 await context.SaveChangesAsync();
             }

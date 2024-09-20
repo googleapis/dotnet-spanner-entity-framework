@@ -69,6 +69,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         internal static StatementResult CreateSingleColumnResultSet(V1.Type type, string col, params object[] values)
+            => CreateSingleColumnResultSet(null, type, col, values);
+
+        internal static StatementResult CreateSingleColumnResultSet(long? updateCount, V1.Type type, string col, params object[] values)
         {
             ResultSet rs = new ResultSet
             {
@@ -87,6 +90,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 ListValue row = new ListValue();
                 row.Values.Add(SpannerConverter.ToProtobufValue(type, val));
                 rs.Rows.Add(row);
+            }
+            if (updateCount != null)
+            {
+                rs.Stats = new ResultSetStats { RowCountExact = updateCount.Value };
             }
             return CreateQuery(rs);
         }
