@@ -1,10 +1,11 @@
-name: .NET
+name: integration-tests-on-emulator
 
 on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, target-entity-framework-8 ]
+  workflow_dispatch:
 
 jobs:
   integration-tests-on-emulator:
