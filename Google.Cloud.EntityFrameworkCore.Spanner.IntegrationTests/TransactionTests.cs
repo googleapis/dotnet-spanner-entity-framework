@@ -352,18 +352,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     // The internal retry mechanism should be able to catch and retry
                     // all aborted transactions. If internal retries are disabled, multiple
                     // transactions will abort.
-                    // The test uses Venue when being executed on the emulator, as the emulator
-                    // does not correctly return computed columns in a THEN RETURN clause.
-                    // Singer has the computed column FullName, which is only returned correctly
-                    // by a THEN RETURN clause on real Spanner.
-                    if (SpannerFixtureBase.IsEmulator)
-                    {
-                        InsertRandomVenue(disableInternalRetries).Wait();
-                    }
-                    else
-                    {
-                        InsertRandomSinger(disableInternalRetries).Wait();
-                    }
+                    InsertRandomSinger(disableInternalRetries).Wait();
                 }
                 catch (AggregateException e) when (e.InnerException is SpannerException se && se.ErrorCode == ErrorCode.Aborted)
                 {
