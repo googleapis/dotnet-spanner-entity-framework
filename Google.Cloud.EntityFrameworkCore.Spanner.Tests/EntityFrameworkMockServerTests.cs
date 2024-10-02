@@ -179,6 +179,89 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task InsertTicketSale_ReturnsId()
+        {
+            // Setup results.
+            var insertSql = $"INSERT INTO `TicketSales` (`CustomerName`){Environment.NewLine}" +
+                            $"VALUES (@p0){Environment.NewLine}" +
+                            $"THEN RETURN `Id`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type {Code = V1.TypeCode.Int64}, "Id", "12345"));
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var ticketSale = db.TicketSales.Add(new TicketSales
+            {
+                CustomerName = "New Customer",
+            });
+            var updateCount = await db.SaveChangesAsync();
+
+            Assert.Equal(1L, updateCount);
+            Assert.Equal(12345L, ticketSale.Entity.Id);
+            Assert.Empty(_fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>());
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(insertSql, request.Sql);
+                    Assert.NotNull(request.Transaction?.Id);
+                }
+            );
+            Assert.Single(_fixture.SpannerMock.Requests, request => request is CommitRequest);
+
+            Assert.Collection(_fixture.SpannerMock.Requests
+                    .Where(request => request is ExecuteBatchDmlRequest || request is CommitRequest || request is ExecuteSqlRequest)
+                    .Select(request => request.GetType()),
+                request => Assert.Equal(typeof(ExecuteSqlRequest), request),
+                request => Assert.Equal(typeof(CommitRequest), request)
+            );
+
+        }
+
+        [Fact]
+        public async Task InsertMultipleTicketSale_ReturnsIdentifiers()
+        {
+            // Setup results.
+            for (var p = 0; p < 3; p++)
+            {
+                var insertSql = $"INSERT INTO `TicketSales` (`CustomerName`){Environment.NewLine}" +
+                                $"VALUES (@p{p}){Environment.NewLine}" +
+                                $"THEN RETURN `Id`{Environment.NewLine}";
+                _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql,
+                    StatementResult.CreateSingleColumnResultSet(1L, new V1.Type { Code = V1.TypeCode.Int64 }, "Id",
+                        (1000000 - p)));
+            }
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var transaction = await db.Database.BeginTransactionAsync();
+            db.TicketSales.AddRange([
+                new TicketSales { CustomerName = "New Customer1"},
+                new TicketSales { CustomerName = "New Customer2"},
+                new TicketSales { CustomerName = "New Customer3"},
+            ]);
+            var updateCount = await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            Assert.Equal(3L, updateCount);
+            Assert.Empty(_fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>());
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request => { Assert.NotNull(request.Transaction?.Id); },
+                request => { Assert.NotNull(request.Transaction?.Id); },
+                request => { Assert.NotNull(request.Transaction?.Id); }
+            );
+            Assert.Single(_fixture.SpannerMock.Requests, request => request is CommitRequest);
+
+            Assert.Collection(_fixture.SpannerMock.Requests
+                    .Where(request => request is ExecuteBatchDmlRequest || request is CommitRequest || request is ExecuteSqlRequest)
+                    .Select(request => request.GetType()),
+                request => Assert.Equal(typeof(ExecuteSqlRequest), request),
+                request => Assert.Equal(typeof(ExecuteSqlRequest), request),
+                request => Assert.Equal(typeof(ExecuteSqlRequest), request),
+                request => Assert.Equal(typeof(CommitRequest), request)
+            );
+
+        }
+
+        [Fact]
         public async Task UpdateSinger_SelectsFullName()
         {
             // Setup results.

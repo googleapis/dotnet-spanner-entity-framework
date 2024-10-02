@@ -89,7 +89,7 @@ CREATE SEQUENCE TicketSalesSequence OPTIONS (
 );
 
 CREATE TABLE TicketSales (
-  TicketSaleId     INT64 NOT NULL DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE TicketSalesSequence)),
+  Id               INT64 NOT NULL DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE TicketSalesSequence)),
   CustomerName     STRING(MAX) NOT NULL,
   Seats            ARRAY<STRING(10)> NOT NULL,
   VenueCode        STRING(10) NOT NULL,
@@ -97,4 +97,4 @@ CREATE TABLE TicketSales (
   SingerId         STRING(36) NOT NULL,
   Version          INT64 NOT NULL,
   CONSTRAINT FK_TicketSales_Concerts FOREIGN KEY (VenueCode, ConcertStartTime, SingerId) REFERENCES Concerts (VenueCode, StartTime, SingerId),
-) PRIMARY KEY (TicketSaleId);
+) PRIMARY KEY (Id);

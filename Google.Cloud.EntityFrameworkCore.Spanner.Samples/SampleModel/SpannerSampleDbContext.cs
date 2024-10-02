@@ -16,7 +16,6 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Metadata;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
-using Microsoft.EntityFrameworkCore.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -140,7 +139,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
             {
                 // Entity Framework automatically assumes that primary keys with type long
                 // are auto-generated. It is therefore not necessary to specify that here.
-                ticketSale.HasKey(entity => new { entity.TicketSaleId });
+                // Also, Entity Framework assumes that if the entity has a property named
+                // 'Id', then that is the primary key of the entity.
+                
                 ticketSale.Property(e => e.Version).IsConcurrencyToken();
 
                 ticketSale.HasOne(d => d.Concert)
@@ -161,7 +162,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
             UpdateVersions();
             return base.SaveChanges(acceptAllChangesOnSuccess);
         }
-
+        
         public override Task<int> SaveChangesAsync(
             bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
         {
@@ -170,7 +171,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
             UpdateVersions();
             return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
-
+        
         /// <summary>
         /// Updates the versions of all entities that are currently marked as modified.
         /// </summary>

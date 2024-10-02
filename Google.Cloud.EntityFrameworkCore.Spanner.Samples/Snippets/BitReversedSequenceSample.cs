@@ -14,6 +14,7 @@
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel;
 using System;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -32,19 +33,50 @@ public static class BitReversedSequenceSample
 
         // Create a new TicketSale, add it to the context, and save the changes.
         // TicketSale uses a bit-reversed sequence for primary key generation.
-        // The TicketSaleId column has a DEFAULT constraint that automatically
+        // The Id column has a DEFAULT constraint that automatically
         // fetches the next value from the bit-reversed sequence.
         var ticketSale = await context.TicketSales.AddAsync(new TicketSale
         {
             CustomerName = "Lamar Chavez",
-            Seats = new []{"A10", "A11", "A12"},
+            Seats = ["A10", "A11", "A12"],
             Concert = concert,
         });
         var count = await context.SaveChangesAsync();
-
+        
         // SaveChangesAsync returns the total number of rows that was inserted/updated/deleted.
-        // It also automatically populates the TicketSaleId property.
-        Console.WriteLine($"Added {count} ticket sale with id {ticketSale.Entity.TicketSaleId}.");
+        // It also automatically populates the generated primary key property.
+        Console.WriteLine($"Added {count} ticket sale with id {ticketSale.Entity.Id}.");
+
+        // Inserting multiple records in one batch (and in one transaction) is also supported.
+        TicketSale[] ticketSales =
+        [
+            new TicketSale
+            {
+                CustomerName = "Reid Phillips",
+                Seats = ["B1", "B2"],
+                Concert = concert,
+            },
+            new TicketSale
+            {
+                CustomerName = "Jaime Diaz",
+                Seats = ["C76"],
+                Concert = concert,
+            },
+            new TicketSale
+            {
+                CustomerName = "Lindsay Yates",
+                Seats = ["A13", "A14", "A15", "A16"],
+                Concert = concert,
+            },
+        ];
+        var transaction = await context.Database.BeginTransactionAsync();
+        await context.AddRangeAsync(ticketSales);
+        var batchCount = await context.SaveChangesAsync();
+        await transaction.CommitAsync();
+        
+        // SaveChangesAsync returns the total number of rows that was inserted/updated/deleted.
+        // It also automatically populates the generated primary key property.
+        Console.WriteLine($"Added {batchCount} ticket sale with identifiers {string.Join(", ", ticketSales.Select(ts => ts.Id))}.");
     }
     
 
