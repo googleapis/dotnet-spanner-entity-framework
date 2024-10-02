@@ -62,6 +62,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         private static readonly SpannerComplexTypeMapping s_short
             = new SpannerComplexTypeMapping(SpannerDbType.Int64, typeof(short));
+        
+        private static readonly SpannerDecimalTypeMapping s_decimal = new ();
 
         private static readonly SpannerNumericTypeMapping s_numeric = new SpannerNumericTypeMapping();
 
@@ -176,7 +178,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(short), s_short},
                     {typeof(int), s_int},
                     {typeof(long), s_long},
-                    {typeof(decimal), s_numeric},
+                    {typeof(decimal), s_decimal},
                     {typeof(SpannerNumeric), s_numeric},
                     {typeof(JsonDocument), s_json},
                     {typeof(uint), s_uint},

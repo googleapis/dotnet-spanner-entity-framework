@@ -22,7 +22,7 @@ using System.Text;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 {
-    internal class SpannerUpdateSqlGenerator : UpdateSqlGenerator
+    internal class SpannerUpdateSqlGenerator : UpdateAndSelectSqlGenerator
     {
         private readonly ISqlGenerationHelper _sqlGenerationHelper;
 
@@ -49,6 +49,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         protected override void AppendRowsAffectedWhereCondition(StringBuilder commandStringBuilder, int expectedRowsAffected)
         {
             commandStringBuilder.Append(" TRUE ");
+        }
+
+        protected override ResultSetMapping AppendSelectAffectedCountCommand(
+            StringBuilder commandStringBuilder,
+            string name,
+#nullable enable
+            string? schema,
+#nullable disable
+            int commandPosition)
+        {
+            // Spanner returns the affected rows as part of the metadata, meaning that the affected
+            // rows is not in the result set. We therefore return NoResults.
+            return ResultSetMapping.NoResults;
         }
 
         /// <summary>
@@ -127,7 +140,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 
             commandStringBuilder.AppendLine(SqlGenerationHelper.StatementTerminator);
 
-            return ResultSetMapping.NoResultSet;
+            return ResultSetMapping.NoResults;
         }
     }
 }

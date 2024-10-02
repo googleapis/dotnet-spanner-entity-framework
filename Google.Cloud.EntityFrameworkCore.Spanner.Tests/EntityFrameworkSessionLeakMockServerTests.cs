@@ -16,6 +16,7 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Grpc.Core;
@@ -58,7 +59,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 SessionPoolManager = _manager
             };
             optionsBuilder
-                .UseSpanner(new SpannerConnection(builder), _ => SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false))
+                .UseSpanner(new SpannerRetriableConnection(new SpannerConnection(builder)), _ => SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false), ChannelCredentials.Insecure)
                 .UseMutations(MutationUsage.Never)
                 .UseLazyLoadingProxies();
         }
@@ -660,7 +661,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE (@__fullName_0 = '''''') OR STARTS_WITH(`s`.`FullName`, @__fullName_0)";
+                $"WHERE STARTS_WITH(`s`.`FullName`, @__fullName_0)";
             AddFindSingerResult(sql);
 
             await Repeat(async () => {
@@ -677,7 +678,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE (@__fullName_0 = '''''') OR ENDS_WITH(`s`.`FullName`, @__fullName_0)";
+                $"WHERE ENDS_WITH(`s`.`FullName`, @__fullName_0)";
             AddFindSingerResult(sql);
 
             await Repeat(async () =>
@@ -808,7 +809,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT DATE_ADD(`s`.`BirthDate`, INTERVAL 1 YEAR){Environment.NewLine}" +
                 $"FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE (`s`.`SingerId` = @__singerId_0) AND (`s`.`BirthDate` IS NOT NULL)";
+                $"WHERE `s`.`SingerId` = @__singerId_0 AND `s`.`BirthDate` IS NOT NULL";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -867,7 +868,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT DATE_ADD(`s`.`BirthDate`, INTERVAL 1 MONTH){Environment.NewLine}" +
                 $"FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE (`s`.`SingerId` = @__singerId_0) AND (`s`.`BirthDate` IS NOT NULL)";
+                $"WHERE `s`.`SingerId` = @__singerId_0 AND `s`.`BirthDate` IS NOT NULL";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -926,7 +927,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT DATE_ADD(`s`.`BirthDate`, INTERVAL 1 DAY){Environment.NewLine}" +
                 $"FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE (`s`.`SingerId` = @__singerId_0) AND (`s`.`BirthDate` IS NOT NULL)";
+                $"WHERE `s`.`SingerId` = @__singerId_0 AND `s`.`BirthDate` IS NOT NULL";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {

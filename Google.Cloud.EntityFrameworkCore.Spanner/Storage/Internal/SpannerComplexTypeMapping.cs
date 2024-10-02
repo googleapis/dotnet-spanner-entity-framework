@@ -51,9 +51,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             IsArrayType = SpannerComplexTypeMapping.s_arrayTypes.Contains(complexType);
         }
 
-        public override RelationalTypeMapping Clone(string storeType, int? size) =>
-            new SpannerComplexTypeMapping(_complexType, _clrType, false, size);
-
         protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters)
         {
             return new SpannerComplexTypeMapping(_complexType, _clrType, parameters.Unicode, parameters.Size);

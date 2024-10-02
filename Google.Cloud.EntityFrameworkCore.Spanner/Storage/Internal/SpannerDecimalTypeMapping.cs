@@ -1,4 +1,4 @@
-﻿// Copyright 2020, Google Inc. All rights reserved.
+﻿// Copyright 2024, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,21 +13,18 @@
 // limitations under the License.
 
 using Google.Cloud.Spanner.Data;
-using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data;
 using System.Data.Common;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
-    internal class SpannerNumericTypeMapping : RelationalTypeMapping
+    internal class SpannerDecimalTypeMapping() : RelationalTypeMapping(new RelationalTypeMappingParameters(
+        new CoreTypeMappingParameters(typeof(decimal)),
+        SpannerDbType.Numeric.ToString(), StoreTypePostfix.None, System.Data.DbType.VarNumeric))
     {
-        public SpannerNumericTypeMapping()
-            : base(SpannerDbType.Numeric.ToString(), typeof(SpannerNumeric), System.Data.DbType.VarNumeric)
-        { }
-
         protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters) =>
-            new SpannerNumericTypeMapping();
+            new SpannerDecimalTypeMapping();
 
         public override DbParameter CreateParameter(
             DbCommand command,
@@ -38,7 +35,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             bool? nullable = null,
             ParameterDirection direction = ParameterDirection.Input)
         {
-            // TODO: Remove once the default mapping of type NUMERIC has been added to the client library.
             return new SpannerParameter(name, SpannerDbType.Numeric, value);
         }
 
