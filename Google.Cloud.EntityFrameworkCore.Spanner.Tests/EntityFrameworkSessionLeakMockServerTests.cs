@@ -147,9 +147,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             // Setup results.
             var insertSql = $"INSERT INTO `Singers` (`SingerId`, `BirthDate`, `FirstName`, `LastName`, `Picture`)" +
-                $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
-            _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateUpdateCount(1L));
-            AddSelectSingerFullNameResult("Alice Morrison", 0);
+                $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4){Environment.NewLine}" +
+                $"THEN RETURN `FullName`";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type{Code = V1.TypeCode.String}, "FullName", "Alice Morrison"));
 
             using var db = CreateContext();
             await Repeat(async () =>
@@ -169,12 +169,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task UpdateSinger_SelectsFullName()
         {
             // Setup results.
-            var updateSql = $"UPDATE `Singers` SET `LastName` = @p0{Environment.NewLine}WHERE `SingerId` = @p1";
-            _fixture.SpannerMock.AddOrUpdateStatementResult(updateSql, StatementResult.CreateUpdateCount(1L));
+            var updateSql = $"UPDATE `Singers` SET `LastName` = @p0{Environment.NewLine}WHERE `SingerId` = @p1{Environment.NewLine}" +
+                            $"THEN RETURN `FullName`";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(updateSql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type{Code = V1.TypeCode.String}, "FullName", "Alice Pieterson-Morrison"));
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, " +
                 $"`s`.`FullName`, `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                 $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
-            AddSelectSingerFullNameResult("Alice Pieterson-Morrison", 1);
 
             using var db = CreateContext();
             await Repeat(async () =>
@@ -1883,10 +1883,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 " `ColFloat64`, `ColFloat64Array`, `ColInt64Array`, `ColJson`, `ColJsonArray`, `ColNumeric`, `ColNumericArray`, `ColString`, " +
                 "`ColStringArray`, `ColStringMax`, `ColStringMaxArray`, `ColTimestamp`, `ColTimestampArray`)" +
                 $"{Environment.NewLine}VALUES (PENDING_COMMIT_TIMESTAMP(), " +
-                "@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22)";
-            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1L));
-            _fixture.SpannerMock.AddOrUpdateStatementResult($"{Environment.NewLine}SELECT `ColComputed`" +
-                $"{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p0", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
+                $"@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22){Environment.NewLine}" +
+                $"THEN RETURN `ColComputed`";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type{Code = V1.TypeCode.String}, "ColComputed", "Test"));
 
             await Repeat(async () =>
             {
@@ -1900,9 +1899,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"UPDATE `TableWithAllColumnTypes` SET `ColCommitTS` = PENDING_COMMIT_TIMESTAMP(), `ColBool` = @p0" +
-                $"{Environment.NewLine}WHERE `ColInt64` = @p1";
-            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1L));
-            _fixture.SpannerMock.AddOrUpdateStatementResult($"{Environment.NewLine}SELECT `ColComputed`{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
+                $"{Environment.NewLine}WHERE `ColInt64` = @p1{Environment.NewLine}" +
+                $"THEN RETURN `ColComputed`";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type{Code = V1.TypeCode.String}, "ColComputed", "Test"));
 
             await Repeat(async () =>
             {
@@ -1942,10 +1941,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 " `ColBytes`, `ColBytesArray`, `ColBytesMax`, `ColBytesMaxArray`, `ColDate`, `ColDateArray`, `ColFloat64`," +
                 " `ColFloat64Array`, `ColInt64Array`, `ColJson`, `ColJsonArray`, `ColNumeric`, `ColNumericArray`, `ColString`, `ColStringArray`," +
                 $" `ColStringMax`, `ColStringMaxArray`, `ColTimestamp`, `ColTimestampArray`){Environment.NewLine}" +
-                "VALUES (PENDING_COMMIT_TIMESTAMP(), @p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22)";
-            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1L));
-            var selectSql = $"{Environment.NewLine}SELECT `ColComputed`{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p0";
-            _fixture.SpannerMock.AddOrUpdateStatementResult(selectSql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
+                $"VALUES (PENDING_COMMIT_TIMESTAMP(), @p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22){Environment.NewLine}" +
+                $"THEN RETURN `ColComputed`";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type{Code = V1.TypeCode.String}, "ColComputed", "Test"));
 
             await Repeat(async () =>
             {
@@ -1965,10 +1963,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                       " `ColFloat64`, `ColFloat64Array`, `ColInt64Array`, `ColJson`, `ColJsonArray`, `ColNumeric`, `ColNumericArray`, `ColString`, " +
                       "`ColStringArray`, `ColStringMax`, `ColStringMaxArray`, `ColTimestamp`, `ColTimestampArray`)" +
                       $"{Environment.NewLine}VALUES (PENDING_COMMIT_TIMESTAMP(), " +
-                      "@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22)";
-            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1L));
-            _fixture.SpannerMock.AddOrUpdateStatementResult($"{Environment.NewLine}SELECT `ColComputed`" +
-                                                            $"{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p0", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
+                      $"@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22){Environment.NewLine}" +
+                      $"THEN RETURN `ColComputed`";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type {Code = V1.TypeCode.String}, "ColComputed", "Test"));
 
             await Repeat(async () =>
             {
@@ -2210,12 +2207,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task TransactionWithoutDisposing_LeaksSession()
         {
-            var updateSql = $"UPDATE `Singers` SET `LastName` = @p0{Environment.NewLine}WHERE `SingerId` = @p1";
-            _fixture.SpannerMock.AddOrUpdateStatementResult(updateSql, StatementResult.CreateUpdateCount(1L));
+            var updateSql = $"UPDATE `Singers` SET `LastName` = @p0{Environment.NewLine}WHERE `SingerId` = @p1{Environment.NewLine}" +
+                            $"THEN RETURN `FullName`";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(updateSql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type{Code = V1.TypeCode.String}, "FullName", "Alice Pieterson-Morrison"));
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, " +
                                 $"`s`.`FullName`, `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                                 $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
-            AddSelectSingerFullNameResult("Alice Pieterson-Morrison", 1);
 
             var exception = await Assert.ThrowsAsync<SpannerException>(() => Repeat(async () =>
             {
