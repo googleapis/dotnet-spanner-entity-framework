@@ -180,6 +180,160 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
+        public async Task ReadWriteTransaction_AbortedDmlThenReturn_IsAutomaticallyRetried(bool enableInternalRetries)
+        {
+            string sql = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()} THEN RETURN Baz";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(1, new V1.Type{Code = V1.TypeCode.String}, "Baz", "Test"));
+            using var connection = CreateConnection();
+            await connection.OpenAsync();
+            using var transaction = await connection.BeginTransactionAsync();
+            transaction.EnableInternalRetries = enableInternalRetries;
+            // Abort the transaction on the mock server. The transaction should be able to internally retry.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+            var cmd = connection.CreateDmlCommand(sql);
+            cmd.Transaction = transaction;
+            if (enableInternalRetries)
+            {
+                using var reader = await cmd.ExecuteReaderAsync();
+                var count = 0;
+                while (await reader.ReadAsync())
+                {
+                    Assert.Equal("Test", reader.GetString(0));
+                    count++;
+                }
+                Assert.Equal(1, count);
+                Assert.Equal(1, transaction.RetryCount);
+            }
+            else
+            {
+                var e = await Assert.ThrowsAsync<SpannerException>(() => cmd.ExecuteReaderAsync());
+                Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+            }
+        }
+
+        [Fact]
+        public async Task ReadWriteTransaction_ModifiedDmlThenReturnUpdateCount_FailsRetry()
+        {
+            // This statement returns an update count of 1 the first time.
+            string sql = $"UPDATE Foo SET Bar='baz' WHERE Id IN ({_fixture.RandomLong()},{_fixture.RandomLong()}) THEN RETURN Baz";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(1, new V1.Type{Code = V1.TypeCode.String}, "Baz", "Test"));
+
+            using var connection = CreateConnection();
+            await connection.OpenAsync();
+            using var transaction = await connection.BeginTransactionAsync();
+            // Execute an update and then change the return value for the statement before the retry is executed.
+            var cmd = connection.CreateDmlCommand(sql);
+            cmd.Transaction = transaction;
+            using var reader = await cmd.ExecuteReaderAsync();
+            var count = 0;
+            while (await reader.ReadAsync())
+            {
+                Assert.Equal("Test", reader.GetString(0));
+                count++;
+            }
+            Assert.Equal(1, count);
+            // The update statement will return 2 rows the next time it is executed.
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(2, new V1.Type{Code = V1.TypeCode.String}, "Baz", "Test1", "Test2"));
+
+            // Now abort the transaction and try to execute another DML statement. The retry will fail because it sees
+            // a different update count during the retry.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+            cmd = connection.CreateDmlCommand($"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}");
+            cmd.Transaction = transaction;
+            await Assert.ThrowsAsync<SpannerAbortedDueToConcurrentModificationException>(() => cmd.ExecuteNonQueryAsync());
+            Assert.Equal(1, transaction.RetryCount);
+        }
+
+        [Fact]
+        public async Task ReadWriteTransaction_DmlThenReturn_DataChanged_FailsRetry()
+        {
+            // This statement returns a row with value 'Test1' during the initial attempt.
+            string sql = $"UPDATE Foo SET Bar='baz' WHERE Id IN ({_fixture.RandomLong()},{_fixture.RandomLong()}) THEN RETURN Baz";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(1, new V1.Type{Code = V1.TypeCode.String}, "Baz", "Test1"));
+
+            using var connection = CreateConnection();
+            await connection.OpenAsync();
+            using var transaction = await connection.BeginTransactionAsync();
+            // Execute an update and then change the return value for the statement before the retry is executed.
+            var cmd = connection.CreateDmlCommand(sql);
+            cmd.Transaction = transaction;
+            using var reader = await cmd.ExecuteReaderAsync();
+            var count = 0;
+            while (await reader.ReadAsync())
+            {
+                Assert.Equal("Test1", reader.GetString(0));
+                count++;
+            }
+            Assert.Equal(1, count);
+            // The update statement will return a different row the next time it is executed.
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(1, new V1.Type{Code = V1.TypeCode.String}, "Baz", "Test2"));
+
+            // Now abort the transaction and try to execute another DML statement. The retry will fail because it sees
+            // a different update count during the retry.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+            cmd = connection.CreateDmlCommand($"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}");
+            cmd.Transaction = transaction;
+            await Assert.ThrowsAsync<SpannerAbortedDueToConcurrentModificationException>(() => cmd.ExecuteNonQueryAsync());
+            Assert.Equal(1, transaction.RetryCount);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task ReadWriteTransaction_AbortedDmlThenReturnWithSameException_CanBeRetried(bool enableInternalRetries)
+        {
+            string sql = $"UPDATE Foo SET Bar='bar' Id={_fixture.RandomLong()} THEN RETURN Baz";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateException(new RpcException(new Status(StatusCode.FailedPrecondition, "UPDATE statement misses WHERE clause"))));
+            using var connection = CreateConnection();
+            await connection.OpenAsync();
+            using var transaction = await connection.BeginTransactionAsync();
+            transaction.EnableInternalRetries = enableInternalRetries;
+            var cmd = connection.CreateDmlCommand(sql);
+            cmd.Transaction = transaction;
+
+            var e = await Assert.ThrowsAsync<SpannerException>(() => cmd.ExecuteReaderAsync());
+            Assert.Equal(ErrorCode.FailedPrecondition, e.ErrorCode);
+            Assert.Contains("UPDATE statement misses WHERE clause", e.InnerException?.Message);
+
+            // Abort the transaction on the mock server. The transaction should be able to internally retry.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+            if (enableInternalRetries)
+            {
+                await transaction.CommitAsync();
+                Assert.Equal(1, transaction.RetryCount);
+            }
+            else
+            {
+                var se = await Assert.ThrowsAsync<SpannerException>(() => transaction.CommitAsync());
+                Assert.Equal(ErrorCode.Aborted, se.ErrorCode);
+            }
+        }
+
+        [Fact]
+        public async Task ReadWriteTransaction_AbortedDmlThenReturnWithDifferentException_FailsRetry()
+        {
+            string sql = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()} THEN RETURN Baz";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateException(new RpcException(new Status(StatusCode.AlreadyExists, "Unique key constraint violation"))));
+            using var connection = CreateConnection();
+            await connection.OpenAsync();
+            using var transaction = await connection.BeginTransactionAsync();
+            var cmd = connection.CreateDmlCommand(sql);
+            cmd.Transaction = transaction;
+            var e = await Assert.ThrowsAsync<SpannerException>(() => cmd.ExecuteReaderAsync());
+            Assert.Equal(ErrorCode.AlreadyExists, e.ErrorCode);
+            Assert.Contains("Unique key constraint violation", e.InnerException?.Message);
+
+            // Change the error for the statement on the mock server and abort the transaction.
+            // The retry should now fail as the error has changed.
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateException(new RpcException(new Status(StatusCode.NotFound, "Table Foo not found"))));
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+            await Assert.ThrowsAsync<SpannerAbortedDueToConcurrentModificationException>(() => transaction.CommitAsync());
+            Assert.Equal(1, transaction.RetryCount);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
         public async Task ReadWriteTransaction_AbortedBatchDml_IsAutomaticallyRetried(bool enableInternalRetries)
         {
             string sql1 = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
