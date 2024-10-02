@@ -224,13 +224,30 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         private async Task<SpannerDataReaderWithChecksum> ExecuteDbDataReaderWithRetryImplAsync(SpannerCommand command, CancellationToken cancellationToken)
         {
-            // This method does not need a retry loop as it is not actually executing the query. Instead,
-            // that will be deferred until the first call to DbDataReader.Read().
-            command.Transaction = SpannerTransaction;
-            var spannerReader = await command.ExecuteReaderAsync(cancellationToken);
-            var checksumReader = new SpannerDataReaderWithChecksum(this, spannerReader, command);
-            _retriableStatements.Add(checksumReader);
-            return checksumReader;
+            while (true)
+            {
+                command.Transaction = SpannerTransaction;
+                try
+                {
+                    var spannerReader = await command.ExecuteReaderAsync(cancellationToken);
+                    var checksumReader = new SpannerDataReaderWithChecksum(this, spannerReader, command);
+                    _retriableStatements.Add(checksumReader);
+                    return checksumReader;
+                }
+                catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
+                {
+                    await RetryAsync(e, cancellationToken);
+                }
+                catch (SpannerException e)
+                {
+                    // We can use a FailedDmlStatement here, as reaching here means that the statement
+                    // failed directly when trying to execute a reader. That indicates that the underlying
+                    // statement was a DML statement with a THEN RETURN clause, and that all we need to
+                    // verify during the retry is that it returns the exact same error when it is executed.
+                    _retriableStatements.Add(new FailedDmlStatement(command, e));
+                    throw;
+                }
+            }
         }
 
         internal void Retry(SpannerException abortedException, int timeoutSeconds = MAX_TIMEOUT_SECONDS)
