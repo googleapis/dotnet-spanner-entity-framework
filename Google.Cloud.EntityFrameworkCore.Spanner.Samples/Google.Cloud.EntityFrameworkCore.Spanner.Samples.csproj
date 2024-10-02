@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <AssemblyName>SampleRunner</AssemblyName>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
@@ -24,10 +24,7 @@
 
   <ItemGroup>
     <PackageReference Include="Docker.DotNet" Version="3.125.15" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Google.Cloud.EntityFrameworkCore.Spanner\Google.Cloud.EntityFrameworkCore.Spanner.csproj" />
+    <PackageReference Include="Google.Cloud.EntityFrameworkCore.Spanner" Version="2.1.6" />
   </ItemGroup>
 
 </Project>
