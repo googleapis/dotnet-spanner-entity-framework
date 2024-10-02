@@ -1,8 +1,9 @@
-name: .NET
+name: samples
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [ main, target-entity-framework-8 ]
+  workflow_dispatch:
 
 jobs:
   run-samples:
