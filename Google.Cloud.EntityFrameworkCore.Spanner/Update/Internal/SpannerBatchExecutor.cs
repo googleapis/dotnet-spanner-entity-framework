@@ -58,7 +58,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 {
                     if (batch is SpannerModificationCommandBatch spannerModificationCommandBatch)
                     {
-                        spannerModificationCommandBatch.PropagateResults();
+                        spannerModificationCommandBatch.PropagateResults(connection);
                     }
                 }
                 span.SetStatus(Status.Ok);
@@ -95,7 +95,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 {
                     if (batch is SpannerModificationCommandBatch spannerModificationCommandBatch)
                     {
-                        await spannerModificationCommandBatch.PropagateResultsAsync(cancellationToken);
+                        await spannerModificationCommandBatch.PropagateResultsAsync(connection, cancellationToken);
                     }
                 }
                 span.SetStatus(Status.Ok);

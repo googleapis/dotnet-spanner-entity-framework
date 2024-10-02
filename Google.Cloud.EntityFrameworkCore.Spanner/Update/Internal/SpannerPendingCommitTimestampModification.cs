@@ -119,8 +119,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 
         public override EntityState EntityState => _delegate.EntityState;
 
-        public override bool RequiresResultPropagation => _delegate.RequiresResultPropagation;
-
         internal static bool HasCommitTimestampColumn(IReadOnlyModificationCommand modificationCommand)
         {
             foreach (var entry in modificationCommand.Entries)

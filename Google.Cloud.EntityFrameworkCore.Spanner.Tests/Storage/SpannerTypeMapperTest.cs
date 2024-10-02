@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Tests.TestUtilities;
 using Google.Cloud.Spanner.V1;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
@@ -391,6 +388,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
         {
             var mapping = CreateTypeMapper().FindMapping(typeName);
 
+            Assert.NotNull(mapping);
             Assert.Equal(clrType, mapping.ClrType);
             Assert.Equal(size, mapping.Size);
             Assert.Equal(unicode, mapping.IsUnicode);
@@ -413,6 +411,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
         {
             var mapping = CreateTypeMapper().FindMapping(typeName);
 
+            Assert.NotNull(mapping);
             Assert.Equal(clrType, mapping.ClrType);
             Assert.Equal(size, mapping.Size);
             Assert.Equal(unicode, mapping.IsUnicode);
@@ -442,8 +441,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
                 property.SetIsUnicode(unicode);
             }
 
-            var model = property.DeclaringEntityType.Model.FinalizeModel();
-            return CreateTypeMapper().GetMapping(model.FindEntityType(property.DeclaringEntityType.ClrType)!.GetProperty(property.Name));
+            var model = property.DeclaringType.Model.FinalizeModel();
+            return CreateTypeMapper().GetMapping(model.FindEntityType(property.DeclaringType.ClrType)!.GetProperty(property.Name));
         }
 
         private static IRelationalTypeMappingSource CreateTypeMapper()
