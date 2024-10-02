@@ -240,7 +240,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 }
                 catch (SpannerException e)
                 {
-                    // TODO: Replace with a failed reader.
+                    // We can use a FailedDmlStatement here, as reaching here means that the statement
+                    // failed directly when trying to execute a reader. That indicates that the underlying
+                    // statement was a DML statement with a THEN RETURN clause, and that all we need to
+                    // verify during the retry is that it returns the exact same error when it is executed.
                     _retriableStatements.Add(new FailedDmlStatement(command, e));
                     throw;
                 }
