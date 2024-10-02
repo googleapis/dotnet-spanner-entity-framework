@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.1.6...Google.Cloud.EntityFrameworkCore.Spanner-2.2.0) (2024-10-02)
+
+
+### Features
+
+* support DEFAULT column values ([#439](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/439)) ([4e400df](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/4e400dfd661f10f125ec89f732041df362e987a1))
+
 ## [2.1.6](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.1.5...Google.Cloud.EntityFrameworkCore.Spanner-2.1.6) (2024-09-12)
 
 
