@@ -24,10 +24,7 @@
 
   <ItemGroup>
     <PackageReference Include="Docker.DotNet" Version="3.125.15" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Google.Cloud.EntityFrameworkCore.Spanner\Google.Cloud.EntityFrameworkCore.Spanner.csproj" />
+    <PackageReference Include="Google.Cloud.EntityFrameworkCore.Spanner" Version="2.1.6" />
   </ItemGroup>
 
 </Project>
