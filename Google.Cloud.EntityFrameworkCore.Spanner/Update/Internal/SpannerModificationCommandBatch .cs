@@ -53,6 +53,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         private readonly char _statementTerminator;
         private readonly bool _hasExplicitTransaction;
         private bool _areMoreBatchesExpected;
+        private readonly SpannerUpdateThenReturnSqlGenerator _thenReturnSqlGenerator;
 
         /// <summary>
         /// This is internal functionality and not intended for public use.
@@ -66,13 +67,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             // This class needs a statement terminator because the EFCore built-in SQL generator helper
             // will generate multiple statements as one string.
             _statementTerminator = ';';
-             _hasExplicitTransaction = dependencies.CurrentContext.Context.Database.CurrentTransaction != null;
+            _hasExplicitTransaction = dependencies.CurrentContext.Context.Database.CurrentTransaction != null;
+            var updateSqlDependencies = ((SpannerUpdateSqlGenerator)dependencies.UpdateSqlGenerator).Dependencies;
+            _thenReturnSqlGenerator = new SpannerUpdateThenReturnSqlGenerator(updateSqlDependencies);
         }
 
         /// <summary>
         /// Service dependencies.
         /// </summary>
-        public ModificationCommandBatchFactoryDependencies Dependencies { get; }
+        private ModificationCommandBatchFactoryDependencies Dependencies { get; }
 
         /// <summary>
         /// This is internal functionality and not intended for public use.
@@ -89,7 +92,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// <summary>
         /// The affected rows per modification command in this batch. This property is only valid after the batch has been executed.
         /// </summary>
-        internal List<long> UpdateCounts { get; private set; } = new List<long>();
+        internal List<long> UpdateCounts { get; private set; } = [];
 
         internal int RowsAffected
         {
@@ -148,9 +151,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             {
                 await ExecuteMutationsAsync(spannerConnection, transaction, cancellationToken);
             }
+            else if (_modificationCommands.Any(c => c.ColumnModifications.Any(cm => cm.IsRead)))
+            {
+                await ExecuteDmlAsync(connection, spannerConnection, transaction, cancellationToken);
+            }
             else
             {
-                await ExecuteDmlAsync(spannerConnection, transaction, cancellationToken);
+                await ExecuteBatchDmlAsync(spannerConnection, transaction, cancellationToken);
             }
         }
 
@@ -235,13 +242,35 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 ThrowAggregateUpdateConcurrencyException();
             }
         }
+        
+        private async Task ExecuteDmlAsync(IRelationalConnection connection, SpannerRetriableConnection spannerConnection, SpannerRetriableTransaction transaction, CancellationToken cancellationToken)
+        {
+            var commands = CreateSpannerDmlCommands(spannerConnection, transaction);
+            var index = 0;
+            var updateCounts = new List<long>(commands.Count);
+            foreach (var command in commands)
+            {
+                var reader = await command.ExecuteReaderAsync(cancellationToken);
+                var relationalReader = CreateRelationalDataReader(connection, command, reader);
+                var modificationCommand = _modificationCommands[index];
+                var rowsAffected = 0L;
+                while (await relationalReader.ReadAsync(cancellationToken))
+                {
+                    modificationCommand.PropagateResults(relationalReader);
+                    rowsAffected++;
+                }
+                updateCounts.Add(rowsAffected);
+                index++;
+            }
+            UpdateCounts = updateCounts;
+        }
 
         /// <summary>
         /// Executes the command batch using DML. DML is less efficient than mutations, but do allow applications
         /// to read their own writes within a transaction. DML is therefore used by default for explicit transactions.
         /// Applications can also configure the Spanner Entity Framework provider to use DML for implicit transactions as well.
         /// </summary>
-        private async Task ExecuteDmlAsync(SpannerRetriableConnection spannerConnection, SpannerRetriableTransaction transaction, CancellationToken cancellationToken)
+        private async Task ExecuteBatchDmlAsync(SpannerRetriableConnection spannerConnection, SpannerRetriableTransaction transaction, CancellationToken cancellationToken)
         {
             // Create a Batch DML command that contains all the updates in this batch.
             // The update statements will include any concurrency token checks that might be needed.
@@ -326,6 +355,29 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             relationalReader.Initialize(connection, command, reader, Guid.NewGuid(), Dependencies.Logger);
             return relationalReader;
         }
+        
+        private List<SpannerRetriableCommand> CreateSpannerDmlCommands(SpannerRetriableConnection connection, SpannerRetriableTransaction transaction)
+        {
+            var commands = new List<SpannerRetriableCommand>();
+            var commandPosition = 0;
+            foreach (var modificationCommand in _modificationCommands)
+            {
+                var command = CreateSpannerDmlCommand(_thenReturnSqlGenerator, connection, modificationCommand, commandPosition);
+                var retriableCommand = new SpannerRetriableCommand(connection, command.Item1);
+                retriableCommand.Transaction = transaction;
+                commands.Add(retriableCommand);
+                if (command.Item2 != null)
+                {
+                    throw new ArgumentException();
+                }
+                if (modificationCommand is SpannerPendingCommitTimestampModificationCommand commitTimestampModificationCommand)
+                {
+                    transaction.AddSpannerPendingCommitTimestampModificationCommand(commitTimestampModificationCommand);
+                }
+                commandPosition++;
+            }
+            return commands;
+        }
 
         /// <summary>
         /// Generates a Batch DML command for the modifications in this batch and SELECT statements for any
@@ -339,7 +391,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             cmd.Transaction = transaction;
             foreach (var modificationCommand in _modificationCommands)
             {
-                var commands = CreateSpannerDmlCommand(connection, modificationCommand, commandPosition);
+                var commands = CreateSpannerDmlCommand(Dependencies.UpdateSqlGenerator, connection, modificationCommand, commandPosition);
                 cmd.Add(commands.Item1);
                 if (commands.Item2 != null)
                 {
@@ -358,20 +410,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             return Tuple.Create(cmd, selectCommands);
         }
 
-        private Tuple<SpannerCommand, SpannerRetriableCommand> CreateSpannerDmlCommand(SpannerRetriableConnection connection, IReadOnlyModificationCommand modificationCommand, int commandPosition)
+        private Tuple<SpannerCommand, SpannerRetriableCommand> CreateSpannerDmlCommand(
+            IUpdateSqlGenerator updateSqlGenerator,
+            SpannerRetriableConnection connection,
+            IReadOnlyModificationCommand modificationCommand,
+            int commandPosition)
         {
             var builder = new StringBuilder();
             ResultSetMapping res;
             switch (modificationCommand.EntityState)
             {
                 case EntityState.Deleted:
-                    res = Dependencies.UpdateSqlGenerator.AppendDeleteOperation(builder, modificationCommand, commandPosition);
+                    res = updateSqlGenerator.AppendDeleteOperation(builder, modificationCommand, commandPosition);
                     break;
                 case EntityState.Modified:
-                    res = Dependencies.UpdateSqlGenerator.AppendUpdateOperation(builder, modificationCommand, commandPosition);
+                    res = updateSqlGenerator.AppendUpdateOperation(builder, modificationCommand, commandPosition);
                     break;
                 case EntityState.Added:
-                    res = Dependencies.UpdateSqlGenerator.AppendInsertOperation(builder, modificationCommand, commandPosition);
+                    res = updateSqlGenerator.AppendInsertOperation(builder, modificationCommand, commandPosition);
                     break;
                 default:
                     throw new NotSupportedException(
@@ -394,7 +450,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 dml = dml.TrimEnd('\r', '\n', _statementTerminator);
             }
             // This intentionally uses a SpannerCommand instead of the internal SpannerRetriableCommand, because the command
-            // will eventually be added to a BatchCommand.
+            // could eventually be added to a BatchCommand.
             var cmd = connection.SpannerConnection.CreateDmlCommand(dml);
             AppendWriteParameters(modificationCommand, cmd, false, true);
             return Tuple.Create(cmd, selectCommand);

@@ -29,6 +29,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         public SpannerUpdateSqlGenerator(UpdateSqlGeneratorDependencies dependencies)
             : base(dependencies)
         {
+            Dependencies = dependencies;
             if (dependencies.SqlGenerationHelper is SpannerSqlGenerationHelper spannerSqlGenerationHelper)
             {
                 _sqlGenerationHelper = new SpannerSqlGenerationHelper(spannerSqlGenerationHelper.Dependencies, ";");
@@ -38,6 +39,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 _sqlGenerationHelper = dependencies.SqlGenerationHelper;
             }
         }
+        
+        internal new UpdateSqlGeneratorDependencies Dependencies { get; }
 
         protected override ISqlGenerationHelper SqlGenerationHelper { get => _sqlGenerationHelper; }
 
