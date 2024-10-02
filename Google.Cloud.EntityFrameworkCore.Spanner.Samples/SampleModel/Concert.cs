@@ -23,6 +23,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
         public Concert()
         {
             Performances = new HashSet<Performance>();
+            TicketSales = new HashSet<TicketSale>();
         }
 
         public string VenueCode { get; set; }
@@ -39,5 +40,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
         public virtual Venue Venue { get; set; }
 
         public virtual ICollection<Performance> Performances { get; set; }
+
+        public virtual ICollection<TicketSale> TicketSales { get; set; }
     }
 }

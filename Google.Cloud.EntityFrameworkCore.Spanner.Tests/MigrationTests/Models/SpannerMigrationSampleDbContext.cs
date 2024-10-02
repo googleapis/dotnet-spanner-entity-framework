@@ -136,14 +136,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
 
             modelBuilder.Entity<TableWithAllColumnTypes>(entity =>
             {
-                entity.HasKey(e => e.ColInt64)
+                entity.HasKey(e => e.ColSequence)
                     .HasName("PRIMARY_KEY");
 
                 entity.HasIndex(e => new { e.ColDate, e.ColCommitTs })
                     .HasDatabaseName("IDX_TableWithAllColumnTypes_ColDate_ColCommitTS")
                     .IsNullFiltered();
 
-                entity.Property(e => e.ColInt64).ValueGeneratedNever();
+                entity.Property(e => e.ColSequence).ValueGeneratedOnAdd();
+                entity.Property(e => e.ColSequence).HasDefaultValueSql("GET_NEXT_SEQUENCE_VALUE(SEQUENCE MySequence)");
 
                 entity.Property(e => e.ColBytes).HasMaxLength(100);
 

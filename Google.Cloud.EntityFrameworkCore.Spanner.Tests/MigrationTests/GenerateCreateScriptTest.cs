@@ -66,6 +66,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
 )PRIMARY KEY (`SingerId`)
 
 CREATE TABLE `TableWithAllColumnTypes` (
+    `ColSequence` INT64 NOT NULL DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE MySequence)),
     `ColInt64` INT64 NOT NULL,
     `ColFloat64` FLOAT64,
     `ColNumeric` NUMERIC,
@@ -90,7 +91,7 @@ CREATE TABLE `TableWithAllColumnTypes` (
     `ColTimestampArray` ARRAY<TIMESTAMP>,
     `ColGuid` STRING(36),
     `ColComputed` STRING(MAX) AS (ARRAY_TO_STRING(ColStringArray, ',')) STORED
-)PRIMARY KEY (`ColInt64`)
+)PRIMARY KEY (`ColSequence`)
 
 CREATE TABLE `Venues` (
     `Code` STRING(10) NOT NULL,

@@ -22,6 +22,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
 {
     public partial class TableWithAllColumnTypes
     {
+        public long ColSequence { get; set; }
         public long ColInt64 { get; set; }
         public double? ColFloat64 { get; set; }
         public SpannerNumeric? ColNumeric { get; set; }
