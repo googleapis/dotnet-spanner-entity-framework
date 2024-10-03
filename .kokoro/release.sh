@@ -35,13 +35,7 @@ then
     populate_all_secrets
 fi
 
-export GOOGLE_APPLICATION_CREDENTIALS="$SECRETS_LOCATION/cloud-sharp-jenkins-compute-service-account"
-export REQUESTER_PAYS_CREDENTIALS="$SECRETS_LOCATION/gcloud-devel-service-account"
-
-PYTHON3=$(source toolversions.sh && echo $PYTHON3)
-DOCS_CREDENTIALS="$SECRETS_LOCATION/docuploader_service_account"
 GOOGLE_CLOUD_NUGET_API_KEY="$(cat "$SECRETS_LOCATION"/google-cloud-nuget-api-key)"
-GOOGLE_APIS_PACKAGES_NUGET_API_KEY="$(cat "$SECRETS_LOCATION"/google-apis-nuget-api-key)"
 
 COMMITTISH=$COMMITTISH_OVERRIDE
 if [[ $COMMITTISH_OVERRIDE = "" ]]
