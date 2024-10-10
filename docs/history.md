@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.0.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.2.0...Google.Cloud.EntityFrameworkCore.Spanner-3.0.0) (2024-10-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* target Entity Framework Core 8 ([#434](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/434))
+
+### Features
+
+* retry DML with THEN RETURN in transactions ([#446](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/446)) ([7679d6f](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/7679d6fd77c017854ce88354b9edd11bbece301e))
+* support bit-reversed sequences ([#442](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/442)) ([252e1f8](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/252e1f82ff593f6a666f1be42a336483429010ca))
+* support THEN RETURN clauses ([#443](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/443)) ([58cd4e2](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/58cd4e2e246f75a483dad607483b18f737f7b250))
+* target Entity Framework Core 8 ([#434](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/434)) ([73bd082](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/73bd0827f508de565d6fb3e1c5f069f71766507a))
+
 ## [2.2.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.1.6...Google.Cloud.EntityFrameworkCore.Spanner-2.2.0) (2024-10-02)
 
 
