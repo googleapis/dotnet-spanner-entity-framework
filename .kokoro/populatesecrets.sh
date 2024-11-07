@@ -10,7 +10,7 @@ populate_all_secrets(){
 
     populate_secrets "${COMMON_SECRETS}" "cloud-sharp-jenkins"
     populate_secrets "${JOB_SECRETS}" "cloud-sharp-jenkins"
-    populate_secrets "${EXTERNAL_SECRETS}" "cloud-devrel-kokoro-resources"
+    populate_secrets "${EXTERNAL_SECRETS}" "cloud-sdk-release-custom-pool"
 
     # docuploader expects credentials on the Keystore path, so let's copy them there as well.
     if [ -f "${SECRETS_LOCATION}/docuploader_service_account" ];
