@@ -111,6 +111,38 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task FindSingersUsingListOfIds_UsesParameterizedQuery()
+        {
+            var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, `s`.`Picture`{Environment.NewLine}" +
+                      $"FROM `Singers` AS `s`{Environment.NewLine}" +
+                      $"WHERE `s`.`SingerId` IN  UNNEST (@__singerIds_0)";
+            AddFindSingerResult(sql);
+
+            var singerIds = new List<long>{1L, 2L, 3L};
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var singers = await db.Singers.Where(singer => singerIds.Contains(singer.SingerId)).ToListAsync();
+            Assert.Single(singers);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Single(request.Params.Fields);
+                    var fields = request.Params.Fields;
+                    Assert.Collection(fields["__singerIds_0"].ListValue.Values,
+                        v => Assert.Equal("1", v.StringValue),
+                        v => Assert.Equal("2", v.StringValue),
+                        v => Assert.Equal("3", v.StringValue)
+                    );
+                    Assert.Single(request.ParamTypes);
+                    var type = request.ParamTypes["__singerIds_0"];
+                    Assert.Equal(V1.TypeCode.Array, type.Code);
+                    Assert.Equal(V1.TypeCode.Int64, type.ArrayElementType.Code);
+                }
+            );
+        }
+
+        [Fact]
         public async Task FindSingerAsync_ReturnsInstance_IfFound()
         {
             var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +

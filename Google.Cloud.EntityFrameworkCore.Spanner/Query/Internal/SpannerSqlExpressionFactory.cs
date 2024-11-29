@@ -30,6 +30,19 @@ public class SpannerSqlExpressionFactory : SqlExpressionFactory
         _boolTypeMapping = dependencies.TypeMappingSource.FindMapping(typeof(bool), dependencies.Model)!;
     }
     
+    public override InExpression In(SqlExpression item, SqlParameterExpression valuesParameter)
+    {
+        var parametersTypeMapping = Dependencies.TypeMappingSource.FindMapping(valuesParameter.Type);
+        if (parametersTypeMapping != null)
+        {
+            return new SpannerInExpression(
+                item,
+                (SqlParameterExpression) valuesParameter.ApplyTypeMapping(parametersTypeMapping),
+                _boolTypeMapping);
+        }
+        return base.In(item, valuesParameter);
+    }
+    
     public virtual SpannerContainsExpression SpannerContains(SqlExpression item, SqlExpression values, bool negated)
     {
         var typeMapping = item.TypeMapping ?? Dependencies.TypeMappingSource.FindMapping(item.Type, Dependencies.Model);
