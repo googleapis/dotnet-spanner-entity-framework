@@ -44,6 +44,19 @@ public class SpannerSqlNullabilityProcessor : SqlNullabilityProcessor
         return sqlExpression;
     }
 
+    protected override SqlExpression VisitIn(
+        InExpression inExpression,
+        bool allowOptimizedExpansion,
+        out bool nullable)
+    {
+        if (inExpression.GetType() == typeof(SpannerInExpression))
+        {
+            nullable = false;
+            return inExpression;
+        }
+        return base.VisitIn(inExpression, allowOptimizedExpansion, out nullable);
+    }
+
     protected virtual SqlExpression VisitSpannerContains(SpannerContainsExpression containsExpression, out bool nullable)
     {
         var item = Visit(containsExpression.Item, out var itemNullable);

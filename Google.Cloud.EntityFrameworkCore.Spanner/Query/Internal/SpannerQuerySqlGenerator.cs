@@ -128,6 +128,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 
             return base.VisitSqlFunction(sqlFunctionExpression);
         }
+        
+        protected override void GenerateIn(InExpression inExpression, bool negated)
+        {
+            if (inExpression.GetType() != typeof(SpannerInExpression))
+            {
+                base.GenerateIn(inExpression, negated);
+                return;
+            }
+            Visit(inExpression.Item);
+            Sql.Append(negated ? " NOT IN " : " IN ");
+            Sql.Append(" UNNEST (");
+            Visit(inExpression.ValuesParameter);
+            Sql.Append(")");
+        }
 
         protected virtual Expression VisitContains(SpannerContainsExpression containsExpression)
         {
