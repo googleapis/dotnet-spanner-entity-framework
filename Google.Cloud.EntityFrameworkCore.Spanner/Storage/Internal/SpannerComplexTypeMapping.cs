@@ -48,12 +48,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
             _complexType = complexType;
             _clrType = clrType;
-            IsArrayType = SpannerComplexTypeMapping.s_arrayTypes.Contains(complexType);
+            IsArrayType = s_arrayTypes.Contains(complexType);
+        }
+
+        private SpannerComplexTypeMapping(RelationalTypeMappingParameters parameters, SpannerDbType complexType, System.Type clrType)
+            : base(parameters)
+        {
+            _complexType = complexType;
+            _clrType = clrType;
+            IsArrayType = s_arrayTypes.Contains(complexType);
         }
 
         protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters)
         {
-            return new SpannerComplexTypeMapping(_complexType, _clrType, parameters.Unicode, parameters.Size);
+            return new SpannerComplexTypeMapping(parameters, _complexType, _clrType);
         }
 
         protected override void ConfigureParameter(DbParameter parameter)
