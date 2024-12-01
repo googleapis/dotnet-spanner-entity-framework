@@ -567,9 +567,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task CanUseInnerJoin()
         {
             using var db = CreateContext();
-            var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
-                $"`s`.`Picture`, `a`.`AlbumId`, `a`.`ReleaseDate`, `a`.`SingerId`, `a`.`Title`{Environment.NewLine}" +
-                $"FROM `Singers` AS `s`{Environment.NewLine}INNER JOIN `Albums` AS `a` ON `s`.`SingerId` = `a`.`SingerId`";
+            var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, `s`.`Picture`, `a`.`AlbumId`, `a`.`Awards`, `a`.`ReleaseDate`, `a`.`SingerId`, `a`.`Title`{Environment.NewLine}" +
+                      $"FROM `Singers` AS `s`{Environment.NewLine}" +
+                      $"INNER JOIN `Albums` AS `a` ON `s`.`SingerId` = `a`.`SingerId`";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -580,13 +580,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Tuple.Create(V1.TypeCode.String, "LastName"),
                     Tuple.Create(V1.TypeCode.Bytes, "Picture"),
                     Tuple.Create(V1.TypeCode.Int64, "AlbumId"),
+                    Tuple.Create(V1.TypeCode.Array, "Awards"),
                     Tuple.Create(V1.TypeCode.Date, "ReleaseDate"),
                     Tuple.Create(V1.TypeCode.Int64, "SingerId"),
                     Tuple.Create(V1.TypeCode.String, "Title"),
                 },
                 new List<object[]>
                 {
-                    new object[] { 1L, null, "Zeke", "Zeke Peterson", "Peterson", null, 100L, null, 1L, "Some Title" },
+                    new object[] { 1L, null, "Zeke", "Zeke Peterson", "Peterson", null, 100L, new List<string>{"award 1", "award 2"}, null, 1L, "Some Title" },
                 }
             ));
 
@@ -602,9 +603,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task CanUseOuterJoin()
         {
             using var db = CreateContext();
-            var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
-                $"`s`.`Picture`, `a`.`AlbumId`, `a`.`ReleaseDate`, `a`.`SingerId`, `a`.`Title`{Environment.NewLine}" +
-                $"FROM `Singers` AS `s`{Environment.NewLine}LEFT JOIN `Albums` AS `a` ON `s`.`SingerId` = `a`.`SingerId`";
+            var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, `s`.`Picture`, `a`.`AlbumId`, `a`.`Awards`, `a`.`ReleaseDate`, `a`.`SingerId`, `a`.`Title`{Environment.NewLine}" +
+                      $"FROM `Singers` AS `s`{Environment.NewLine}" +
+                      $"LEFT JOIN `Albums` AS `a` ON `s`.`SingerId` = `a`.`SingerId`";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -615,14 +616,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Tuple.Create(V1.TypeCode.String, "LastName"),
                     Tuple.Create(V1.TypeCode.Bytes, "Picture"),
                     Tuple.Create(V1.TypeCode.Int64, "AlbumId"),
+                    Tuple.Create(V1.TypeCode.Array, "Awards"),
                     Tuple.Create(V1.TypeCode.Date, "ReleaseDate"),
                     Tuple.Create(V1.TypeCode.Int64, "SingerId"),
                     Tuple.Create(V1.TypeCode.String, "Title"),
                 },
                 new List<object[]>
                 {
-                    new object[] { 2L, null, "Alice", "Alice Morrison", "Morrison", null, null, null, null, null },
-                    new object[] { 3L, null, "Zeke", "Zeke Peterson", "Peterson", null, 100L, null, 3L, "Some Title" },
+                    new object[] { 2L, null, "Alice", "Alice Morrison", "Morrison", null, null, null, null, null, null },
+                    new object[] { 3L, null, "Zeke", "Zeke Peterson", "Peterson", null, 100L, new List<string>{"award 1", "award 2"}, null, 3L, "Some Title" },
                 }
             ));
 

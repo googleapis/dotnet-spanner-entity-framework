@@ -28,6 +28,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         public string Title { get; set; }
         public SpannerDate? ReleaseDate { get; set; }
         public long SingerId { get; set; }
+        public HashSet<string> Awards { get; set; } = new ();
 
         public virtual Singers Singer { get; set; }
         public virtual ICollection<Tracks> Tracks { get; set; }

@@ -14,7 +14,7 @@
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Metadata;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata;
+using System.Linq;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 {
@@ -50,6 +50,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                 entity.Property(e => e.Title)
                     .IsRequired()
                     .HasMaxLength(100);
+                entity.Property(p => p.Awards)
+                    .HasConversion(hs => hs.ToList(),
+                        ls => ls.ToHashSet());
 
                 entity.HasOne(d => d.Singer)
                     .WithMany(p => p.Albums)

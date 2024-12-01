@@ -99,7 +99,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         public static StatementResult CreateResultSet(IEnumerable<Tuple<V1.TypeCode, string>> columns, IEnumerable<object[]> rows) =>
-            CreateResultSet(columns.Select(x => Tuple.Create(new V1.Type { Code = x.Item1 }, x.Item2)).ToList(), rows);
+            CreateResultSet(columns.Select(x => Tuple.Create(new V1.Type { Code = x.Item1, ArrayElementType = x.Item1 == V1.TypeCode.Array ? new V1.Type {Code=V1.TypeCode.String} : null}, x.Item2)).ToList(), rows);
 
         public static StatementResult CreateResultSet(IEnumerable<Tuple<V1.Type, string>> columns, IEnumerable<object[]> rows)
         {
