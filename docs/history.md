@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.0.1](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.0.0...Google.Cloud.EntityFrameworkCore.Spanner-3.0.1) (2024-12-01)
+
+
+### Bug Fixes
+
+* ValueConverters were not respected for complex types ([#475](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/475)) ([0cd4d74](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/0cd4d74ab29d1906b757eda53bb2ca921824c176)), closes [#462](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/462)
+
+
+### Performance Improvements
+
+* translate Contains to a parameterized IN query ([#472](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/472)) ([85cad1c](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/85cad1cc0f1ca332a10c278c20e4870ea8669872))
+
 ## [3.0.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-2.2.0...Google.Cloud.EntityFrameworkCore.Spanner-3.0.0) (2024-10-10)
 
 
