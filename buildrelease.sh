@@ -46,6 +46,9 @@ rm -rf releasebuild
 git clone ${clone_path_prefix}googleapis/dotnet-spanner-entity-framework.git releasebuild -c core.autocrlf=input --recursive
 cd releasebuild
 
+# See b/381899554
+git config --global --add safe.directory C:/tmpfs/src/github/dotnet-spanner-entity-framework
+
 # Make sure the package is deterministic. We don't do this for local builds,
 # but it makes debugging work more reliably for PDBs in packages.
 export DeterministicSourcePaths=true
