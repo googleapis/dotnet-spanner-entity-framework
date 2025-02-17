@@ -24,7 +24,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.13" PrivateAssets="All"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="8.0.13"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.13"/>
-    <PackageReference Include="OpenTelemetry.Api" Version="1.10.0"/>
+    <PackageReference Include="OpenTelemetry.Api" Version="1.11.1"/>
     <PackageReference Include="System.Text.Json" Version="8.0.5"/>
   </ItemGroup>
 
