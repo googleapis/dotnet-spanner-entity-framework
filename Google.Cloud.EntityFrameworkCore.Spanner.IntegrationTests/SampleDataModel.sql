@@ -71,6 +71,7 @@ CREATE TABLE Performances (
   TrackId          INT64 NOT NULL,
   StartTime        TIMESTAMP,
   Rating           FLOAT64,
+  PerformanceType  INT64,
   CONSTRAINT FK_Performances_Concerts FOREIGN KEY (VenueCode, ConcertStartTime, SingerId) REFERENCES Concerts (VenueCode, StartTime, SingerId),
   CONSTRAINT FK_Performances_Singers FOREIGN KEY (SingerId) REFERENCES Singers (SingerId),
   CONSTRAINT FK_Performances_Tracks FOREIGN KEY (AlbumId, TrackId) REFERENCES Tracks (AlbumId, TrackId),

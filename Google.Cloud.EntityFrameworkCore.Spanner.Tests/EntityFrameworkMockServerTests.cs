@@ -175,6 +175,93 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task FindPerformancesByType_UsesParameterizedQuery()
+        {
+            var sql = $"SELECT `p`.`VenueCode`, `p`.`SingerId`, `p`.`StartTime`, `p`.`AlbumId`, `p`.`ConcertStartTime`, `p`.`PerformanceType`, `p`.`Rating`, `p`.`TrackId`{Environment.NewLine}" +
+                      $"FROM `Performances` AS `p`{Environment.NewLine}" +
+                      $"WHERE `p`.`PerformanceType` = @__type_0";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.String, "VenueCode"),
+                    Tuple.Create(V1.TypeCode.Int64, "SingerId"),
+                    Tuple.Create(V1.TypeCode.Timestamp, "StartTime"),
+                    Tuple.Create(V1.TypeCode.Int64, "AlbumId"),
+                    Tuple.Create(V1.TypeCode.Timestamp, "ConcertStartTime"),
+                    Tuple.Create(V1.TypeCode.Int64, "PerformanceType"),
+                    Tuple.Create(V1.TypeCode.Float64, "Rating"),
+                    Tuple.Create(V1.TypeCode.Int64, "TrackId"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "VC", "1", "2025-02-18T14:00:00Z", "1", "2025-02-18T14:00:00Z", "0", 8.9, "1" },
+                }
+            ));
+
+            var type = PerformanceType.Live;
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var performances = await db.Performances.Where(performances => performances.PerformanceType == type).ToListAsync();
+            Assert.Single(performances);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Single(request.Params.Fields);
+                    var fields = request.Params.Fields;
+                    Assert.Equal("0", fields["__type_0"].StringValue);
+                    Assert.Single(request.ParamTypes);
+                    var type = request.ParamTypes["__type_0"];
+                    Assert.Equal(V1.TypeCode.Int64, type.Code);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task FindPerformancesByCollectionOfTypes_UsesParameterizedQuery()
+        {
+            var sql = $"SELECT `p`.`VenueCode`, `p`.`SingerId`, `p`.`StartTime`, `p`.`AlbumId`, `p`.`ConcertStartTime`, `p`.`PerformanceType`, `p`.`Rating`, `p`.`TrackId`{Environment.NewLine}" +
+                      $"FROM `Performances` AS `p`{Environment.NewLine}" +
+                      $"WHERE CAST(`p`.`PerformanceType` AS INT64) IN  UNNEST (@__typesAsInts_0)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.String, "VenueCode"),
+                    Tuple.Create(V1.TypeCode.Int64, "SingerId"),
+                    Tuple.Create(V1.TypeCode.Timestamp, "StartTime"),
+                    Tuple.Create(V1.TypeCode.Int64, "AlbumId"),
+                    Tuple.Create(V1.TypeCode.Timestamp, "ConcertStartTime"),
+                    Tuple.Create(V1.TypeCode.Int64, "PerformanceType"),
+                    Tuple.Create(V1.TypeCode.Float64, "Rating"),
+                    Tuple.Create(V1.TypeCode.Int64, "TrackId"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "VC", "1", "2025-02-18T14:00:00Z", "1", "2025-02-18T14:00:00Z", "0", 8.9, "1" },
+                }
+            ));
+
+            var types = new List<PerformanceType>{PerformanceType.Live, PerformanceType.Playback};
+            var typesAsInts = types.ConvertAll(t => (int)t);
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var performances = await db.Performances.Where(performances => typesAsInts.Contains((int) performances.PerformanceType)).ToListAsync();
+            Assert.Single(performances);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    // Assert.Single(request.Params.Fields);
+                    // var fields = request.Params.Fields;
+                    // Assert.Equal("0", fields["__type_0"].StringValue);
+                    // Assert.Single(request.ParamTypes);
+                    // var type = request.ParamTypes["__type_0"];
+                    // Assert.Equal(V1.TypeCode.Int64, type.Code);
+                }
+            );
+        }
+
+        [Fact]
         public async Task FindSingerAsync_ReturnsInstance_IfFound()
         {
             var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
