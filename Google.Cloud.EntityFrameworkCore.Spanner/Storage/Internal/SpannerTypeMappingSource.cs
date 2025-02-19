@@ -132,6 +132,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly SpannerComplexTypeMapping s_longList
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<long>));
 
+        private static readonly SpannerComplexTypeMapping s_nullableIntArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(int?[]));
+        private static readonly SpannerComplexTypeMapping s_intArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(int[]));
+
+        private static readonly SpannerComplexTypeMapping s_nullableIntList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<int?>));
+        private static readonly SpannerComplexTypeMapping s_intList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<int>));
+
         private static readonly SpannerNullableDateArrayTypeMapping s_nullableDateArray = new SpannerNullableDateArrayTypeMapping();
         private static readonly SpannerDateArrayTypeMapping s_dateArray = new SpannerDateArrayTypeMapping();
 
@@ -217,6 +227,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(double?[]), s_nullableDoubleArray},
                     {typeof(List<double>), s_doubleList},
                     {typeof(List<double?>), s_nullableDoubleList},
+                    {typeof(int[]), s_intArray},
+                    {typeof(int?[]), s_nullableIntArray},
+                    {typeof(List<int>), s_intList},
+                    {typeof(List<int?>), s_nullableIntList},
                     {typeof(long[]), s_longArray},
                     {typeof(long?[]), s_nullableLongArray},
                     {typeof(List<long>), s_longList},

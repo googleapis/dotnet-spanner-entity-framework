@@ -16,6 +16,12 @@ using System;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 {
+    public enum PerformanceType
+    {
+        Live,
+        Playback,
+    }
+
     public partial class Performances
     {
         public string VenueCode { get; set; }
@@ -25,6 +31,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         public long TrackId { get; set; }
         public DateTime? StartTime { get; set; }
         public double? Rating { get; set; }
+        public PerformanceType PerformanceType { get; set; }
 
         public virtual Concerts Concerts { get; set; }
         public virtual Singers Singer { get; set; }

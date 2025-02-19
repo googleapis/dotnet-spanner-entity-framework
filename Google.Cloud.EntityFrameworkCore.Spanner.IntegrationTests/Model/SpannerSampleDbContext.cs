@@ -89,6 +89,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                     .HasName("PRIMARY_KEY");
 
                 entity.Property(e => e.VenueCode).HasMaxLength(10);
+                entity
+                    .Property(e => e.PerformanceType)
+                    .HasConversion(
+                        v => (int) v,
+                        v => (PerformanceType) v);
 
                 entity.HasOne(d => d.Singer)
                     .WithMany(p => p.Performances)
