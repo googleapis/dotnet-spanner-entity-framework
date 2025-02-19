@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.0.1...Google.Cloud.EntityFrameworkCore.Spanner-3.1.0) (2025-02-19)
+
+
+### Features
+
+* add type mapping for int arrays and int lists ([#490](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/490)) ([1ba0ce7](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/1ba0ce790526e43d373f9a5fc86ce80d3d411821))
+
 ## [3.0.1](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.0.0...Google.Cloud.EntityFrameworkCore.Spanner-3.0.1) (2024-12-01)
 
 
