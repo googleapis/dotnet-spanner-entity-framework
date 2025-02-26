@@ -6,9 +6,9 @@ Supported .NET versions and Entity Framework Core versions:
 * Version 2.x of this provider targets Entity Framework Core version 6.0 and .NET 6.
 * Version 1.x of this provider targets Entity Framework Core 3.1.
 
-Known limitations are listed in the [issues](https://github.com/cloudspannerecosystem/dotnet-spanner-entity-framework/issues?q=is%3Aissue+is%3Aopen+label%3A%22known+limitation%22) list.
+Known limitations are listed in the [issues](https://github.com/googleapis/dotnet-spanner-entity-framework/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22known%20limitation%22) list.
 All supported features have been tested and verified to work with the test configurations. There may be configurations and/or data model variations that have not
-yet been covered by the tests and that show unexpected behavior. Please report any problems that you might encounter by [creating a new issue](https://github.com/cloudspannerecosystem/dotnet-spanner-entity-framework/issues/new).
+yet been covered by the tests and that show unexpected behavior. Please report any problems that you might encounter by [creating a new issue](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/new).
 
 # Getting started
 The Entity Framework Core provider allows you to use the Entity Framework to create your database, query and update data.
