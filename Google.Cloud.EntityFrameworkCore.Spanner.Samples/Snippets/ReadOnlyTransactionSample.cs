@@ -37,11 +37,11 @@ public static class ReadOnlyTransactionSample
         // This transaction will be assigned a read-timestamp at the first read that it executes and all
         // following read operations will also use the same read timestamp. Any changes that are made after
         // this read timestamp will not be visible to the transaction.
-        // NOTE: Although read-only transaction cannot be committed or rollbacked, they still need to be disposed.
+        // NOTE: Although read-only transaction cannot be committed or rolled back, they still need to be disposed.
         using var transaction = await context.Database.BeginReadOnlyTransactionAsync(TimestampBound.Strong);
 
         // Search for a singer with a new id. This will establish a read timestamp for the read-only transaction.
-        var singerId = Guid.NewGuid();
+        var singerId = Random.Shared.NextInt64();
         var count = await context.Singers
             .Where(s => s.SingerId == singerId)
             .CountAsync();

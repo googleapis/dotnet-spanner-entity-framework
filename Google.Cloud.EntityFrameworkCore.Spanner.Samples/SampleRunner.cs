@@ -88,7 +88,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Running sample failed: {e.Message}");
+                Console.WriteLine($"Running sample failed: {e.Message}\n{e.StackTrace}");
                 if (failOnException)
                 {
                     throw;

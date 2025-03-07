@@ -199,6 +199,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                         principalColumns: new[] { "VenueCode", "StartTime", "SingerId" },
                         onDelete: ReferentialAction.Restrict);
                 });
+            migrationBuilder.CreateTable(
+                name: "TicketSales",
+                columns: table => new
+                {
+                    Id = table.Column<long>(nullable: false).Annotation(SpannerAnnotationNames.Identity, SpannerIdentityOptionsData.Default),
+                    CustomerName = table.Column<string>(),
+                });
 
             migrationBuilder.CreateIndex(
                 name: "AlbumsByAlbumTitle2",

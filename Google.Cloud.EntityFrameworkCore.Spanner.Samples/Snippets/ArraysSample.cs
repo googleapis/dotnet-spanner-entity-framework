@@ -15,6 +15,7 @@
 using Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 /// <summary>
@@ -70,20 +71,16 @@ public static class ArraysSample
     {
         var singer = new Singer
         {
-            SingerId = Guid.NewGuid(),
             FirstName = "Hannah",
-            LastName = "Polansky"
+            LastName = "Polansky",
+            Albums = new List<Album>
+            {
+                new() { Title = "Somewhere" }
+            }
         };
         await context.Singers.AddAsync(singer);
-        var album = new Album
-        {
-            AlbumId = Guid.NewGuid(),
-            SingerId = singer.SingerId,
-            Title = "Somewhere",
-        };
-        await context.Albums.AddAsync(album);
         await context.SaveChangesAsync();
 
-        return (singer, album);
+        return (singer, singer.Albums.First());
     }
 }

@@ -16,6 +16,7 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -47,30 +48,17 @@ public static class JoinQuerySample
     {
         var singer = new Singer
         {
-            SingerId = Guid.NewGuid(),
             FirstName = "Alice",
             LastName = "Henderson",
             BirthDate = new SpannerDate(1983, 10, 19),
+            Albums = new List<Album>
+            {
+                new() { Title = "Henderson's first" },
+                new() { Title = "Henderson's second" },
+                new() { Title = "Henderson's third" }
+            }
         };
         await context.Singers.AddAsync(singer);
-        await context.Albums.AddRangeAsync(new Album
-            {
-                AlbumId = Guid.NewGuid(),
-                SingerId = singer.SingerId,
-                Title = "Henderson's first",
-            },
-            new Album
-            {
-                AlbumId = Guid.NewGuid(),
-                SingerId = singer.SingerId,
-                Title = "Henderson's second",
-            },
-            new Album
-            {
-                AlbumId = Guid.NewGuid(),
-                SingerId = singer.SingerId,
-                Title = "Henderson's third",
-            });
         await context.SaveChangesAsync();
     }
 }

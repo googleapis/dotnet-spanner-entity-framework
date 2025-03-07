@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.Metadata;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;

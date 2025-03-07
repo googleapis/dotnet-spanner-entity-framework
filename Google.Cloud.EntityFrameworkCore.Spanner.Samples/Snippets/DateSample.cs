@@ -33,7 +33,6 @@ public static class DateSample
         using var context = new SpannerSampleDbContext(connectionString);
         var singer = new Singer
         {
-            SingerId = Guid.NewGuid(),
             FirstName = "Yvette",
             LastName = "Wendelson",
             // SpannerDate is specifically designed to map a DATE column in a Cloud Spanner

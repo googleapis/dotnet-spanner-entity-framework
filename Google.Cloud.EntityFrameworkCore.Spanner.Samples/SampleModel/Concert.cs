@@ -33,7 +33,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
         /// them from DATE columns that by default are mapped to <see cref="SpannerDate"/>.
         /// </summary>
         public DateTime StartTime { get; set; }
-        public Guid SingerId { get; set; }
+        public long SingerId { get; set; }
         public string Title { get; set; }
 
         public virtual Singer Singer { get; set; }

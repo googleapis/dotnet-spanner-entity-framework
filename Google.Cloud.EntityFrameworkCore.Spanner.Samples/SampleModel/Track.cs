@@ -36,7 +36,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
         /// of the PRIMARY KEY of the parent table, in addition to any additional key columns
         /// of the child table. https://cloud.google.com/spanner/docs/schema-and-data-model#creating-interleaved-tables
         /// </summary>
-        public Guid AlbumId { get; set; }
+        public long AlbumId { get; set; }
         public long TrackId { get; set; }
 
         public string Title { get; set; }

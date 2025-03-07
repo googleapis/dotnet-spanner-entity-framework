@@ -14,6 +14,8 @@
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 /// <summary>
@@ -35,41 +37,33 @@ public static class InterleavedTableSample
         using var context = new SpannerSampleDbContext(connectionString);
         var singer = new Singer
         {
-            SingerId = Guid.NewGuid(),
             FirstName = "Brian",
             LastName = "Truman",
+            Albums = new List<Album>
+            {
+                new()
+                {
+                    Title = "Potatoes",
+                    // Tracks are interleaved in Albums. This relationship is treated the same as FOREIGN KEYS in
+                    // Entity Framework Core, which means that we can traverse the relationship both ways, and any
+                    // Track that references an Album that has is associated with the database context will also be
+                    // associated with the context.
+                    Tracks = new List<Track>
+                    {
+                        new() {TrackId = 1, Title = "They are good"},
+                        new() {TrackId = 2, Title = "Some find them delicious"},
+                    }
+                }
+            }
         };
         await context.Singers.AddAsync(singer);
 
-        var album = new Album
-        {
-            AlbumId = Guid.NewGuid(),
-            SingerId = singer.SingerId,
-            Title = "Potatoes",
-        };
-        await context.Albums.AddAsync(album);
-
-        // Tracks are interleaved in Albums. This relationship is treated the same as FOREIGN KEYS in
-        // Entity Framework Core, which means that we can traverse the relationship both ways, and any
-        // Track that references an Album that has is associated with the database context will also be
-        // associated with the context.
-        album.Tracks.Add(new Track
-        {
-            AlbumId = album.AlbumId,
-            TrackId = 1L,
-            Title = "They are good",
-        });
-        album.Tracks.Add(new Track
-        {
-            AlbumId = album.AlbumId,
-            TrackId = 2L,
-            Title = "Some find them delicious",
-        });
         // This will save 1 singer, 1 album and 2 tracks.
         var updateCount = await context.SaveChangesAsync();
         Console.WriteLine($"Saved {updateCount} rows");
 
         // We can traverse the relationship from Track to Album.
+        var album = singer.Albums.First();
         foreach (var track in album.Tracks)
         {
             Console.WriteLine($"'{track.Title}' is on album '{track.Album.Title}'");

@@ -33,7 +33,6 @@ public static class GeneratedColumnSample
         // Setting it manually client side has no effect.
         var singer = new Singer
         {
-            SingerId = Guid.NewGuid(),
             FirstName = "Alice",
             LastName = "Jameson"
         };
