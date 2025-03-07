@@ -44,6 +44,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure
         // Never use mutations, always use DML. This configuration is not recommended for most applications.
         Never,
         // Use mutations for implicit transactions and DML for manual transactions.
+        // Mutations will not be used if the implicit transaction contains inserts with auto-generated
+        // primary key values or any other values that need to be returned as part of the insert/update
+        // statement.
+        //
         // This is the default and is the appropriate configuration for most applications.
         ImplicitTransactions,
         // Always use mutations, never use DML. This will disable read-your-writes for manual transactions.

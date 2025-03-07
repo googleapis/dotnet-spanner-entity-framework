@@ -34,7 +34,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
         /// See TicketSale for an example of using a server-side generated primary key value using a
         /// bit-reversed sequence.
         /// </summary>
-        public Guid AlbumId { get; set; }
+        public long AlbumId { get; set; }
         public string Title { get; set; }
 
         /// <summary>
@@ -46,7 +46,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
         /// <summary>
         /// FOREIGN KEY value referencing a Singer record.
         /// </summary>
-        public Guid SingerId { get; set; }
+        public long SingerId { get; set; }
 
         public virtual Singer Singer { get; set; }
 

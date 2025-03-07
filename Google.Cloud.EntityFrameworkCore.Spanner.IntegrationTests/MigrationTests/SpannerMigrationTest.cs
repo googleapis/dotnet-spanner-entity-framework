@@ -90,15 +90,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
         {
             using var context = new TestMigrationDbContext(_fixture.DatabaseName);
 
-            context.AllColTypes.Add(new AllColType
+            var entry = context.AllColTypes.Add(new AllColType
             {
-                Id = 1,
+                // Id = 1,
                 ColString = "Test String"
             });
 
             var rowCount = await context.SaveChangesAsync();
             Assert.Equal(1, rowCount);
-            var row = await context.AllColTypes.FindAsync(1);
+            Assert.True(entry.Entity.Id > 0L, $"entry.Entity.Id > 0L, but was {entry.Entity.Id}");
+            var row = await context.AllColTypes.FindAsync(entry.Entity.Id);
             Assert.NotNull(row);
             Assert.Null(row.ColTimestamp);
             Assert.Null(row.ColShort);
@@ -115,7 +116,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
             await context.SaveChangesAsync();
 
             // Retrieve updated row from database
-            row = await context.AllColTypes.FindAsync(1);
+            row = await context.AllColTypes.FindAsync(row.Id);
             Assert.NotNull(row);
             Assert.NotNull(row.ColBool);
             Assert.NotNull(row.ColBoolArray);
@@ -135,7 +136,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
             await context.SaveChangesAsync();
 
             // Retrieve updated row from database
-            row = await context.AllColTypes.FindAsync(1);
+            row = await context.AllColTypes.FindAsync(row.Id);
             Assert.NotNull(row);
             Assert.Null(row.ColBool);
             Assert.Null(row.ColBoolArray);
@@ -202,7 +203,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
             // Get inserted Rows from database.
             using (var context = new TestMigrationDbContext(_fixture.DatabaseName))
             {
-                var row = await context.AllColTypes.FindAsync(10);
+                var row = await context.AllColTypes.FindAsync(10L);
                 Assert.NotNull(row);
                 Assert.Equal(10, row.Id);
                 Assert.True(row.ColBool);
@@ -303,7 +304,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
             // Retrieve Updated Rows
             using (var context = new TestMigrationDbContext(_fixture.DatabaseName))
             {
-                var row = await context.AllColTypes.FindAsync(10);
+                var row = await context.AllColTypes.FindAsync(10L);
                 Assert.NotNull(row);
                 Assert.False(row.ColBool);
                 Assert.Equal(new [] { false, true, false }, row.ColBoolArray);
@@ -518,7 +519,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                 };
                 context.Articles.Add(article);
                 var rowCount = await context.SaveChangesAsync();
-                Assert.Equal(2, rowCount);
+                Assert.Equal(1, rowCount);
             }
 
             using (var context = new TestMigrationDbContext(_fixture.DatabaseName))

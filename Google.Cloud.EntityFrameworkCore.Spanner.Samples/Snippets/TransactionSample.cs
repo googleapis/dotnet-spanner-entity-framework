@@ -42,15 +42,14 @@ public static class TransactionSample
         // Create a new Singer, add it to the context and save the changes.
         // These changes have not yet been committed to the database and are
         // therefore not readable for other processes.
-        var singerId = Guid.NewGuid();
-        await context.Singers.AddAsync(new Singer
+        var entry = await context.Singers.AddAsync(new Singer
         {
-            SingerId = singerId,
             FirstName = "Bernhard",
             LastName = "Bennet"
         });
         var count = await context.SaveChangesAsync();
         Console.WriteLine($"Added {count} singer in a transaction.");
+        var singerId = entry.Entity.SingerId;
 
         // Now try to read the singer in a different context which will use a different transaction.
         // This will return null, as pending changes from other transactions are not visible.

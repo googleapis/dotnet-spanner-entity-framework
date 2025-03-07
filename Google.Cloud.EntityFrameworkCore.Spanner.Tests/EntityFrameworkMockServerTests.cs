@@ -409,7 +409,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request => Assert.Equal(typeof(ExecuteSqlRequest), request),
                 request => Assert.Equal(typeof(CommitRequest), request)
             );
-
         }
 
         [Fact]

@@ -14,6 +14,8 @@
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -74,25 +76,17 @@ public static class CommitTimestampSample
     {
         var singer = new Singer
         {
-            SingerId = Guid.NewGuid(),
             FirstName = "Alice",
             LastName = "Jameson",
+            Albums = new List<Album>
+            {
+                new() { Title = "Rainforest", Tracks = new List<Track>
+                {
+                    new() {TrackId = 1, Title = "Butterflies"},
+                }}
+            }
         };
         await context.Singers.AddAsync(singer);
-        var album = new Album
-        {
-            AlbumId = Guid.NewGuid(),
-            Title = "Rainforest",
-            SingerId = singer.SingerId,
-        };
-        await context.Albums.AddAsync(album);
-        var track = new Track
-        {
-            AlbumId = album.AlbumId,
-            TrackId = 1,
-            Title = "Butterflies",
-        };
-        await context.Tracks.AddAsync(track);
         if (await context.Venues.FindAsync("CON") == null)
         {
             await context.Venues.AddAsync(new Venue
@@ -106,13 +100,13 @@ public static class CommitTimestampSample
         var concert = new Concert
         {
             VenueCode = "CON",
-            SingerId = singer.SingerId,
+            Singer = singer,
             StartTime = new DateTime(2021, 1, 27, 18, 0, 0, DateTimeKind.Utc),
             Title = "Alice Jameson - LIVE in Concert Hall",
         };
         await context.AddAsync(concert);
 
         await context.SaveChangesAsync();
-        return (concert, track);
+        return (concert, singer.Albums.First().Tracks.First());
     }
 }
