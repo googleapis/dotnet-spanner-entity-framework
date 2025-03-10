@@ -38,7 +38,7 @@ public static class StaleReadSample
         var timestamp = (DateTime) await cmd.ExecuteScalarAsync();
 
         // Search for a singer with a new id. This singer will not be found.
-        var singerId = Guid.NewGuid();
+        var singerId = Random.Shared.NextInt64();
         var count = await context.Singers
             .Where(s => s.SingerId == singerId)
             .CountAsync();

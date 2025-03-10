@@ -29,7 +29,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                 name: "AllColTypes",
                 columns: table => new
                 {
-                    Id = table.Column<int>(nullable: false),
+                    Id = table.Column<int>(nullable: false).Annotation(SpannerAnnotationNames.Identity, SpannerIdentityOptionsData.Default),
                     ColShort = table.Column<short>(nullable: true),
                     ColInt = table.Column<int>(nullable: true),
                     ColLong = table.Column<long>(nullable: true),

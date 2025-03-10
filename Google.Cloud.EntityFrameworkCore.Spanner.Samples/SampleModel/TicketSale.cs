@@ -32,7 +32,7 @@ public class TicketSale : VersionedEntity
     /// </summary>
     public string VenueCode { get; set; }
     public DateTime ConcertStartTime { get; set; }
-    public Guid SingerId { get; set; }
+    public long SingerId { get; set; }
 
     public virtual Concert Concert { get; set; }
 }

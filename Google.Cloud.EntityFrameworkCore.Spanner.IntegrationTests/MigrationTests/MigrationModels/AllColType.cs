@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.V1;
 using System;
 using System.Collections.Generic;
@@ -23,7 +22,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 {
     public partial class AllColType
     {
-        public int Id { get; set; }
+        public long Id { get; set; }
         public short? ColShort { get; set; }
         public int? ColInt { get; set; }
         public long? ColLong { get; set; }
