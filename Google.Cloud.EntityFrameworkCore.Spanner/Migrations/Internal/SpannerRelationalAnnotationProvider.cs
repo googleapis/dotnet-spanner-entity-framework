@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Metadata;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -38,19 +39,44 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
         /// <inheritdoc />
         public override IEnumerable<IAnnotation> For(IColumn column, bool designTime)
         {
-            var baseAnnotations = base.For(column, designTime);
+            var property = column.PropertyMappings.First().Property;
+            var primaryKey = property.DeclaringType.ContainingEntityType.FindPrimaryKey();
+            if (primaryKey is { Properties.Count: 1 }
+                && primaryKey.Properties[0] == property
+                && property.ValueGenerated == ValueGenerated.OnAdd
+                && IsInteger(property.ClrType)
+                && !HasConverter(property))
+            {
+                var defaultIdentityOptions = column.Table.Model.Model.GetIdentityOptions();
+                yield return new Annotation(SpannerAnnotationNames.Identity, defaultIdentityOptions ?? SpannerIdentityOptionsData.Default);
+            }
 
             foreach (var mapping in column.PropertyMappings)
             {
                 var commitTimestampAnnotation = mapping.Property.FindAnnotation(SpannerAnnotationNames.UpdateCommitTimestamp);
                 if (commitTimestampAnnotation != null)
                 {
-                    return baseAnnotations.Concat(new[] { commitTimestampAnnotation });
+                    yield return commitTimestampAnnotation;
                 }
             }
-            return baseAnnotations;
         }
-
+        
+        private static bool HasConverter(IProperty property) => property.FindTypeMapping()?.Converter != null;
+        private  static System.Type UnwrapNullableType(System.Type type) => Nullable.GetUnderlyingType(type) ?? type;
+        private static bool IsInteger(System.Type type)
+        {
+            type = UnwrapNullableType(type);
+            return type == typeof(int)
+                   || type == typeof(long)
+                   || type == typeof(short)
+                   || type == typeof(byte)
+                   || type == typeof(uint)
+                   || type == typeof(ulong)
+                   || type == typeof(ushort)
+                   || type == typeof(sbyte)
+                   || type == typeof(char);
+        }
+        
         /// <inheritdoc />
         public override IEnumerable<IAnnotation> For(ITable table, bool designTime)
         {

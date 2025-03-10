@@ -76,7 +76,6 @@ public static class TimestampSample
         }
         var singer = new Singer
         {
-            SingerId = Guid.NewGuid(),
             FirstName = "Theodore",
             LastName = "Walterson",
         };

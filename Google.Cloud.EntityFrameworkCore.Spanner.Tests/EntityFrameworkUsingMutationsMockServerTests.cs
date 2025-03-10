@@ -535,7 +535,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             db.TableWithAllColumnTypes.Add(
                 new TableWithAllColumnTypes { ColInt64 = 1L }
             );
-            await db.SaveChangesAsync();
+            var updateCount = await db.SaveChangesAsync();
+            Assert.Equal(1, updateCount);
 
             Assert.DoesNotContain(_fixture.SpannerMock.Requests, request => request is ExecuteBatchDmlRequest);
             Assert.Collection(
@@ -596,7 +597,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 ColBytesMaxArray = new List<byte[]>(),
                 ColStringMaxArray = new List<string>(),
             });
-            await db.SaveChangesAsync();
+            var updateCount = await db.SaveChangesAsync();
+            Assert.Equal(1, updateCount);
             
             // Verify the value types.
             Assert.Collection(
@@ -715,6 +717,40 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     );
                 }
             );
+        }
+
+        [Fact]
+        public async Task InsertTicketSale()
+        {
+            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            var transaction = await db.Database.BeginTransactionAsync();
+            db.TicketSales.AddRange([
+                new TicketSales { CustomerName = "New Customer1"},
+                new TicketSales { CustomerName = "New Customer2"},
+                new TicketSales { CustomerName = "New Customer3"},
+            ]);
+            var updateCount = await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            Assert.Equal(3L, updateCount);
+            Assert.Empty(_fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>());
+            Assert.Collection(_fixture.SpannerMock.Requests.OfType<CommitRequest>(), request =>
+            {
+                Assert.Collection(request.Mutations,
+                    mutation => ValidateInsertTicketSaleMutation(mutation, 1),
+                    mutation => ValidateInsertTicketSaleMutation(mutation, 2),
+                    mutation => ValidateInsertTicketSaleMutation(mutation, 3)
+                );
+            });
+        }
+
+        private static void ValidateInsertTicketSaleMutation(Mutation mutation, int index)
+        {
+            Assert.Equal(Mutation.OperationOneofCase.Insert, mutation.OperationCase);
+            Assert.Single(mutation.Insert.Columns);
+            Assert.Single(mutation.Insert.Values);
+            Assert.Equal("CustomerName", mutation.Insert.Columns[0]);
+            Assert.Equal($"New Customer{index}", mutation.Insert.Values[0].Values[0].StringValue);
         }
 
         private string AddFindSingerResult(string sql)

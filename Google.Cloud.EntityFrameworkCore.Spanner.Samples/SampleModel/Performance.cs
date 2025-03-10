@@ -20,8 +20,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
     {
         public string VenueCode { get; set; }
         public DateTime ConcertStartTime { get; set; }
-        public Guid SingerId { get; set; }
-        public Guid AlbumId { get; set; }
+        public long SingerId { get; set; }
+        public long AlbumId { get; set; }
         public long TrackId { get; set; }
         public DateTime? StartTime { get; set; }
         public double? Rating { get; set; }

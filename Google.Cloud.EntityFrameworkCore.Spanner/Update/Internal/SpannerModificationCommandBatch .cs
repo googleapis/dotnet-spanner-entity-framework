@@ -145,13 +145,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             {
                 throw new InvalidOperationException("There is no active transaction. Cloud Spanner does not support executing updates without a transaction.");
             }
+
+            var containsReads = _modificationCommands.Any(c => c.ColumnModifications.Any(cm => cm.IsRead));
             var useMutations = spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.Always
-                || (!_hasExplicitTransaction && spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.ImplicitTransactions);
+                || (!_hasExplicitTransaction
+                    && !containsReads
+                    && spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.ImplicitTransactions);
             if (useMutations)
             {
                 await ExecuteMutationsAsync(spannerConnection, transaction, cancellationToken);
             }
-            else if (_modificationCommands.Any(c => c.ColumnModifications.Any(cm => cm.IsRead)))
+            else if (containsReads)
             {
                 await ExecuteDmlAsync(connection, spannerConnection, transaction, cancellationToken);
             }

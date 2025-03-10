@@ -36,6 +36,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
         public virtual DbSet<TableWithAllColumnTypes> TableWithAllColumnTypes { get; set; }
         public virtual DbSet<Tracks> Tracks { get; set; }
         public virtual DbSet<Venues> Venues { get; set; }
+        public virtual DbSet<TicketSales> TicketSales { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -208,6 +209,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
 
                 entity.Property(e => e.Name).HasMaxLength(100);
             });
+            modelBuilder.Entity<TicketSales>();
         }
     }
 }

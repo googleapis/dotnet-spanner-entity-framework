@@ -85,7 +85,13 @@ public static class MutationUsageSample
         Console.WriteLine();
         Console.WriteLine($"Running sample with mutation usage {context.MutationUsage}");
         // Add a new singer using an implicit transaction.
-        var singerId = Guid.NewGuid();
+        // Mutations cannot return a generated primary key value. This example therefore
+        // assigns a primary key value prior to inserting the row in the database.
+        //
+        // If MutationUsage == ImplicitTransactions, then mutations will not be used if the
+        // implicit transaction contains one or more inserts where the database will generate
+        // a value for the row that is inserted (e.g. for auto-generated primary keys).
+        var singerId = Random.Shared.NextInt64();
         await context.Singers.AddAsync(new Singer
         {
             SingerId = singerId,
@@ -108,7 +114,7 @@ public static class MutationUsageSample
         // These changes have not yet been committed to the database and are
         // therefore not readable for other processes. It will be readable for
         // the same transaction, unless MutationUsage has been set to Always.
-        singerId = Guid.NewGuid();
+        singerId = Random.Shared.NextInt64();
         await context.Singers.AddAsync(new Singer
         {
             SingerId = singerId,

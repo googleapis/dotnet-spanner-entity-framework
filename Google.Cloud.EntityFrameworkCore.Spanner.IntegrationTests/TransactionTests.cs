@@ -313,9 +313,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             }
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task CanUseComputedColumnAndCommitTimestamp()
         {
+            // The emulator does not allow a THEN RETURN clause in combination with
+            // PENDING_COMMIT_TIMESTAMP(), even if the returned columns do not include
+            // the pending commit timestamp column.
+            Skip.If(Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST") != null);
             var id1 = _fixture.RandomLong();
             var id2 = _fixture.RandomLong();
 
