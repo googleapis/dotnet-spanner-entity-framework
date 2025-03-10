@@ -92,7 +92,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
 
             var entry = context.AllColTypes.Add(new AllColType
             {
-                // Id = 1,
                 ColString = "Test String"
             });
 
