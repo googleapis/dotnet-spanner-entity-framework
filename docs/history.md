@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.1.1...Google.Cloud.EntityFrameworkCore.Spanner-3.2.0) (2025-03-13)
+
+
+### Features
+
+* support auto-generated primary keys with IDENTITY columns ([#503](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/503)) ([b3a9570](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/b3a9570810ac6a83ece9f073c0b6c44bd5595c5b))
+
 ## [3.1.1](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.1.0...Google.Cloud.EntityFrameworkCore.Spanner-3.1.1) (2025-02-26)
 
 
