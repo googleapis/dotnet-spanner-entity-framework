@@ -209,7 +209,7 @@ CONSTRAINT `Chk_Title_Length_Equal` CHECK (CHARACTER_LENGTH(Title) > 0),
         }
 
         [Fact]
-        public virtual void AddColumnOperation_with_defaultValue()
+        public virtual void AddColumnOperation_with_defaultValueSql()
         {
             Generate(
                 new AddColumnOperation
@@ -222,6 +222,23 @@ CONSTRAINT `Chk_Title_Length_Equal` CHECK (CHARACTER_LENGTH(Title) > 0),
                     DefaultValueSql = "CURRENT_TIMESTAMP"
                 });
             AssertSql(@"ALTER TABLE `Album` ADD `CreatedDate` TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+");
+        }
+
+        [Fact]
+        public virtual void AddColumnOperation_with_defaultValue()
+        {
+            Generate(
+                new AddColumnOperation
+                {
+                    Table = "Album",
+                    Name = "Price",
+                    ClrType = typeof(DateTime),
+                    ColumnType = "NUMERIC",
+                    IsNullable = false,
+                    DefaultValueSql = "10"
+                });
+            AssertSql(@"ALTER TABLE `Album` ADD `Price` NUMERIC NOT NULL DEFAULT (10)
 ");
         }
 
@@ -544,7 +561,7 @@ WHERE `SingerId` = 4;
         }
 
         [Fact]
-        public virtual void AlterColumnOperation_set_default_value()
+        public virtual void AlterColumnOperation_set_default_value_sql()
         {
             Generate(
                 new AlterColumnOperation
@@ -555,6 +572,20 @@ WHERE `SingerId` = 4;
                     DefaultValueSql = "'London'"
                 });
             AssertSql(@"ALTER TABLE `Singers` ALTER COLUMN `Location` STRING(MAX) NOT NULL DEFAULT ('London')");
+        }
+
+        [Fact]
+        public virtual void AlterColumnOperation_set_default_value()
+        {
+            Generate(
+                new AlterColumnOperation
+                {
+                    Table = "Singers",
+                    Name = "Location",
+                    ClrType = typeof(string),
+                    DefaultValue = "London"
+                });
+            AssertSql(@"ALTER TABLE `Singers` ALTER COLUMN `Location` STRING(MAX) NOT NULL DEFAULT ('''London''')");
         }
 
         [Fact]
