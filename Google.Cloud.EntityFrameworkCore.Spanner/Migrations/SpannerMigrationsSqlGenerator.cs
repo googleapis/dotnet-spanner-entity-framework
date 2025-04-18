@@ -532,5 +532,25 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
         {
             throw new NotSupportedException("Cloud Spanner does not support dropping a primary key. All tables must always have a primary key.");
         }
+
+        protected override void DefaultValue(object defaultValue, string defaultValueSql, string columnType, MigrationCommandListBuilder builder)
+        {
+            if (defaultValueSql != null)
+            {
+                base.DefaultValue(defaultValue, defaultValueSql, columnType, builder);
+            }
+            else if (defaultValue != null)
+            {
+                var typeMapping = (columnType != null
+                        ? Dependencies.TypeMappingSource.FindMapping(defaultValue.GetType(), columnType)
+                        : null)
+                    ?? Dependencies.TypeMappingSource.GetMappingForValue(defaultValue);
+
+                builder
+                    .Append(" DEFAULT (")
+                    .Append(typeMapping.GenerateSqlLiteral(defaultValue))
+                    .Append(")");
+            }
+        }
     }
 }
