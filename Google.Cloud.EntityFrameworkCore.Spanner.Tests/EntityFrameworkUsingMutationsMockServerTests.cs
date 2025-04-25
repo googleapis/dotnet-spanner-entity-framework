@@ -581,6 +581,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 ColBool = true,
                 ColBytes = [1,2,3],
                 ColDate = new SpannerDate(2000, 1, 1),
+                ColFloat32 = 3.14f,
                 ColFloat64 = 3.14,
                 ColJson = JsonDocument.Parse("{\"key\": \"value\"}"),
                 ColNumeric = SpannerNumeric.Parse("6.626"),
@@ -590,6 +591,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 ColBytesArray = [new byte[] { 1, 2, 3 }, null, new byte[] { 3, 2, 1 }],
                 ColBytesMax = [],
                 ColDateArray = [new SpannerDate(2021, 8, 26), null, new SpannerDate(2000, 1, 1)],
+                ColFloat32Array = [3.14f, null, 6.626f],
                 ColFloat64Array = [3.14, null, 6.626],
                 ColInt64Array = [1, null, 2],
                 ColJsonArray =
@@ -661,6 +663,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                         v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
                         v => Assert.Equal("2000-01-01", v.StringValue)
                     );
+                    
+                    Assert.Equal("ColFloat32", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.NumberValue, values[index].KindCase);
+                    Assert.Equal(3.14f, values[index++].NumberValue);
+                    Assert.Equal("ColFloat32Array", columns[index]);
+                    Assert.Equal(Value.KindOneofCase.ListValue, values[index].KindCase);
+                    Assert.Collection(values[index++].ListValue.Values,
+                        v => Assert.Equal(3.14f, v.NumberValue),
+                        v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
+                        v => Assert.Equal(6.626f, v.NumberValue)
+                    );
+                    
                     Assert.Equal("ColFloat64", columns[index]);
                     Assert.Equal(Value.KindOneofCase.NumberValue, values[index].KindCase);
                     Assert.Equal(3.14d, values[index++].NumberValue);

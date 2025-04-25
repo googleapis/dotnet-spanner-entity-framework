@@ -84,7 +84,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
         [Fact]
         public void Does_float_mapping()
         {
-            Assert.Equal("FLOAT64", GetTypeMapping(typeof(float)).StoreType);
+            Assert.Equal("FLOAT32", GetTypeMapping(typeof(float)).StoreType);
         }
 
         [Fact]
