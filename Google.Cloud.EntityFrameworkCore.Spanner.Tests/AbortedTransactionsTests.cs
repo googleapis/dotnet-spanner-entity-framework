@@ -74,12 +74,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [InlineData(false)]
         public async Task ReadWriteTransaction_AbortedDml_IsAutomaticallyRetried(bool enableInternalRetries)
         {
+            _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
             string sql = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1));
-            using var connection = CreateConnection();
+            await using var connection = CreateConnection();
             await connection.OpenAsync();
-            using var transaction = await connection.BeginTransactionAsync();
+            await using var transaction = await connection.BeginTransactionAsync();
             transaction.EnableInternalRetries = enableInternalRetries;
+            // Execute a statement to ensure the transaction has been initialized.
+            var selectCmd = connection.CreateSelectCommand("SELECT 1");
+            selectCmd.Transaction = transaction;
+            selectCmd.ExecuteScalar();
+            
             // Abort the transaction on the mock server. The transaction should be able to internally retry.
             _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
             var cmd = connection.CreateDmlCommand(sql);
@@ -182,12 +188,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [InlineData(false)]
         public async Task ReadWriteTransaction_AbortedDmlThenReturn_IsAutomaticallyRetried(bool enableInternalRetries)
         {
+            _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
             string sql = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()} THEN RETURN Baz";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(1, new V1.Type{Code = V1.TypeCode.String}, "Baz", "Test"));
             using var connection = CreateConnection();
             await connection.OpenAsync();
             using var transaction = await connection.BeginTransactionAsync();
             transaction.EnableInternalRetries = enableInternalRetries;
+            // Execute a statement to ensure the transaction has been initialized.
+            var selectCmd = connection.CreateSelectCommand("SELECT 1");
+            selectCmd.Transaction = transaction;
+            selectCmd.ExecuteScalar();
+            
             // Abort the transaction on the mock server. The transaction should be able to internally retry.
             _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
             var cmd = connection.CreateDmlCommand(sql);
@@ -336,6 +348,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [InlineData(false)]
         public async Task ReadWriteTransaction_AbortedBatchDml_IsAutomaticallyRetried(bool enableInternalRetries)
         {
+            _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
             string sql1 = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
             string sql2 = $"UPDATE Foo SET Bar='baz' WHERE Id IN ({_fixture.RandomLong()},{_fixture.RandomLong()})";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql1, StatementResult.CreateUpdateCount(1));
@@ -344,6 +357,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             await connection.OpenAsync();
             using var transaction = await connection.BeginTransactionAsync();
             transaction.EnableInternalRetries = enableInternalRetries;
+            // Execute a statement to ensure the transaction has been initialized.
+            var selectCmd = connection.CreateSelectCommand("SELECT 1");
+            selectCmd.Transaction = transaction;
+            selectCmd.ExecuteScalar();
+            
             var cmd = connection.CreateBatchDmlCommand();
             cmd.Transaction = transaction;
             cmd.Add(sql1);
@@ -1015,6 +1033,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task ReadWriteTransaction_Retry_GivesUp()
         {
+            _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
             string sql = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1));
             using var connection = CreateConnection();
@@ -1024,6 +1043,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             for (var i = 0; i < transaction.MaxInternalRetryCount; i++)
             {
+                var selectCmd = connection.CreateSelectCommand("SELECT 1");
+                selectCmd.Transaction = transaction;
+                selectCmd.ExecuteScalar();
                 _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
                 var cmd = connection.CreateDmlCommand(sql);
                 cmd.Transaction = transaction;

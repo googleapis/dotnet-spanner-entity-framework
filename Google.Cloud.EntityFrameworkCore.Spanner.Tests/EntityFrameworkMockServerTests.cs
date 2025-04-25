@@ -588,7 +588,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                                           $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                                           $"WHERE `s`.`SingerId` = @__id_0{Environment.NewLine}LIMIT 1");
 
-            using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var db = new MockServerSampleDbContext(ConnectionString);
             var id = 1L;
             await db.Singers.WithTimestampBound(TimestampBound.OfExactStaleness(TimeSpan.FromSeconds(5.5))).Where(s => s.SingerId == id).FirstAsync();
 
@@ -809,13 +809,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task ExplicitAndImplicitTransactionIsRetried(bool disableInternalRetries, bool useExplicitTransaction)
         {
             // Setup results.
+            _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
             var insertSql = $"INSERT INTO `Venues` (`Code`, `Active`, `Capacity`, `Name`, `Ratings`)" +
-                $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
             _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateUpdateCount(1L));
-            // Abort the next statement that is executed on the mock server.
-            _fixture.SpannerMock.AbortNextStatement();
 
-            using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var db = new MockServerSampleDbContext(ConnectionString);
             IDbContextTransaction transaction = null;
             if (useExplicitTransaction)
             {
@@ -831,15 +830,25 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 Name = "Concert Hall",
             });
 
-            // We can only disable internal retries when using explicit transactions. Otherwise internal retries
+            // We can only disable internal retries when using explicit transactions. Otherwise, internal retries
             // are always used.
             if (disableInternalRetries && useExplicitTransaction)
             {
+                // The transaction must have been initialized for it to fail at all. Otherwise, the client library
+                // will automatically retry the statement.
+                var cmd = transaction.GetDbTransaction().Connection!.CreateCommand();
+                cmd.CommandText = "SELECT 1";
+                cmd.Transaction = transaction.GetDbTransaction();
+                await cmd.ExecuteScalarAsync();
+                // Abort the next statement that is executed on the mock server.
+                _fixture.SpannerMock.AbortNextStatement();
                 var e = await Assert.ThrowsAsync<SpannerException>(() => db.SaveChangesAsync());
                 Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
             }
             else
             {
+                // Abort the next statement that is executed on the mock server.
+                _fixture.SpannerMock.AbortNextStatement();
                 var updateCount = await db.SaveChangesAsync();
                 Assert.Equal(1L, updateCount);
                 if (useExplicitTransaction)
@@ -862,8 +871,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                         Assert.NotNull(request.Transaction?.Id);
                     }
                 );
-                // Even if we are using implicit transactions, there will still be a transaction in the background and this transaction should be committed.
-                Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
             }
         }
 
@@ -875,11 +882,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task ExplicitAndImplicitTransactionIsRetried_WhenUsingRawSql(bool disableInternalRetries, bool useExplicitTransaction)
         {
             // Setup results.
+            _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
             var insertSql = $"INSERT INTO `Venues` (`Code`, `Active`, `Capacity`, `Name`, `Ratings`)" +
-                $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
             _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateUpdateCount(1L));
-            // Abort the next statement that is executed on the mock server.
-            _fixture.SpannerMock.AbortNextStatement();
 
             using var db = new MockServerSampleDbContext(ConnectionString);
             IDbContextTransaction transaction = null;
@@ -896,6 +902,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             // are always used.
             if (disableInternalRetries && useExplicitTransaction)
             {
+                // The transaction must have been initialized for it to fail at all. Otherwise, the client library
+                // will automatically retry the statement.
+                var cmd = transaction.GetDbTransaction().Connection!.CreateCommand();
+                cmd.CommandText = "SELECT 1";
+                cmd.Transaction = transaction.GetDbTransaction();
+                await cmd.ExecuteScalarAsync();
+                // Abort the next statement that is executed on the mock server.
+                _fixture.SpannerMock.AbortNextStatement();
                 var e = await Assert.ThrowsAsync<SpannerException>(() => db.Database.ExecuteSqlRawAsync(insertSql,
                     new SpannerParameter("p0", SpannerDbType.String, "C1"),
                     new SpannerParameter("p1", SpannerDbType.Bool, true),
@@ -907,6 +921,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             }
             else
             {
+                // Abort the next statement that is executed on the mock server.
+                _fixture.SpannerMock.AbortNextStatement();
                 var updateCount = await db.Database.ExecuteSqlRawAsync(insertSql,
                     new SpannerParameter("p0", SpannerDbType.String, "C1"),
                     new SpannerParameter("p1", SpannerDbType.Bool, true),
@@ -933,8 +949,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                         Assert.NotNull(request.Transaction?.Id);
                     }
                 );
-                // Even if we are using implicit transactions, there will still be a transaction in the background and this transaction should be committed.
-                Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
             }
         }
 

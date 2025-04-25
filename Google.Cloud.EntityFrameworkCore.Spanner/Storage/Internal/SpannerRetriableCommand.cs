@@ -121,7 +121,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             // These don't need retry protection as the ephemeral transaction used by the client library is a read-only transaction.
             if (TimestampBound != null)
             {
-                return await _spannerCommand.ExecuteReaderAsync(TimestampBound, cancellationToken);
+                _spannerCommand.EphemeralTransactionCreationOptions = SpannerTransactionCreationOptions.ForTimestampBoundReadOnly(TimestampBound).WithIsSingleUse(true);
             }
             return await _spannerCommand.ExecuteReaderAsync(cancellationToken);
 
