@@ -314,13 +314,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var updateCount = await db.SaveChangesAsync();
 
             Assert.Equal(1L, updateCount);
+            Assert.Empty(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>());
             Assert.Empty(_fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>());
             Assert.Collection(
                 _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
                 {
                     Assert.Equal(insertSql, request.Sql);
-                    Assert.NotNull(request.Transaction?.Id);
+                    Assert.False(request.Transaction.HasId);
+                    Assert.Equal(TransactionSelector.SelectorOneofCase.Begin, request.Transaction.SelectorCase);
+                    Assert.Equal(TransactionOptions.ModeOneofCase.ReadWrite, request.Transaction.Begin.ModeCase);
                 }
             );
             Assert.Single(_fixture.SpannerMock.Requests, request => request is CommitRequest);
@@ -521,8 +524,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                 $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
-            using var db = new MockServerSampleDbContext(ConnectionString);
-            using var transaction = await db.Database.BeginReadOnlyTransactionAsync();
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var transaction = await db.Database.BeginReadOnlyTransactionAsync();
 
             Assert.NotNull(await db.Singers.FindAsync(1L));
 
@@ -531,11 +534,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
-                    Assert.NotNull(request.Transaction?.Id);
+                    Assert.NotNull(request.Transaction);
+                    Assert.False(request.Transaction.HasId);
+                    Assert.Equal(TransactionSelector.SelectorOneofCase.Begin, request.Transaction.SelectorCase);
+                    Assert.Equal(TransactionOptions.ModeOneofCase.ReadOnly, request.Transaction.Begin.ModeCase);
+                    Assert.True(request.Transaction.Begin.ReadOnly.HasStrong);
                 }
             );
-            Assert.Single(_fixture.SpannerMock.Requests
-                .OfType<BeginTransactionRequest>(), request => request.Options?.ReadOnly?.Strong ?? false);
+            Assert.Empty(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>());
         }
 
         [Fact]
@@ -554,11 +560,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
-                    Assert.NotNull(request.Transaction?.Id);
+                    Assert.NotNull(request.Transaction);
+                    Assert.False(request.Transaction.HasId);
+                    Assert.Equal(TransactionSelector.SelectorOneofCase.Begin, request.Transaction.SelectorCase);
+                    Assert.Equal(TransactionOptions.ModeOneofCase.ReadOnly, request.Transaction.Begin.ModeCase);
+                    Assert.Equal(TransactionOptions.Types.ReadOnly.TimestampBoundOneofCase.ExactStaleness, request.Transaction.Begin.ReadOnly.TimestampBoundCase);
+                    Assert.Equal(10, request.Transaction.Begin.ReadOnly.ExactStaleness.Seconds);
                 }
             );
-            Assert.Single(_fixture.SpannerMock.Requests
-                .OfType<BeginTransactionRequest>(), request => request.Options?.ReadOnly?.ExactStaleness?.Seconds == 10L);
+            Assert.Empty(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>());
         }
 
         [Fact]
