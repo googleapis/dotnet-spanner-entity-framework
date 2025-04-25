@@ -25,6 +25,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -83,6 +84,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
     /// <summary>
     /// Tests CRUD operations using an in-mem Spanner mock server.
     /// </summary>
+    [SuppressMessage("ReSharper", "ParameterOnlyUsedForPreconditionCheck.Local")]
     public class EntityFrameworkMockServerTests : IClassFixture<SpannerMockServerFixture>
     {
         private readonly SpannerMockServerFixture _fixture;
@@ -199,7 +201,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             ));
 
             var type = PerformanceType.Live;
-            using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var db = new MockServerSampleDbContext(ConnectionString);
             var performances = await db.Performances.Where(performances => performances.PerformanceType == type).ToListAsync();
             Assert.Single(performances);
             Assert.Collection(
@@ -211,8 +213,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     var fields = request.Params.Fields;
                     Assert.Equal("0", fields["__type_0"].StringValue);
                     Assert.Single(request.ParamTypes);
-                    var type = request.ParamTypes["__type_0"];
-                    Assert.Equal(V1.TypeCode.Int64, type.Code);
+                    var requestType = request.ParamTypes["__type_0"];
+                    Assert.Equal(V1.TypeCode.Int64, requestType.Code);
                 }
             );
         }
@@ -243,7 +245,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             var types = new List<PerformanceType>{PerformanceType.Live, PerformanceType.Playback};
             var typesAsInts = types.ConvertAll(t => (int)t);
-            using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var db = new MockServerSampleDbContext(ConnectionString);
             var performances = await db.Performances.Where(performances => typesAsInts.Contains((int) performances.PerformanceType)).ToListAsync();
             Assert.Single(performances);
             Assert.Collection(
@@ -251,12 +253,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
-                    // Assert.Single(request.Params.Fields);
-                    // var fields = request.Params.Fields;
-                    // Assert.Equal("0", fields["__type_0"].StringValue);
-                    // Assert.Single(request.ParamTypes);
-                    // var type = request.ParamTypes["__type_0"];
-                    // Assert.Equal(V1.TypeCode.Int64, type.Code);
+                    Assert.Single(request.Params.Fields);
+                    var fields = request.Params.Fields;
+                    Assert.Equal(2, fields["__typesAsInts_0"].ListValue.Values.Count);
+                    Assert.Equal("0", fields["__typesAsInts_0"].ListValue.Values[0].StringValue);
+                    Assert.Equal("1", fields["__typesAsInts_0"].ListValue.Values[1].StringValue);
+                    Assert.Single(request.ParamTypes);
+                    var type = request.ParamTypes["__typesAsInts_0"];
+                    Assert.Equal(V1.TypeCode.Array, type.Code);
+                    Assert.Equal(V1.TypeCode.Int64, type.ArrayElementType.Code);
                 }
             );
         }
@@ -268,7 +273,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                 $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
 
-            using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var db = new MockServerSampleDbContext(ConnectionString);
             var singer = await db.Singers.FindAsync(1L);
             Assert.NotNull(singer);
             Assert.Equal(1L, singer.SingerId);
@@ -299,7 +304,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 $"THEN RETURN `FullName`{Environment.NewLine}";
             _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type {Code = V1.TypeCode.String}, "FullName", "Alice Morrison"));
 
-            using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var db = new MockServerSampleDbContext(ConnectionString);
             db.Singers.Add(new Singers
             {
                 SingerId = 1L,
@@ -318,7 +323,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.NotNull(request.Transaction?.Id);
                 }
             );
-            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
+            Assert.Single(_fixture.SpannerMock.Requests, request => request is CommitRequest);
 
             Assert.Collection(_fixture.SpannerMock.Requests
                 .Where(request => request is ExecuteBatchDmlRequest || request is CommitRequest || request is ExecuteSqlRequest)
@@ -338,7 +343,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                             $"THEN RETURN `Id`{Environment.NewLine}";
             _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type {Code = V1.TypeCode.Int64}, "Id", "12345"));
 
-            using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var db = new MockServerSampleDbContext(ConnectionString);
             var ticketSale = db.TicketSales.Add(new TicketSales
             {
                 CustomerName = "New Customer",
@@ -381,13 +386,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                         (1000000 - p)));
             }
 
-            using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var db = new MockServerSampleDbContext(ConnectionString);
             var transaction = await db.Database.BeginTransactionAsync();
-            db.TicketSales.AddRange([
+            db.TicketSales.AddRange(
                 new TicketSales { CustomerName = "New Customer1"},
                 new TicketSales { CustomerName = "New Customer2"},
-                new TicketSales { CustomerName = "New Customer3"},
-            ]);
+                new TicketSales { CustomerName = "New Customer3"}
+            );
             var updateCount = await db.SaveChangesAsync();
             await transaction.CommitAsync();
 
@@ -444,7 +449,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.NotNull(request.Transaction?.Id);
                 }
             );
-            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
+            Assert.Single(_fixture.SpannerMock.Requests, request => request is CommitRequest);
         }
 
         [Fact]
@@ -468,7 +473,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.NotNull(request.Transaction?.Id);
                 }
             );
-            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
+            Assert.Single(_fixture.SpannerMock.Requests, request => request is CommitRequest);
         }
 
         [Fact]
@@ -499,7 +504,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.NotNull(request.Transaction?.Id);
                 }
             );
-            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
+            Assert.Single(_fixture.SpannerMock.Requests, request => request is CommitRequest);
 
             Assert.Collection(_fixture.SpannerMock.Requests
                 .Where(request => request is ExecuteBatchDmlRequest || request is CommitRequest || request is ExecuteSqlRequest)
@@ -530,8 +535,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             );
             Assert.Single(_fixture.SpannerMock.Requests
-                .OfType<BeginTransactionRequest>()
-                .Where(request => request.Options?.ReadOnly?.Strong ?? false));
+                .OfType<BeginTransactionRequest>(), request => request.Options?.ReadOnly?.Strong ?? false);
         }
 
         [Fact]
@@ -540,8 +544,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                 $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
-            using var db = new MockServerSampleDbContext(ConnectionString);
-            using var transaction = await db.Database.BeginReadOnlyTransactionAsync(TimestampBound.OfExactStaleness(TimeSpan.FromSeconds(10)));
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var transaction = await db.Database.BeginReadOnlyTransactionAsync(TimestampBound.OfExactStaleness(TimeSpan.FromSeconds(10)));
 
             Assert.NotNull(await db.Singers.FindAsync(1L));
 
@@ -554,8 +558,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             );
             Assert.Single(_fixture.SpannerMock.Requests
-                .OfType<BeginTransactionRequest>()
-                .Where(request => request.Options?.ReadOnly?.ExactStaleness?.Seconds == 10L));
+                .OfType<BeginTransactionRequest>(), request => request.Options?.ReadOnly?.ExactStaleness?.Seconds == 10L);
         }
 
         [Fact]
@@ -653,7 +656,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task InsertUsingRawSqlReturnsUpdateCountWithoutAdditionalSelectCommand()
         {
-            using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var db = new MockServerSampleDbContext(ConnectionString);
             var today = SpannerDate.FromDateTime(DateTime.SpecifyKind(DateTime.Today, DateTimeKind.Unspecified));
             var now = DateTime.UtcNow;
             var id = 1L;
@@ -2357,7 +2360,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             await db.SaveChangesAsync();
 
             Assert.Collection(_fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(), request => Assert.Equal(sql, request.Sql));
-            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
+            Assert.Single(_fixture.SpannerMock.Requests, request => request is CommitRequest);
             // Verify the order of the requests (that is, the Select statement should be outside the implicit transaction).
             Assert.Collection(
                 _fixture.SpannerMock.Requests.Where(request => request is ExecuteBatchDmlRequest || request is CommitRequest || request is ExecuteSqlRequest).Select(request => request.GetType()),
@@ -2527,15 +2530,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var sql = "SELECT * FROM TableWithAllTypes";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, CreateTableWithAllColumnTypesResultSet());
             string connectionString = $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
-            using var connection = new SpannerRetriableConnection(new SpannerConnection(connectionString, ChannelCredentials.Insecure));
-            using var cmd = connection.CreateSelectCommand(sql);
+            await using var connection = new SpannerRetriableConnection(new SpannerConnection(connectionString, ChannelCredentials.Insecure));
+            await using var cmd = connection.CreateSelectCommand(sql);
             SpannerRetriableTransaction transaction = null;
             if (useTransaction)
             {
                 transaction = await connection.BeginTransactionAsync();
                 cmd.Transaction = transaction;
             }
-            using var reader = await cmd.ExecuteReaderAsync();
+            await using var reader = await cmd.ExecuteReaderAsync();
             if (useTransaction)
             {
                 Assert.False(((SpannerDataReaderWithChecksum)reader).SpannerDataReader.IsClosed);
@@ -2668,40 +2671,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             ));
             return sql;
-        }
-
-        private string AddSelectSingerFullNameResult(string fullName, int paramIndex)
-        {
-            var selectFullNameSql = $"{Environment.NewLine}SELECT `FullName`{Environment.NewLine}FROM `Singers`" +
-                $"{Environment.NewLine}WHERE  TRUE  AND `SingerId` = @p{paramIndex}";
-            _fixture.SpannerMock.AddOrUpdateStatementResult(selectFullNameSql, StatementResult.CreateResultSet(
-                new List<Tuple<V1.TypeCode, string>>
-                {
-                    Tuple.Create(V1.TypeCode.Int64, "SingerId"),
-                    Tuple.Create(V1.TypeCode.String, "FullName"),
-                },
-                new List<object[]>
-                {
-                    new object[] { 1L, fullName },
-                }
-            ));
-            return selectFullNameSql;
-        }
-
-        private string AddSelectTrackRecordedAtResult()
-        {
-            var selectRecordedAt = $"{Environment.NewLine}SELECT `RecordedAt`{Environment.NewLine}FROM `Tracks`{Environment.NewLine}WHERE  TRUE  AND `AlbumId` = @p0 AND `TrackId` = @p1";
-            _fixture.SpannerMock.AddOrUpdateStatementResult(selectRecordedAt, StatementResult.CreateResultSet(
-                new List<Tuple<V1.TypeCode, string>>
-                {
-                    Tuple.Create(V1.TypeCode.Timestamp, "RecordedAt"),
-                },
-                new List<object[]>
-                {
-                    new object[] { DateTime.Now },
-                }
-            ));
-            return selectRecordedAt;
         }
     }
 }
