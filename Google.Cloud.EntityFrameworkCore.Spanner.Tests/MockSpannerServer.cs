@@ -231,20 +231,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
     {
         private class PartialResultSetsEnumerable : IEnumerable<PartialResultSet>
         {
+            private readonly Transaction _transaction;
             private readonly ResultSet _resultSet;
-            public PartialResultSetsEnumerable(ResultSet resultSet)
+            public PartialResultSetsEnumerable(Transaction transaction, ResultSet resultSet)
             {
-                this._resultSet = resultSet;
+                _transaction = transaction;
+                _resultSet = resultSet;
             }
 
             public IEnumerator<PartialResultSet> GetEnumerator()
             {
-                return new PartialResultSetsEnumerator(_resultSet);
+                return new PartialResultSetsEnumerator(_transaction, _resultSet);
             }
 
             IEnumerator IEnumerable.GetEnumerator()
             {
-                return new PartialResultSetsEnumerator(_resultSet);
+                return new PartialResultSetsEnumerator(_transaction, _resultSet);
             }
         }
 
@@ -252,13 +254,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             private static readonly int s_maxRowsInChunk = 1;
 
+            private readonly Transaction _transaction;
             private readonly ResultSet _resultSet;
             private bool _first = true;
             private int _currentRow;
             private PartialResultSet _current;
 
-            public PartialResultSetsEnumerator(ResultSet resultSet)
+            public PartialResultSetsEnumerator(Transaction transaction, ResultSet resultSet)
             {
+                _transaction = transaction;
                 _resultSet = resultSet;
             }
 
@@ -274,7 +278,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 };
                 if (_first)
                 {
-                    _current.Metadata = _resultSet.Metadata;
+                    _current.Metadata = _resultSet.Metadata.Clone();
+                    if (_transaction != null)
+                    {
+                        _current.Metadata.Transaction = _transaction;
+                    }
                     _first = false;
                 }
                 else if (_currentRow == _resultSet.Rows.Count)
@@ -638,16 +646,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             }
             executionTime?.SimulateExecutionTime();
             TryFindSession(request.SessionAsSessionName);
-            FindOrBeginTransaction(request.SessionAsSessionName, request.Transaction);
+            Transaction returnTransaction = null;
+            var transaction = FindOrBeginTransaction(request.SessionAsSessionName, request.Transaction);
+            if (request.Transaction != null && (request.Transaction.SelectorCase == TransactionSelector.SelectorOneofCase.Begin || request.Transaction.SelectorCase == TransactionSelector.SelectorOneofCase.SingleUse))
+            {
+                returnTransaction = transaction;
+            }
             if (_results.TryGetValue(request.Sql.Trim(), out StatementResult result))
             {
                 switch (result.Type)
                 {
                     case StatementResult.StatementResultType.ResultSet:
-                        await WriteResultSet(result.ResultSet, responseStream, executionTime);
+                        await WriteResultSet(returnTransaction, result.ResultSet, responseStream, executionTime);
                         break;
                     case StatementResult.StatementResultType.UpdateCount:
-                        await WriteUpdateCount(result.UpdateCount, responseStream);
+                        await WriteUpdateCount(returnTransaction, result.UpdateCount, responseStream);
                         break;
                     case StatementResult.StatementResultType.Exception:
                         throw result.Exception;
@@ -661,10 +674,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             }
         }
 
-        private async Task WriteResultSet(ResultSet resultSet, IServerStreamWriter<PartialResultSet> responseStream, ExecutionTime executionTime)
+        private async Task WriteResultSet(Transaction transaction, ResultSet resultSet, IServerStreamWriter<PartialResultSet> responseStream, ExecutionTime executionTime)
         {
             int index = 0;
-            PartialResultSetsEnumerable enumerator = new PartialResultSetsEnumerable(resultSet);
+            PartialResultSetsEnumerable enumerator = new PartialResultSetsEnumerable(transaction, resultSet);
             int writePermissions = executionTime?.TakeWritePermission() ?? int.MaxValue;
             foreach (PartialResultSet prs in enumerator)
             {
@@ -683,10 +696,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             }
         }
 
-        private async Task WriteUpdateCount(long updateCount, IServerStreamWriter<PartialResultSet> responseStream)
+        private async Task WriteUpdateCount(Transaction transaction, long updateCount, IServerStreamWriter<PartialResultSet> responseStream)
         {
             PartialResultSet prs = new PartialResultSet
             {
+                Metadata = new ResultSetMetadata { Transaction = transaction },
                 Stats = new ResultSetStats { RowCountExact = updateCount }
             };
             await responseStream.WriteAsync(prs);

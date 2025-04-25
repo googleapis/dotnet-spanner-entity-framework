@@ -24,6 +24,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -80,6 +81,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
     /// <summary>
     /// Tests CRUD operations using mutations on an in-mem Spanner mock server.
     /// </summary>
+    [SuppressMessage("ReSharper", "ParameterOnlyUsedForPreconditionCheck.Local")]
     public class EntityFrameworkMockUsingMutationsServerTests : IClassFixture<SpannerMockServerFixture>
     {
         private readonly SpannerMockServerFixture _fixture;
@@ -95,7 +97,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task InsertAlbum()
         {
-            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
             db.Albums.Add(new Albums
             {
                 AlbumId = 1L,
@@ -106,6 +108,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var updateCount = await db.SaveChangesAsync();
 
             Assert.Equal(1L, updateCount);
+            Assert.Single(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>());
             Assert.Collection(
                 _fixture.SpannerMock.Requests.OfType<CommitRequest>(),
                 request => {
@@ -128,7 +131,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             var selectFullNameSql = AddSelectSingerFullNameResult("Alice Morrison", 0);
 
-            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
             db.Singers.Add(new Singers
             {
                 SingerId = 1L,
@@ -159,15 +162,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 .Select(request => request.GetType()),
                 request => Assert.Equal(typeof(CommitRequest), request),
                 request => Assert.Equal(typeof(ExecuteSqlRequest), request));
-            Assert.Single(_fixture.SpannerMock.Requests
-                .Where(request => request is ExecuteSqlRequest sqlRequest && sqlRequest.Sql.Trim() == selectFullNameSql.Trim()));
+            Assert.Single(_fixture.SpannerMock.Requests,
+                request => request is ExecuteSqlRequest sqlRequest && sqlRequest.Sql.Trim() == selectFullNameSql.Trim());
         }
 
         [Fact]
         public async Task InsertSingerInTransaction()
         {
-            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
-            using var transaction = await db.Database.BeginTransactionAsync();
+            await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            await using var transaction = await db.Database.BeginTransactionAsync();
             db.Singers.Add(new Singers
             {
                 SingerId = 1L,
@@ -212,7 +215,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
             var selectFullNameSql = AddSelectSingerFullNameResult("Alice Pieterson-Morrison", 0);
 
-            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
             var singer = await db.Singers.FindAsync(1L);
             Assert.NotNull(singer);
             singer.LastName = "Pieterson-Morrison";
@@ -275,7 +278,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task DeleteSinger_DoesNotSelectFullName()
         {
-            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
             db.Singers.Remove(new Singers { SingerId = 1L });
             var updateCount = await db.SaveChangesAsync();
 
@@ -298,13 +301,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             );
             Assert.DoesNotContain(_fixture.SpannerMock.Requests, request => request is ExecuteBatchDmlRequest);
             Assert.DoesNotContain(_fixture.SpannerMock.Requests, request => request is ExecuteSqlRequest);
-            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
+            Assert.Single(_fixture.SpannerMock.Requests, request => request is CommitRequest);
         }
 
         [Fact]
         public async Task VersionNumberIsAutomaticallyGeneratedOnInsertAndUpdate()
         {
-            using var db = new MockServerVersionDbContextUsingMutations(ConnectionString);
+            await using var db = new MockServerVersionDbContextUsingMutations(ConnectionString);
             var singer = new SingersWithVersion { SingerId = 1L, FirstName = "Pete", LastName = "Allison" };
             db.Singers.Add(singer);
             await db.SaveChangesAsync();
@@ -392,7 +395,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task UpdateFailsIfVersionNumberChanged()
         {
-            using var db = new MockServerVersionDbContextUsingMutations(ConnectionString);
+            await using var db = new MockServerVersionDbContextUsingMutations(ConnectionString);
 
             // Set the result of the concurrency check to an empty result set to simulate a version number that has changed.
             var concurrencySql = $"SELECT 1 FROM `SingersWithVersion` {Environment.NewLine}WHERE `SingerId` = @p0 AND `Version` = @p1";
@@ -417,7 +420,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [InlineData(false, false)]
         public async Task ExplicitAndImplicitTransactionIsRetried(bool disableInternalRetries, bool useExplicitTransaction)
         {
-            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
             IDbContextTransaction transaction = null;
             if (useExplicitTransaction)
             {
@@ -477,7 +480,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task CanInsertCommitTimestamp()
         {
-            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
             _fixture.SpannerMock.AddOrUpdateStatementResult($"{Environment.NewLine}SELECT `ColComputed`" +
                 $"{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p0", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
 
@@ -502,7 +505,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task CanUpdateCommitTimestamp()
         {
-            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
             _fixture.SpannerMock.AddOrUpdateStatementResult($"{Environment.NewLine}SELECT `ColComputed`{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p0", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
 
             var row = new TableWithAllColumnTypes { ColInt64 = 1L };
@@ -528,7 +531,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task CanInsertRowWithCommitTimestampAndComputedColumn()
         {
-            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
             var selectSql = $"{Environment.NewLine}SELECT `ColComputed`{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(selectSql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
 
@@ -543,7 +546,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request => Assert.Equal(selectSql.Trim(), request.Sql.Trim())
             );
-            Assert.Single(_fixture.SpannerMock.Requests.Where(request => request is CommitRequest));
+            Assert.Single(_fixture.SpannerMock.Requests, request => request is CommitRequest);
             // Verify the order of the requests (that is, the Select statement should be outside the implicit transaction).
             Assert.Collection(
                 _fixture.SpannerMock.Requests.Where(request => request is CommitRequest || request is ExecuteSqlRequest).Select(request => request.GetType()),
@@ -568,7 +571,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task CanInsertAllTypes()
         {
-            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
             _fixture.SpannerMock.AddOrUpdateStatementResult($"{Environment.NewLine}SELECT `ColComputed`" +
                                                             $"{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p0", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
 
@@ -576,26 +579,31 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 ColInt64 = 1L,
                 ColBool = true,
-                ColBytes = new byte[] {1,2,3},
+                ColBytes = [1,2,3],
                 ColDate = new SpannerDate(2000, 1, 1),
                 ColFloat64 = 3.14,
                 ColJson = JsonDocument.Parse("{\"key\": \"value\"}"),
                 ColNumeric = SpannerNumeric.Parse("6.626"),
                 ColString = "test",
                 ColTimestamp = new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                ColBoolArray = new List<bool?>{true, null, false},
-                ColBytesArray = new List<byte[]>{new byte[]{1,2,3}, null, new byte[]{3,2,1}},
-                ColBytesMax = new byte[] {},
-                ColDateArray = new List<SpannerDate?>{new SpannerDate(2021, 8, 26), null, new SpannerDate(2000, 1, 1)},
-                ColFloat64Array = new List<double?>{3.14, null, 6.626},
-                ColInt64Array = new List<long?>{1,null,2},
-                ColJsonArray = new List<JsonDocument>{JsonDocument.Parse("{\"key1\": \"value1\"}"), null, JsonDocument.Parse("{\"key2\": \"value2\"}")},
-                ColNumericArray = new List<SpannerNumeric?>{SpannerNumeric.Parse("3.14"), null, SpannerNumeric.Parse("6.626")},
-                ColStringArray = new List<string>{"test1", null, "test2"},
+                ColBoolArray = [true, null, false],
+                ColBytesArray = [new byte[] { 1, 2, 3 }, null, new byte[] { 3, 2, 1 }],
+                ColBytesMax = [],
+                ColDateArray = [new SpannerDate(2021, 8, 26), null, new SpannerDate(2000, 1, 1)],
+                ColFloat64Array = [3.14, null, 6.626],
+                ColInt64Array = [1, null, 2],
+                ColJsonArray =
+                    [JsonDocument.Parse("{\"key1\": \"value1\"}"), null, JsonDocument.Parse("{\"key2\": \"value2\"}")],
+                ColNumericArray = [SpannerNumeric.Parse("3.14"), null, SpannerNumeric.Parse("6.626")],
+                ColStringArray = ["test1", null, "test2"],
                 ColStringMax = "",
-                ColTimestampArray = new List<DateTime?>{new DateTime(2000, 1, 1, 0, 0, 0, 1, DateTimeKind.Utc), null, new DateTime(2000, 1, 1, 0, 0, 0, 2, DateTimeKind.Utc)},
-                ColBytesMaxArray = new List<byte[]>(),
-                ColStringMaxArray = new List<string>(),
+                ColTimestampArray =
+                [
+                    new DateTime(2000, 1, 1, 0, 0, 0, 1, DateTimeKind.Utc), null,
+                    new DateTime(2000, 1, 1, 0, 0, 0, 2, DateTimeKind.Utc)
+                ],
+                ColBytesMaxArray = [],
+                ColStringMaxArray = [],
             });
             var updateCount = await db.SaveChangesAsync();
             Assert.Equal(1, updateCount);
@@ -722,7 +730,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task InsertTicketSale()
         {
-            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
             var transaction = await db.Database.BeginTransactionAsync();
             db.TicketSales.AddRange([
                 new TicketSales { CustomerName = "New Customer1"},
