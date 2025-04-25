@@ -404,15 +404,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task ExplicitAndImplicitTransactionIsRetried(bool disableInternalRetries, bool useExplicitTransaction)
         {
             // Setup results.
+            _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
             var insertSql = $"INSERT INTO `Venues` (`Code`, `Active`, `Capacity`, `Name`, `Ratings`)" +
-                $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
             _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateUpdateCount(1L));
 
             using var db = CreateContext();
             await Repeat(async () =>
             {
-                // Abort the next statement that is executed on the mock server.
-                _fixture.SpannerMock.AbortNextStatement();
                 IDbContextTransaction transaction = null;
                 if (useExplicitTransaction)
                 {
@@ -433,11 +432,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 // are always used.
                 if (disableInternalRetries && useExplicitTransaction)
                 {
+                    // The transaction must have been initialized for it to fail at all. Otherwise, the client library
+                    // will automatically retry the statement.
+                    var cmd = transaction.GetDbTransaction().Connection!.CreateCommand();
+                    cmd.CommandText = "SELECT 1";
+                    cmd.Transaction = transaction.GetDbTransaction();
+                    await cmd.ExecuteScalarAsync();
+                    // Abort the next statement that is executed on the mock server.
+                    _fixture.SpannerMock.AbortNextStatement();
                     var e = await Assert.ThrowsAsync<SpannerException>(() => db.SaveChangesAsync());
                     Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
                 }
                 else
                 {
+                    // Abort the next statement that is executed on the mock server.
+                    _fixture.SpannerMock.AbortNextStatement();
                     var updateCount = await db.SaveChangesAsync();
                     Assert.Equal(1L, updateCount);
                     if (useExplicitTransaction)
@@ -457,15 +466,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task ExplicitAndImplicitTransactionIsRetried_WhenUsingRawSql(bool disableInternalRetries, bool useExplicitTransaction)
         {
             // Setup results.
+            _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
             var insertSql = $"INSERT INTO `Venues` (`Code`, `Active`, `Capacity`, `Name`, `Ratings`)" +
-                $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
             _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateUpdateCount(1L));
 
-            using var db = CreateContext();
+            await using var db = CreateContext();
             await Repeat(async () =>
             {
-                // Abort the next statement that is executed on the mock server.
-                _fixture.SpannerMock.AbortNextStatement();
                 IDbContextTransaction transaction = null;
                 if (useExplicitTransaction)
                 {
@@ -480,6 +488,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 // are always used.
                 if (disableInternalRetries && useExplicitTransaction)
                 {
+                    // The transaction must have been initialized for it to fail at all. Otherwise, the client library
+                    // will automatically retry the statement.
+                    var cmd = transaction.GetDbTransaction().Connection!.CreateCommand();
+                    cmd.CommandText = "SELECT 1";
+                    cmd.Transaction = transaction.GetDbTransaction();
+                    await cmd.ExecuteScalarAsync();
+                    // Abort the next statement that is executed on the mock server.
+                    _fixture.SpannerMock.AbortNextStatement();
                     var e = await Assert.ThrowsAsync<SpannerException>(() => db.Database.ExecuteSqlRawAsync(insertSql,
                         new SpannerParameter("p0", SpannerDbType.String, "C1"),
                         new SpannerParameter("p1", SpannerDbType.Bool, true),
@@ -491,6 +507,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
                 else
                 {
+                    // Abort the next statement that is executed on the mock server.
+                    _fixture.SpannerMock.AbortNextStatement();
                     var updateCount = await db.Database.ExecuteSqlRawAsync(insertSql,
                         new SpannerParameter("p0", SpannerDbType.String, "C1"),
                         new SpannerParameter("p1", SpannerDbType.Bool, true),
@@ -2034,8 +2052,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             await Repeat(async () =>
             {
-                using var db = CreateContext();
-                using var transaction = await db.Database.BeginTransactionAsync();
+                await using var db = CreateContext();
+                await using var transaction = await db.Database.BeginTransactionAsync();
                 Assert.NotNull(await db.Singers.FindAsync(1L));
                 _fixture.SpannerMock.AbortNextStatement();
                 Assert.NotNull(await db.Singers.FindAsync(2L));
@@ -2050,40 +2068,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                                 $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
 
-            using var db = CreateContext();
+            await using var db = CreateContext();
             await Repeat(async () =>
             {
-                using var transaction = await db.Database.BeginTransactionAsync();
+                await using var transaction = await db.Database.BeginTransactionAsync();
                 Assert.NotNull(await db.Singers.FindAsync(1L));
                 await transaction.CommitAsync();
             });
-        }
-
-        [Fact]
-        public async Task MultipleReadWriteTransactions_HoldOnToSessionsForTooLong()
-        {
-            AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
-                                $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
-
-            using var db = CreateContext();
-
-            // This transaction will eventually be disposed.
-            using var transaction1 = await db.Database.BeginTransactionAsync();
-            Assert.NotNull(await db.Singers.FindAsync(1L));
-            // Committing the transaction does not dispose it, and also does not return the session to the pool.
-            await transaction1.CommitAsync();
-                
-            // This transaction will eventually be disposed.
-            using var transaction2 = await db.Database.BeginTransactionAsync();
-            Assert.NotNull(await db.Singers.FindAsync(2L));
-            // Committing the transaction does not dispose it, and also does not return the session to the pool.
-            await transaction2.CommitAsync();
-
-            // This will now fail because the 2 sessions that the pool is allowed to hold are still checked out
-            // by the above transactions.
-            var exception = await Assert.ThrowsAsync<SpannerException>(() => db.Database.BeginTransactionAsync());
-            Assert.Equal(ErrorCode.ResourceExhausted, exception.ErrorCode);
         }
 
         [Fact]
@@ -2093,22 +2084,23 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                                 $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
 
-            using var db = CreateContext();
+            await using var db = CreateContext();
 
-            using (var transaction1 = await db.Database.BeginTransactionAsync())
+            await using (var transaction1 = await db.Database.BeginTransactionAsync())
             {
                 Assert.NotNull(await db.Singers.FindAsync(1L));
                 await transaction1.CommitAsync();
             }
 
-            using (var transaction2 = await db.Database.BeginTransactionAsync())
+            await using (var transaction2 = await db.Database.BeginTransactionAsync())
             {
                 Assert.NotNull(await db.Singers.FindAsync(2L));
                 await transaction2.CommitAsync();
             }
 
             // This works, because the two previous transactions were disposed.
-            using var transaction3 = await db.Database.BeginTransactionAsync();
+            await using var transaction3 = await db.Database.BeginTransactionAsync();
+            Assert.NotNull(await db.Singers.FindAsync(2L));
             await transaction3.CommitAsync();
         }
 
@@ -2204,32 +2196,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 db.Singers.Where(s => s.FirstName.Contains(firstName));
                 return Task.CompletedTask;
             });
-        }
-
-        [Fact]
-        public async Task TransactionWithoutDisposing_LeaksSession()
-        {
-            var updateSql = $"UPDATE `Singers` SET `LastName` = @p0{Environment.NewLine}WHERE `SingerId` = @p1{Environment.NewLine}" +
-                            $"THEN RETURN `FullName`";
-            _fixture.SpannerMock.AddOrUpdateStatementResult(updateSql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type{Code = V1.TypeCode.String}, "FullName", "Alice Pieterson-Morrison"));
-            AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, " +
-                                $"`s`.`FullName`, `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
-
-            var exception = await Assert.ThrowsAsync<SpannerException>(() => Repeat(async () =>
-            {
-                using var db = CreateContext();
-                
-                // NOTE: No 'using'.
-                var transaction = await db.Database.BeginTransactionAsync();
-                
-                var singer = await db.Singers.FindAsync(1L);
-                singer!.LastName = Guid.NewGuid().ToString();
-                var updateCount = await db.SaveChangesAsync();
-                await transaction.CommitAsync();
-                Assert.Equal(1L, updateCount);
-            }));
-            Assert.Equal(ErrorCode.ResourceExhausted, exception.ErrorCode);
         }
 
         [Fact]

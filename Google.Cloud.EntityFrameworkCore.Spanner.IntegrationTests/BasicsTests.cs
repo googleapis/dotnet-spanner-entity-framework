@@ -27,14 +27,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         [Fact]
         public async Task CanInsertOrUpdateData()
         {
-            using var con = _fixture.GetConnection();
-            await con.RunWithRetriableTransactionAsync(async (_) =>
+            await using var con = _fixture.GetConnection();
+            await con.RunWithRetriableTransactionAsync(async (tx) =>
             {
                 var cmd = con.CreateInsertOrUpdateCommand("TestTable", new SpannerParameterCollection
                 {
                     new SpannerParameter { ParameterName = "Key", Value = "K1" },
                     new SpannerParameter { ParameterName = "Value", Value = "V1" },
                 });
+                cmd.Transaction = tx;
                 await cmd.ExecuteNonQueryAsync();
             });
         }

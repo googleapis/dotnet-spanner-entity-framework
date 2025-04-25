@@ -345,7 +345,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {
                         foreach (var columnModification in modificationCommand.ColumnModifications)
                         {
-                            if (columnModification is SpannerPendingCommitTimestampColumnModification pendingCommitTimestampColumnModification)
+                            if (columnModification is SpannerPendingCommitTimestampColumnModification
+                                pendingCommitTimestampColumnModification)
                             {
                                 var property = pendingCommitTimestampColumnModification.Property.PropertyInfo;
                                 if (property != null)
@@ -359,6 +360,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                             }
                         }
                     }
+
                     span.SetStatus(OpenTelemetry.Trace.Status.Ok);
                     span.End();
                     return (DateTime)_commitTimestamp;
@@ -367,6 +369,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {
                     span.SetAttribute(TracerProviderExtension.ATTRIBUTE_NAME_RETRYING, e.Message);
                     await RetryAsync(e, cancellationToken).ConfigureAwait(false);
+                }
+                catch (InvalidOperationException e) when (e.Message.Contains("A transaction has not been acquired for this PooledSession because no command execution has been attempted."))
+                {
+                    span.AddEvent("Committed empty transaction, no commit timestamp will be available");
+                    span.SetStatus(OpenTelemetry.Trace.Status.Ok);
+                    span.End();
+                    return DateTime.UnixEpoch;
                 }
                 catch (Exception e)
                 {
