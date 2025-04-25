@@ -24,6 +24,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
     public partial class TableWithAllColumnTypes : IDisposable
     {
         public long ColInt64 { get; set; }
+        public float? ColFloat32 { get; set; }
         public double? ColFloat64 { get; set; }
         public SpannerNumeric? ColNumeric { get; set; }
         public bool? ColBool { get; set; }
@@ -36,6 +37,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         public JsonDocument ColJson { get; set; }
         public DateTime? ColCommitTs { get; set; }
         public List<Nullable<long>> ColInt64Array { get; set; }
+        public List<Nullable<float>> ColFloat32Array { get; set; }
         public List<Nullable<double>> ColFloat64Array { get; set; }
         public List<Nullable<SpannerNumeric>> ColNumericArray { get; set; }
         public List<Nullable<bool>> ColBoolArray { get; set; }

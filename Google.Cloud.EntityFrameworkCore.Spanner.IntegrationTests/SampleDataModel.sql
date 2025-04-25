@@ -84,6 +84,7 @@ CREATE TABLE TicketSales (
 
 CREATE TABLE TableWithAllColumnTypes (
 	ColInt64 INT64 NOT NULL,
+    ColFloat32 FLOAT32,
 	ColFloat64 FLOAT64,
 	ColNumeric NUMERIC,
 	ColBool BOOL,
@@ -96,6 +97,7 @@ CREATE TABLE TableWithAllColumnTypes (
 	ColTimestamp TIMESTAMP,
 	ColCommitTS TIMESTAMP OPTIONS (allow_commit_timestamp=true),
 	ColInt64Array ARRAY<INT64>,
+    ColFloat32Array ARRAY<FLOAT32>,
 	ColFloat64Array ARRAY<FLOAT64>,
 	ColNumericArray ARRAY<NUMERIC>,
 	ColBoolArray ARRAY<BOOL>,

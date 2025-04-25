@@ -46,8 +46,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly CharTypeMapping s_char
             = new CharTypeMapping("STRING(1)", DbType.String);
 
-        private static readonly SpannerComplexTypeMapping s_float =
-            new SpannerComplexTypeMapping(SpannerDbType.Float64, typeof(float));
+        private static readonly FloatTypeMapping s_float = new SpannerFloatTypeMapping();
 
         private static readonly DoubleTypeMapping s_double = new SpannerDoubleTypeMapping();
 
@@ -111,6 +110,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bool), typeof(List<bool?>));
         private static readonly SpannerComplexTypeMapping s_boolList
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Bool), typeof(List<bool>));
+
+        private static readonly SpannerComplexTypeMapping s_nullableFloatArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Float32), typeof(float?[]));
+        private static readonly SpannerComplexTypeMapping s_floatArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Float32), typeof(float[]));
+
+        private static readonly SpannerComplexTypeMapping s_nullableFloatList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Float32), typeof(List<float?>));
+        private static readonly SpannerComplexTypeMapping s_floatList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Float32), typeof(List<float>));
 
         private static readonly SpannerComplexTypeMapping s_nullableDoubleArray
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Float64), typeof(double?[]));
@@ -223,6 +232,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(bool?[]), s_nullableBoolArray},
                     {typeof(List<bool>), s_boolList},
                     {typeof(List<bool?>), s_nullableBoolList},
+                    {typeof(float[]), s_floatArray},
+                    {typeof(float?[]), s_nullableFloatArray},
+                    {typeof(List<float>), s_floatList},
+                    {typeof(List<float?>), s_nullableFloatList},
                     {typeof(double[]), s_doubleArray},
                     {typeof(double?[]), s_nullableDoubleArray},
                     {typeof(List<double>), s_doubleList},
@@ -252,6 +265,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {SpannerDbType.Bool.ToString(), s_bool},
                 {SpannerDbType.Bytes.ToString(), s_bytes},
                 {SpannerDbType.Date.ToString(), s_date},
+                {SpannerDbType.Float32.ToString(), s_double},
                 {SpannerDbType.Float64.ToString(), s_double},
                 {SpannerDbType.Int64.ToString(), s_long},
                 {SpannerDbType.Timestamp.ToString(), s_datetime},
@@ -261,6 +275,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {"ARRAY<BOOL>", s_nullableBoolList},
                 {"ARRAY<BYTES", s_byteList},
                 {"ARRAY<DATE>", s_nullableDateList},
+                {"ARRAY<FLOAT32>", s_nullableFloatList},
                 {"ARRAY<FLOAT64>", s_nullableDoubleList},
                 {"ARRAY<INT64>", s_nullableLongList},
                 {"ARRAY<STRING", s_stringList},
@@ -274,6 +289,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {"ARRAY<BOOL>", s_nullableBoolArray},
                 {"ARRAY<BYTES", s_byteArray},
                 {"ARRAY<DATE>", s_nullableDateArray},
+                {"ARRAY<FLOAT32>", s_nullableFloatArray},
                 {"ARRAY<FLOAT64>", s_nullableDoubleArray},
                 {"ARRAY<INT64>", s_nullableLongArray},
                 {"ARRAY<STRING", s_stringArray},

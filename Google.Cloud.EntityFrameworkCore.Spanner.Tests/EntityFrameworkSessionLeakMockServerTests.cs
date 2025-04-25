@@ -1900,10 +1900,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = "INSERT INTO `TableWithAllColumnTypes` (`ColCommitTS`, `ColInt64`, `ASC`, `ColBool`, " +
                 "`ColBoolArray`, `ColBytes`, `ColBytesArray`, `ColBytesMax`, `ColBytesMaxArray`, `ColDate`, `ColDateArray`," +
-                " `ColFloat64`, `ColFloat64Array`, `ColInt64Array`, `ColJson`, `ColJsonArray`, `ColNumeric`, `ColNumericArray`, `ColString`, " +
+                " `ColFloat32`, `ColFloat32Array`, `ColFloat64`, `ColFloat64Array`, `ColInt64Array`, `ColJson`, `ColJsonArray`, `ColNumeric`, `ColNumericArray`, `ColString`, " +
                 "`ColStringArray`, `ColStringMax`, `ColStringMaxArray`, `ColTimestamp`, `ColTimestampArray`)" +
                 $"{Environment.NewLine}VALUES (PENDING_COMMIT_TIMESTAMP(), " +
-                $"@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22){Environment.NewLine}" +
+                $"@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22, @p23, @p24){Environment.NewLine}" +
                 $"THEN RETURN `ColComputed`";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type{Code = V1.TypeCode.String}, "ColComputed", "Test"));
 
@@ -1958,10 +1958,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = "INSERT INTO `TableWithAllColumnTypes` (`ColCommitTS`, `ColInt64`, `ASC`, `ColBool`, `ColBoolArray`," +
-                " `ColBytes`, `ColBytesArray`, `ColBytesMax`, `ColBytesMaxArray`, `ColDate`, `ColDateArray`, `ColFloat64`," +
-                " `ColFloat64Array`, `ColInt64Array`, `ColJson`, `ColJsonArray`, `ColNumeric`, `ColNumericArray`, `ColString`, `ColStringArray`," +
+                " `ColBytes`, `ColBytesArray`, `ColBytesMax`, `ColBytesMaxArray`, `ColDate`, `ColDateArray`, `ColFloat32`, `ColFloat32Array`," +
+                " `ColFloat64`, `ColFloat64Array`, `ColInt64Array`, `ColJson`, `ColJsonArray`, `ColNumeric`, `ColNumericArray`, `ColString`, `ColStringArray`," +
                 $" `ColStringMax`, `ColStringMaxArray`, `ColTimestamp`, `ColTimestampArray`){Environment.NewLine}" +
-                $"VALUES (PENDING_COMMIT_TIMESTAMP(), @p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22){Environment.NewLine}" +
+                $"VALUES (PENDING_COMMIT_TIMESTAMP(), @p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22, @p23, @p24){Environment.NewLine}" +
                 $"THEN RETURN `ColComputed`";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type{Code = V1.TypeCode.String}, "ColComputed", "Test"));
 
@@ -1980,10 +1980,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = "INSERT INTO `TableWithAllColumnTypes` (`ColCommitTS`, `ColInt64`, `ASC`, `ColBool`, " +
                       "`ColBoolArray`, `ColBytes`, `ColBytesArray`, `ColBytesMax`, `ColBytesMaxArray`, `ColDate`, `ColDateArray`," +
-                      " `ColFloat64`, `ColFloat64Array`, `ColInt64Array`, `ColJson`, `ColJsonArray`, `ColNumeric`, `ColNumericArray`, `ColString`, " +
+                      " `ColFloat32`, `ColFloat32Array`, `ColFloat64`, `ColFloat64Array`, `ColInt64Array`, `ColJson`, `ColJsonArray`, `ColNumeric`, `ColNumericArray`, `ColString`, " +
                       "`ColStringArray`, `ColStringMax`, `ColStringMaxArray`, `ColTimestamp`, `ColTimestampArray`)" +
                       $"{Environment.NewLine}VALUES (PENDING_COMMIT_TIMESTAMP(), " +
-                      $"@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22){Environment.NewLine}" +
+                      $"@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22, @p23, @p24){Environment.NewLine}" +
                       $"THEN RETURN `ColComputed`";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type {Code = V1.TypeCode.String}, "ColComputed", "Test"));
 
@@ -1995,6 +1995,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     ColBool = true,
                     ColBytes = new byte[] { 1, 2, 3 },
                     ColDate = new SpannerDate(2000, 1, 1),
+                    ColFloat32 = 3.14f,
                     ColFloat64 = 3.14,
                     ColJson = JsonDocument.Parse("{\"key\": \"value\"}"),
                     ColNumeric = SpannerNumeric.Parse("6.626"),
@@ -2005,6 +2006,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     ColBytesMax = new byte[] { },
                     ColDateArray = new List<SpannerDate?>
                         { new SpannerDate(2021, 8, 26), null, new SpannerDate(2000, 1, 1) },
+                    ColFloat32Array = new List<float?> { 3.14f, null, 6.626f },
                     ColFloat64Array = new List<double?> { 3.14, null, 6.626 },
                     ColInt64Array = new List<long?> { 1, null, 2 },
                     ColJsonArray = new List<JsonDocument>

@@ -276,6 +276,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                         },
                         new AddColumnOperation
                         {
+                            Name = "ColFloatArray",
+                            Table = "AllColTypes",
+                            ClrType = typeof(float[]),
+                            IsNullable = true
+                        },
+                        new AddColumnOperation
+                        {
+                            Name = "ColFloatList",
+                            Table = "AllColTypes",
+                            ClrType = typeof(List<float>),
+                            IsNullable = true,
+                        },
+                        new AddColumnOperation
+                        {
                             Name = "ColDoubleArray",
                             Table = "AllColTypes",
                             ClrType = typeof(double[]),

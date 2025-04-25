@@ -70,6 +70,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                         StringValue = Convert.ToInt64(value, InvariantCulture)
                         .ToString(InvariantCulture)
                     };
+                case TypeCode.Float32:
+                    return new Value { NumberValue = Convert.ToSingle(value, InvariantCulture) };
                 case TypeCode.Float64:
                     return new Value { NumberValue = Convert.ToDouble(value, InvariantCulture) };
                 case TypeCode.Timestamp:
