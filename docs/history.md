@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.3.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.2.0...Google.Cloud.EntityFrameworkCore.Spanner-3.3.0) (2025-04-25)
+
+
+### Features
+
+* add support for float32 ([#519](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/519)) ([f47d8b8](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/f47d8b8d35073f378fe9f6b380a0d6802effcddf))
+
+
+### Bug Fixes
+
+* migration default value should be wrapped in parentheses ([#512](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/512)) ([8253cef](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/8253cef7d6f74e310c94e7f415c74e22d5b67151))
+
+
+### Performance Improvements
+
+* use inline-begin-transaction ([#518](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/518)) ([ff05c9b](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/ff05c9bdb0fab5f45d6fe4d46554228e0908c3d4))
+
 ## [3.2.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.1.1...Google.Cloud.EntityFrameworkCore.Spanner-3.2.0) (2025-03-13)
 
 
