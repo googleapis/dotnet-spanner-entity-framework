@@ -203,7 +203,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                 name: "TicketSales",
                 columns: table => new
                 {
-                    Id = table.Column<long>(nullable: false).Annotation(SpannerAnnotationNames.Identity, SpannerIdentityOptionsData.Default),
+                    Id = table.Column<long>(nullable: false).Annotation("Spanner:Identity", "'GeneratedByDefault', 'BIT_REVERSED_POSITIVE'"),
                     CustomerName = table.Column<string>(),
                 });
 
