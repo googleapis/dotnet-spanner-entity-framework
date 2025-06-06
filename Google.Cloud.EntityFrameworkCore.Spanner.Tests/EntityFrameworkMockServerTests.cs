@@ -1354,7 +1354,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var singerId = 1L;
             var startTimes = await db.Singers
                 .Where(s => s.SingerId == singerId && s.BirthDate != null)
-                .Select(s => ((SpannerDate)s.BirthDate).AddYears(1))
+                .Select(s => s.BirthDate.Value.AddYears(1))
                 .ToListAsync();
             Assert.Collection(startTimes, s => Assert.Equal(new SpannerDate(1980, 1, 20), s));
         }
@@ -1406,7 +1406,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var singerId = 1L;
             var startTimes = await db.Singers
                 .Where(s => s.SingerId == singerId && s.BirthDate != null)
-                .Select(s => ((SpannerDate)s.BirthDate).AddMonths(1))
+                .Select(s => s.BirthDate.Value.AddMonths(1))
                 .ToListAsync();
             Assert.Collection(startTimes, s => Assert.Equal(new SpannerDate(1980, 1, 20), s));
         }
@@ -1458,7 +1458,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var singerId = 1L;
             var startTimes = await db.Singers
                 .Where(s => s.SingerId == singerId && s.BirthDate != null)
-                .Select(s => ((SpannerDate)s.BirthDate).AddDays(1))
+                .Select(s => s.BirthDate.Value.AddDays(1))
                 .ToListAsync();
             Assert.Collection(startTimes, s => Assert.Equal(new SpannerDate(1980, 1, 20), s));
         }

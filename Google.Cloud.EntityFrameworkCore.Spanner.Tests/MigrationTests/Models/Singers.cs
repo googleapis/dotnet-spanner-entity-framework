@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
 using System.Collections.Generic;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 
@@ -30,7 +31,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public string FullName { get; set; }
-        public SpannerDate? BirthDate { get; set; }
+        public DateOnly? BirthDate { get; set; }
         public byte[] Picture { get; set; }
 
         public virtual ICollection<Albums> Albums { get; set; }

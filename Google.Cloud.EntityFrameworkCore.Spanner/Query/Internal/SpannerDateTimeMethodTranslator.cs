@@ -40,6 +40,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 
         private static readonly MethodInfo s_addDaysMethodInfo
             = typeof(SpannerDate).GetRuntimeMethod(nameof(SpannerDate.AddDays), new[] { typeof(int) });
+        
+        private static readonly MethodInfo s_addDateOnlyYearsMethodInfo
+            = typeof(DateOnly).GetRuntimeMethod(nameof(DateOnly.AddYears), new[] { typeof(int) });
+
+        private static readonly MethodInfo s_addDateOnlyMonthsMethodInfo
+            = typeof(DateOnly).GetRuntimeMethod(nameof(DateOnly.AddMonths), new[] { typeof(int) });
+
+        private static readonly MethodInfo s_addDateOnlyDaysMethodInfo
+            = typeof(DateOnly).GetRuntimeMethod(nameof(DateOnly.AddDays), new[] { typeof(int) });
 
         private static readonly MethodInfo s_dateTimeAddDaysMethodInfo
             = typeof(DateTime).GetRuntimeMethod(nameof(DateTime.AddDays), new[] { typeof(double) });
@@ -85,6 +94,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             {
                 return TranslateAddDateInterval(instance, arguments, "DAY");
             }
+            if (s_addDateOnlyYearsMethodInfo.Equals(method) && IsValidDate(instance))
+            {
+                return TranslateAddDateOnlyInterval(instance, arguments, "YEAR");
+            }
+            if (s_addDateOnlyMonthsMethodInfo.Equals(method) && IsValidDate(instance))
+            {
+                return TranslateAddDateOnlyInterval(instance, arguments, "MONTH");
+            }
+            if (s_addDateOnlyDaysMethodInfo.Equals(method) && IsValidDate(instance))
+            {
+                return TranslateAddDateOnlyInterval(instance, arguments, "DAY");
+            }
             if (s_dateTimeAddDaysMethodInfo.Equals(method) && IsValidTimestamp(instance))
             {
                 return TranslateAddTimestampInterval(instance, arguments, "DAY");
@@ -110,6 +131,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 return TranslateAddTimestampInterval(instance, arguments, "NANOSECOND", 100L);
             }
             return null;
+        }
+
+        private SqlExpression TranslateAddDateOnlyInterval(SqlExpression instance, IReadOnlyList<SqlExpression> arguments, string interval)
+        {
+            return TranslateOneArgFunction("DATE_ADD", instance, new SpannerIntervalExpression(_sqlExpressionFactory, _sqlExpressionFactory.ApplyDefaultTypeMapping(arguments[0]), interval), typeof(DateOnly));
         }
 
         private SqlExpression TranslateAddDateInterval(SqlExpression instance, IReadOnlyList<SqlExpression> arguments, string interval)

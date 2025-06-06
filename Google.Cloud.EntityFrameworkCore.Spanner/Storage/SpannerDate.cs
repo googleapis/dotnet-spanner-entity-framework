@@ -62,6 +62,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage
             if (Month != other.Month) return Month.CompareTo(other.Month);
             return Day.CompareTo(other.Day);
         }
+        
+        public static implicit operator DateOnly(SpannerDate d) => new (d.Year, d.Month, d.Day);
 
         public static bool operator ==(SpannerDate lhs, SpannerDate rhs) => lhs.Equals(rhs);
 
