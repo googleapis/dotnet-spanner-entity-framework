@@ -15,53 +15,193 @@
 using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Transactions;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 {
-    internal class SpannerMigrationCommandExecutor : IMigrationCommandExecutor
+    internal class SpannerMigrationCommandExecutor(IExecutionStrategy executionStrategy) : IMigrationCommandExecutor
     {
         public void ExecuteNonQuery(IEnumerable<MigrationCommand> migrationCommands, IRelationalConnection connection)
         {
-            ExecuteNonQueryAsync(migrationCommands, connection).WaitWithUnwrappedExceptions();
+            ExecuteNonQuery(migrationCommands.ToList(), connection, new MigrationExecutionState(), commitTransaction: true);
         }
+
+        public int ExecuteNonQuery(IReadOnlyList<MigrationCommand> migrationCommands, IRelationalConnection connection, MigrationExecutionState executionState, bool commitTransaction, System.Data.IsolationLevel? isolationLevel = null)
+        {
+            GaxPreconditions.CheckArgument(connection is SpannerRelationalConnection, nameof(connection), "Can only be used with Spanner connections");
+            
+            var inUserTransaction = connection.CurrentTransaction is not null && executionState.Transaction == null;
+            if (inUserTransaction
+                && (migrationCommands.Any(x => x.TransactionSuppressed) || executionStrategy.RetriesOnFailure))
+            {
+                throw new NotSupportedException("Cannot execute transaction suppressed migration commands in user transaction.");
+            }
+
+            using var transactionScope = new TransactionScope(TransactionScopeOption.Suppress, TransactionScopeAsyncFlowOption.Enabled);
+
+            return executionStrategy.Execute(
+                (migrationCommands, connection, inUserTransaction, executionState, commitTransaction, isolationLevel),
+                static (_, s) => ExecuteInternal(
+                    s.migrationCommands,
+                    s.connection,
+                    s.executionState,
+                    beginTransaction: !s.inUserTransaction,
+                    commitTransaction: !s.inUserTransaction && s.commitTransaction,
+                    s.isolationLevel),
+                verifySucceeded: null);
+        }
+
 
         public async Task ExecuteNonQueryAsync(IEnumerable<MigrationCommand> migrationCommands, IRelationalConnection connection, CancellationToken cancellationToken = default)
         {
-            GaxPreconditions.CheckArgument(connection is SpannerRelationalConnection, nameof(connection), "Can only be used with Spanner connections");
-            var statements = migrationCommands.Select(x => x.CommandText).ToArray();
-            if (statements.Length == 0)
-            {
-                return;
-            }
-            var ddlStatements = statements.Where(IsDdlStatement).ToArray();
-            var otherStatements = statements.Where(x => !IsDdlStatement(x));
-            var spannerConnection = ((SpannerRelationalConnection) connection).DbConnection as SpannerRetriableConnection;
-            if (ddlStatements.Any())
-            {
-                var cmd = spannerConnection.CreateDdlCommand(ddlStatements[0], ddlStatements.Skip(1).ToArray());
-                await cmd.ExecuteNonQueryAsync(cancellationToken);
-            }
-            if (otherStatements.Any())
-            {
-                using var transaction = await spannerConnection.BeginTransactionAsync(cancellationToken);
-                var cmd = spannerConnection.CreateBatchDmlCommand();
-                cmd.Transaction = transaction;
-                foreach (var statement in otherStatements)
-                {
-                    cmd.Add(statement);
-                }
-                await cmd.ExecuteNonQueryAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-            }
+            await ExecuteNonQueryAsync(migrationCommands.ToList(), connection, new MigrationExecutionState(), commitTransaction: true, System.Data.IsolationLevel.Unspecified, cancellationToken).ConfigureAwait(false);
         }
 
-        private bool IsDdlStatement(string statement)
+        public async Task<int> ExecuteNonQueryAsync(IReadOnlyList<MigrationCommand> migrationCommands, IRelationalConnection connection, MigrationExecutionState executionState, bool commitTransaction, System.Data.IsolationLevel? isolationLevel = null, CancellationToken cancellationToken = default)
+        {
+            GaxPreconditions.CheckArgument(connection is SpannerRelationalConnection, nameof(connection), "Can only be used with Spanner connections");
+            
+            var inUserTransaction = connection.CurrentTransaction is not null && executionState.Transaction == null;
+            if (inUserTransaction
+                && (migrationCommands.Any(x => x.TransactionSuppressed) || executionStrategy.RetriesOnFailure))
+            {
+                throw new NotSupportedException("Cannot execute transaction suppressed migration commands in user transaction.");
+            }
+
+            using var transactionScope = new TransactionScope(TransactionScopeOption.Suppress, TransactionScopeAsyncFlowOption.Enabled);
+
+            return await executionStrategy.ExecuteAsync(
+                (migrationCommands, connection, inUserTransaction, executionState, commitTransaction, isolationLevel),
+                static (_, s, ct) => ExecuteInternalAsync(
+                    s.migrationCommands,
+                    s.connection,
+                    s.executionState,
+                    beginTransaction: !s.inUserTransaction,
+                    commitTransaction: !s.inUserTransaction && s.commitTransaction,
+                    s.isolationLevel,
+                    ct),
+                verifySucceeded: null,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private static int ExecuteInternal(
+            IReadOnlyList<MigrationCommand> migrationCommands,
+            IRelationalConnection connection,
+            MigrationExecutionState executionState,
+            bool beginTransaction,
+            bool commitTransaction,
+            System.Data.IsolationLevel? isolationLevel)
+        {
+            var result = 0;
+            var connectionOpened = connection.Open();
+            
+            try
+            {
+                var statements = migrationCommands.Select(x => x.CommandText).ToArray();
+                if (statements.Length == 0)
+                {
+                    return result;
+                }
+                
+                var ddlStatements = statements.Where(IsDdlStatement).ToArray();
+                var otherStatements = statements.Where(x => !IsDdlStatement(x)).ToArray();
+                var spannerConnection = ((SpannerRelationalConnection)connection).DbConnection as SpannerRetriableConnection;
+                
+                if (ddlStatements.Any())
+                {
+                    var cmd = spannerConnection.CreateDdlCommand(ddlStatements[0], ddlStatements.Skip(1).ToArray());
+                    result += cmd.ExecuteNonQuery();
+                }
+                
+                if (otherStatements.Any())
+                {
+                    using var transaction = spannerConnection.BeginTransaction();
+                    var cmd = spannerConnection.CreateBatchDmlCommand();
+                    cmd.Transaction = transaction;
+                    foreach (var statement in otherStatements)
+                    {
+                        cmd.Add(statement);
+                    }
+                    // Batch DML returns IReadOnlyList<long>, so sum the update counts
+                    var updateCounts = cmd.ExecuteNonQuery();
+                    result += (int)updateCounts.Sum();
+                    transaction.Commit();
+                }
+            }
+            catch
+            {
+                connection.Close();
+                throw;
+            }
+
+            connection.Close();
+            return result;
+        }
+
+        private static async Task<int> ExecuteInternalAsync(
+            IReadOnlyList<MigrationCommand> migrationCommands,
+            IRelationalConnection connection,
+            MigrationExecutionState executionState,
+            bool beginTransaction,
+            bool commitTransaction,
+            System.Data.IsolationLevel? isolationLevel,
+            CancellationToken cancellationToken)
+        {
+            var result = 0;
+            var connectionOpened = await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            
+            try
+            {
+                var statements = migrationCommands.Select(x => x.CommandText).ToArray();
+                if (statements.Length == 0)
+                {
+                    return result;
+                }
+                
+                var ddlStatements = statements.Where(IsDdlStatement).ToArray();
+                var otherStatements = statements.Where(x => !IsDdlStatement(x)).ToArray();
+                var spannerConnection = ((SpannerRelationalConnection)connection).DbConnection as SpannerRetriableConnection;
+                
+                if (ddlStatements.Any())
+                {
+                    var cmd = spannerConnection.CreateDdlCommand(ddlStatements[0], ddlStatements.Skip(1).ToArray());
+                    result += await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+                
+                if (otherStatements.Any())
+                {
+                    using var transaction = await spannerConnection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+                    var cmd = spannerConnection.CreateBatchDmlCommand();
+                    cmd.Transaction = transaction;
+                    foreach (var statement in otherStatements)
+                    {
+                        cmd.Add(statement);
+                    }
+                    // Batch DML returns IReadOnlyList<long>, so sum the update counts
+                    var updateCounts = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                    result += (int)updateCounts.Sum();
+                    await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                await connection.CloseAsync().ConfigureAwait(false);
+                throw;
+            }
+
+            await connection.CloseAsync().ConfigureAwait(false);
+            return result;
+        }
+
+        private static bool IsDdlStatement(string statement)
         {
             return SpannerCommandTextBuilder.FromCommandText(statement).SpannerCommandType == SpannerCommandType.Ddl;
         }

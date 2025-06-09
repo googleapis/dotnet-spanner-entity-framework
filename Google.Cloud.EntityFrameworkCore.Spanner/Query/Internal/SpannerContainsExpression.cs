@@ -16,7 +16,10 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq.Expressions;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -28,6 +31,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal;
 /// </summary>
 public class SpannerContainsExpression : SqlExpression
 {
+    private static ConstructorInfo? _quotingConstructorWithValues;
+    
     public SqlExpression Values { get; }
     public SqlExpression Item { get; }
     public virtual bool IsNegated { get; }
@@ -51,6 +56,24 @@ public class SpannerContainsExpression : SqlExpression
 
         return Update(item, values);
     }
+
+
+    /// <inheritdoc />
+    public override Expression Quote()
+#pragma warning disable EF9100 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+        => this switch
+        {
+            { Values: not null } => New(
+                _quotingConstructorWithValues ??= typeof(SpannerContainsExpression).GetConstructor(
+                    [typeof(SqlExpression), typeof(SqlExpression), typeof(bool), typeof(RelationalTypeMapping)])!,
+                Item.Quote(),
+                Values.Quote(),
+                Constant(IsNegated),
+                RelationalExpressionQuotingUtilities.QuoteTypeMapping(TypeMapping)),
+
+            _ => throw new UnreachableException()
+        };
+#pragma warning restore EF9100 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
     protected override void Print(ExpressionPrinter expressionPrinter)
     {

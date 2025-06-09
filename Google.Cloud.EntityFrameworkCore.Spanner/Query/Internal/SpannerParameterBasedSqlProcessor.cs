@@ -26,8 +26,8 @@ public class SpannerParameterBasedSqlProcessor : RelationalParameterBasedSqlProc
     /// <summary>
     /// Only for internal use.
     /// </summary>
-    public SpannerParameterBasedSqlProcessor([NotNull] RelationalParameterBasedSqlProcessorDependencies dependencies, bool useRelationalNulls) :
-        base(dependencies, useRelationalNulls)
+    public SpannerParameterBasedSqlProcessor([NotNull] RelationalParameterBasedSqlProcessorDependencies dependencies, RelationalParameterBasedSqlProcessorParameters parameters) :
+        base(dependencies, parameters)
     {
     }
     
@@ -36,6 +36,6 @@ public class SpannerParameterBasedSqlProcessor : RelationalParameterBasedSqlProc
         Expression selectExpression,
         [ItemCanBeNull] IReadOnlyDictionary<string, object> parametersValues,
         out bool canCache)
-        => new SpannerSqlNullabilityProcessor(Dependencies, UseRelationalNulls).Process(
+        => new SpannerSqlNullabilityProcessor(Dependencies, Parameters).Process(
             selectExpression, parametersValues, out canCache);
 }

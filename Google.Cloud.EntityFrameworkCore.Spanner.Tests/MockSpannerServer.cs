@@ -314,6 +314,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
         private readonly object _lock = new();
         private readonly ConcurrentDictionary<string, StatementResult> _results = new();
+        private readonly ConcurrentDictionary<string, StatementResult> _patternResults = new();
         private ConcurrentQueue<IMessage> _requests = new();
         private ConcurrentQueue<ServerCallContext> _contexts = new();
         private ConcurrentQueue<Grpc.Core.Metadata> _headers = new ();
@@ -332,6 +333,74 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 result,
                 (_, _) => result
             );
+        }
+
+        public void AddOrUpdatePatternResult(string sqlPattern, StatementResult result)
+        {
+            _patternResults.AddOrUpdate(sqlPattern.Trim(),
+                result,
+                (_, _) => result
+            );
+        }
+
+        private StatementResult FindStatementResult(string sql)
+        {
+            // First try exact match
+            if (_results.TryGetValue(sql.Trim(), out StatementResult result))
+            {
+                return result;
+            }
+            
+            // Then try pattern matching
+            foreach (var pattern in _patternResults.Keys)
+            {
+                if (IsWildcardMatch(sql.Trim(), pattern))
+                {
+                    return _patternResults[pattern];
+                }
+            }
+            
+            return null;
+        }
+
+        private static bool IsWildcardMatch(string text, string pattern)
+        {
+            // Simple wildcard matching supporting * as wildcard
+            if (pattern == "*") return true;
+            
+            var parts = pattern.Split('*');
+            if (parts.Length == 1)
+            {
+                // No wildcards, exact match
+                return text.Equals(pattern, StringComparison.OrdinalIgnoreCase);
+            }
+            
+            int currentIndex = 0;
+            for (int i = 0; i < parts.Length; i++)
+            {
+                var part = parts[i];
+                if (string.IsNullOrEmpty(part)) continue;
+                
+                int foundIndex = text.IndexOf(part, currentIndex, StringComparison.OrdinalIgnoreCase);
+                if (foundIndex == -1) return false;
+                
+                // First part must match from the beginning
+                if (i == 0 && foundIndex != 0) return false;
+                
+                currentIndex = foundIndex + part.Length;
+            }
+            
+            // Last part must match at the end (unless pattern ends with *)
+            if (!pattern.EndsWith("*") && parts.Length > 1)
+            {
+                var lastPart = parts[parts.Length - 1];
+                if (!string.IsNullOrEmpty(lastPart) && !text.EndsWith(lastPart, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+            
+            return true;
         }
 
         public void AddOrUpdateExecutionTime(string method, ExecutionTime executionTime)
@@ -370,6 +439,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _headers = new ConcurrentQueue<Grpc.Core.Metadata>();
             _executionTimes.Clear();
             _results.Clear();
+            _patternResults.Clear();
             _abortedTransactions.Clear();
             _abortNextStatement = false;
         }
@@ -592,7 +662,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 {
                     break;
                 }
-                if (_results.TryGetValue(statement.Sql.Trim(), out StatementResult result))
+                var result = FindStatementResult(statement.Sql);
+                if (result != null)
                 {
                     switch (result.Type)
                     {
@@ -652,7 +723,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 returnTransaction = transaction;
             }
-            if (_results.TryGetValue(request.Sql.Trim(), out StatementResult result))
+            var result = FindStatementResult(request.Sql);
+            if (result != null)
             {
                 switch (result.Type)
                 {
