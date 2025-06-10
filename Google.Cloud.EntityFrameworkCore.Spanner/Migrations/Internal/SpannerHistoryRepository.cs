@@ -240,7 +240,7 @@ CREATE TABLE IF NOT EXISTS {LockTableName} (
 
         return Dependencies.RawSqlCommandBuilder.Build(
             $"""
-INSERT OR IGNORE INTO {LockTableName}(Id, Timestamp) VALUES(1, {timestampLiteral})
+INSERT OR IGNORE INTO `{LockTableName}`(`Id`, `Timestamp`) VALUES(1, {timestampLiteral})
 THEN RETURN 1
 """);
     }
@@ -248,7 +248,7 @@ THEN RETURN 1
     private IRelationalCommand CreateDeleteLockCommand(int? id = null)
     {
         var sql = $"""
-DELETE FROM {LockTableName}
+DELETE FROM `{LockTableName}`
 """;
         if (id != null)
         {

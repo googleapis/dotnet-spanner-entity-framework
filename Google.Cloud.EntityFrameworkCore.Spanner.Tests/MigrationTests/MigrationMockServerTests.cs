@@ -50,7 +50,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
             );
             // Add mock result for the INSERT OR IGNORE migration lock statement - this has a dynamic timestamp so we'll use a pattern
             _fixture.SpannerMock.AddOrUpdatePatternResult(
-                "INSERT OR IGNORE INTO \"EFMigrationsLock\"(\"Id\", \"Timestamp\") VALUES(1, '*');\nSELECT changes();",
+                "INSERT OR IGNORE INTO `EFMigrationsLock`(`Id`, `Timestamp`) VALUES(1, '*')\nTHEN RETURN 1",
                 StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "changes", 1L)
             );
             _fixture.SpannerMock.AddOrUpdateStatementResult(
@@ -62,7 +62,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
                 StatementResult.CreateUpdateCount(1)
             );
             _fixture.SpannerMock.AddOrUpdateStatementResult(
-                "DELETE FROM \"EFMigrationsLock\";",
+                "DELETE FROM `EFMigrationsLock` WHERE 1 = 1;",
                 StatementResult.CreateUpdateCount(1)
             );
             using var db = new MockMigrationSampleDbContext(ConnectionString);
