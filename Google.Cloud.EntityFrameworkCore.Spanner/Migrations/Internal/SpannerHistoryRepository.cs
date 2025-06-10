@@ -118,7 +118,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
         /// <summary>
         ///     The name of the table that will serve as a database-wide lock for migrations.
         /// </summary>
-        protected virtual string LockTableName { get; } = "__EFMigrationsLock";
+        protected virtual string LockTableName { get; } = "EFMigrationsLock";
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -136,6 +136,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
         /// </summary>
         public override IMigrationsDatabaseLock AcquireDatabaseLock()
         {
+            // TODO: Merge async and sync methods to avoid code duplication.
             Dependencies.MigrationsLogger.AcquiringMigrationLock();
 
             if (!InterpretExistsResult(
@@ -145,8 +146,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                 CreateLockTableCommand().ExecuteNonQuery(CreateRelationalCommandParameters());
             }
 
+            // TODO: Inject with settings for timeout
+            var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            
             var retryDelay = _retryDelay;
-            while (true)
+            while (!timeout.IsCancellationRequested)
             {
                 long insertCount = 0;
                 var dbLock = CreateMigrationDatabaseLock();
@@ -173,6 +177,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                     retryDelay = retryDelay.Add(retryDelay);
                 }
             }
+
+            throw new TimeoutException("Failed to acquire migration lock within the specified timeout.");
         }
 
     /// <summary>
@@ -194,8 +200,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                 .ConfigureAwait(false);
         }
 
+        // TODO: Inject with settings for timeout
+        var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
         var retryDelay = _retryDelay;
-        while (true)
+        while (!timeout.IsCancellationRequested)
         {
             var dbLock = CreateMigrationDatabaseLock();
             var insertCount = await CreateInsertLockCommand(DateTimeOffset.UtcNow)
@@ -212,15 +221,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                 retryDelay = retryDelay.Add(retryDelay);
             }
         }
+
+        throw new TimeoutException("Failed to acquire migration lock within the specified timeout.");
     }
 
     private IRelationalCommand CreateLockTableCommand()
         => Dependencies.RawSqlCommandBuilder.Build(
             $"""
-CREATE TABLE IF NOT EXISTS "{LockTableName}" (
-    "Id" INTEGER NOT NULL CONSTRAINT "PK_{LockTableName}" PRIMARY KEY,
-    "Timestamp" TEXT NOT NULL
-);
+CREATE TABLE IF NOT EXISTS {LockTableName} (
+    Id INT64 NOT NULL,
+    Timestamp STRING(256) NOT NULL
+) PRIMARY KEY (Id)
 """);
 
     private IRelationalCommand CreateInsertLockCommand(DateTimeOffset timestamp)
@@ -229,19 +240,23 @@ CREATE TABLE IF NOT EXISTS "{LockTableName}" (
 
         return Dependencies.RawSqlCommandBuilder.Build(
             $"""
-INSERT OR IGNORE INTO "{LockTableName}"("Id", "Timestamp") VALUES(1, {timestampLiteral});
-SELECT changes();
+INSERT OR IGNORE INTO {LockTableName}(Id, Timestamp) VALUES(1, {timestampLiteral})
+THEN RETURN 1
 """);
     }
 
     private IRelationalCommand CreateDeleteLockCommand(int? id = null)
     {
         var sql = $"""
-DELETE FROM "{LockTableName}"
+DELETE FROM {LockTableName}
 """;
         if (id != null)
         {
-            sql += $""" WHERE "Id" = {id}""";
+            sql += $""" WHERE Id = {id}""";
+        }
+        else
+        {
+            sql += " WHERE 1 = 1";
         }
 
         sql += ";";

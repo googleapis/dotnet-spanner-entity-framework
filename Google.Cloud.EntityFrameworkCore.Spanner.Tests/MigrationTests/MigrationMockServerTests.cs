@@ -45,13 +45,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
             var formattedVersion = $"{version.Major}.{version.Minor}.{version.Build}";
             _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateException(MockSpannerService.CreateDatabaseNotFoundException("d1")));
             _fixture.SpannerMock.AddOrUpdateStatementResult(
-                "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_catalog = '' and table_schema = '' and table_name = '''__EFMigrationsLock''')",
+                "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_catalog = '' and table_schema = '' and table_name = '''EFMigrationsLock''')",
                 StatementResult.CreateSelect1ResultSet()
             );
             // Add mock result for the INSERT OR IGNORE migration lock statement - this has a dynamic timestamp so we'll use a pattern
-            // The SQL will be something like: INSERT OR IGNORE INTO "__EFMigrationsLock"("Id", "Timestamp") VALUES(1, '2025-06-09 20:16:59.350519+00:00'); SELECT changes();
             _fixture.SpannerMock.AddOrUpdatePatternResult(
-                "INSERT OR IGNORE INTO \"__EFMigrationsLock\"(\"Id\", \"Timestamp\") VALUES(1, '*');\nSELECT changes();",
+                "INSERT OR IGNORE INTO \"EFMigrationsLock\"(\"Id\", \"Timestamp\") VALUES(1, '*');\nSELECT changes();",
                 StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "changes", 1L)
             );
             _fixture.SpannerMock.AddOrUpdateStatementResult(
@@ -63,7 +62,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
                 StatementResult.CreateUpdateCount(1)
             );
             _fixture.SpannerMock.AddOrUpdateStatementResult(
-                "DELETE FROM \"__EFMigrationsLock\";",
+                "DELETE FROM \"EFMigrationsLock\";",
                 StatementResult.CreateUpdateCount(1)
             );
             using var db = new MockMigrationSampleDbContext(ConnectionString);
