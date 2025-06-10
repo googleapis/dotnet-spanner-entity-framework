@@ -1,5 +1,5 @@
 {
-  "baseBranches": ["main", "v3.1"],
+  "baseBranches": ["main"],
   "semanticCommitType": "deps",
   "semanticCommitScope": "",
   "extends": [
