@@ -45,19 +45,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                 throw new NotSupportedException("Cannot execute transaction suppressed migration commands in user transaction.");
             }
 
-            var cancellationToken = CancellationToken.None;
             using var transactionScope = new TransactionScope(TransactionScopeOption.Suppress, TransactionScopeAsyncFlowOption.Enabled);
 
-            return executionStrategy.ExecuteAsync(
-                (migrationCommands, connection, inUserTransaction, commitTransaction, isolationLevel),
-                static (_, s, ct) => ExecuteInternalAsync(
+            return executionStrategy.Execute(
+                (migrationCommands, connection, executionState, inUserTransaction, commitTransaction, isolationLevel),
+                static (_, s) => Execute(
                     s.migrationCommands,
                     s.connection,
+                    s.executionState,
                     beginTransaction: !s.inUserTransaction,
                     commitTransaction: !s.inUserTransaction && s.commitTransaction,
-                    s.isolationLevel,
-                    ct),
-                verifySucceeded: null, cancellationToken).ResultWithUnwrappedExceptions();
+                    s.isolationLevel),
+                verifySucceeded: null);
         }
 
         public async Task ExecuteNonQueryAsync(IEnumerable<MigrationCommand> migrationCommands, IRelationalConnection connection, CancellationToken cancellationToken = default)
@@ -79,10 +78,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             using var transactionScope = new TransactionScope(TransactionScopeOption.Suppress, TransactionScopeAsyncFlowOption.Enabled);
 
             return await executionStrategy.ExecuteAsync(
-                (migrationCommands, connection, inUserTransaction, commitTransaction, isolationLevel),
-                static (_, s, ct) => ExecuteInternalAsync(
+                (migrationCommands, connection, executionState, inUserTransaction, commitTransaction, isolationLevel),
+                static (_, s, ct) => ExecuteAsync(
                     s.migrationCommands,
                     s.connection,
+                    s.executionState,
                     beginTransaction: !s.inUserTransaction,
                     commitTransaction: !s.inUserTransaction && s.commitTransaction,
                     s.isolationLevel,
@@ -91,9 +91,87 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                 cancellationToken).ConfigureAwait(false);
         }
 
-        private static async Task<int> ExecuteInternalAsync(
+        private static int Execute(
             IReadOnlyList<MigrationCommand> migrationCommands,
             IRelationalConnection connection,
+            MigrationExecutionState executionState,
+            bool beginTransaction,
+            bool commitTransaction,
+            System.Data.IsolationLevel? isolationLevel)
+        {
+            var result = 0;
+            var connectionOpened = connection.Open();
+            
+            try
+            {
+                for (var i = executionState.LastCommittedCommandIndex; i < migrationCommands.Count; i++)
+                {
+                    var command = migrationCommands[i];
+                    if (executionState.Transaction == null
+                        && !command.TransactionSuppressed
+                        && beginTransaction)
+                    {
+                        executionState.Transaction = isolationLevel == null
+                            ? connection.BeginTransaction()
+                            : connection.BeginTransaction(isolationLevel.Value);
+                        if (executionState.DatabaseLock != null)
+                        {
+                            executionState.DatabaseLock = executionState.DatabaseLock.ReacquireIfNeeded(
+                                connectionOpened, transactionRestarted: true);
+                            connectionOpened = false;
+                        }
+                    }
+
+                    if (executionState.Transaction != null
+                        && command.TransactionSuppressed)
+                    {
+                        executionState.Transaction.Commit();
+                        executionState.Transaction.Dispose();
+                        executionState.Transaction = null;
+                        executionState.LastCommittedCommandIndex = i;
+                        executionState.AnyOperationPerformed = true;
+
+                        if (executionState.DatabaseLock != null)
+                        {
+                            executionState.DatabaseLock = executionState.DatabaseLock.ReacquireIfNeeded(
+                                connectionOpened, transactionRestarted: null);
+                            connectionOpened = false;
+                        }
+                    }
+
+                    result = command.ExecuteNonQuery(connection);
+
+                    if (executionState.Transaction == null)
+                    {
+                        executionState.LastCommittedCommandIndex = i + 1;
+                        executionState.AnyOperationPerformed = true;
+                    }
+                }
+
+                if (commitTransaction
+                    && executionState.Transaction != null)
+                {
+                    executionState.Transaction.Commit();
+                    executionState.Transaction.Dispose();
+                    executionState.Transaction = null;
+                }
+            }
+            catch
+            {
+                executionState.Transaction?.Dispose();
+                executionState.Transaction = null;
+                connection.Close();
+                throw;
+            }
+
+            connection.Close();
+            return result;
+        }
+
+        private static async Task<int> ExecuteAsync(
+            IReadOnlyList<MigrationCommand> migrationCommands,
+            IRelationalConnection connection,
+            MigrationExecutionState executionState,
             bool beginTransaction,
             bool commitTransaction,
             System.Data.IsolationLevel? isolationLevel,
@@ -101,53 +179,80 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
         {
             var result = 0;
             var connectionOpened = await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-            
+            var spannerConnection = ((SpannerRelationalConnection)connection).DbConnection as SpannerRetriableConnection;
+
             try
             {
-                var statements = migrationCommands.Select(x => x.CommandText).ToArray();
-                if (statements.Length == 0)
+                for (var i = executionState.LastCommittedCommandIndex; i < migrationCommands.Count; i++)
                 {
-                    return result;
+                    var lockReacquired = false;
+                    var command = migrationCommands[i];
+                    if (executionState.Transaction == null
+                        && !command.TransactionSuppressed
+                        && beginTransaction)
+                    {
+                        executionState.Transaction = await (isolationLevel == null
+                            ? connection.BeginTransactionAsync(cancellationToken)
+                            : connection.BeginTransactionAsync(isolationLevel.Value, cancellationToken))
+                            .ConfigureAwait(false);
+
+                        if (executionState.DatabaseLock != null)
+                        {
+                            executionState.DatabaseLock = await executionState.DatabaseLock.ReacquireIfNeededAsync(
+                                connectionOpened, transactionRestarted: true, cancellationToken)
+                                .ConfigureAwait(false);
+                            lockReacquired = true;
+                        }
+                    }
+
+                    if (executionState.Transaction != null
+                        && command.TransactionSuppressed)
+                    {
+                        await executionState.Transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                        await executionState.Transaction.DisposeAsync().ConfigureAwait(false);
+                        executionState.Transaction = null;
+                        executionState.LastCommittedCommandIndex = i;
+                        executionState.AnyOperationPerformed = true;
+
+                        if (executionState.DatabaseLock != null
+                            && !lockReacquired)
+                        {
+                            executionState.DatabaseLock = await executionState.DatabaseLock.ReacquireIfNeededAsync(
+                                connectionOpened, transactionRestarted: null, cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                    }
+
+                    var spannerCommand = IsDdlStatement(command.CommandText) ? 
+                        spannerConnection.CreateDdlCommand(command.CommandText) 
+                        : spannerConnection.CreateDmlCommand(command.CommandText);
+
+                    // spannerCommand.Transaction = executionState.Transaction/
+                    result = await spannerCommand.ExecuteNonQueryAsync(cancellationToken: cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (executionState.Transaction == null)
+                    {
+                        executionState.LastCommittedCommandIndex = i + 1;
+                        executionState.AnyOperationPerformed = true;
+                    }
                 }
-                
-                var ddlStatements = statements.Where(IsDdlStatement).ToArray();
-                var otherStatements = statements.Where(x => !IsDdlStatement(x)).ToArray();
-                var spannerConnection = ((SpannerRelationalConnection)connection).DbConnection as SpannerRetriableConnection;
-                
-                if (ddlStatements.Any())
+
+                if (commitTransaction
+                    && executionState.Transaction != null)
                 {
-                    var cmd = spannerConnection.CreateDdlCommand(ddlStatements[0], ddlStatements.Skip(1).ToArray());
-                    result += await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                }
-                
-                if (otherStatements.Any())
-                {
-                    using var transaction = beginTransaction ? await spannerConnection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false) : null;
-
-                    var cmd = spannerConnection.CreateBatchDmlCommand();
-
-                    if (transaction != null)
-                    {
-                        cmd.Transaction = transaction;
-                    }
-
-                    foreach (var statement in otherStatements)
-                    {
-                        cmd.Add(statement);
-                    }
-                    // Batch DML returns IReadOnlyList<long>, so sum the update counts
-                    var updateCounts = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                    result += (int)updateCounts.Sum();
-
-                    if (commitTransaction && transaction != null)
-                    {
-                        // Commit the transaction if required
-                        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-                    }
+                    await executionState.Transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    await executionState.Transaction.DisposeAsync().ConfigureAwait(false);
+                    executionState.Transaction = null;
                 }
             }
             catch
             {
+                if (executionState.Transaction != null)
+                {
+                    await executionState.Transaction.DisposeAsync().ConfigureAwait(false);
+                    executionState.Transaction = null;
+                }
                 await connection.CloseAsync().ConfigureAwait(false);
                 throw;
             }
