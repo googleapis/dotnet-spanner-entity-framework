@@ -19,7 +19,6 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models;
 using Grpc.Core;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
-using Xunit.Sdk;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
 {

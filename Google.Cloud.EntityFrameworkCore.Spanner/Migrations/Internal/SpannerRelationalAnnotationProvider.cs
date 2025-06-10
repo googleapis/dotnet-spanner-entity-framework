@@ -48,7 +48,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                 && !HasConverter(property))
             {
                 var defaultIdentityOptions = column.Table.Model.Model.GetIdentityOptions();
-                yield return new Annotation(SpannerAnnotationNames.Identity, defaultIdentityOptions ?? SpannerIdentityOptionsData.Default);
+                yield return new Annotation(SpannerAnnotationNames.Identity, (defaultIdentityOptions ?? SpannerIdentityOptionsData.Default).Serialize());
             }
 
             foreach (var mapping in column.PropertyMappings)
