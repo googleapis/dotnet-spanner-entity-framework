@@ -45,20 +45,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                 throw new NotSupportedException("Cannot execute transaction suppressed migration commands in user transaction.");
             }
 
+            var cancellationToken = CancellationToken.None;
             using var transactionScope = new TransactionScope(TransactionScopeOption.Suppress, TransactionScopeAsyncFlowOption.Enabled);
 
-            return executionStrategy.Execute(
-                (migrationCommands, connection, inUserTransaction, executionState, commitTransaction, isolationLevel),
-                static (_, s) => ExecuteInternal(
+            return executionStrategy.ExecuteAsync(
+                (migrationCommands, connection, inUserTransaction, commitTransaction, isolationLevel),
+                static (_, s, ct) => ExecuteInternalAsync(
                     s.migrationCommands,
                     s.connection,
-                    s.executionState,
                     beginTransaction: !s.inUserTransaction,
                     commitTransaction: !s.inUserTransaction && s.commitTransaction,
-                    s.isolationLevel),
-                verifySucceeded: null);
+                    s.isolationLevel,
+                    ct),
+                verifySucceeded: null, cancellationToken).ResultWithUnwrappedExceptions();
         }
-
 
         public async Task ExecuteNonQueryAsync(IEnumerable<MigrationCommand> migrationCommands, IRelationalConnection connection, CancellationToken cancellationToken = default)
         {
@@ -79,11 +79,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             using var transactionScope = new TransactionScope(TransactionScopeOption.Suppress, TransactionScopeAsyncFlowOption.Enabled);
 
             return await executionStrategy.ExecuteAsync(
-                (migrationCommands, connection, inUserTransaction, executionState, commitTransaction, isolationLevel),
+                (migrationCommands, connection, inUserTransaction, commitTransaction, isolationLevel),
                 static (_, s, ct) => ExecuteInternalAsync(
                     s.migrationCommands,
                     s.connection,
-                    s.executionState,
                     beginTransaction: !s.inUserTransaction,
                     commitTransaction: !s.inUserTransaction && s.commitTransaction,
                     s.isolationLevel,
@@ -92,64 +91,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                 cancellationToken).ConfigureAwait(false);
         }
 
-        private static int ExecuteInternal(
-            IReadOnlyList<MigrationCommand> migrationCommands,
-            IRelationalConnection connection,
-            MigrationExecutionState executionState,
-            bool beginTransaction,
-            bool commitTransaction,
-            System.Data.IsolationLevel? isolationLevel)
-        {
-            var result = 0;
-            var connectionOpened = connection.Open();
-            
-            try
-            {
-                var statements = migrationCommands.Select(x => x.CommandText).ToArray();
-                if (statements.Length == 0)
-                {
-                    return result;
-                }
-                
-                var ddlStatements = statements.Where(IsDdlStatement).ToArray();
-                var otherStatements = statements.Where(x => !IsDdlStatement(x)).ToArray();
-                var spannerConnection = ((SpannerRelationalConnection)connection).DbConnection as SpannerRetriableConnection;
-                
-                if (ddlStatements.Any())
-                {
-                    var cmd = spannerConnection.CreateDdlCommand(ddlStatements[0], ddlStatements.Skip(1).ToArray());
-                    result += cmd.ExecuteNonQuery();
-                }
-                
-                if (otherStatements.Any())
-                {
-                    using var transaction = spannerConnection.BeginTransaction();
-                    var cmd = spannerConnection.CreateBatchDmlCommand();
-                    cmd.Transaction = transaction;
-                    foreach (var statement in otherStatements)
-                    {
-                        cmd.Add(statement);
-                    }
-                    // Batch DML returns IReadOnlyList<long>, so sum the update counts
-                    var updateCounts = cmd.ExecuteNonQuery();
-                    result += (int)updateCounts.Sum();
-                    transaction.Commit();
-                }
-            }
-            catch
-            {
-                connection.Close();
-                throw;
-            }
-
-            connection.Close();
-            return result;
-        }
-
         private static async Task<int> ExecuteInternalAsync(
             IReadOnlyList<MigrationCommand> migrationCommands,
             IRelationalConnection connection,
-            MigrationExecutionState executionState,
             bool beginTransaction,
             bool commitTransaction,
             System.Data.IsolationLevel? isolationLevel,
@@ -178,9 +122,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                 
                 if (otherStatements.Any())
                 {
-                    using var transaction = await spannerConnection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+                    using var transaction = beginTransaction ? await spannerConnection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false) : null;
+
                     var cmd = spannerConnection.CreateBatchDmlCommand();
-                    cmd.Transaction = transaction;
+
+                    if (transaction != null)
+                    {
+                        cmd.Transaction = transaction;
+                    }
+
                     foreach (var statement in otherStatements)
                     {
                         cmd.Add(statement);
@@ -188,7 +138,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                     // Batch DML returns IReadOnlyList<long>, so sum the update counts
                     var updateCounts = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                     result += (int)updateCounts.Sum();
-                    await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+                    if (commitTransaction && transaction != null)
+                    {
+                        // Commit the transaction if required
+                        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    }
                 }
             }
             catch
