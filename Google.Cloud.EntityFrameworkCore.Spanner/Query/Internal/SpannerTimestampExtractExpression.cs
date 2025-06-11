@@ -70,5 +70,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             hash *= _timezoneFragment.GetHashCode();
             return hash;
         }
+
+        public override Expression Quote()
+        {
+#pragma warning disable EF9100 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+            return New(
+                typeof(SpannerTimestampExtractExpression).GetConstructor(
+                    [typeof(SqlExpression), typeof(SqlExpression), typeof(string), typeof(SpannerTimestampExtractExpression)])!,
+                _value.Quote(),
+                Constant(_dateTimePartName),
+                RelationalExpressionQuotingUtilities.QuoteTypeMapping(TypeMapping));
+#pragma warning restore EF9100 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+        }
     }
 }

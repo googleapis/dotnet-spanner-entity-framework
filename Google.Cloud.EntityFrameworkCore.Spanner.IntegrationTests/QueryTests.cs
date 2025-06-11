@@ -692,7 +692,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             var formattedName = await db.Singers
                 .Where(s => new long[] { singerId }.Contains(s.SingerId))
-                .Select(s => string.Format("String without formatting"))
+                .Select(s => string.Format("String without formatting", Array.Empty<object>()))
                 .FirstOrDefaultAsync();
             Assert.Equal("String without formatting", formattedName);
 

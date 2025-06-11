@@ -24,8 +24,8 @@ public class SpannerSqlNullabilityProcessor : SqlNullabilityProcessor
     /// <summary>
     /// Only for internal use.
     /// </summary>
-    public SpannerSqlNullabilityProcessor([NotNull] RelationalParameterBasedSqlProcessorDependencies dependencies, bool useRelationalNulls) :
-        base(dependencies, useRelationalNulls)
+    public SpannerSqlNullabilityProcessor([NotNull] RelationalParameterBasedSqlProcessorDependencies dependencies, RelationalParameterBasedSqlProcessorParameters parameters) :
+        base(dependencies, parameters)
     {
     }
 

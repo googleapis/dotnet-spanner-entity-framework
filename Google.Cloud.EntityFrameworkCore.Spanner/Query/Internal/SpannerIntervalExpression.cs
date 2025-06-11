@@ -70,5 +70,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             hash *= _intervalNameFragment.GetHashCode();
             return hash;
         }
+
+        public override Expression Quote()
+        {
+            return New(
+                typeof(SpannerIntervalExpression).GetConstructor(
+                    [typeof(ISqlExpressionFactory), typeof(SqlExpression), typeof(string)])!,
+                Constant(_sqlExpressionFactory),
+                _value.Quote(),
+                Constant(_intervalName));
+        }
     }
 }

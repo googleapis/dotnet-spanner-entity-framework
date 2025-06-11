@@ -381,7 +381,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Benchmarks
         public List<Singers> SelectMultipleSingersInReadOnlyTransactionSpanner()
         {
             using var connection = CreateConnection();
-            using var transaction = connection.BeginReadOnlyTransaction();
+            using var transaction = connection.BeginTransaction(SpannerTransactionCreationOptions.ReadOnly, new SpannerTransactionOptions());
             using var command = connection.CreateSelectCommand("SELECT * FROM Singers ORDER BY LastName");
             command.Transaction = transaction;
             using var reader = command.ExecuteReader();

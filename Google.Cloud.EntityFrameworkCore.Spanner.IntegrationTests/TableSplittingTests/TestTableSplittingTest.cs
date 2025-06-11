@@ -31,7 +31,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.TableSplitti
             var cmd = connection.CreateSelectCommand(
                 "SELECT COUNT(*) " +
                 "FROM INFORMATION_SCHEMA.TABLES " +
-                "WHERE TABLE_CATALOG='' AND TABLE_SCHEMA='' AND TABLE_NAME != 'EFMigrationsHistory'");
+                "WHERE TABLE_CATALOG='' AND TABLE_SCHEMA='' AND TABLE_NAME NOT IN('EFMigrationsHistory', 'EFMigrationsLock')");
 
             using var reader = await cmd.ExecuteReaderAsync();
             Assert.True(await reader.ReadAsync());
