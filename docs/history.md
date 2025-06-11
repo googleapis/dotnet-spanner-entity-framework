@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.4.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.3.0...Google.Cloud.EntityFrameworkCore.Spanner-3.4.0) (2025-06-10)
+
+
+### Features
+
+* add DateOnly type mapping ([#553](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/553)) ([b0729b6](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/b0729b6f2e54fc92fb9afb80ad95305bb0fd4946))
+
+
+### Bug Fixes
+
+* identity options in annotations should be serialized ([#551](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/551)) ([a1cd65d](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/a1cd65d2ffa016336b705f7db5687cdc4fa49ad5))
+
 ## [3.3.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.2.0...Google.Cloud.EntityFrameworkCore.Spanner-3.3.0) (2025-04-25)
 
 

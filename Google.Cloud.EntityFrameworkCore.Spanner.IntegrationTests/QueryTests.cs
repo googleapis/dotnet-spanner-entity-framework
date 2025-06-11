@@ -814,7 +814,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             var tenthBirthDate = await db.Singers
                 .Where(s => s.SingerId == singerId)
-                .Select(s => ((SpannerDate)s.BirthDate).AddYears(10))
+                .Select(s => s.BirthDate.Value.AddYears(10))
                 .FirstOrDefaultAsync();
 
             Assert.Equal(new SpannerDate(2011, 12, 13), tenthBirthDate);
@@ -832,7 +832,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             var date = await db.Singers
                 .Where(s => s.SingerId == singerId)
-                .Select(s => ((SpannerDate)s.BirthDate).AddMonths(23))
+                .Select(s => s.BirthDate.Value.AddMonths(23))
                 .FirstOrDefaultAsync();
 
             Assert.Equal(new SpannerDate(2003, 11, 13), date);
@@ -850,7 +850,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             var date = await db.Singers
                 .Where(s => s.SingerId == singerId)
-                .Select(s => ((SpannerDate)s.BirthDate).AddDays(23))
+                .Select(s => s.BirthDate.Value.AddDays(23))
                 .FirstOrDefaultAsync();
 
             Assert.Equal(new SpannerDate(2002, 1, 5), date);

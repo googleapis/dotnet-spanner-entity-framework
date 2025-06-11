@@ -56,6 +56,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
         public virtual DbSet<Concert> Concerts { get; set; }
         public virtual DbSet<Performance> Performances { get; set; }
         public virtual DbSet<TicketSale> TicketSales { get; set; }
+        
+        public virtual DbSet<Invoice> Invoices { get; set; }
+        public virtual DbSet<InvoiceLine> InvoiceLines { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
             // Configure Entity Framework to use a Cloud Spanner database.
@@ -149,6 +152,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
                     .WithMany(p => p.TicketSales)
                     .HasForeignKey(d => new { d.VenueCode, d.ConcertStartTime, d.SingerId })
                     .OnDelete(DeleteBehavior.ClientSetNull);
+            });
+            
+            modelBuilder.Entity<InvoiceLine>(entity =>
+            {
+                // Register both InvoiceId and InvoiceLineId as the primary key of the entity.
+                entity.HasKey(e => new { e.InvoiceId, e.InvoiceLineId });
+                // Tell Entity Framework that InvoiceLineId is generated when a new row is inserted.
+                entity.Property(e => e.InvoiceLineId).ValueGeneratedOnAdd();
             });
 
             OnModelCreatingPartial(modelBuilder);
