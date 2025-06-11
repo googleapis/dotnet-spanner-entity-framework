@@ -43,7 +43,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         /// Generates a SQL GREATEST expression for Cloud Spanner.
         /// Cloud Spanner supports the GREATEST function with multiple arguments.
         /// </summary>
-        public override SqlExpression? GenerateGreatest(IReadOnlyList<SqlExpression> expressions, System.Type resultType)
+        public override SqlExpression GenerateGreatest(IReadOnlyList<SqlExpression> expressions, System.Type resultType)
         {
             if (expressions.Count < 2)
             {
@@ -65,7 +65,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         /// Generates a SQL LEAST expression for Cloud Spanner.
         /// Cloud Spanner supports the LEAST function with multiple arguments.
         /// </summary>
-        public override SqlExpression? GenerateLeast(IReadOnlyList<SqlExpression> expressions, System.Type resultType)
+        public override SqlExpression GenerateLeast(IReadOnlyList<SqlExpression> expressions, System.Type resultType)
         {
             if (expressions.Count < 2)
             {
