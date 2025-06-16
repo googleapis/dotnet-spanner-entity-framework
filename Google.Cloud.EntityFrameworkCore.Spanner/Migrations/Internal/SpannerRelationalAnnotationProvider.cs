@@ -58,6 +58,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                 {
                     yield return commitTimestampAnnotation;
                 }
+                var identityAnnotation = mapping.Property.FindAnnotation(SpannerAnnotationNames.Identity);
+                if (identityAnnotation != null)
+                {
+                    yield return identityAnnotation;
+                }
             }
         }
         
