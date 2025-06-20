@@ -309,6 +309,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             }
         }
 
+        private static readonly string s_dialect_query =
+            "select option_value from information_schema.database_options where option_name='database_dialect'";
         private static readonly Empty s_empty = new ();
         private static readonly TransactionOptions s_singleUse = new() { ReadOnly = new TransactionOptions.Types.ReadOnly { Strong = true, ReturnReadTimestamp = false } };
 
@@ -326,6 +328,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         private bool _abortNextStatement;
         private readonly ConcurrentDictionary<string, ExecutionTime> _executionTimes = new();
 
+        public MockSpannerService()
+        {
+            AddDialectResult();
+        }
+
         public void AddOrUpdateStatementResult(string sql, StatementResult result)
         {
             _results.AddOrUpdate(sql.Trim(),
@@ -340,6 +347,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 executionTime,
                 (_, _) => executionTime
             );
+        }
+
+        private void AddDialectResult()
+        {
+            AddOrUpdateStatementResult(s_dialect_query, 
+                StatementResult.CreateResultSet(
+                    new List<Tuple<V1.TypeCode, string>>
+                    {
+                        Tuple.Create(V1.TypeCode.String, "option_value"),
+                    },
+                    new List<object[]>
+                    {
+                        new object[] { "GOOGLE_STANDARD_SQL" },
+                    }));
         }
 
         internal void AbortTransaction(TransactionId transactionId)
@@ -372,6 +393,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _results.Clear();
             _abortedTransactions.Clear();
             _abortNextStatement = false;
+            AddDialectResult();
         }
 
         public override Task<Transaction> BeginTransaction(BeginTransactionRequest request, ServerCallContext context)
@@ -494,7 +516,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             tx.Id = ByteString.CopyFromUtf8($"{session}/transactions/{id}");
             if (options.ModeCase == TransactionOptions.ModeOneofCase.ReadOnly && options.ReadOnly.ReturnReadTimestamp)
             {
-                tx.ReadTimestamp = Timestamp.FromDateTime(DateTime.Now);
+                tx.ReadTimestamp = Timestamp.FromDateTime(DateTime.UtcNow);
             }
             if (!singleUse)
             {
@@ -636,7 +658,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
         public override async Task ExecuteStreamingSql(ExecuteSqlRequest request, IServerStreamWriter<PartialResultSet> responseStream, ServerCallContext context)
         {
-            _requests.Enqueue(request);
+            if (!request.Sql.Equals(s_dialect_query))
+            {
+                _requests.Enqueue(request);
+            }
             _contexts.Enqueue(context);
             _headers.Enqueue(context.RequestHeaders);
             _executionTimes.TryGetValue(nameof(ExecuteStreamingSql) + request.Sql, out ExecutionTime executionTime);
