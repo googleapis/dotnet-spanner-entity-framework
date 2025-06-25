@@ -1334,7 +1334,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 ColBytesArray = new List<byte[]> { new byte[] { 3, 2, 1 }, new byte[] { }, new byte[] { 4, 5, 6 } },
                 ColBytesMaxArray = new List<byte[]> { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2"), Encoding.UTF8.GetBytes("string 3") },
                 ColDate = new SpannerDate(2020, 12, 28),
-                ColDateArray = new List<SpannerDate?> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today },
+                ColDateArray = new List<DateOnly?> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today },
                 ColFloat64 = 3.14D,
                 ColFloat64Array = new List<double?> { 3.14D, 6.626D },
                 ColInt64 = id1,

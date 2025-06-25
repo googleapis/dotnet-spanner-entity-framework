@@ -29,23 +29,23 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters) =>
             new SpannerNumericTypeMapping();
 
-        public override DbParameter CreateParameter(
-            DbCommand command,
-            string name,
-#nullable enable
-            object? value,
-#nullable disable
-            bool? nullable = null,
-            ParameterDirection direction = ParameterDirection.Input)
-        {
-            // TODO: Remove once the default mapping of type NUMERIC has been added to the client library.
-            return new SpannerParameter(name, SpannerDbType.Numeric, value);
-        }
-
-        protected override void ConfigureParameter(DbParameter parameter)
-        {
-            ((SpannerParameter)parameter).SpannerDbType = SpannerDbType.Numeric;
-            base.ConfigureParameter(parameter);
-        }
+//         public override DbParameter CreateParameter(
+//             DbCommand command,
+//             string name,
+// #nullable enable
+//             object? value,
+// #nullable disable
+//             bool? nullable = null,
+//             ParameterDirection direction = ParameterDirection.Input)
+//         {
+//             // TODO: Remove once the default mapping of type NUMERIC has been added to the client library.
+//             return new SpannerParameter(name, SpannerDbType.Numeric, value);
+//         }
+//         
+//         protected override void ConfigureParameter(DbParameter parameter)
+//         {
+//             ((SpannerParameter)parameter).SpannerDbType = SpannerDbType.Numeric;
+//             base.ConfigureParameter(parameter);
+//         }
     }
 }

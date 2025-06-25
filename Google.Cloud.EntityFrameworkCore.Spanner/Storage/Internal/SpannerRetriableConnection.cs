@@ -19,6 +19,10 @@ using System.Data;
 using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
+using SpannerDriver;
+using SpannerCommand = Google.Cloud.Spanner.Data.SpannerCommand;
+using SpannerConnection = Google.Cloud.Spanner.Data.SpannerConnection;
+using SpannerParameterCollection = Google.Cloud.Spanner.Data.SpannerParameterCollection;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {

@@ -27,6 +27,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using SpannerConnection = SpannerDriver.SpannerConnection;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 {
@@ -49,7 +50,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
     {
         private readonly IRelationalTypeMappingSource _typeMapper;
         private readonly List<IReadOnlyModificationCommand> _modificationCommands = new();
-        private readonly List<SpannerRetriableCommand> _propagateResultsCommands = new();
+        private readonly List<DbCommand> _propagateResultsCommands = new();
         private readonly char _statementTerminator;
         private readonly bool _hasExplicitTransaction;
         private bool _areMoreBatchesExpected;
@@ -137,7 +138,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             CancellationToken cancellationToken = default)
         {
             var spannerRelationalConnection = (SpannerRelationalConnection)connection;
-            var spannerConnection = (SpannerRetriableConnection)connection.DbConnection;
+            if (connection.DbConnection is SpannerRetriableConnection spannerRetriableConnection)
+            {
+                await ExecuteAsync(connection, spannerRelationalConnection, spannerRetriableConnection, cancellationToken);
+            }
+            else if (connection.DbConnection is SpannerConnection spannerDriverConnection)
+            {
+                await ExecuteAsync(connection, spannerRelationalConnection, spannerDriverConnection, cancellationToken);
+            }
+            else
+            {
+                throw new ArgumentException("Not a Spanner connection");
+            }
+        }
+
+        private async Task ExecuteAsync(IRelationalConnection connection, SpannerRelationalConnection spannerRelationalConnection, SpannerRetriableConnection spannerConnection, CancellationToken cancellationToken = default)
+        {
             // There should always be a transaction:
             // 1. Implicit: A transaction is automatically started by Entity Framework when SaveChanges() is called.
             // 2. Explicit: The client application has called BeginTransaction() on the database.
@@ -148,9 +164,39 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 
             var containsReads = _modificationCommands.Any(c => c.ColumnModifications.Any(cm => cm.IsRead));
             var useMutations = spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.Always
-                || (!_hasExplicitTransaction
-                    && !containsReads
-                    && spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.ImplicitTransactions);
+                               || (!_hasExplicitTransaction
+                                   && !containsReads
+                                   && spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.ImplicitTransactions);
+            if (useMutations)
+            {
+                await ExecuteMutationsAsync(spannerConnection, transaction, cancellationToken);
+            }
+            else if (containsReads)
+            {
+                await ExecuteDmlAsync(connection, spannerConnection, transaction, cancellationToken);
+            }
+            else
+            {
+                await ExecuteBatchDmlAsync(spannerConnection, transaction, cancellationToken);
+            }
+        }
+
+        private async Task ExecuteAsync(IRelationalConnection connection, SpannerRelationalConnection spannerRelationalConnection, SpannerConnection spannerConnection, CancellationToken cancellationToken = default)
+        {
+            // There should always be a transaction:
+            // 1. Implicit: A transaction is automatically started by Entity Framework when SaveChanges() is called.
+            // 2. Explicit: The client application has called BeginTransaction() on the database.
+            if (connection.CurrentTransaction?.GetDbTransaction() == null)
+            {
+                throw new InvalidOperationException("There is no active transaction. Cloud Spanner does not support executing updates without a transaction.");
+            }
+            var transaction = connection.CurrentTransaction.GetDbTransaction();
+
+            var containsReads = _modificationCommands.Any(c => c.ColumnModifications.Any(cm => cm.IsRead));
+            var useMutations = spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.Always
+                               || (!_hasExplicitTransaction
+                                   && !containsReads
+                                   && spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.ImplicitTransactions);
             if (useMutations)
             {
                 await ExecuteMutationsAsync(spannerConnection, transaction, cancellationToken);
@@ -247,7 +293,108 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             }
         }
         
+        private async Task ExecuteMutationsAsync(
+            SpannerConnection spannerConnection, DbTransaction transaction, CancellationToken cancellationToken)
+        {
+            int index = 0;
+            foreach (var modificationCommand in _modificationCommands)
+            {
+                // We assume that each mutation will affect exactly one row. This assumption always holds for INSERT
+                // and UPDATE mutations (unless they return an error). DELETE mutations could affect zero rows if the
+                // row had already been deleted, and more than one row if the deleted row is in a table with one or
+                // more INTERLEAVED tables that are defined with ON DELETE CASCADE.
+                //
+                // This can be changed if a concurrency token check fails.
+                var updateCount = 1L;
+
+                // Concurrency token checks cannot be included in mutations. Instead, we need to do manual select to check
+                // that the concurrency token is still the same as what we expect. This select is executed in the same
+                // transaction as the mutations, so it is guaranteed that the value that we read here will still be valid
+                // when the mutations are committed.
+                var operations = modificationCommand.ColumnModifications;
+                var hasConcurrencyCondition = operations.Any(o => o.IsCondition && (o.Property?.IsConcurrencyToken ?? false));
+                if (hasConcurrencyCondition)
+                {
+                    var conditionOperations = operations.Where(o => o.IsCondition).ToList();
+                    var concurrencySql = ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).GenerateSelectConcurrencyCheckSql(modificationCommand.TableName, conditionOperations);
+                    var concurrencyCommand = spannerConnection.CreateCommand();
+                    concurrencyCommand.CommandText = concurrencySql;
+                    concurrencyCommand.Transaction = transaction;
+                    foreach (var columnModification in conditionOperations)
+                    {
+                        concurrencyCommand.Parameters.Add(CreateParameter(columnModification, concurrencyCommand, UseValue.Original, false));
+                    }
+                    // Execute the concurrency check query in the read/write transaction and check whether the expected row exists.
+                    using var reader = await concurrencyCommand.ExecuteReaderAsync(cancellationToken);
+                    if (!await reader.ReadAsync(cancellationToken))
+                    {
+                        // Set the update count to 0 to trigger a concurrency exception.
+                        // We do not throw the exception here already, as there might be more concurrency problems,
+                        // and we want to be able to report all in the exception.
+                        updateCount = 0L;
+                    }
+                }
+
+                // Mutation commands must use a specific TIMESTAMP constant for pending commit timestamps instead of the
+                // placeholder string PENDING_COMMIT_TIMESTAMP(). This instructs any pending commit timestamp modifications
+                // to use the mutation constant instead.
+                if (modificationCommand is SpannerPendingCommitTimestampModificationCommand commitTimestampModificationCommand)
+                {
+                    commitTimestampModificationCommand.MarkAsMutationCommand();
+                    // TODO: Support pending commit timestamp modification commands for SpannerDriver.
+                    // transaction.AddSpannerPendingCommitTimestampModificationCommand(commitTimestampModificationCommand);
+                }
+                // Create the mutation command and execute it.
+                var cmd = CreateSpannerMutationCommand(spannerConnection, transaction, modificationCommand);
+                // Note: The following line does not actually execute any command on the backend, it only buffers
+                // the mutation locally to be sent with the next Commit statement.
+                await cmd.ExecuteNonQueryAsync(cancellationToken);
+                UpdateCounts.Add(updateCount);
+
+                // Check whether we need to generate a SELECT command to propagate computed values back to the context.
+                // This SELECT command will be executed outside of the current implicit transaction.
+                // The propagation query is skipped if the batch uses an explicit transaction, as it will not be able
+                // to read the new value anyways.
+                if (modificationCommand.ColumnModifications.Any(o => o.IsRead) && !_hasExplicitTransaction)
+                {
+                    var keyOperations = operations.Where(o => o.IsKey).ToList();
+                    var readOperations = operations.Where(o => o.IsRead).ToList();
+                    var sql = ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).GenerateSelectAffectedSql(
+                        modificationCommand.TableName, modificationCommand.Schema, readOperations, keyOperations, index);
+                    _propagateResultsCommands.Add(CreateSelectedAffectedCommand(spannerConnection, modificationCommand, sql));
+                }
+                index++;
+            }
+            // Check that there were no concurrency problems detected.
+            if (RowsAffected != _modificationCommands.Count)
+            {
+                ThrowAggregateUpdateConcurrencyException();
+            }
+        }
+        
         private async Task ExecuteDmlAsync(IRelationalConnection connection, SpannerRetriableConnection spannerConnection, SpannerRetriableTransaction transaction, CancellationToken cancellationToken)
+        {
+            var commands = CreateSpannerDmlCommands(spannerConnection, transaction);
+            var index = 0;
+            var updateCounts = new List<long>(commands.Count);
+            foreach (var command in commands)
+            {
+                var reader = await command.ExecuteReaderAsync(cancellationToken);
+                var relationalReader = CreateRelationalDataReader(connection, command, reader);
+                var modificationCommand = _modificationCommands[index];
+                var rowsAffected = 0L;
+                while (await relationalReader.ReadAsync(cancellationToken))
+                {
+                    modificationCommand.PropagateResults(relationalReader);
+                    rowsAffected++;
+                }
+                updateCounts.Add(rowsAffected);
+                index++;
+            }
+            UpdateCounts = updateCounts;
+        }
+        
+        private async Task ExecuteDmlAsync(IRelationalConnection connection, SpannerConnection spannerConnection, DbTransaction transaction, CancellationToken cancellationToken)
         {
             var commands = CreateSpannerDmlCommands(spannerConnection, transaction);
             var index = 0;
@@ -280,6 +427,23 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             // The update statements will include any concurrency token checks that might be needed.
             var cmd = CreateSpannerBatchDmlCommand(spannerConnection, transaction);
             UpdateCounts = (await cmd.Item1.ExecuteNonQueryAsync(cancellationToken)).ToList();
+            if (RowsAffected != _modificationCommands.Count)
+            {
+                ThrowAggregateUpdateConcurrencyException();
+            }
+            // Add any select commands that were generated by the batch for updates that need to propagate results.
+            if (cmd.Item2.Count > 0)
+            {
+                _propagateResultsCommands.AddRange(cmd.Item2);
+            }
+        }
+        
+        private async Task ExecuteBatchDmlAsync(SpannerConnection spannerConnection, DbTransaction transaction, CancellationToken cancellationToken)
+        {
+            // Create a Batch DML command that contains all the updates in this batch.
+            // The update statements will include any concurrency token checks that might be needed.
+            var cmd = CreateSpannerBatchDmlCommand(spannerConnection, transaction);
+            UpdateCounts = spannerConnection.ExecuteBatchDml(cmd.Item1).ToList();
             if (RowsAffected != _modificationCommands.Count)
             {
                 ThrowAggregateUpdateConcurrencyException();
@@ -382,6 +546,29 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             }
             return commands;
         }
+        
+        private List<DbCommand> CreateSpannerDmlCommands(SpannerConnection connection, DbTransaction transaction)
+        {
+            var commands = new List<DbCommand>();
+            var commandPosition = 0;
+            foreach (var modificationCommand in _modificationCommands)
+            {
+                var command = CreateSpannerDmlCommand(_thenReturnSqlGenerator, connection, modificationCommand, commandPosition);
+                command.Item1.Transaction = transaction;
+                commands.Add(command.Item1);
+                if (command.Item2 != null)
+                {
+                    throw new ArgumentException();
+                }
+                if (modificationCommand is SpannerPendingCommitTimestampModificationCommand commitTimestampModificationCommand)
+                {
+                    // TODO: Support pending commit timestamps
+                    // transaction.AddSpannerPendingCommitTimestampModificationCommand(commitTimestampModificationCommand);
+                }
+                commandPosition++;
+            }
+            return commands;
+        }
 
         /// <summary>
         /// Generates a Batch DML command for the modifications in this batch and SELECT statements for any
@@ -412,6 +599,34 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 commandPosition++;
             }
             return Tuple.Create(cmd, selectCommands);
+        }
+        
+        private Tuple<List<DbCommand>, List<DbCommand>> CreateSpannerBatchDmlCommand(SpannerConnection connection, DbTransaction transaction)
+        {
+            var dmlCommands = new List<DbCommand>();
+            var selectCommands = new List<DbCommand>();
+            var commandPosition = 0;
+            foreach (var modificationCommand in _modificationCommands)
+            {
+                var commands = CreateSpannerDmlCommand(Dependencies.UpdateSqlGenerator, connection, modificationCommand, commandPosition);
+                commands.Item1.Transaction = transaction;
+                dmlCommands.Add(commands.Item1);
+                if (commands.Item2 != null)
+                {
+                    if (_hasExplicitTransaction)
+                    {
+                        commands.Item2.Transaction = transaction;
+                    }
+                    selectCommands.Add(commands.Item2);
+                }
+                if (modificationCommand is SpannerPendingCommitTimestampModificationCommand commitTimestampModificationCommand)
+                {
+                    // TODO: support pending commit timestamps
+                    // transaction.AddSpannerPendingCommitTimestampModificationCommand(commitTimestampModificationCommand);
+                }
+                commandPosition++;
+            }
+            return Tuple.Create(dmlCommands, selectCommands);
         }
 
         private Tuple<SpannerCommand, SpannerRetriableCommand> CreateSpannerDmlCommand(
@@ -460,9 +675,73 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             return Tuple.Create(cmd, selectCommand);
         }
 
+        private Tuple<DbCommand, DbCommand> CreateSpannerDmlCommand(
+            IUpdateSqlGenerator updateSqlGenerator,
+            SpannerConnection connection,
+            IReadOnlyModificationCommand modificationCommand,
+            int commandPosition)
+        {
+            var builder = new StringBuilder();
+            ResultSetMapping res;
+            switch (modificationCommand.EntityState)
+            {
+                case EntityState.Deleted:
+                    res = updateSqlGenerator.AppendDeleteOperation(builder, modificationCommand, commandPosition);
+                    break;
+                case EntityState.Modified:
+                    res = updateSqlGenerator.AppendUpdateOperation(builder, modificationCommand, commandPosition);
+                    break;
+                case EntityState.Added:
+                    res = updateSqlGenerator.AppendInsertOperation(builder, modificationCommand, commandPosition);
+                    break;
+                default:
+                    throw new NotSupportedException(
+                        $"Modification type {modificationCommand.EntityState} is not supported.");
+            }
+            string dml;
+            DbCommand selectCommand = null;
+            if (res != ResultSetMapping.NoResults)
+            {
+                var commandTexts = builder.ToString().Split(_statementTerminator);
+                dml = commandTexts[0];
+                if (commandTexts.Length > 1)
+                {
+                    selectCommand = CreateSelectedAffectedCommand(connection, modificationCommand, commandTexts[1]);
+                }
+            }
+            else
+            {
+                dml = builder.ToString();
+                dml = dml.TrimEnd('\r', '\n', _statementTerminator);
+            }
+            // This intentionally uses a SpannerCommand instead of the internal SpannerRetriableCommand, because the command
+            // could eventually be added to a BatchCommand.
+            var cmd = connection.CreateCommand();
+            cmd.CommandText = dml;
+            AppendWriteParameters(modificationCommand, cmd, false, true);
+            return Tuple.Create(cmd, selectCommand);
+        }
+
         private SpannerRetriableCommand CreateSpannerMutationCommand(
             SpannerRetriableConnection spannerConnection,
             SpannerRetriableTransaction transaction,
+            IReadOnlyModificationCommand modificationCommand)
+        {
+            var cmd = modificationCommand.EntityState switch
+            {
+                EntityState.Deleted => spannerConnection.CreateDeleteCommand(modificationCommand.TableName),
+                EntityState.Modified => spannerConnection.CreateUpdateCommand(modificationCommand.TableName),
+                EntityState.Added => spannerConnection.CreateInsertCommand(modificationCommand.TableName),
+                _ => throw new NotSupportedException($"Modification type {modificationCommand.EntityState} is not supported."),
+            };
+            cmd.Transaction = transaction;
+            AppendWriteParameters(modificationCommand, cmd, true, false);
+            return cmd;
+        }
+
+        private DbCommand CreateSpannerMutationCommand(
+            SpannerConnection spannerConnection,
+            DbTransaction transaction,
             IReadOnlyModificationCommand modificationCommand)
         {
             var cmd = modificationCommand.EntityState switch
@@ -503,6 +782,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         private SpannerRetriableCommand CreateSelectedAffectedCommand(SpannerRetriableConnection connection, IReadOnlyModificationCommand modificationCommand, string sql)
         {
             var selectCommand = connection.CreateSelectCommand(sql);
+            foreach (var columnModification in modificationCommand.ColumnModifications)
+            {
+                if (columnModification.IsKey && (columnModification.UseOriginalValueParameter || columnModification.UseCurrentValueParameter))
+                {
+                    selectCommand.Parameters.Add(CreateParameter(columnModification, selectCommand, columnModification.UseOriginalValueParameter ? UseValue.Original : UseValue.Current, false));
+                }
+            }
+            return selectCommand;
+        }
+        
+        private DbCommand CreateSelectedAffectedCommand(SpannerConnection connection, IReadOnlyModificationCommand modificationCommand, string sql)
+        {
+            var selectCommand = connection.CreateCommand();
+            selectCommand.CommandText = sql;
             foreach (var columnModification in modificationCommand.ColumnModifications)
             {
                 if (columnModification.IsKey && (columnModification.UseOriginalValueParameter || columnModification.UseCurrentValueParameter))
