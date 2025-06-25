@@ -725,7 +725,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             PartialResultSet prs = new PartialResultSet
             {
-                Metadata = new ResultSetMetadata { Transaction = transaction },
+                Metadata = new ResultSetMetadata { Transaction = transaction, RowType = new StructType()},
                 Stats = new ResultSetStats { RowCountExact = updateCount }
             };
             await responseStream.WriteAsync(prs);
@@ -735,6 +735,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             ResultSet rs = new ResultSet
             {
+                Metadata = new ResultSetMetadata { RowType = new StructType()},
                 Stats = new ResultSetStats { RowCountExact = updateCount }
             };
             return rs;

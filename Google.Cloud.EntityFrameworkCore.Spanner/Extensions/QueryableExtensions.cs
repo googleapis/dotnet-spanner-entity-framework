@@ -23,6 +23,9 @@ using System.Data.Common;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Google.Cloud.Spanner.V1;
+using Google.Protobuf.WellKnownTypes;
+using SpannerCommand = SpannerDriver.SpannerCommand;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
 {
@@ -97,6 +100,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
             {
                 ManipulateCommand(cmd);
             }
+            else if (command is SpannerCommand spannerCommand)
+            {
+                ManipulateCommand(spannerCommand);
+            }
             return result;
         }
 
@@ -117,6 +124,46 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                 try
                 {
                     command.TimestampBound = hint.CreateTimestampBound(command.CommandText);
+                }
+                catch (Exception)
+                {
+                    // Ignore any invalid timestamp bound in the comment.
+                    // That could happen if someone by chance happened to manually add a comment that is the same
+                    // as a timestamp bound hint, but with an invalid value.
+                }
+            }
+        }
+
+        private static void ManipulateCommand(SpannerCommand command)
+        {
+            var hint = s_supportedHints.FirstOrDefault(hint => hint.IsHint(command.CommandText));
+            if (hint != null)
+            {
+                try
+                {
+                    var timestampBound = hint.CreateTimestampBound(command.CommandText);
+                    command.SingleUseReadOnlyTransactionOptions = new TransactionOptions.Types.ReadOnly
+                    {
+                        ReturnReadTimestamp = true,
+                    };
+                    switch (timestampBound.Mode)
+                    {
+                        case TimestampBoundMode.Strong:
+                            command.SingleUseReadOnlyTransactionOptions.Strong = true;
+                            break;
+                        case TimestampBoundMode.ExactStaleness:
+                            command.SingleUseReadOnlyTransactionOptions.ExactStaleness = Duration.FromTimeSpan(timestampBound.Staleness);
+                            break;
+                        case TimestampBoundMode.MaxStaleness:
+                            command.SingleUseReadOnlyTransactionOptions.MaxStaleness = Duration.FromTimeSpan(timestampBound.Staleness);
+                            break;
+                        case TimestampBoundMode.ReadTimestamp:
+                            command.SingleUseReadOnlyTransactionOptions.ReadTimestamp = Timestamp.FromDateTime(timestampBound.Timestamp);
+                            break;
+                        case TimestampBoundMode.MinReadTimestamp:
+                            command.SingleUseReadOnlyTransactionOptions.MinReadTimestamp = Timestamp.FromDateTime(timestampBound.Timestamp);
+                            break;
+                    }
                 }
                 catch (Exception)
                 {

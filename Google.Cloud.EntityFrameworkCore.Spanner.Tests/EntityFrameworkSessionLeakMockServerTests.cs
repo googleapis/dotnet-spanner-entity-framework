@@ -339,7 +339,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 ColBytesArray = new List<byte[]> { new byte[] { 3, 2, 1 }, new byte[] { }, new byte[] { 4, 5, 6 } },
                 ColBytesMaxArray = new List<byte[]> { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2"), Encoding.UTF8.GetBytes("string 3") },
                 ColDate = new SpannerDate(2020, 12, 28),
-                ColDateArray = new List<SpannerDate?> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today },
+                ColDateArray = new List<DateOnly?> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today },
                 ColFloat64 = 3.14D,
                 ColFloat64Array = new List<double?> { 3.14D, 6.626D },
                 ColInt64 = id,
@@ -2004,7 +2004,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     ColBoolArray = new List<bool?> { true, null, false },
                     ColBytesArray = new List<byte[]> { new byte[] { 1, 2, 3 }, null, new byte[] { 3, 2, 1 } },
                     ColBytesMax = new byte[] { },
-                    ColDateArray = new List<SpannerDate?>
+                    ColDateArray = new List<DateOnly?>
                         { new SpannerDate(2021, 8, 26), null, new SpannerDate(2000, 1, 1) },
                     ColFloat32Array = new List<float?> { 3.14f, null, 6.626f },
                     ColFloat64Array = new List<double?> { 3.14, null, 6.626 },

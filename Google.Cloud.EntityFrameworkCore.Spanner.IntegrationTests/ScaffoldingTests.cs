@@ -476,7 +476,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     ColBytesArray = new List<byte[]> { new byte[] { 3, 2, 1 }, new byte[] { }, new byte[] { 4, 5, 6 } },
                     ColBytesMaxArray = new List<byte[]> { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2"), Encoding.UTF8.GetBytes("string 3") },
                     ColDate = new SpannerDate(2020, 12, 28),
-                    ColDateArray = new List<SpannerDate?> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today },
+                    ColDateArray = new List<DateOnly?> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today },
                     ColFloat64 = 3.14D,
                     ColFloat64Array = new List<double?> { 3.14D, 6.626D },
                     ColInt64 = id,
@@ -516,7 +516,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<byte[]> { new byte[] { 3, 2, 1 }, new byte[] { }, new byte[] { 4, 5, 6 } }, row.ColBytesArray);
                 Assert.Equal(new List<byte[]> { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2"), Encoding.UTF8.GetBytes("string 3") }, row.ColBytesMaxArray);
                 Assert.Equal(new SpannerDate(2020, 12, 28), row.ColDate);
-                Assert.Equal(new List<SpannerDate?> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today }, row.ColDateArray);
+                Assert.Equal(new List<DateOnly?> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today }, row.ColDateArray);
                 Assert.Equal(3.14D, row.ColFloat64);
                 Assert.Equal(new List<double?> { 3.14D, 6.626D }, row.ColFloat64Array);
                 Assert.Equal((SpannerNumeric?)3.14m, row.ColNumeric);
@@ -558,7 +558,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row.ColBytesArray = new List<byte[]> { new byte[] { 10, 20, 30 }, new byte[] { 40, 50, 60 } };
                 row.ColBytesMaxArray = new List<byte[]> { Encoding.UTF8.GetBytes("changed string 1"), Encoding.UTF8.GetBytes("changed string 2"), Encoding.UTF8.GetBytes("changed string 3") };
                 row.ColDate = new SpannerDate(2020, 12, 30);
-                row.ColDateArray = new List<SpannerDate?> { today, new SpannerDate(2020, 12, 30), new SpannerDate(2010, 2, 28) };
+                row.ColDateArray = new List<DateOnly?> { today, new SpannerDate(2020, 12, 30), new SpannerDate(2010, 2, 28) };
                 row.ColFloat64 = 1.234D;
                 row.ColFloat64Array = new List<double?> { 1.0D, 1.1D, 1.11D };
                 row.ColNumeric = (SpannerNumeric?)1.234m;
@@ -588,7 +588,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<byte[]> { new byte[] { 10, 20, 30 }, new byte[] { 40, 50, 60 } }, row.ColBytesArray);
                 Assert.Equal(new List<byte[]> { Encoding.UTF8.GetBytes("changed string 1"), Encoding.UTF8.GetBytes("changed string 2"), Encoding.UTF8.GetBytes("changed string 3") }, row.ColBytesMaxArray);
                 Assert.Equal(new SpannerDate(2020, 12, 30), row.ColDate);
-                Assert.Equal(new List<SpannerDate?> { today, new SpannerDate(2020, 12, 30), new SpannerDate(2010, 2, 28) }, row.ColDateArray);
+                Assert.Equal(new List<DateOnly?> { today, new SpannerDate(2020, 12, 30), new SpannerDate(2010, 2, 28) }, row.ColDateArray);
                 Assert.Equal(1.234D, row.ColFloat64);
                 Assert.Equal(new List<double?> { 1.0D, 1.1D, 1.11D }, row.ColFloat64Array);
                 Assert.Equal((SpannerNumeric?)1.234m, row.ColNumeric);
@@ -672,7 +672,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row.ColBytesMax = new byte[0];
                 row.ColBytesMaxArray = new List<byte[]>();
                 row.ColDate = new SpannerDate(1, 1, 1);
-                row.ColDateArray = new List<SpannerDate?>();
+                row.ColDateArray = new List<DateOnly?>();
                 row.ColFloat64 = 0.0D;
                 row.ColFloat64Array = new List<double?>();
                 row.ColNumeric = (SpannerNumeric?)0.0m;
@@ -792,7 +792,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     ColBoolArray = new List<bool?> { true, null, false },
                     ColBytesArray = new List<byte[]> { new byte[] { 1 }, null, new byte[] { 2 } },
                     ColBytesMaxArray = new List<byte[]> { new byte[] { 1 }, null, new byte[] { 2 } },
-                    ColDateArray = new List<SpannerDate?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) },
+                    ColDateArray = new List<DateOnly?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) },
                     ColFloat64Array = new List<double?> { 3.14, null, 6.662 },
                     ColInt64Array = new List<long?> { 100, null, 200 },
                     ColJsonArray = new List<JsonDocument>{JsonDocument.Parse("{}"), null, JsonDocument.Parse("[]")},
@@ -814,7 +814,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<bool?> { true, null, false }, row.ColBoolArray);
                 Assert.Equal(new List<byte[]> { new byte[] { 1 }, null, new byte[] { 2 } }, row.ColBytesArray);
                 Assert.Equal(new List<byte[]> { new byte[] { 1 }, null, new byte[] { 2 } }, row.ColBytesMaxArray);
-                Assert.Equal(new List<SpannerDate?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) }, row.ColDateArray);
+                Assert.Equal(new List<DateOnly?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) }, row.ColDateArray);
                 Assert.Equal(new List<double?> { 3.14, null, 6.662 }, row.ColFloat64Array);
                 Assert.Equal(new List<long?> { 100, null, 200 }, row.ColInt64Array);
                 // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataUsage
@@ -827,7 +827,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 row.ColBoolArray = new List<bool?> { null, true, null };
                 row.ColBytesArray = new List<byte[]> { new byte[] { 1 }, null, new byte[] { 2 } };
                 row.ColBytesMaxArray = new List<byte[]> { new byte[] { 1 }, null, new byte[] { 2 } };
-                row.ColDateArray = new List<SpannerDate?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) };
+                row.ColDateArray = new List<DateOnly?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) };
                 row.ColFloat64Array = new List<double?> { 3.14, null, 6.662 };
                 row.ColInt64Array = new List<long?> { 100, null, 200 };
                 row.ColJsonArray = new List<JsonDocument> { JsonDocument.Parse("{}"), null, JsonDocument.Parse("[]") };
@@ -845,7 +845,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 Assert.Equal(new List<bool?> { null, true, null }, row.ColBoolArray);
                 Assert.Equal(new List<byte[]> { new byte[] { 1 }, null, new byte[] { 2 } }, row.ColBytesArray);
                 Assert.Equal(new List<byte[]> { new byte[] { 1 }, null, new byte[] { 2 } }, row.ColBytesMaxArray);
-                Assert.Equal(new List<SpannerDate?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) }, row.ColDateArray);
+                Assert.Equal(new List<DateOnly?> { new SpannerDate(2020, 1, 13), null, new SpannerDate(2021, 1, 13) }, row.ColDateArray);
                 Assert.Equal(new List<double?> { 3.14, null, 6.662 }, row.ColFloat64Array);
                 Assert.Equal(new List<long?> { 100, null, 200 }, row.ColInt64Array);
                 // ReSharper disable once EntityFramework.NPlusOne.IncompleteDataUsage

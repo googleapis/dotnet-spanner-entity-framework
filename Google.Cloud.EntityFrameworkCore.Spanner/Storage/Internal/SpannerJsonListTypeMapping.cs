@@ -46,11 +46,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             // This key step will configure our SpannerParameter with this complex type, which will result in
             // the proper type conversions when the requests go out.
 
-            if (!(parameter is SpannerParameter spannerParameter))
-                throw new ArgumentException($"Spanner-specific type mapping {GetType().Name} being used with non-Spanner parameter type {parameter.GetType().Name}");
+            // if (!(parameter is SpannerParameter spannerParameter))
+            //     throw new ArgumentException($"Spanner-specific type mapping {GetType().Name} being used with non-Spanner parameter type {parameter.GetType().Name}");
 
             base.ConfigureParameter(parameter);
-            spannerParameter.SpannerDbType = SpannerDbType.ArrayOf(SpannerDbType.Json);
+            if (parameter is SpannerParameter spannerParameter)
+            {
+                spannerParameter.SpannerDbType = SpannerDbType.ArrayOf(SpannerDbType.Json);
+            }
         }
         
         protected override string GenerateNonNullSqlLiteral(object value)

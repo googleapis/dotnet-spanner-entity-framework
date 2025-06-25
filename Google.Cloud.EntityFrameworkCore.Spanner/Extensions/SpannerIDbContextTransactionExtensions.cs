@@ -17,6 +17,7 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
+using SpannerDriver;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
 {
@@ -33,8 +34,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         /// <exception cref="ArgumentException">If the transaction is not a read/write Spanner transaction</exception>
         public static void DisableInternalRetries([NotNull] this IDbContextTransaction dbContextTransaction)
         {
-            GaxPreconditions.CheckArgument(dbContextTransaction.GetDbTransaction() is SpannerRetriableTransaction, nameof(dbContextTransaction), "Must be a read/write Spanner transaction");
-            ((SpannerRetriableTransaction) dbContextTransaction.GetDbTransaction()).EnableInternalRetries = false;
+            var dbTx = dbContextTransaction.GetDbTransaction();
+            if (dbTx is SpannerRetriableTransaction retriableTransaction)
+            {
+                retriableTransaction.EnableInternalRetries = false;
+            }
+            else if (dbTx is SpannerTransaction spannerTransaction)
+            {
+                var cmd = spannerTransaction.Connection!.CreateCommand();
+                cmd.CommandText = "set retry_aborts_internally = false";
+                cmd.ExecuteNonQuery();
+            }
+            else
+            {
+                GaxPreconditions.CheckArgument(dbContextTransaction.GetDbTransaction() is SpannerRetriableTransaction, nameof(dbContextTransaction), "Must be a read/write Spanner transaction");
+            }
         }
 
         /// <summary>
