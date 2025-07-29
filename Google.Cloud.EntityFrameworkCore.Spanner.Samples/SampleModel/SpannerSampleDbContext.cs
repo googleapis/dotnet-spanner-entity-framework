@@ -29,6 +29,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
     {
         private readonly string _connectionString;
 
+        public SpannerSampleDbContext()
+        {
+            _connectionString = "DataSource=projects/my-project/instances/my-instance/database/my-database";
+        }
+
         /// <summary>
         /// Creates a <see cref="DbContext"/> that connects to a Cloud Spanner database using the sample data model.
         /// </summary>
@@ -87,6 +92,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
                 entity
                     .InterleaveInParent(typeof(Album), OnDelete.Cascade)
                     .HasKey(entity => new { entity.AlbumId, entity.TrackId });
+                entity.Property(e => e.TrackId)
+                    .HasAnnotation(SpannerAnnotationNames.Identity, SpannerIdentityOptionsData.Default.Serialize())
+                    .ValueGeneratedOnAdd();
                 // Adding HasDefaultValueSql to the property makes sure that Entity Framework does
                 // not include the column in an INSERT statement if the property does not have an
                 // explicit value.
