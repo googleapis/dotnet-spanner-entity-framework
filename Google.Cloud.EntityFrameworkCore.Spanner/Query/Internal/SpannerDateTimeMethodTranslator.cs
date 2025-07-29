@@ -170,7 +170,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                         "CAST",
                         new[] { value, _sqlExpressionFactory.Fragment("INT64") },
                         true,
-                        new []{true},
+                        new []{true, true},
                         typeof(long)));
             }
             if (multiplier != 1L)

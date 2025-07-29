@@ -17,6 +17,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using System;
 using Xunit;
+using V1 = Google.Cloud.Spanner.V1;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
 {
@@ -44,11 +45,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
             var formattedVersion = $"{version.Major}.{version.Minor}.{version.Build}";
             _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateException(MockSpannerService.CreateDatabaseNotFoundException("d1")));
             _fixture.SpannerMock.AddOrUpdateStatementResult(
+                "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_catalog = '' and table_schema = '' and table_name = '''EFMigrationsLock''')",
+                StatementResult.CreateSelect1ResultSet()
+            );
+            // Add mock result for the INSERT OR IGNORE migration lock statement - this has a dynamic timestamp so we'll use a pattern
+            _fixture.SpannerMock.AddOrUpdatePatternResult(
+                "INSERT OR IGNORE INTO `EFMigrationsLock`(`Id`, `Timestamp`) VALUES(1, '*')\nTHEN RETURN 1",
+                StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "changes", 1L)
+            );
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
                 $"INSERT INTO `EFMigrationsHistory` (`MigrationId`, `ProductVersion`)\nVALUES ('''20210309110233_Initial''', '''{formattedVersion}''')",
                 StatementResult.CreateUpdateCount(1)
             );
             _fixture.SpannerMock.AddOrUpdateStatementResult(
                 $"INSERT INTO `EFMigrationsHistory` (`MigrationId`, `ProductVersion`)\nVALUES ('''20210830_V2''', '''{formattedVersion}''')",
+                StatementResult.CreateUpdateCount(1)
+            );
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
+                "DELETE FROM `EFMigrationsLock` WHERE 1 = 1;",
                 StatementResult.CreateUpdateCount(1)
             );
             using var db = new MockMigrationSampleDbContext(ConnectionString);
@@ -62,7 +76,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
                     var update = request as UpdateDatabaseDdlRequest;
                     Assert.NotNull(update);
                     Assert.Collection(update.Statements,
-                        sql => Assert.StartsWith("CREATE TABLE `EFMigrationsHistory`", sql)
+                        sql => Assert.StartsWith("CREATE TABLE IF NOT EXISTS `EFMigrationsHistory`", sql)
                     );
                 },
                 // Each migration will be executed as a separate DDL batch.

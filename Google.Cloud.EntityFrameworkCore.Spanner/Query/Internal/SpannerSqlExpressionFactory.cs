@@ -30,7 +30,7 @@ public class SpannerSqlExpressionFactory : SqlExpressionFactory
         _boolTypeMapping = dependencies.TypeMappingSource.FindMapping(typeof(bool), dependencies.Model)!;
     }
     
-    public override InExpression In(SqlExpression item, SqlParameterExpression valuesParameter)
+    public override SqlExpression In(SqlExpression item, SqlParameterExpression valuesParameter)
     {
         var parametersTypeMapping = Dependencies.TypeMappingSource.FindMapping(valuesParameter.Type);
         if (parametersTypeMapping != null)
