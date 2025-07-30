@@ -143,9 +143,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
                     allIndexedColumns.Add(columns);
                 }
 
-                foreach (var entityType in model.GetEntityTypes())
+                foreach (var entityType in model.GetEntityTypes().Where(t => t.GetTableName() != null && !t.IsOwned()))
                 {
-                    var table = StoreObjectIdentifier.Table(entityType.GetTableName());
+                    var table = StoreObjectIdentifier.Table(entityType.GetTableName()!);
                     var pk = entityType.FindPrimaryKey();
                     if (pk == null)
                     {

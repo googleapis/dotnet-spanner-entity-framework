@@ -823,8 +823,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             // Setup results.
             _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
-            var insertSql = $"INSERT INTO `Venues` (`Code`, `Active`, `Capacity`, `Name`, `Ratings`)" +
-                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
+            var insertSql = $"INSERT INTO `Venues` (`Descriptions`, `Code`, `Active`, `Capacity`, `Name`, `Ratings`)" +
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4, @p5)";
             _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateUpdateCount(1L));
 
             await using var db = new MockServerSampleDbContext(ConnectionString);
@@ -841,6 +841,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 Code = "C1",
                 Name = "Concert Hall",
+                Descriptions = [
+                    new() { Category = "Concert Hall", Description = "Big concert hall", Capacity = 1000, Active = true },
+                    new() { Category = "Hall", Description = "Big hall", Capacity = 1000, Active = false },
+                ],
             });
 
             // We can only disable internal retries when using explicit transactions. Otherwise, internal retries

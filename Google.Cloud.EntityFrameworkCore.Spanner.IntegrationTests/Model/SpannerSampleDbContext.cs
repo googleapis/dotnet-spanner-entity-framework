@@ -209,6 +209,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                 entity.Property(e => e.Code).HasMaxLength(10);
 
                 entity.Property(e => e.Name).HasMaxLength(100);
+                entity.OwnsMany(e => e.Descriptions, builder =>
+                {
+                    builder.ToJson();
+                });
             });
             
             modelBuilder.Entity<TicketSales>();

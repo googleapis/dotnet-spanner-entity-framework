@@ -39,6 +39,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
         /// <inheritdoc />
         public override IEnumerable<IAnnotation> For(IColumn column, bool designTime)
         {
+            if (column.PropertyMappings.Count == 0)
+            {
+                yield break;
+            }
             var property = column.PropertyMappings.First().Property;
             var primaryKey = property.DeclaringType.ContainingEntityType.FindPrimaryKey();
             if (primaryKey is { Properties.Count: 1 }

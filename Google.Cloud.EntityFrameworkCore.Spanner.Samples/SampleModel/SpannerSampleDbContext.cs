@@ -106,6 +106,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
             {
                 entity.HasKey(entity => new { entity.Code });
                 entity.Property(e => e.Version).IsConcurrencyToken();
+                entity.OwnsMany(e => e.Descriptions, builder =>
+                {
+                    builder.ToJson();
+                });
             });
 
             modelBuilder.Entity<Concert>(entity =>
