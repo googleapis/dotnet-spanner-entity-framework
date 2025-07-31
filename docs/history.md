@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.5.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.4.1...Google.Cloud.EntityFrameworkCore.Spanner-3.5.0) (2025-07-31)
+
+
+### Features
+
+* support structural json mapping ([#584](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/584)) ([70065e4](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/70065e426aa0ab45a6e8b929e3915a5bb2e96019)), closes [#581](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/581)
+
+
+### Bug Fixes
+
+* add ON DELETE CASCADE for foreign keys ([#585](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/585)) ([e112d82](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/e112d82d29602c9badf025f04ae03d5effc94828)), closes [#583](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/583)
+
 ## [3.4.1](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.4.0...Google.Cloud.EntityFrameworkCore.Spanner-3.4.1) (2025-06-17)
 
 
