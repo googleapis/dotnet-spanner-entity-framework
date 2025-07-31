@@ -138,7 +138,7 @@ CREATE TABLE `Concerts` (
     `StartTime` TIMESTAMP NOT NULL,
     `SingerId` INT64 NOT NULL,
     `Title` STRING(200),
- CONSTRAINT `FK_Concerts_Singers` FOREIGN KEY (`SingerId`) REFERENCES `Singers` (`SingerId`),
+ CONSTRAINT `FK_Concerts_Singers` FOREIGN KEY (`SingerId`) REFERENCES `Singers` (`SingerId`) ON DELETE CASCADE,
  CONSTRAINT `FK_Concerts_Venues` FOREIGN KEY (`VenueCode`) REFERENCES `Venues` (`Code`),
 )PRIMARY KEY (`VenueCode`, `StartTime`, `SingerId`)
 
@@ -248,7 +248,7 @@ CREATE TABLE `Concerts` (
     `StartTime` TIMESTAMP NOT NULL,
     `SingerId` INT64 NOT NULL,
     `Title` STRING(200),
- CONSTRAINT `FK_Concerts_Singers` FOREIGN KEY (`SingerId`) REFERENCES `Singers` (`SingerId`),
+ CONSTRAINT `FK_Concerts_Singers` FOREIGN KEY (`SingerId`) REFERENCES `Singers` (`SingerId`) ON DELETE CASCADE,
  CONSTRAINT `FK_Concerts_Venues` FOREIGN KEY (`VenueCode`) REFERENCES `Venues` (`Code`),
 )PRIMARY KEY (`VenueCode`, `StartTime`, `SingerId`)
 
@@ -358,7 +358,7 @@ CREATE TABLE `Concerts` (
     `StartTime` TIMESTAMP NOT NULL,
     `SingerId` INT64 NOT NULL,
     `Title` STRING(200),
- CONSTRAINT `FK_Concerts_Singers` FOREIGN KEY (`SingerId`) REFERENCES `Singers` (`SingerId`),
+ CONSTRAINT `FK_Concerts_Singers` FOREIGN KEY (`SingerId`) REFERENCES `Singers` (`SingerId`) ON DELETE CASCADE,
  CONSTRAINT `FK_Concerts_Venues` FOREIGN KEY (`VenueCode`) REFERENCES `Venues` (`Code`),
 )PRIMARY KEY (`VenueCode`, `StartTime`, `SingerId`)
 

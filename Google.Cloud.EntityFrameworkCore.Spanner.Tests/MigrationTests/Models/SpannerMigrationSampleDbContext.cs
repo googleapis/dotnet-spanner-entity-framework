@@ -74,7 +74,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
                 entity.HasOne(d => d.Singer)
                     .WithMany(p => p.Concerts)
                     .HasForeignKey(d => d.SingerId)
-                    .OnDelete(DeleteBehavior.ClientSetNull)
+                    .OnDelete(DeleteBehavior.Cascade)
                     .HasConstraintName("FK_Concerts_Singers");
 
                 entity.HasOne(d => d.VenueCodeNavigation)
