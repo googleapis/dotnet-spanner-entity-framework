@@ -131,7 +131,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                         column: x => x.SingerId,
                         principalTable: "Singers",
                         principalColumn: "SingerId",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_Concerts_Venues",
                         column: x => x.VenueCode,
