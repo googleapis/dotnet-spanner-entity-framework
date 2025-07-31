@@ -17,6 +17,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Data;
 using System.Data.Common;
+using Microsoft.EntityFrameworkCore.Storage.Json;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
@@ -34,7 +35,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             StoreTypePostfix? storeTypePostfix = null)
             : this(
                 new RelationalTypeMappingParameters(
-                    new CoreTypeMappingParameters(typeof(string)),
+                    new CoreTypeMappingParameters(typeof(string), jsonValueReaderWriter: JsonStringReaderWriter.Instance),
                     storeType,
                     storeTypePostfix ?? StoreTypePostfix.Size,
                     GetDbType(unicode, fixedLength),

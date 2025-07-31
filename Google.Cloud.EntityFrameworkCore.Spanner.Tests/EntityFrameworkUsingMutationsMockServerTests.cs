@@ -167,6 +167,41 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task InsertVenue()
+        {
+            await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            db.Venues.Add(new Venues
+            {
+                Code = "C1",
+                Name = "Concert Hall",
+                Descriptions = [
+                    new() { Category = "Concert Hall", Description = "Big concert hall", Capacity = 1000, Active = true },
+                    new() { Category = "Hall", Description = "Big hall", Capacity = 1000, Active = false },
+                ],
+            });
+            var updateCount = await db.SaveChangesAsync();
+
+            Assert.Equal(1L, updateCount);
+            Assert.Single(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>());
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<CommitRequest>(),
+                request => {
+                    Assert.Single(request.Mutations);
+                    var mutation = request.Mutations[0];
+                    Assert.Equal(Mutation.OperationOneofCase.Insert, mutation.OperationCase);
+                    Assert.Equal("Venues", mutation.Insert.Table);
+                    var row = mutation.Insert.Values[0];
+                    var cols = mutation.Insert.Columns;
+                    Assert.Equal("C1", row.Values[cols.IndexOf("Code")].StringValue);
+                    Assert.Equal("Concert Hall", row.Values[cols.IndexOf("Name")].StringValue);
+                    Assert.Equal(
+                        "[{\"Active\":true,\"Capacity\":1000,\"Category\":\"Concert Hall\",\"Description\":\"Big concert hall\"},{\"Active\":false,\"Capacity\":1000,\"Category\":\"Hall\",\"Description\":\"Big hall\"}]",
+                        row.Values[cols.IndexOf("Descriptions")].StringValue);
+                }
+            );
+        }
+
+        [Fact]
         public async Task InsertSingerInTransaction()
         {
             await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);

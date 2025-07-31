@@ -69,6 +69,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly SpannerNumericTypeMapping s_numeric = new SpannerNumericTypeMapping();
 
         private static readonly SpannerJsonTypeMapping s_json = new SpannerJsonTypeMapping();
+        private static readonly SpannerStructuralJsonTypeMapping s_structuralJson = new SpannerStructuralJsonTypeMapping("json");
 
         private static readonly SpannerGuidTypeMapping s_guid
             = new SpannerGuidTypeMapping("STRING(36)", DbType.String);
@@ -202,6 +203,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(decimal), s_decimal},
                     {typeof(SpannerNumeric), s_numeric},
                     {typeof(JsonDocument), s_json},
+                    {typeof(JsonElement), s_structuralJson},
                     {typeof(uint), s_uint},
                     {typeof(bool), s_bool},
                     {typeof(SpannerDate), s_date},

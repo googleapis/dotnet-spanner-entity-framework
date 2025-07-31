@@ -24,6 +24,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
         public string Name { get; set; }
         public JsonDocument Description { get; set; }
         public bool Active { get; set; }
+        public List<VenueDescription> Descriptions { get; set; }
 
         public virtual ICollection<Concert> Concerts { get; set; } = new HashSet<Concert>();
     }
