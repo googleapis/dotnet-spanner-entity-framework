@@ -10,6 +10,14 @@ Known limitations are listed in the [issues](https://github.com/googleapis/dotne
 All supported features have been tested and verified to work with the test configurations. There may be configurations and/or data model variations that have not
 yet been covered by the tests and that show unexpected behavior. Please report any problems that you might encounter by [creating a new issue](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/new).
 
+## Supported Versions
+The Spanner Entity Framework provider supports the latest long-term supported version of Entity Framework. Short-term
+supported versions of Entity Framework are not supported.
+
+See these links for the support policy of Entity Framework and .NET:
+- https://learn.microsoft.com/en-us/ef/core/what-is-new/
+- https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core
+
 # Getting started
 The Entity Framework Core provider allows you to use the Entity Framework to create your database, query and update data.
 To get started, install the NuGet package for `Google.Cloud.EntityFrameworkCore.Spanner` and call the "UseSpanner" method
