@@ -15,6 +15,7 @@
 using Google.Api.Gax;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Text;
+using Microsoft.EntityFrameworkCore.Query;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
@@ -43,6 +44,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         // terminator.
         /// <inheritdoc />
         public override string StatementTerminator { get; }
+
+        public override string GenerateParameterName(string name)
+        {
+            if (name.StartsWith(QueryCompilationContext.QueryParameterPrefix))
+            {
+                name = name[QueryCompilationContext.QueryParameterPrefix.Length..];
+            }
+            return base.GenerateParameterName(name);
+        }
 
         /// <inheritdoc />
         public override void GenerateParameterName(StringBuilder builder, string name)

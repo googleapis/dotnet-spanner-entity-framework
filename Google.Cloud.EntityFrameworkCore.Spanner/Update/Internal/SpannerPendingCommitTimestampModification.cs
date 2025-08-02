@@ -60,7 +60,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 
         public override object Value
         {
-            get => IsMutationColumnModification ? SpannerParameter.CommitTimestamp : PendingCommitTimestampValue;
+            get => IsMutationColumnModification ? "spanner.commit_timestamp()" : PendingCommitTimestampValue;
             set => base.Value = value;
         }
     }

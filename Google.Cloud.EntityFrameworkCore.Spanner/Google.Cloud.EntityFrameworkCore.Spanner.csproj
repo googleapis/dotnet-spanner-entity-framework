@@ -39,4 +39,8 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\SpannerDriver\SpannerDriver\SpannerDriver.csproj" />
+  </ItemGroup>
+
 </Project>
