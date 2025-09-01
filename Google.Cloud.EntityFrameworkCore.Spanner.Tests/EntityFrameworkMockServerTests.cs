@@ -341,8 +341,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task InsertTicketSale_ReturnsId()
         {
             // Setup results.
-            var insertSql = $"INSERT INTO `TicketSales` (`CustomerName`){Environment.NewLine}" +
-                            $"VALUES (@p0){Environment.NewLine}" +
+            var insertSql = $"INSERT INTO `TicketSales` (`CustomerName`, `Receipt`){Environment.NewLine}" +
+                            $"VALUES (@p0, @p1){Environment.NewLine}" +
                             $"THEN RETURN `Id`{Environment.NewLine}";
             _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type {Code = V1.TypeCode.Int64}, "Id", "12345"));
 
@@ -350,6 +350,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var ticketSale = db.TicketSales.Add(new TicketSales
             {
                 CustomerName = "New Customer",
+                Receipt = "{\"Purchase Date\": \"2025-09-01\"}",
             });
             var updateCount = await db.SaveChangesAsync();
 
@@ -361,6 +362,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(insertSql, request.Sql);
+                    Assert.Collection(request.ParamTypes, pair =>
+                    {
+                        Assert.Equal(V1.TypeCode.String, pair.Value.Code);
+                    }, pair =>
+                    {
+                        Assert.Equal(V1.TypeCode.Json, pair.Value.Code);
+                    });
                     Assert.NotNull(request.Transaction?.Id);
                 }
             );
@@ -379,14 +387,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task InsertMultipleTicketSale_ReturnsIdentifiers()
         {
             // Setup results.
-            for (var p = 0; p < 3; p++)
+            for (var p = 0; p < 6; p+=2)
             {
-                var insertSql = $"INSERT INTO `TicketSales` (`CustomerName`){Environment.NewLine}" +
-                                $"VALUES (@p{p}){Environment.NewLine}" +
+                var insertSql = $"INSERT INTO `TicketSales` (`CustomerName`, `Receipt`){Environment.NewLine}" +
+                                $"VALUES (@p{p}, @p{p+1}){Environment.NewLine}" +
                                 $"THEN RETURN `Id`{Environment.NewLine}";
                 _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql,
                     StatementResult.CreateSingleColumnResultSet(1L, new V1.Type { Code = V1.TypeCode.Int64 }, "Id",
-                        (1000000 - p)));
+                        (1000000 - p/2)));
             }
 
             await using var db = new MockServerSampleDbContext(ConnectionString);

@@ -19,4 +19,9 @@ public class TicketSales
     public long Id { get; set; }
 
     public string CustomerName { get; set; }
+    
+    /// <summary>
+    /// Receipt is stored as a JSON column in the database.
+    /// </summary>
+    public string Receipt { get; set; }
 }
