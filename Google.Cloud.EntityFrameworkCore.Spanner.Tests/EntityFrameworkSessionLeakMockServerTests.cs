@@ -47,6 +47,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _connectionString = connectionString;
             _manager = manager;
         }
+        
+        bool UsesClientLib()
+        {
+            return _connectionString.StartsWith("Data Source=", StringComparison.Ordinal);
+        }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -54,14 +59,27 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 return;
             }
-            var builder = new SpannerConnectionStringBuilder(_connectionString, ChannelCredentials.Insecure)
+
+            if (UsesClientLib())
             {
-                SessionPoolManager = _manager
-            };
-            optionsBuilder
-                .UseSpanner(new SpannerRetriableConnection(new SpannerConnection(builder)), _ => SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false), ChannelCredentials.Insecure)
-                .UseMutations(MutationUsage.Never)
-                .UseLazyLoadingProxies();
+                var builder = new SpannerConnectionStringBuilder(_connectionString, ChannelCredentials.Insecure)
+                {
+                    SessionPoolManager = _manager
+                };
+                optionsBuilder
+                    .UseSpanner(new SpannerRetriableConnection(new SpannerConnection(builder)),
+                        _ => SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false),
+                        ChannelCredentials.Insecure)
+                    .UseMutations(MutationUsage.Never)
+                    .UseLazyLoadingProxies();
+            }
+            else
+            {
+                optionsBuilder
+                    .UseSpanner(_connectionString, _ => SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false), ChannelCredentials.Insecure)
+                    .UseMutations(MutationUsage.Never)
+                    .UseLazyLoadingProxies();
+            }
         }
     }
 
@@ -87,7 +105,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _manager = SessionPoolManager.Create(options);
         }
 
-        private string ConnectionString => $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
+        //private string ConnectionString => $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
+        private string ConnectionString => $"{_fixture.Host}:{_fixture.Port}/projects/p1/instances/i1/databases/d1;usePlainText=true";
+        
+        bool UsesClientLib()
+        {
+            return ConnectionString.StartsWith("Data Source=", StringComparison.Ordinal);
+        }
         
         private static async Task Repeat(int count, Func<Task> action)
         {
@@ -339,7 +363,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 ColBytesArray = new List<byte[]> { new byte[] { 3, 2, 1 }, new byte[] { }, new byte[] { 4, 5, 6 } },
                 ColBytesMaxArray = new List<byte[]> { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2"), Encoding.UTF8.GetBytes("string 3") },
                 ColDate = new SpannerDate(2020, 12, 28),
-                ColDateArray = new List<DateOnly?> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today },
+                ColDateArray = new List<SpannerDate?> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today },
                 ColFloat64 = 3.14D,
                 ColFloat64Array = new List<double?> { 3.14D, 6.626D },
                 ColInt64 = id,
@@ -440,8 +464,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     await cmd.ExecuteScalarAsync();
                     // Abort the next statement that is executed on the mock server.
                     _fixture.SpannerMock.AbortNextStatement();
-                    var e = await Assert.ThrowsAsync<SpannerException>(() => db.SaveChangesAsync());
-                    Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+                    if (UsesClientLib())
+                    {
+                        var e = await Assert.ThrowsAsync<SpannerException>(() => db.SaveChangesAsync());
+                        Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+                    }
+                    else
+                    {
+                        var e = await Assert.ThrowsAsync<SpannerLib.SpannerException>(() => db.SaveChangesAsync());
+                        Assert.Equal(SpannerLib.ErrorCode.Aborted, e.ErrorCode);
+                    }
                 }
                 else
                 {
@@ -496,14 +528,23 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     await cmd.ExecuteScalarAsync();
                     // Abort the next statement that is executed on the mock server.
                     _fixture.SpannerMock.AbortNextStatement();
-                    var e = await Assert.ThrowsAsync<SpannerException>(() => db.Database.ExecuteSqlRawAsync(insertSql,
+                    var f = () => db.Database.ExecuteSqlRawAsync(insertSql,
                         new SpannerParameter("p0", SpannerDbType.String, "C1"),
                         new SpannerParameter("p1", SpannerDbType.Bool, true),
                         new SpannerParameter("p2", SpannerDbType.Int64, 1000L),
                         new SpannerParameter("p3", SpannerDbType.String, "Concert Hall"),
                         new SpannerParameter("p4", SpannerDbType.ArrayOf(SpannerDbType.Float64))
-                    ));
-                    Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+                    );
+                    if (UsesClientLib())
+                    {
+                        var e = await Assert.ThrowsAsync<SpannerException>(f);
+                        Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+                    }
+                    else
+                    {
+                        var e = await Assert.ThrowsAsync<SpannerLib.SpannerException>(f);
+                        Assert.Equal(SpannerLib.ErrorCode.Aborted, e.ErrorCode);
+                    }
                 }
                 else
                 {
@@ -2004,7 +2045,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     ColBoolArray = new List<bool?> { true, null, false },
                     ColBytesArray = new List<byte[]> { new byte[] { 1, 2, 3 }, null, new byte[] { 3, 2, 1 } },
                     ColBytesMax = new byte[] { },
-                    ColDateArray = new List<DateOnly?>
+                    ColDateArray = new List<SpannerDate?>
                         { new SpannerDate(2021, 8, 26), null, new SpannerDate(2000, 1, 1) },
                     ColFloat32Array = new List<float?> { 3.14f, null, 6.626f },
                     ColFloat64Array = new List<double?> { 3.14, null, 6.626 },
@@ -2106,9 +2147,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             await transaction3.CommitAsync();
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task NestedTransactionsStartNewTransactions()
         {
+            // SpannerLib uses multiplexed sessions, so the pool is not exhausted.
+            Skip.IfNot(UsesClientLib());
+            
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
                                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                                 $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
@@ -2200,9 +2244,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             });
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task OnlyDisposingReadOnlyTransactionWithoutCommitting_LeaksSession()
         {
+            // SpannerLib uses multiplexed sessions, so the session pool will not be exhausted.
+            Skip.IfNot(UsesClientLib());
+            
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
                                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                                 $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");

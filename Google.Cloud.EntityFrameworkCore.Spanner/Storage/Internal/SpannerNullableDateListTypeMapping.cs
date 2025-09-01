@@ -19,6 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
+using TypeCode = Google.Cloud.Spanner.V1.TypeCode;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
@@ -45,9 +46,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             // This key step will configure our SpannerParameter with this complex type, which will result in
             // the proper type conversions when the requests go out.
 
-            if (parameter is SpannerDriver.SpannerParameter)
+            if (parameter is Google.Cloud.Spanner.DataProvider.SpannerParameter spannerDriverParameter)
             {
                 base.ConfigureParameter(parameter);
+                spannerDriverParameter.SpannerParameterType = SpannerArrayTypes.SArrayOfDateType;
             }
             else
             {

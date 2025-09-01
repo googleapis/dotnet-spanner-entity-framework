@@ -27,7 +27,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using SpannerConnection = SpannerDriver.SpannerConnection;
+using SpannerConnection = Google.Cloud.Spanner.DataProvider.SpannerConnection;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 {

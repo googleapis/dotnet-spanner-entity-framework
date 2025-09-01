@@ -110,7 +110,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE `s`.`SingerId` = @p_0{Environment.NewLine}LIMIT 1";
+                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.Type, string>>(),
                 new List<object[]>()));
@@ -125,7 +125,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, `s`.`Picture`{Environment.NewLine}" +
                       $"FROM `Singers` AS `s`{Environment.NewLine}" +
-                      $"WHERE `s`.`SingerId` IN  UNNEST (@singerIds_0)";
+                      $"WHERE `s`.`SingerId` IN  UNNEST (@__singerIds_0)";
             AddFindSingerResult(sql);
 
             var singerIds = new List<long>{1L, 2L, 3L};
@@ -139,7 +139,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.Equal(sql, request.Sql);
                     Assert.Single(request.Params.Fields);
                     var fields = request.Params.Fields;
-                    Assert.Collection(fields["singerIds_0"].ListValue.Values,
+                    Assert.Collection(fields["__singerIds_0"].ListValue.Values,
                         v => Assert.Equal("1", v.StringValue),
                         v => Assert.Equal("2", v.StringValue),
                         v => Assert.Equal("3", v.StringValue)
@@ -158,7 +158,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, `s`.`Picture`{Environment.NewLine}" +
                       $"FROM `Singers` AS `s`{Environment.NewLine}" +
-                      $"WHERE CAST(`s`.`SingerId` AS INT64) IN  UNNEST (@singerIds_0)";
+                      $"WHERE CAST(`s`.`SingerId` AS INT64) IN  UNNEST (@__singerIds_0)";
             AddFindSingerResult(sql);
 
             var singerIds = new List<int>{8, 9, 10};
@@ -172,7 +172,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.Equal(sql, request.Sql);
                     Assert.Single(request.Params.Fields);
                     var fields = request.Params.Fields;
-                    Assert.Collection(fields["singerIds_0"].ListValue.Values,
+                    Assert.Collection(fields["__singerIds_0"].ListValue.Values,
                         v => Assert.Equal("8", v.StringValue),
                         v => Assert.Equal("9", v.StringValue),
                         v => Assert.Equal("10", v.StringValue)
@@ -191,7 +191,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             var sql = $"SELECT `p`.`VenueCode`, `p`.`SingerId`, `p`.`StartTime`, `p`.`AlbumId`, `p`.`ConcertStartTime`, `p`.`PerformanceType`, `p`.`Rating`, `p`.`TrackId`{Environment.NewLine}" +
                       $"FROM `Performances` AS `p`{Environment.NewLine}" +
-                      $"WHERE `p`.`PerformanceType` = @type_0";
+                      $"WHERE `p`.`PerformanceType` = @__type_0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -221,7 +221,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.Equal(sql, request.Sql);
                     Assert.Single(request.Params.Fields);
                     var fields = request.Params.Fields;
-                    Assert.Equal("0", fields["type_0"].StringValue);
+                    Assert.Equal("0", fields["__type_0"].StringValue);
                     Assert.Empty(request.ParamTypes);
                     // Assert.Single(request.ParamTypes);
                     // var requestType = request.ParamTypes["__type_0"];
@@ -235,7 +235,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             var sql = $"SELECT `p`.`VenueCode`, `p`.`SingerId`, `p`.`StartTime`, `p`.`AlbumId`, `p`.`ConcertStartTime`, `p`.`PerformanceType`, `p`.`Rating`, `p`.`TrackId`{Environment.NewLine}" +
                       $"FROM `Performances` AS `p`{Environment.NewLine}" +
-                      $"WHERE CAST(`p`.`PerformanceType` AS INT64) IN  UNNEST (@typesAsInts_0)";
+                      $"WHERE CAST(`p`.`PerformanceType` AS INT64) IN  UNNEST (@__typesAsInts_0)";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -266,9 +266,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.Equal(sql, request.Sql);
                     Assert.Single(request.Params.Fields);
                     var fields = request.Params.Fields;
-                    Assert.Equal(2, fields["typesAsInts_0"].ListValue.Values.Count);
-                    Assert.Equal("0", fields["typesAsInts_0"].ListValue.Values[0].StringValue);
-                    Assert.Equal("1", fields["typesAsInts_0"].ListValue.Values[1].StringValue);
+                    Assert.Equal(2, fields["__typesAsInts_0"].ListValue.Values.Count);
+                    Assert.Equal("0", fields["__typesAsInts_0"].ListValue.Values[0].StringValue);
+                    Assert.Equal("1", fields["__typesAsInts_0"].ListValue.Values[1].StringValue);
                     Assert.Empty(request.ParamTypes);
                     // Assert.Single(request.ParamTypes);
                     // var type = request.ParamTypes["__typesAsInts_0"];
@@ -283,7 +283,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
                 $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE `s`.`SingerId` = @p_0{Environment.NewLine}LIMIT 1");
+                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
 
             await using var db = new MockServerSampleDbContext(ConnectionString);
             var singer = await db.Singers.FindAsync(1L);
@@ -327,7 +327,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var updateCount = await db.SaveChangesAsync();
 
             Assert.Equal(1L, updateCount);
-            var useInlineBegin = false;
+            var useInlineBegin = true;
             if (useInlineBegin)
             {
                 Assert.Empty(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>());
@@ -460,7 +460,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _fixture.SpannerMock.AddOrUpdateStatementResult(updateSql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type{Code = V1.TypeCode.String}, "FullName", "Alice Pieterson-Morrison"));
             var selectSingerSql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, " +
                 $"`s`.`FullName`, `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE `s`.`SingerId` = @p_0{Environment.NewLine}LIMIT 1");
+                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
 
             using var db = new MockServerSampleDbContext(ConnectionString);
             var singer = await db.Singers.FindAsync(1L);
@@ -506,8 +506,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var updateCount = await db.SaveChangesAsync();
 
             Assert.Equal(1L, updateCount);
+            var beginRequests = _fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>();
+            Assert.Empty(beginRequests);
+            var requests = _fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>();
             Assert.Collection(
-                _fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>(),
+                requests,
                 request =>
                 {
                     Assert.Single(request.Statements);
@@ -562,14 +565,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE `s`.`SingerId` = @p_0{Environment.NewLine}LIMIT 1");
+                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
             await using var db = new MockServerSampleDbContext(ConnectionString);
             await db.Database.OpenConnectionAsync();
             await using var transaction = await db.Database.BeginReadOnlyTransactionAsync();
 
             Assert.NotNull(await db.Singers.FindAsync(1L));
 
-            var useInlineBegin = false;
+            var useInlineBegin = true;
             Assert.Collection(
                 _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
@@ -608,14 +611,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE `s`.`SingerId` = @p_0{Environment.NewLine}LIMIT 1");
+                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
             await using var db = new MockServerSampleDbContext(ConnectionString);
             await db.Database.OpenConnectionAsync();
             await using var transaction = await db.Database.BeginReadOnlyTransactionAsync(TimestampBound.OfExactStaleness(TimeSpan.FromSeconds(10)));
 
             Assert.NotNull(await db.Singers.FindAsync(1L));
 
-            var useInlineBegin = false;
+            var useInlineBegin = true;
             Assert.Collection(
                 _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
@@ -660,7 +663,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var sql = AddFindSingerResult($"-- max_staleness: 10{Environment.NewLine}{Environment.NewLine}" +
                                           $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
                                           $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                                          $"WHERE `s`.`SingerId` = @id_0{Environment.NewLine}LIMIT 1");
+                                          $"WHERE `s`.`SingerId` = @__id_0{Environment.NewLine}LIMIT 1");
 
             using var db = new MockServerSampleDbContext(ConnectionString);
             var id = 1L;
@@ -683,7 +686,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var sql = AddFindSingerResult($"-- exact_staleness: 5{CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator}5{Environment.NewLine}{Environment.NewLine}" +
                                           $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
                                           $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                                          $"WHERE `s`.`SingerId` = @id_0{Environment.NewLine}LIMIT 1");
+                                          $"WHERE `s`.`SingerId` = @__id_0{Environment.NewLine}LIMIT 1");
 
             await using var db = new MockServerSampleDbContext(ConnectionString);
             var id = 1L;
@@ -705,7 +708,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var sql = AddFindSingerResult($"-- min_read_timestamp: 2021-09-08T15:18:01.1230000Z{Environment.NewLine}{Environment.NewLine}" +
                                           $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
                                           $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                                          $"WHERE `s`.`SingerId` = @id_0{Environment.NewLine}LIMIT 1");
+                                          $"WHERE `s`.`SingerId` = @__id_0{Environment.NewLine}LIMIT 1");
 
             using var db = new MockServerSampleDbContext(ConnectionString);
             var id = 1L;
@@ -729,7 +732,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var sql = AddFindSingerResult($"-- read_timestamp: 2021-09-08T15:18:02.0000000Z{Environment.NewLine}{Environment.NewLine}" +
                                           $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
                                           $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                                          $"WHERE `s`.`SingerId` = @id_0{Environment.NewLine}LIMIT 1");
+                                          $"WHERE `s`.`SingerId` = @__id_0{Environment.NewLine}LIMIT 1");
 
             using var db = new MockServerSampleDbContext(ConnectionString);
             var id = 1L;
@@ -775,7 +778,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 ColBytesArray = new List<byte[]> { new byte[] { 3, 2, 1 }, new byte[] { }, new byte[] { 4, 5, 6 } },
                 ColBytesMaxArray = new List<byte[]> { Encoding.UTF8.GetBytes("string 1"), Encoding.UTF8.GetBytes("string 2"), Encoding.UTF8.GetBytes("string 3") },
                 ColDate = new SpannerDate(2020, 12, 28),
-                ColDateArray = new List<DateOnly?> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today },
+                ColDateArray = new List<SpannerDate?> { new SpannerDate(2020, 12, 28), new SpannerDate(2010, 1, 1), today },
                 ColFloat64 = 3.14D,
                 ColFloat64Array = new List<double?> { 3.14D, 6.626D },
                 ColInt64 = id,
@@ -1121,7 +1124,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}ORDER BY `s`.`LastName`" +
-                $"{Environment.NewLine}LIMIT @p_0";
+                $"{Environment.NewLine}LIMIT @__p_0";
             AddFindSingerResult(sql);
 
             var singers = await db.Singers
@@ -1135,7 +1138,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
-                    Assert.Equal("1", request.Params.Fields["p_0"].StringValue);
+                    Assert.Equal("1", request.Params.Fields["__p_0"].StringValue);
                 }
             );
         }
@@ -1146,7 +1149,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"ORDER BY `s`.`LastName`{Environment.NewLine}LIMIT @p_1 OFFSET @p_0";
+                $"ORDER BY `s`.`LastName`{Environment.NewLine}LIMIT @__p_1 OFFSET @__p_0";
             AddFindSingerResult(sql);
 
             var singers = await db.Singers
@@ -1161,8 +1164,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
-                    Assert.Equal("2", request.Params.Fields["p_0"].StringValue);
-                    Assert.Equal("1", request.Params.Fields["p_1"].StringValue);
+                    Assert.Equal("2", request.Params.Fields["__p_0"].StringValue);
+                    Assert.Equal("1", request.Params.Fields["__p_1"].StringValue);
                 }
             );
         }
@@ -1173,7 +1176,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"ORDER BY `s`.`LastName`{Environment.NewLine}LIMIT {long.MaxValue / 2} OFFSET @p_0";
+                $"ORDER BY `s`.`LastName`{Environment.NewLine}LIMIT {long.MaxValue / 2} OFFSET @__p_0";
             AddFindSingerResult(sql);
 
             var singers = await db.Singers
@@ -1187,7 +1190,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
-                    Assert.Equal("3", request.Params.Fields["p_0"].StringValue);
+                    Assert.Equal("3", request.Params.Fields["__p_0"].StringValue);
                 }
             );
         }
@@ -1291,7 +1294,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE STRPOS(`s`.`FirstName`, @firstName_0) > 0";
+                $"WHERE STRPOS(`s`.`FirstName`, @__firstName_0) > 0";
             AddFindSingerResult(sql);
 
             var firstName = "Alice";
@@ -1305,7 +1308,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
-                    Assert.Equal("Alice", request.Params.Fields["firstName_0"].StringValue);
+                    Assert.Equal("Alice", request.Params.Fields["__firstName_0"].StringValue);
                 }
             );
         }
@@ -1316,7 +1319,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE STARTS_WITH(`s`.`FullName`, @fullName_0)";
+                $"WHERE STARTS_WITH(`s`.`FullName`, @__fullName_0)";
             AddFindSingerResult(sql);
 
             var fullName = "Alice M";
@@ -1330,7 +1333,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
-                    Assert.Equal("Alice M", request.Params.Fields["fullName_0"].StringValue);
+                    Assert.Equal("Alice M", request.Params.Fields["__fullName_0"].StringValue);
                 }
             );
         }
@@ -1341,7 +1344,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE ENDS_WITH(`s`.`FullName`, @fullName_0)";
+                $"WHERE ENDS_WITH(`s`.`FullName`, @__fullName_0)";
             AddFindSingerResult(sql);
 
             var fullName = " Morrison";
@@ -1355,7 +1358,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
-                    Assert.Equal(" Morrison", request.Params.Fields["fullName_0"].StringValue);
+                    Assert.Equal(" Morrison", request.Params.Fields["__fullName_0"].StringValue);
                 }
             );
         }
@@ -1366,7 +1369,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE CHAR_LENGTH(`s`.`FirstName`) > @minLength_0";
+                $"WHERE CHAR_LENGTH(`s`.`FirstName`) > @__minLength_0";
             AddFindSingerResult(sql);
 
             var minLength = 4;
@@ -1380,7 +1383,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
-                    Assert.Equal("4", request.Params.Fields["minLength_0"].StringValue);
+                    Assert.Equal("4", request.Params.Fields["__minLength_0"].StringValue);
                 }
             );
         }
@@ -1433,8 +1436,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task CanUseRegexReplace()
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
-            var sql = $"SELECT REGEXP_REPLACE(`s`.`FirstName`, @regex_1, @replacement_2)" +
-                $"{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}WHERE `s`.`SingerId` = @singerId_0";
+            var sql = $"SELECT REGEXP_REPLACE(`s`.`FirstName`, @__regex_1, @__replacement_2)" +
+                $"{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}WHERE `s`.`SingerId` = @__singerId_0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1463,7 +1466,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             // Note: AddYears cannot be applied server side to a TIMESTAMP, only to a DATE, so this is handled client side.
             var sql = $"SELECT `c`.`StartTime`{Environment.NewLine}FROM `Concerts` AS `c`" +
-                $"{Environment.NewLine}WHERE `c`.`SingerId` = @singerId_0";
+                $"{Environment.NewLine}WHERE `c`.`SingerId` = @__singerId_0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1489,7 +1492,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT DATE_ADD(`s`.`BirthDate`, INTERVAL 1 YEAR){Environment.NewLine}" +
                 $"FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE `s`.`SingerId` = @singerId_0 AND `s`.`BirthDate` IS NOT NULL";
+                $"WHERE `s`.`SingerId` = @__singerId_0 AND `s`.`BirthDate` IS NOT NULL";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1515,7 +1518,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             // Note: AddMonths cannot be applied server side to a TIMESTAMP, only to a DATE, so this is handled client side.
             var sql = $"SELECT `c`.`StartTime`{Environment.NewLine}FROM `Concerts` AS `c`" +
-                $"{Environment.NewLine}WHERE `c`.`SingerId` = @singerId_0";
+                $"{Environment.NewLine}WHERE `c`.`SingerId` = @__singerId_0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1541,7 +1544,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT DATE_ADD(`s`.`BirthDate`, INTERVAL 1 MONTH){Environment.NewLine}" +
                 $"FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE `s`.`SingerId` = @singerId_0 AND `s`.`BirthDate` IS NOT NULL";
+                $"WHERE `s`.`SingerId` = @__singerId_0 AND `s`.`BirthDate` IS NOT NULL";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1567,7 +1570,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT TIMESTAMP_ADD(`c`.`StartTime`, INTERVAL CAST(1.0 AS INT64) DAY)" +
                 $"{Environment.NewLine}FROM `Concerts` AS `c`{Environment.NewLine}" +
-                $"WHERE `c`.`SingerId` = @singerId_0";
+                $"WHERE `c`.`SingerId` = @__singerId_0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1593,7 +1596,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT DATE_ADD(`s`.`BirthDate`, INTERVAL 1 DAY){Environment.NewLine}" +
                 $"FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE `s`.`SingerId` = @singerId_0 AND `s`.`BirthDate` IS NOT NULL";
+                $"WHERE `s`.`SingerId` = @__singerId_0 AND `s`.`BirthDate` IS NOT NULL";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1619,7 +1622,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT TIMESTAMP_ADD(`c`.`StartTime`, INTERVAL CAST(1.0 AS INT64) HOUR)" +
                 $"{Environment.NewLine}FROM `Concerts` AS `c`{Environment.NewLine}" +
-                $"WHERE `c`.`SingerId` = @singerId_0";
+                $"WHERE `c`.`SingerId` = @__singerId_0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1645,7 +1648,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT TIMESTAMP_ADD(`c`.`StartTime`, INTERVAL CAST(1.0 AS INT64) MINUTE)" +
                 $"{Environment.NewLine}FROM `Concerts` AS `c`{Environment.NewLine}" +
-                $"WHERE `c`.`SingerId` = @singerId_0";
+                $"WHERE `c`.`SingerId` = @__singerId_0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1671,7 +1674,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT TIMESTAMP_ADD(`c`.`StartTime`, INTERVAL CAST(1.0 AS INT64) SECOND)" +
                 $"{Environment.NewLine}FROM `Concerts` AS `c`{Environment.NewLine}" +
-                $"WHERE `c`.`SingerId` = @singerId_0";
+                $"WHERE `c`.`SingerId` = @__singerId_0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1697,7 +1700,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT TIMESTAMP_ADD(`c`.`StartTime`, INTERVAL CAST(1.0 AS INT64) MILLISECOND)" +
                 $"{Environment.NewLine}FROM `Concerts` AS `c`{Environment.NewLine}" +
-                $"WHERE `c`.`SingerId` = @singerId_0";
+                $"WHERE `c`.`SingerId` = @__singerId_0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1723,7 +1726,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT TIMESTAMP_ADD(`c`.`StartTime`, INTERVAL 100 * 1 NANOSECOND)" +
                 $"{Environment.NewLine}FROM `Concerts` AS `c`{Environment.NewLine}" +
-                $"WHERE `c`.`SingerId` = @singerId_0";
+                $"WHERE `c`.`SingerId` = @__singerId_0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1748,7 +1751,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT ABS(`t`.`ColInt64`){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1773,7 +1776,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT ABS(COALESCE(`t`.`ColFloat64`, 0.0)){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1798,7 +1801,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT ABS(COALESCE(`t`.`ColNumeric`, 0)){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1823,7 +1826,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT GREATEST(`t`.`ColInt64`, 2){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1849,7 +1852,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT GREATEST(COALESCE(`t`.`ColFloat64`, 0.0), 3.1400000000000001)" +
                 $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}" +
-                $"WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1874,7 +1877,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT LEAST(`t`.`ColInt64`, 2){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1900,7 +1903,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT LEAST(COALESCE(`t`.`ColFloat64`, 0.0), 3.1400000000000001)" +
                 $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}" +
-                $"WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1925,7 +1928,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT ROUND(COALESCE(`t`.`ColFloat64`, 0.0)){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1950,7 +1953,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT ROUND(COALESCE(`t`.`ColNumeric`, 0)){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1975,7 +1978,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT ROUND(COALESCE(`t`.`ColFloat64`, 0.0), 1){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -2000,7 +2003,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT CEIL(COALESCE(`t`.`ColFloat64`, 0.0)){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -2025,7 +2028,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT FLOOR(COALESCE(`t`.`ColFloat64`, 0.0)){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -2052,7 +2055,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var sql = $"SELECT EXTRACT(YEAR FROM COALESCE(`t`.`ColTimestamp`, TIMESTAMP '0001-01-01T00:00:00Z') AT TIME ZONE 'UTC') AS `Year`, " +
                 $"EXTRACT(MONTH FROM COALESCE(`t`.`ColTimestamp`, TIMESTAMP '0001-01-01T00:00:00Z') AT TIME ZONE 'UTC') AS `Month`" +
                 $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -2089,7 +2092,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 "EXTRACT(DAYOFYEAR FROM COALESCE(`t`.`ColDate`, DATE '0001-01-01')) AS `DayOfYear`, " +
                 "EXTRACT(DAYOFWEEK FROM COALESCE(`t`.`ColDate`, DATE '0001-01-01')) - 1 AS `DayOfWeek`" +
                 $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}" +
-                $"WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -2134,7 +2137,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT CAST(COALESCE(`t`.`ColBool`, false) AS STRING)" +
                 $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}" +
-                $"WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -2158,7 +2161,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT CAST(`t`.`ColBytes` AS STRING){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -2183,7 +2186,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT CAST(`t`.`ColInt64` AS STRING){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -2208,7 +2211,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT CAST(COALESCE(`t`.`ColNumeric`, 0) AS STRING){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -2233,7 +2236,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT CAST(COALESCE(`t`.`ColFloat64`, 0.0) AS STRING){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -2259,7 +2262,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT CAST(COALESCE(`t`.`ColDate`, DATE '0001-01-01') AS STRING)" +
-                $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}WHERE `t`.`ColInt64` = @id_0" +
+                $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0" +
                 $"{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
@@ -2286,7 +2289,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT FORMAT_TIMESTAMP('''%FT%H:%M:%E*SZ''', COALESCE(`t`.`ColTimestamp`, TIMESTAMP '0001-01-01T00:00:00Z'), '''UTC''')" +
-                $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}WHERE `t`.`ColInt64` = @id_0" +
+                $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0" +
                 $"{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
@@ -2481,7 +2484,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, `s`.`Picture`" +
-                $"{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}WHERE STRPOS(`s`.`FirstName`, @firstName_0) > 0";
+                $"{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}WHERE STRPOS(`s`.`FirstName`, @__firstName_0) > 0";
             AddFindSingerResult(sql);
 
             var firstName = "Alice";
@@ -2497,7 +2500,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
-                    Assert.Equal("Alice", request.Params.Fields["firstName_0"].StringValue);
+                    Assert.Equal("Alice", request.Params.Fields["__firstName_0"].StringValue);
                 }
             );
         }
@@ -2557,7 +2560,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 ColBoolArray = new List<bool?>{true, null, false},
                 ColBytesArray = new List<byte[]>{new byte[]{1,2,3}, null, new byte[]{3,2,1}},
                 ColBytesMax = new byte[] {},
-                ColDateArray = new List<DateOnly?>{new SpannerDate(2021, 8, 26), null, new SpannerDate(2000, 1, 1)},
+                ColDateArray = new List<SpannerDate?>{new SpannerDate(2021, 8, 26), null, new SpannerDate(2000, 1, 1)},
                 ColFloat32Array = new List<float?>{3.14f, null, 6.626f},
                 ColFloat64Array = new List<double?>{3.14, null, 6.626},
                 ColInt64Array = new List<long?>{1,null,2},
@@ -2580,6 +2583,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     if (UsesClientLib())
                     {
                         var index = -1;
+                        Assert.Equal(24, types.Count);
                         Assert.Equal(V1.TypeCode.Int64, types["p" + ++index].Code);
                         Assert.Equal(V1.TypeCode.String, types["p" + ++index].Code);
                         Assert.Equal(V1.TypeCode.Bool, types["p" + ++index].Code);
@@ -2621,7 +2625,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     }
                     else
                     {
-                        Assert.Empty(types);
+                        // SpannerLib only includes a type code if one has explicitly been set for the parameter.
+                        Assert.Equal(10, types.Count);
+                        Assert.Equal(V1.TypeCode.Int64, types["p0"].Code);
+                        Assert.Equal(V1.TypeCode.Bytes, types["p4"].Code);
+                        Assert.Equal(V1.TypeCode.Bytes, types["p6"].Code);
+                        Assert.Equal(V1.TypeCode.Date, types["p8"].Code);
+                        Assert.Equal(V1.TypeCode.Array, types["p9"].Code);
+                        Assert.Equal(V1.TypeCode.Date, types["p9"].ArrayElementType.Code);
+                        Assert.Equal(V1.TypeCode.Float32, types["p10"].Code);
+                        Assert.Equal(V1.TypeCode.Float64, types["p12"].Code);
+                        Assert.Equal(V1.TypeCode.Array, types["p16"].Code);
+                        Assert.Equal(V1.TypeCode.Json, types["p16"].ArrayElementType.Code);
+                        Assert.Equal(V1.TypeCode.Numeric, types["p17"].Code);
+                        Assert.Equal(V1.TypeCode.Timestamp, types["p23"].Code);
                     }
                 }
             );
@@ -2813,9 +2830,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             );
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task RequestIncludesEfCoreClientHeader()
         {
+            Skip.IfNot(UsesClientLib());
+            
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                       $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                       $"WHERE `s`.`SingerId` = @p_0{Environment.NewLine}LIMIT 1";

@@ -66,7 +66,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             }
             else
             {
-                var con = new SpannerDriver.SpannerConnection();
+                var con = new Google.Cloud.Spanner.DataProvider.SpannerConnection();
                 con.ConnectionString = builder.ConnectionString;
                 return con;
             }
@@ -89,7 +89,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             {
                 return UseTransaction(connection.BeginReadOnlyTransaction(timestampBound));
             }
-            if (DbConnection is SpannerDriver.SpannerConnection spannerConnection)
+            if (DbConnection is Google.Cloud.Spanner.DataProvider.SpannerConnection spannerConnection)
             {
                 return UseTransaction(spannerConnection.BeginTransaction(CreateTransactionOptions(timestampBound)));
             }
@@ -148,7 +148,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 return await UseTransactionAsync(
                     await connection.BeginReadOnlyTransactionAsync(timestampBound, cancellationToken), cancellationToken);
             }
-            if (DbConnection is SpannerDriver.SpannerConnection spannerConnection)
+            if (DbConnection is Google.Cloud.Spanner.DataProvider.SpannerConnection spannerConnection)
             {
                 return await UseTransactionAsync(spannerConnection.BeginTransaction(CreateTransactionOptions(timestampBound)), cancellationToken);
             }
@@ -164,9 +164,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             // Spanner does not have anything like a master database, so we just return a new instance of a
             // RelationalConnection with the same options and dependencies. This ensures that all settings of the
             // underlying connection are carried over to the new RelationalConnection, such as credentials and host.
-            var masterConn = (SpannerRetriableConnection) CreateDbConnection();
+            var masterConn = CreateDbConnection();
             var optionsBuilder = new DbContextOptionsBuilder();
-            optionsBuilder.UseSpanner(masterConn);
+            if (masterConn is SpannerRetriableConnection spannerRetriableConnection)
+            {
+                optionsBuilder.UseSpanner(spannerRetriableConnection);
+            }
+            else if (masterConn is Google.Cloud.Spanner.DataProvider.SpannerConnection spannerConnection)
+            {
+                optionsBuilder.UseSpanner(spannerConnection);
+            }
 
 #pragma warning disable EF1001
             var dependencies = new RelationalConnectionDependencies(

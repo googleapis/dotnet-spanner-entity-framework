@@ -219,7 +219,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             // Setup results.
             var selectSingerSql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, " +
                 $"`s`.`FullName`, `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE `s`.`SingerId` = @p_0{Environment.NewLine}LIMIT 1");
+                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
             var selectFullNameSql = AddSelectSingerFullNameResult("Alice Pieterson-Morrison", 0);
 
             await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);

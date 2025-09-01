@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
 using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Operations;
 using Google.Cloud.Spanner.Data;
@@ -127,6 +128,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 await cmd.ExecuteScalarAsync(cancellationToken);
             }
             catch (SpannerException e) when (e.ErrorCode == ErrorCode.NotFound)
+            {
+                return false;
+            }
+            catch (SpannerLib.SpannerException e) when (e.ErrorCode == SpannerLib.ErrorCode.NotFound)
             {
                 return false;
             }

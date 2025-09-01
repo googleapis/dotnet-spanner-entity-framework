@@ -78,7 +78,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 }
                 spannerParameter.SpannerDbType = _complexType;
             }
-            else if (parameter is SpannerDriver.SpannerParameter)
+            else if (parameter is Google.Cloud.Spanner.DataProvider.SpannerParameter)
             {
                 base.ConfigureParameter(parameter);
             }

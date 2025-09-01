@@ -435,10 +435,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             return Task.FromResult(s_empty);
         }
 
-        private Session CreateSession(DatabaseName database)
+        private Session CreateSession(DatabaseName database, bool multiplexed)
         {
             var id = Interlocked.Increment(ref _sessionCounter);
-            Session session = new Session { SessionName = new SessionName(database.ProjectId, database.InstanceId, database.DatabaseId, $"session-{id}") };
+            Session session = new Session
+            {
+                SessionName = new SessionName(database.ProjectId, database.InstanceId, database.DatabaseId, $"session-{id}"),
+                Multiplexed = multiplexed,
+            };
             if (!_sessions.TryAdd(session.SessionName, session))
             {
                 throw new RpcException(new Grpc.Core.Status(StatusCode.AlreadyExists, $"Session with id session-{id} already exists"));
@@ -537,7 +541,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             BatchCreateSessionsResponse response = new BatchCreateSessionsResponse();
             for (int i = 0; i < request.SessionCount; i++)
             {
-                response.Session.Add(CreateSession(database));
+                response.Session.Add(CreateSession(database, false));
             }
             return Task.FromResult(response);
         }
@@ -548,7 +552,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _contexts.Enqueue(context);
             _headers.Enqueue(context.RequestHeaders);
             var database = request.DatabaseAsDatabaseName;
-            return Task.FromResult(CreateSession(database));
+            return Task.FromResult(CreateSession(database, request.Session?.Multiplexed ?? false));
         }
 
         public override Task<Session> GetSession(GetSessionRequest request, ServerCallContext context)
@@ -598,7 +602,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _executionTimes.TryGetValue(nameof(ExecuteBatchDml), out ExecutionTime executionTime);
             executionTime?.SimulateExecutionTime();
             _ = TryFindSession(request.SessionAsSessionName);
-            _ = FindOrBeginTransaction(request.SessionAsSessionName, request.Transaction);
+            var tx = FindOrBeginTransaction(request.SessionAsSessionName, request.Transaction);
             var response = new ExecuteBatchDmlResponse
             {
                 // TODO: Return other statuses based on the mocked results.
@@ -625,7 +629,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                             {
                                 executionTime.SimulateExecutionTime();
                             }
-                            response.ResultSets.Add(CreateUpdateCountResultSet(result.UpdateCount));
+                            var resultSet = CreateUpdateCountResultSet(result.UpdateCount);
+                            if (index == 0 && request.Transaction?.Begin != null && tx != null)
+                            {
+                                resultSet.Metadata.Transaction = tx;
+                            }
+                            response.ResultSets.Add(resultSet);
                             break;
                         case StatementResult.StatementResultType.Exception:
                             if (index == 0)

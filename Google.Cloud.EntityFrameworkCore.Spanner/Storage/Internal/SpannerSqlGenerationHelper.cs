@@ -45,15 +45,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <inheritdoc />
         public override string StatementTerminator { get; }
 
-        public override string GenerateParameterName(string name)
-        {
-            if (name.StartsWith(QueryCompilationContext.QueryParameterPrefix))
-            {
-                name = name[QueryCompilationContext.QueryParameterPrefix.Length..];
-            }
-            return base.GenerateParameterName(name);
-        }
-
         /// <inheritdoc />
         public override void GenerateParameterName(StringBuilder builder, string name)
         {

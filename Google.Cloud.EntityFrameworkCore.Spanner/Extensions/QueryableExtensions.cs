@@ -25,7 +25,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Google.Cloud.Spanner.V1;
 using Google.Protobuf.WellKnownTypes;
-using SpannerCommand = SpannerDriver.SpannerCommand;
+using SpannerCommand = Google.Cloud.Spanner.DataProvider.SpannerCommand;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
 {

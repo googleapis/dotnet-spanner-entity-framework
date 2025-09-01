@@ -14,7 +14,6 @@
 
 using System;
 using System.Collections.Generic;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.V1;
 using System.Text.Json;
 using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
@@ -32,7 +31,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         public string ColStringMax { get; set; }
         public byte[] ColBytes { get; set; }
         public byte[] ColBytesMax { get; set; }
-        public DateOnly? ColDate { get; set; }
+        public SpannerDate? ColDate { get; set; }
         public DateTime? ColTimestamp { get; set; }
         public JsonDocument ColJson { get; set; }
         public DateTime? ColCommitTs { get; set; }
@@ -45,7 +44,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         public List<string> ColStringMaxArray { get; set; }
         public List<byte[]> ColBytesArray { get; set; }
         public List<byte[]> ColBytesMaxArray { get; set; }
-        public List<Nullable<DateOnly>> ColDateArray { get; set; }
+        public List<Nullable<SpannerDate>> ColDateArray { get; set; }
         public List<Nullable<DateTime>> ColTimestampArray { get; set; }
         public List<JsonDocument> ColJsonArray { get; set; }
         public string ColComputed { get; set; }

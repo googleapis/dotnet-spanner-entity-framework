@@ -17,7 +17,7 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
-using SpannerDriver;
+using Google.Cloud.Spanner.DataProvider;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
 {
