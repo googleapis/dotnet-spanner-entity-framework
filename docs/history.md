@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.6.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.5.0...Google.Cloud.EntityFrameworkCore.Spanner-3.6.0) (2025-09-02)
+
+
+### Features
+
+* allow string to be mapped to JSON columns ([#598](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/598)) ([a0c1414](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/a0c14146e9fe2cef1bd44d7fd1ad20861efd5383))
+
 ## [3.5.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.4.1...Google.Cloud.EntityFrameworkCore.Spanner-3.5.0) (2025-07-31)
 
 
