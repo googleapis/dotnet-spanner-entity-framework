@@ -782,9 +782,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
             var transaction = await db.Database.BeginTransactionAsync();
             db.TicketSales.AddRange([
-                new TicketSales { CustomerName = "New Customer1", Receipt = "{\"Purchase Date\": \"2025-09-01\"}"},
-                new TicketSales { CustomerName = "New Customer2", Receipt = "{\"Purchase Date\": \"2025-09-01\"}"},
-                new TicketSales { CustomerName = "New Customer3", Receipt = "{\"Purchase Date\": \"2025-09-01\"}"},
+                new TicketSales { CustomerName = "New Customer1", Receipt = new Receipt {Date = new DateOnly(2025, 9, 1), Number = "1"}},
+                new TicketSales { CustomerName = "New Customer2", Receipt = new Receipt {Date = new DateOnly(2025, 9, 1), Number = "2"}},
+                new TicketSales { CustomerName = "New Customer3", Receipt = new Receipt {Date = new DateOnly(2025, 9, 1), Number = "3"}},
             ]);
             var updateCount = await db.SaveChangesAsync();
             await transaction.CommitAsync();
@@ -809,7 +809,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.Equal("CustomerName", mutation.Insert.Columns[0]);
             Assert.Equal("Receipt", mutation.Insert.Columns[1]);
             Assert.Equal($"New Customer{index}", mutation.Insert.Values[0].Values[0].StringValue);
-            Assert.Equal("{\"Purchase Date\": \"2025-09-01\"}", mutation.Insert.Values[0].Values[1].StringValue);
+            Assert.Equal("{\"Date\":\"2025-09-01\",\"Number\":\"" + index + "\"}", mutation.Insert.Values[0].Values[1].StringValue);
         }
 
         private string AddFindSingerResult(string sql)

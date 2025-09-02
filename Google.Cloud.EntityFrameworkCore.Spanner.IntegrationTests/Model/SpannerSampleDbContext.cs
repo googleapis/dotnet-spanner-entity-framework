@@ -15,6 +15,7 @@
 using Google.Cloud.EntityFrameworkCore.Spanner.Metadata;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
+using Newtonsoft.Json;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 {
@@ -217,7 +218,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
             
             modelBuilder.Entity<TicketSales>(entity =>
             {
-                entity.Property(e => e.Receipt).HasColumnType("JSON");
+                entity.Property(e => e.Receipt)
+                    .HasConversion<string>(
+                        v => v == null ? null : JsonConvert.SerializeObject(v),
+                        v => v == null ? null : JsonConvert.DeserializeObject<Receipt>(v))
+                    .HasColumnType("JSON");
             });
         }
     }

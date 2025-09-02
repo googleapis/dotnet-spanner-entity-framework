@@ -350,7 +350,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var ticketSale = db.TicketSales.Add(new TicketSales
             {
                 CustomerName = "New Customer",
-                Receipt = "{\"Purchase Date\": \"2025-09-01\"}",
+                Receipt = new Receipt
+                {
+                    Date = new DateOnly(2025, 9, 1),
+                    Number = "99999",
+                },
             });
             var updateCount = await db.SaveChangesAsync();
 
