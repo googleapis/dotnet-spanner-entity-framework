@@ -20,6 +20,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore.Storage.Json;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
@@ -70,6 +71,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         private static readonly SpannerJsonTypeMapping s_json = new SpannerJsonTypeMapping();
         private static readonly SpannerStructuralJsonTypeMapping s_structuralJson = new SpannerStructuralJsonTypeMapping("json");
+        private static readonly SpannerStringTypeMapping s_jsonAsString = new ("JSON", sqlDbType: SpannerDbType.Json, dbType: DbType.Object);
 
         private static readonly SpannerGuidTypeMapping s_guid
             = new SpannerGuidTypeMapping("STRING(36)", DbType.String);
@@ -316,6 +318,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
             if (storeTypeName != null)
             {
+                if (storeTypeName.Equals("JSON", StringComparison.InvariantCultureIgnoreCase) &&
+                    clrType == typeof(string))
+                {
+                    return s_jsonAsString;
+                }
+                
                 if (_storeTypeMappings.TryGetValue(storeTypeName, out var mapping)
                     || _storeTypeMappings.TryGetValue(storeTypeNameBase, out mapping))
                 {

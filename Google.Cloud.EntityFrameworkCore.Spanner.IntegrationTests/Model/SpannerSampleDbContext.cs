@@ -215,7 +215,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                 });
             });
             
-            modelBuilder.Entity<TicketSales>();
+            modelBuilder.Entity<TicketSales>(entity =>
+            {
+                entity.Property(e => e.Receipt).HasColumnType("JSON");
+            });
         }
     }
 }

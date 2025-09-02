@@ -32,23 +32,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             int? size = null,
             bool fixedLength = false,
             SpannerDbType sqlDbType = null,
+            DbType? dbType = null,
             StoreTypePostfix? storeTypePostfix = null)
             : this(
                 new RelationalTypeMappingParameters(
                     new CoreTypeMappingParameters(typeof(string), jsonValueReaderWriter: JsonStringReaderWriter.Instance),
                     storeType,
                     storeTypePostfix ?? StoreTypePostfix.Size,
-                    GetDbType(unicode, fixedLength),
+                    dbType ?? System.Data.DbType.String,
                     unicode,
                     size,
                     fixedLength),
                 sqlDbType)
         {
         }
-
-        private static DbType? GetDbType(bool unicode, bool fixedLength) => unicode
-            ? (fixedLength ? System.Data.DbType.String : (DbType?)null)
-            : System.Data.DbType.AnsiString;
 
         protected SpannerStringTypeMapping(RelationalTypeMappingParameters parameters, SpannerDbType sqlDbType)
             : base(parameters)
@@ -71,10 +68,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             {
                 sqlParameter.SpannerDbType = _sqlDbType;
             }
-
-            parameter.Size = value == null || value == DBNull.Value || length != null && length <= _maxSpecificSize
-                ? _maxSpecificSize
-                : 0;
         }
 
         protected override string GenerateNonNullSqlLiteral(object value)
