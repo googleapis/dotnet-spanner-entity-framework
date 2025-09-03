@@ -23,5 +23,5 @@ public class TicketSales
     /// <summary>
     /// Receipt is stored as a JSON column in the database.
     /// </summary>
-    public string Receipt { get; set; }
+    public Receipt? Receipt { get; set; }
 }
