@@ -41,23 +41,54 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             }
             var ddlStatements = statements.Where(IsDdlStatement).ToArray();
             var otherStatements = statements.Where(x => !IsDdlStatement(x));
-            var spannerConnection = ((SpannerRelationalConnection) connection).DbConnection as SpannerRetriableConnection;
-            if (ddlStatements.Any())
+            var dbConnection = ((SpannerRelationalConnection)connection).DbConnection;
+            if (dbConnection is SpannerRetriableConnection spannerConnection)
             {
-                var cmd = spannerConnection.CreateDdlCommand(ddlStatements[0], ddlStatements.Skip(1).ToArray());
-                await cmd.ExecuteNonQueryAsync(cancellationToken);
-            }
-            if (otherStatements.Any())
-            {
-                using var transaction = await spannerConnection.BeginTransactionAsync(cancellationToken);
-                var cmd = spannerConnection.CreateBatchDmlCommand();
-                cmd.Transaction = transaction;
-                foreach (var statement in otherStatements)
+                if (ddlStatements.Any())
                 {
-                    cmd.Add(statement);
+                    var cmd = spannerConnection.CreateDdlCommand(ddlStatements[0], ddlStatements.Skip(1).ToArray());
+                    await cmd.ExecuteNonQueryAsync(cancellationToken);
                 }
-                await cmd.ExecuteNonQueryAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
+                if (otherStatements.Any())
+                {
+                    using var transaction = await spannerConnection.BeginTransactionAsync(cancellationToken);
+                    var cmd = spannerConnection.CreateBatchDmlCommand();
+                    cmd.Transaction = transaction;
+                    foreach (var statement in otherStatements)
+                    {
+                        cmd.Add(statement);
+                    }
+                    await cmd.ExecuteNonQueryAsync(cancellationToken);
+                    await transaction.CommitAsync(cancellationToken);
+                }
+            }
+            else
+            {
+                if (ddlStatements.Any())
+                {
+                    var batch = dbConnection.CreateBatch();
+                    foreach (var statement in ddlStatements)
+                    {
+                        var cmd = batch.CreateBatchCommand();
+                        cmd.CommandText = statement;
+                        batch.BatchCommands.Add(cmd);
+                    }
+                    await batch.ExecuteNonQueryAsync(cancellationToken);
+                }
+                if (otherStatements.Any())
+                {
+                    using var transaction = await dbConnection.BeginTransactionAsync(cancellationToken);
+                    var batch = dbConnection.CreateBatch();
+                    batch.Transaction = transaction;
+                    foreach (var statement in otherStatements)
+                    {
+                        var cmd = batch.CreateBatchCommand();
+                        cmd.CommandText = statement;
+                        batch.BatchCommands.Add(cmd);
+                    }
+                    await batch.ExecuteNonQueryAsync(cancellationToken);
+                    await transaction.CommitAsync(cancellationToken);
+                }
             }
         }
 

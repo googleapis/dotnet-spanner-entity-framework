@@ -35,7 +35,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
             service.SpannerMock.Reset();
         }
 
-        private string ConnectionString => $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
+        //private string ConnectionString => $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
+        private string ConnectionString => $"{_fixture.Host}:{_fixture.Port}/projects/p1/instances/i1/databases/d1;usePlainText=true";
 
         [Fact]
         public void TestMigrateUsesDdlBatch()
