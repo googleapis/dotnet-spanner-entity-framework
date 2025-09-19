@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.7.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.6.0...Google.Cloud.EntityFrameworkCore.Spanner-3.7.0) (2025-09-19)
+
+
+### Features
+
+* support isolation levels ([#606](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/606)) ([f3be2e3](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/f3be2e3824a3cb4d978973e92f35d86dfc383a58))
+
 ## [3.6.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.5.0...Google.Cloud.EntityFrameworkCore.Spanner-3.6.0) (2025-09-02)
 
 
