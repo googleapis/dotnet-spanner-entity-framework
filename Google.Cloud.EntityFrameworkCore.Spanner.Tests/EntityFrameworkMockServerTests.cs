@@ -25,6 +25,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
@@ -2621,6 +2622,87 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 await transaction.CommitAsync();
             }
+        }
+
+        [Theory]
+        [InlineData(IsolationLevel.Unspecified)]
+        [InlineData(IsolationLevel.Serializable)]
+        [InlineData(IsolationLevel.RepeatableRead)]
+        [InlineData(IsolationLevel.Snapshot)]
+        public async Task TestSupportedIsolationLevels(IsolationLevel isolationLevel)
+        {
+            var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
+                                          $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                                          $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var tx = await db.Database.BeginTransactionAsync(isolationLevel);
+            
+            var singer = await db.Singers.FindAsync(1L);
+            await tx.CommitAsync();
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    // The first request should start the read/write transaction.
+                    Assert.NotNull(request.Transaction?.Begin?.ReadWrite);
+                    // Verify that the correct isolation level is being used.
+                    Assert.Equal(ToProtoIsolationLevel(isolationLevel), request.Transaction!.Begin!.IsolationLevel);
+                }
+            );
+            Assert.Contains(_fixture.SpannerMock.Requests, request => request is CommitRequest);
+        }
+
+        [Theory]
+        [InlineData(IsolationLevel.ReadCommitted)]
+        [InlineData(IsolationLevel.Chaos)]
+        [InlineData(IsolationLevel.ReadUncommitted)]
+        public async Task TestUnsupportedIsolationLevel(IsolationLevel isolationLevel)
+        {
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            await Assert.ThrowsAsync<NotSupportedException>(() => db.Database.BeginTransactionAsync(isolationLevel));
+        }
+        
+        [Fact]
+        public async Task TestDefaultIsolationLevel()
+        {
+            var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
+                                          $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                                          $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+
+            // Set the default isolation level in the connection string.
+            await using var db = new MockServerSampleDbContext(ConnectionString + ";IsolationLevel=RepeatableRead");
+            await using var tx = await db.Database.BeginTransactionAsync();
+            
+            var singer = await db.Singers.FindAsync(1L);
+            await tx.CommitAsync();
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    // The first request should start the read/write transaction.
+                    Assert.NotNull(request.Transaction?.Begin?.ReadWrite);
+                    // Verify that the correct isolation level is being used.
+                    Assert.Equal(TransactionOptions.Types.IsolationLevel.RepeatableRead, request.Transaction!.Begin!.IsolationLevel);
+                }
+            );
+            Assert.Contains(_fixture.SpannerMock.Requests, request => request is CommitRequest);
+        }
+
+        private static TransactionOptions.Types.IsolationLevel ToProtoIsolationLevel(IsolationLevel isolationLevel)
+        {
+            return isolationLevel switch
+            {
+                IsolationLevel.Serializable => TransactionOptions.Types.IsolationLevel.Serializable,
+                IsolationLevel.RepeatableRead => TransactionOptions.Types.IsolationLevel.RepeatableRead,
+                IsolationLevel.Snapshot => TransactionOptions.Types.IsolationLevel.RepeatableRead,
+                IsolationLevel.Unspecified => TransactionOptions.Types.IsolationLevel.Unspecified,
+                _ => throw new ArgumentOutOfRangeException(nameof(isolationLevel), isolationLevel, null)
+            };
         }
         
         internal static StatementResult CreateTableWithAllColumnTypesResultSet()
