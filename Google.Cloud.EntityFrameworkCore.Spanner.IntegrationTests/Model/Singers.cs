@@ -31,7 +31,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public string FullName { get; set; }
-        public DateOnly? BirthDate { get; set; }
+        public SpannerDate? BirthDate { get; set; }
         public byte[] Picture { get; set; }
 
         public virtual ICollection<Albums> Albums { get; set; }

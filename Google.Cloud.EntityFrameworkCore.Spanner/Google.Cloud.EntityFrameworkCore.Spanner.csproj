@@ -39,4 +39,8 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\SpannerDriver\Google.Cloud.Spanner.DataProvider\Google.Cloud.Spanner.DataProvider.csproj" />
+  </ItemGroup>
+
 </Project>
