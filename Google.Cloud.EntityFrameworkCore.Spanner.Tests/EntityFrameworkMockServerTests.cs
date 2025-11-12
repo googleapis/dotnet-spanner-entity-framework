@@ -372,8 +372,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task InsertTicketSale_ReturnsId()
         {
             // Setup results.
-            var insertSql = $"INSERT INTO `TicketSales` (`CustomerName`){Environment.NewLine}" +
-                            $"VALUES (@p0){Environment.NewLine}" +
+            var insertSql = $"INSERT INTO `TicketSales` (`CustomerName`, `Receipt`){Environment.NewLine}" +
+                            $"VALUES (@p0, @p1){Environment.NewLine}" +
                             $"THEN RETURN `Id`{Environment.NewLine}";
             _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type {Code = V1.TypeCode.Int64}, "Id", "12345"));
 
@@ -381,6 +381,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var ticketSale = db.TicketSales.Add(new TicketSales
             {
                 CustomerName = "New Customer",
+                Receipt = new Receipt
+                {
+                    Date = new DateOnly(2025, 9, 1),
+                    Number = "99999",
+                },
             });
             var updateCount = await db.SaveChangesAsync();
 
@@ -392,6 +397,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(insertSql, request.Sql);
+                    Assert.Collection(request.ParamTypes, pair =>
+                    {
+                        Assert.Equal(V1.TypeCode.String, pair.Value.Code);
+                    }, pair =>
+                    {
+                        Assert.Equal(V1.TypeCode.Json, pair.Value.Code);
+                    });
                     Assert.NotNull(request.Transaction?.Id);
                 }
             );
@@ -410,14 +422,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task InsertMultipleTicketSale_ReturnsIdentifiers()
         {
             // Setup results.
-            for (var p = 0; p < 3; p++)
+            for (var p = 0; p < 6; p+=2)
             {
-                var insertSql = $"INSERT INTO `TicketSales` (`CustomerName`){Environment.NewLine}" +
-                                $"VALUES (@p{p}){Environment.NewLine}" +
+                var insertSql = $"INSERT INTO `TicketSales` (`CustomerName`, `Receipt`){Environment.NewLine}" +
+                                $"VALUES (@p{p}, @p{p+1}){Environment.NewLine}" +
                                 $"THEN RETURN `Id`{Environment.NewLine}";
                 _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql,
                     StatementResult.CreateSingleColumnResultSet(1L, new V1.Type { Code = V1.TypeCode.Int64 }, "Id",
-                        (1000000 - p)));
+                        (1000000 - p/2)));
             }
 
             await using var db = new MockServerSampleDbContext(ConnectionString);
@@ -950,8 +962,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             // Setup results.
             _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
-            var insertSql = $"INSERT INTO `Venues` (`Code`, `Active`, `Capacity`, `Name`, `Ratings`)" +
-                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
+            var insertSql = $"INSERT INTO `Venues` (`Descriptions`, `Code`, `Active`, `Capacity`, `Name`, `Ratings`)" +
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4, @p5)";
             _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateUpdateCount(1L));
 
             await using var db = new MockServerSampleDbContext(ConnectionString);
@@ -968,6 +980,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 Code = "C1",
                 Name = "Concert Hall",
+                Descriptions = [
+                    new() { Category = "Concert Hall", Description = "Big concert hall", Capacity = 1000, Active = true },
+                    new() { Category = "Hall", Description = "Big hall", Capacity = 1000, Active = false },
+                ],
             });
 
             // We can only disable internal retries when using explicit transactions. Otherwise, internal retries
@@ -2779,6 +2795,87 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 await transaction.CommitAsync();
             }
+        }
+
+        [Theory]
+        [InlineData(IsolationLevel.Unspecified)]
+        [InlineData(IsolationLevel.Serializable)]
+        [InlineData(IsolationLevel.RepeatableRead)]
+        [InlineData(IsolationLevel.Snapshot)]
+        public async Task TestSupportedIsolationLevels(IsolationLevel isolationLevel)
+        {
+            var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
+                                          $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                                          $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var tx = await db.Database.BeginTransactionAsync(isolationLevel);
+            
+            var singer = await db.Singers.FindAsync(1L);
+            await tx.CommitAsync();
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    // The first request should start the read/write transaction.
+                    Assert.NotNull(request.Transaction?.Begin?.ReadWrite);
+                    // Verify that the correct isolation level is being used.
+                    Assert.Equal(ToProtoIsolationLevel(isolationLevel), request.Transaction!.Begin!.IsolationLevel);
+                }
+            );
+            Assert.Contains(_fixture.SpannerMock.Requests, request => request is CommitRequest);
+        }
+
+        [Theory]
+        [InlineData(IsolationLevel.ReadCommitted)]
+        [InlineData(IsolationLevel.Chaos)]
+        [InlineData(IsolationLevel.ReadUncommitted)]
+        public async Task TestUnsupportedIsolationLevel(IsolationLevel isolationLevel)
+        {
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            await Assert.ThrowsAsync<NotSupportedException>(() => db.Database.BeginTransactionAsync(isolationLevel));
+        }
+        
+        [Fact]
+        public async Task TestDefaultIsolationLevel()
+        {
+            var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
+                                          $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                                          $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+
+            // Set the default isolation level in the connection string.
+            await using var db = new MockServerSampleDbContext(ConnectionString + ";IsolationLevel=RepeatableRead");
+            await using var tx = await db.Database.BeginTransactionAsync();
+            
+            var singer = await db.Singers.FindAsync(1L);
+            await tx.CommitAsync();
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    // The first request should start the read/write transaction.
+                    Assert.NotNull(request.Transaction?.Begin?.ReadWrite);
+                    // Verify that the correct isolation level is being used.
+                    Assert.Equal(TransactionOptions.Types.IsolationLevel.RepeatableRead, request.Transaction!.Begin!.IsolationLevel);
+                }
+            );
+            Assert.Contains(_fixture.SpannerMock.Requests, request => request is CommitRequest);
+        }
+
+        private static TransactionOptions.Types.IsolationLevel ToProtoIsolationLevel(IsolationLevel isolationLevel)
+        {
+            return isolationLevel switch
+            {
+                IsolationLevel.Serializable => TransactionOptions.Types.IsolationLevel.Serializable,
+                IsolationLevel.RepeatableRead => TransactionOptions.Types.IsolationLevel.RepeatableRead,
+                IsolationLevel.Snapshot => TransactionOptions.Types.IsolationLevel.RepeatableRead,
+                IsolationLevel.Unspecified => TransactionOptions.Types.IsolationLevel.Unspecified,
+                _ => throw new ArgumentOutOfRangeException(nameof(isolationLevel), isolationLevel, null)
+            };
         }
         
         internal static StatementResult CreateTableWithAllColumnTypesResultSet()

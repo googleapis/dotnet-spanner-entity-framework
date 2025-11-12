@@ -248,7 +248,7 @@ CONSTRAINT `Chk_Title_Length_Equal` CHECK (CHARACTER_LENGTH(Title) > 0),
         public override void AddForeignKeyOperation_with_name()
         {
             base.AddForeignKeyOperation_with_name();
-            AssertSql(@"ALTER TABLE `Album` ADD  CONSTRAINT `FK_Album_Singer` FOREIGN KEY (`SingerId`) REFERENCES `Singer` (`SingerId`)
+            AssertSql(@"ALTER TABLE `Album` ADD  CONSTRAINT `FK_Album_Singer` FOREIGN KEY (`SingerId`) REFERENCES `Singer` (`SingerId`) ON DELETE CASCADE
 ");
         }
 

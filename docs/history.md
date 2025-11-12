@@ -1,5 +1,38 @@
 # Changelog
 
+## [3.7.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.6.0...Google.Cloud.EntityFrameworkCore.Spanner-3.7.0) (2025-09-19)
+
+
+### Features
+
+* support isolation levels ([#606](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/606)) ([f3be2e3](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/f3be2e3824a3cb4d978973e92f35d86dfc383a58))
+
+## [3.6.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.5.0...Google.Cloud.EntityFrameworkCore.Spanner-3.6.0) (2025-09-02)
+
+
+### Features
+
+* allow string to be mapped to JSON columns ([#598](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/598)) ([a0c1414](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/a0c14146e9fe2cef1bd44d7fd1ad20861efd5383))
+
+## [3.5.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.4.1...Google.Cloud.EntityFrameworkCore.Spanner-3.5.0) (2025-07-31)
+
+
+### Features
+
+* support structural json mapping ([#584](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/584)) ([70065e4](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/70065e426aa0ab45a6e8b929e3915a5bb2e96019)), closes [#581](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/581)
+
+
+### Bug Fixes
+
+* add ON DELETE CASCADE for foreign keys ([#585](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/585)) ([e112d82](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/e112d82d29602c9badf025f04ae03d5effc94828)), closes [#583](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/583)
+
+## [3.4.1](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.4.0...Google.Cloud.EntityFrameworkCore.Spanner-3.4.1) (2025-06-17)
+
+
+### Bug Fixes
+
+* identity annotations on properties were not generated ([#574](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/574)) ([f7bb1ee](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/f7bb1eea5c65b74cbfbbcb162d03ca6941351f84))
+
 ## [3.4.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.3.0...Google.Cloud.EntityFrameworkCore.Spanner-3.4.0) (2025-06-10)
 
 

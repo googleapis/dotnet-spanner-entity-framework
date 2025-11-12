@@ -18,6 +18,7 @@ using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using System;
 using System.Collections;
 using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 {
@@ -191,5 +192,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 };
             }
         }
+        
+        protected override Expression VisitJsonScalar(JsonScalarExpression jsonScalarExpression)
+        {
+            Visit(jsonScalarExpression.Json);
+            var path = jsonScalarExpression.Path;
+            if (path.Count == 0)
+            {
+                return jsonScalarExpression;
+            }
+            throw new ArgumentException("json path expressions are not supported");
+        }
+        
     }
 }

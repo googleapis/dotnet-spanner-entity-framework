@@ -320,6 +320,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
                 .Append(" (")
                 .Append(ColumnList(operation.PrincipalColumns))
                 .Append(")");
+            if (operation.OnDelete == ReferentialAction.Cascade)
+            {
+                builder.Append(" ON DELETE CASCADE");
+            }
         }
 
         private static string GetCorrectedColumnType(string columnType, int? maxLength)

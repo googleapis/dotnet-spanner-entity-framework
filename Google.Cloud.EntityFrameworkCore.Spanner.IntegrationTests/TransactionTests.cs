@@ -274,6 +274,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             {
                 Code = venueCode,
                 Name = venueName,
+                Descriptions = [
+                    new () {Active = true, Capacity = 1000, Category = "Concert Hall", Description = "Large concert hall"},
+                    new () {Active = false, Capacity = 1000, Category = "Hall", Description = "Large hall"},
+                ],
             });
             await db.SaveChangesAsync();
             await transaction.CommitAsync();

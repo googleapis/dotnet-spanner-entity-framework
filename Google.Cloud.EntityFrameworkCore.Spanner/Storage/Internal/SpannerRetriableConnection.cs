@@ -147,18 +147,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <exception cref="NotSupportedException"/>
         public new async Task<SpannerRetriableTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default)
         {
-            if (isolationLevel != IsolationLevel.Unspecified
-                && isolationLevel != IsolationLevel.Serializable)
+            var dbTransaction = await SpannerConnection.BeginTransactionAsync(isolationLevel, cancellationToken);
+            if (dbTransaction is SpannerTransaction spannerTransaction)
             {
-                throw new NotSupportedException(
-                    $"Cloud Spanner only supports isolation levels {IsolationLevel.Serializable} and {IsolationLevel.Unspecified}.");
+                return new SpannerRetriableTransaction(
+                    this,
+                    spannerTransaction,
+                    SystemClock.Instance,
+                    SystemScheduler.Instance);
             }
-            var spannerTransaction = await SpannerConnection.BeginTransactionAsync(cancellationToken);
-            return new SpannerRetriableTransaction(
-                this,
-                spannerTransaction,
-                SystemClock.Instance,
-                SystemScheduler.Instance);
+            throw new InvalidOperationException("The connection did not return a SpannerTransaction");
         }
 
         /// <summary>

@@ -39,6 +39,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
         /// <inheritdoc />
         public override IEnumerable<IAnnotation> For(IColumn column, bool designTime)
         {
+            if (column.PropertyMappings.Count == 0)
+            {
+                yield break;
+            }
             var property = column.PropertyMappings.First().Property;
             var primaryKey = property.DeclaringType.ContainingEntityType.FindPrimaryKey();
             if (primaryKey is { Properties.Count: 1 }
@@ -57,6 +61,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                 if (commitTimestampAnnotation != null)
                 {
                     yield return commitTimestampAnnotation;
+                }
+                var identityAnnotation = mapping.Property.FindAnnotation(SpannerAnnotationNames.Identity);
+                if (identityAnnotation != null)
+                {
+                    yield return identityAnnotation;
                 }
             }
         }

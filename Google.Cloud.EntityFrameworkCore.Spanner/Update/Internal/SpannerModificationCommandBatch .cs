@@ -765,15 +765,33 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         {
             foreach (var columnModification in modificationCommand.ColumnModifications.Where(
                 o => o.UseOriginalValueParameter && (includeConcurrencyTokenConditions || !(o.IsCondition && (o.Property?.IsConcurrencyToken ?? false))))
-                         .OrderBy(m => m.Property!.GetIndex()))
+                         .OrderBy(ParameterIndex))
             {
                 cmd.Parameters.Add(CreateParameter(columnModification, cmd, UseValue.Original, useColumnName));
             }
-            foreach (var columnModification in modificationCommand.ColumnModifications.Where(o => o.UseCurrentValueParameter)
-                         .OrderBy(m => m.Property!.GetIndex()))
+            foreach (var columnModification in modificationCommand.ColumnModifications
+                         .Where(o => o.UseCurrentValueParameter)
+                         .OrderBy(ParameterIndex))
             {
                 cmd.Parameters.Add(CreateParameter(columnModification, cmd, UseValue.Current, useColumnName));
             }
+        }
+
+        private static int ParameterIndex(IColumnModification modification)
+        {
+            if (modification.Property != null)
+            {
+                return modification.Property.GetIndex();
+            }
+            if (modification.ParameterName is { Length: > 1 } && modification.ParameterName[0] == 'p')
+            {
+                var indexString = modification.ParameterName[1..];
+                if (int.TryParse(indexString, out var index))
+                {
+                    return index;
+                }
+            }
+            return -1;
         }
 
         /// <summary>
@@ -820,11 +838,26 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             {
                 paramName = useValue == UseValue.Original ? columnModification.OriginalParameterName : columnModification.ParameterName;
             }
-            var param = _typeMapper.GetMapping(columnModification.Property).CreateParameter(cmd,
+            if (paramName is null)
+            {
+                throw new ArgumentException($"no parameter name found for {columnModification.ColumnName}");
+            }
+
+            var typeMapping = columnModification.TypeMapping;
+            var property = columnModification.Property;
+            if (typeMapping is null && property is not null)
+            {
+                typeMapping = _typeMapper.GetMapping(property);
+            }
+            if (typeMapping is null)
+            {
+                throw new ArgumentException($"no type mapping found for {columnModification.ColumnName}");
+            }
+            var param = typeMapping.CreateParameter(cmd,
                 paramName,
                 useValue == UseValue.Original ? columnModification.OriginalValue : columnModification.Value,
-                columnModification.Property.IsNullable);
-            if (param is SpannerParameter spannerParameter && SpannerDbType.Unspecified.Equals(spannerParameter.SpannerDbType))
+                property?.IsNullable);
+            if (param is SpannerParameter spannerParameter && SpannerDbType.Unspecified.Equals(spannerParameter.SpannerDbType) && columnModification.Property != null)
             {
                 spannerParameter.SpannerDbType = SpannerDbType.FromClrType(GetUnderlyingTypeOrSelf(columnModification.Property.ClrType));
             }
