@@ -40,7 +40,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\SpannerDriver\Google.Cloud.Spanner.DataProvider\Google.Cloud.Spanner.DataProvider.csproj" />
+    <ProjectReference Include="..\..\..\GolandProjects\go-sql-spanner\drivers\spanner-ado-net\spanner-ado-net\spanner-ado-net.csproj" />
   </ItemGroup>
 
 </Project>

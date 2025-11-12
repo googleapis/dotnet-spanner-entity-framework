@@ -34,8 +34,13 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Google.Cloud.Spanner.Admin.Database.V1;
+using Google.Cloud.Spanner.DataProvider;
+using Google.Rpc;
 using Xunit;
+using SpannerConnection = Google.Cloud.Spanner.Data.SpannerConnection;
 using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
+using SpannerParameter = Google.Cloud.Spanner.Data.SpannerParameter;
+using Status = Google.Rpc.Status;
 using V1 = Google.Cloud.Spanner.V1;
 
 #pragma warning disable EF1001
@@ -97,12 +102,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             service.SpannerMock.Reset();
         }
 
-        //private string ConnectionString => $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
-        private string ConnectionString => $"{_fixture.Host}:{_fixture.Port}/projects/p1/instances/i1/databases/d1;usePlainText=true";
+        private string ConnectionString => $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port};UsePlainText=true";
+        //private string ConnectionString => $"{_fixture.Host}:{_fixture.Port}/projects/p1/instances/i1/databases/d1;usePlainText=true";
 
         bool UsesClientLib()
         {
-            return ConnectionString.StartsWith("Data Source=", StringComparison.Ordinal);
+            return Environment.GetEnvironmentVariable("USE_CLIENT_LIB") == "true";
         }
 
         [Fact]
@@ -397,13 +402,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(insertSql, request.Sql);
-                    Assert.Collection(request.ParamTypes, pair =>
+                    if (UsesClientLib())
                     {
-                        Assert.Equal(V1.TypeCode.String, pair.Value.Code);
-                    }, pair =>
+                        Assert.Collection(request.ParamTypes,
+                            pair => { Assert.Equal(V1.TypeCode.String, pair.Value.Code); },
+                            pair => { Assert.Equal(V1.TypeCode.Json, pair.Value.Code); });
+                    }
+                    else
                     {
-                        Assert.Equal(V1.TypeCode.Json, pair.Value.Code);
-                    });
+                        Assert.Collection(request.ParamTypes, pair => { Assert.Equal(V1.TypeCode.String, pair.Value.Code); });
+                    }
                     Assert.NotNull(request.Transaction?.Id);
                 }
             );
@@ -1005,8 +1013,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
                 else
                 {
-                    var e = await Assert.ThrowsAsync<SpannerLib.SpannerException>(() => db.SaveChangesAsync());
-                    Assert.Equal(SpannerLib.ErrorCode.Aborted, e.ErrorCode);
+                    var e = await Assert.ThrowsAsync<SpannerDbException>(() => db.SaveChangesAsync());
+                    Assert.Equal(Code.Aborted, (Code) e.Status.Code);
                 }
             }
             else
@@ -1087,10 +1095,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
                 else
                 {
-                    var e = await Assert.ThrowsAsync<SpannerLib.SpannerException>(
+                    var e = await Assert.ThrowsAsync<SpannerDbException>(
                         () => db.Database.ExecuteSqlRawAsync(insertSql, "C1", true, 1000L, "Concert Hall", null)
                     );
-                    Assert.Equal(SpannerLib.ErrorCode.Aborted, e.ErrorCode);
+                    Assert.Equal((int) Code.Aborted, e.Status.Code);
                 }
             }
             else
@@ -2642,8 +2650,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     else
                     {
                         // SpannerLib only includes a type code if one has explicitly been set for the parameter.
-                        Assert.Equal(10, types.Count);
+                        Assert.Equal(13, types.Count);
                         Assert.Equal(V1.TypeCode.Int64, types["p0"].Code);
+                        Assert.Equal(V1.TypeCode.String, types["p1"].Code);
                         Assert.Equal(V1.TypeCode.Bytes, types["p4"].Code);
                         Assert.Equal(V1.TypeCode.Bytes, types["p6"].Code);
                         Assert.Equal(V1.TypeCode.Date, types["p8"].Code);
@@ -2654,6 +2663,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                         Assert.Equal(V1.TypeCode.Array, types["p16"].Code);
                         Assert.Equal(V1.TypeCode.Json, types["p16"].ArrayElementType.Code);
                         Assert.Equal(V1.TypeCode.Numeric, types["p17"].Code);
+                        Assert.Equal(V1.TypeCode.String, types["p21"].Code);
                         Assert.Equal(V1.TypeCode.Timestamp, types["p23"].Code);
                     }
                 }

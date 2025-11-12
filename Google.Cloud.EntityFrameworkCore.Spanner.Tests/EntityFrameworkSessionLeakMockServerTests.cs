@@ -30,8 +30,13 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Google.Cloud.Spanner.DataProvider;
+using Google.Rpc;
 using Xunit;
+using SpannerConnection = Google.Cloud.Spanner.Data.SpannerConnection;
+using SpannerConnectionStringBuilder = Google.Cloud.Spanner.Data.SpannerConnectionStringBuilder;
 using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
+using SpannerParameter = Google.Cloud.Spanner.Data.SpannerParameter;
 using V1 = Google.Cloud.Spanner.V1;
 
 #pragma warning disable EF1001
@@ -50,7 +55,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         
         bool UsesClientLib()
         {
-            return _connectionString.StartsWith("Data Source=", StringComparison.Ordinal);
+            return Environment.GetEnvironmentVariable("USE_CLIENT_LIB") == "true";
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -105,12 +110,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _manager = SessionPoolManager.Create(options);
         }
 
-        //private string ConnectionString => $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
-        private string ConnectionString => $"{_fixture.Host}:{_fixture.Port}/projects/p1/instances/i1/databases/d1;usePlainText=true";
+        private string ConnectionString => $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port};UsePlainText=true";
+        // private string ConnectionString => $"{_fixture.Host}:{_fixture.Port}/projects/p1/instances/i1/databases/d1;usePlainText=true";
         
         bool UsesClientLib()
         {
-            return ConnectionString.StartsWith("Data Source=", StringComparison.Ordinal);
+            return Environment.GetEnvironmentVariable("USE_CLIENT_LIB") == "true";
         }
         
         private static async Task Repeat(int count, Func<Task> action)
@@ -383,40 +388,74 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             await Repeat(async () =>
             {
-                var updateCount = await db.Database.ExecuteSqlRawAsync(rawSql,
-                    new SpannerParameter("ColBool", SpannerDbType.Bool, row.ColBool),
-                    new SpannerParameter("ColBoolArray", SpannerDbType.ArrayOf(SpannerDbType.Bool), row.ColBoolArray),
-                    new SpannerParameter("ColBytes", SpannerDbType.Bytes, row.ColBytes),
-                    new SpannerParameter("ColBytesMax", SpannerDbType.Bytes, row.ColBytesMax),
-                    new SpannerParameter("ColBytesArray", SpannerDbType.ArrayOf(SpannerDbType.Bytes),
-                        row.ColBytesArray),
-                    new SpannerParameter("ColBytesMaxArray", SpannerDbType.ArrayOf(SpannerDbType.Bytes),
-                        row.ColBytesMaxArray),
-                    new SpannerParameter("ColDate", SpannerDbType.Date, row.ColDate),
-                    new SpannerParameter("ColDateArray", SpannerDbType.ArrayOf(SpannerDbType.Date), row.ColDateArray),
-                    new SpannerParameter("ColFloat64", SpannerDbType.Float64, row.ColFloat64),
-                    new SpannerParameter("ColFloat64Array", SpannerDbType.ArrayOf(SpannerDbType.Float64),
-                        row.ColFloat64Array),
-                    new SpannerParameter("ColInt64", SpannerDbType.Int64, row.ColInt64),
-                    new SpannerParameter("ColInt64Array", SpannerDbType.ArrayOf(SpannerDbType.Int64),
-                        row.ColInt64Array),
-                    new SpannerParameter("ColNumeric", SpannerDbType.Numeric, row.ColNumeric),
-                    new SpannerParameter("ColNumericArray", SpannerDbType.ArrayOf(SpannerDbType.Numeric),
-                        row.ColNumericArray),
-                    new SpannerParameter("ColString", SpannerDbType.String, row.ColString),
-                    new SpannerParameter("ColStringArray", SpannerDbType.ArrayOf(SpannerDbType.String),
-                        row.ColStringArray),
-                    new SpannerParameter("ColStringMax", SpannerDbType.String, row.ColStringMax),
-                    new SpannerParameter("ColStringMaxArray", SpannerDbType.ArrayOf(SpannerDbType.String),
-                        row.ColStringMaxArray),
-                    new SpannerParameter("ColTimestamp", SpannerDbType.Timestamp, row.ColTimestamp),
-                    new SpannerParameter("ColTimestampArray", SpannerDbType.ArrayOf(SpannerDbType.Timestamp),
-                        row.ColTimestampArray),
-                    new SpannerParameter("ColJson", SpannerDbType.Json, row.ColJson?.ToString()),
-                    new SpannerParameter("ColJsonArray", SpannerDbType.ArrayOf(SpannerDbType.Json),
-                        row.ColJsonArray?.Select(d => d?.ToString()))
-                );
-                Assert.Equal(1, updateCount);
+                if (UsesClientLib())
+                {
+                    var updateCount = await db.Database.ExecuteSqlRawAsync(rawSql,
+                        new SpannerParameter("ColBool", SpannerDbType.Bool, row.ColBool),
+                        new SpannerParameter("ColBoolArray", SpannerDbType.ArrayOf(SpannerDbType.Bool),
+                            row.ColBoolArray),
+                        new SpannerParameter("ColBytes", SpannerDbType.Bytes, row.ColBytes),
+                        new SpannerParameter("ColBytesMax", SpannerDbType.Bytes, row.ColBytesMax),
+                        new SpannerParameter("ColBytesArray", SpannerDbType.ArrayOf(SpannerDbType.Bytes),
+                            row.ColBytesArray),
+                        new SpannerParameter("ColBytesMaxArray", SpannerDbType.ArrayOf(SpannerDbType.Bytes),
+                            row.ColBytesMaxArray),
+                        new SpannerParameter("ColDate", SpannerDbType.Date, row.ColDate),
+                        new SpannerParameter("ColDateArray", SpannerDbType.ArrayOf(SpannerDbType.Date),
+                            row.ColDateArray),
+                        new SpannerParameter("ColFloat64", SpannerDbType.Float64, row.ColFloat64),
+                        new SpannerParameter("ColFloat64Array", SpannerDbType.ArrayOf(SpannerDbType.Float64),
+                            row.ColFloat64Array),
+                        new SpannerParameter("ColInt64", SpannerDbType.Int64, row.ColInt64),
+                        new SpannerParameter("ColInt64Array", SpannerDbType.ArrayOf(SpannerDbType.Int64),
+                            row.ColInt64Array),
+                        new SpannerParameter("ColNumeric", SpannerDbType.Numeric, row.ColNumeric),
+                        new SpannerParameter("ColNumericArray", SpannerDbType.ArrayOf(SpannerDbType.Numeric),
+                            row.ColNumericArray),
+                        new SpannerParameter("ColString", SpannerDbType.String, row.ColString),
+                        new SpannerParameter("ColStringArray", SpannerDbType.ArrayOf(SpannerDbType.String),
+                            row.ColStringArray),
+                        new SpannerParameter("ColStringMax", SpannerDbType.String, row.ColStringMax),
+                        new SpannerParameter("ColStringMaxArray", SpannerDbType.ArrayOf(SpannerDbType.String),
+                            row.ColStringMaxArray),
+                        new SpannerParameter("ColTimestamp", SpannerDbType.Timestamp, row.ColTimestamp),
+                        new SpannerParameter("ColTimestampArray", SpannerDbType.ArrayOf(SpannerDbType.Timestamp),
+                            row.ColTimestampArray),
+                        new SpannerParameter("ColJson", SpannerDbType.Json, row.ColJson?.ToString()),
+                        new SpannerParameter("ColJsonArray", SpannerDbType.ArrayOf(SpannerDbType.Json),
+                            row.ColJsonArray?.Select(d => d?.ToString()))
+                    );
+                    Assert.Equal(1, updateCount);
+                }
+                else
+                {
+                    var updateCount = await db.Database.ExecuteSqlRawAsync(
+                        rawSql,
+                        row.ColBool,
+                        row.ColBoolArray,
+                        row.ColBytes,
+                        row.ColBytesMax,
+                        row.ColBytesArray,
+                        row.ColBytesMaxArray,
+                        row.ColDate,
+                        row.ColDateArray,
+                        row.ColFloat64,
+                        row.ColFloat64Array,
+                        row.ColInt64,
+                        row.ColInt64Array,
+                        row.ColNumeric,
+                        row.ColNumericArray,
+                        row.ColString,
+                        row.ColStringArray,
+                        row.ColStringMax,
+                        row.ColStringMaxArray,
+                        row.ColTimestamp,
+                        row.ColTimestampArray,
+                        row.ColJson?.ToString(),
+                        row.ColJsonArray?.Select(d => d?.ToString())
+                    );
+                    Assert.Equal(1, updateCount);
+                }
             });
         }
 
@@ -471,8 +510,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     }
                     else
                     {
-                        var e = await Assert.ThrowsAsync<SpannerLib.SpannerException>(() => db.SaveChangesAsync());
-                        Assert.Equal(SpannerLib.ErrorCode.Aborted, e.ErrorCode);
+                        var e = await Assert.ThrowsAsync<SpannerDbException>(() => db.SaveChangesAsync());
+                        Assert.Equal((int) Code.Aborted, e.Status.Code);
                     }
                 }
                 else
@@ -528,36 +567,47 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     await cmd.ExecuteScalarAsync();
                     // Abort the next statement that is executed on the mock server.
                     _fixture.SpannerMock.AbortNextStatement();
-                    var f = () => db.Database.ExecuteSqlRawAsync(insertSql,
-                        new SpannerParameter("p0", SpannerDbType.String, "C1"),
-                        new SpannerParameter("p1", SpannerDbType.Bool, true),
-                        new SpannerParameter("p2", SpannerDbType.Int64, 1000L),
-                        new SpannerParameter("p3", SpannerDbType.String, "Concert Hall"),
-                        new SpannerParameter("p4", SpannerDbType.ArrayOf(SpannerDbType.Float64))
-                    );
                     if (UsesClientLib())
                     {
+                        var f = () => db.Database.ExecuteSqlRawAsync(insertSql,
+                            new SpannerParameter("p0", SpannerDbType.String, "C1"),
+                            new SpannerParameter("p1", SpannerDbType.Bool, true),
+                            new SpannerParameter("p2", SpannerDbType.Int64, 1000L),
+                            new SpannerParameter("p3", SpannerDbType.String, "Concert Hall"),
+                            new SpannerParameter("p4", SpannerDbType.ArrayOf(SpannerDbType.Float64))
+                        );
                         var e = await Assert.ThrowsAsync<SpannerException>(f);
                         Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
                     }
                     else
                     {
-                        var e = await Assert.ThrowsAsync<SpannerLib.SpannerException>(f);
-                        Assert.Equal(SpannerLib.ErrorCode.Aborted, e.ErrorCode);
+                        var f = () => db.Database.ExecuteSqlRawAsync(
+                            insertSql, "C1", true, 1000L, "Concert Hall", null);
+                        var e = await Assert.ThrowsAsync<SpannerDbException>(f);
+                        Assert.Equal((int) Code.Aborted, e.Status.Code);
                     }
                 }
                 else
                 {
                     // Abort the next statement that is executed on the mock server.
                     _fixture.SpannerMock.AbortNextStatement();
-                    var updateCount = await db.Database.ExecuteSqlRawAsync(insertSql,
-                        new SpannerParameter("p0", SpannerDbType.String, "C1"),
-                        new SpannerParameter("p1", SpannerDbType.Bool, true),
-                        new SpannerParameter("p2", SpannerDbType.Int64, 1000L),
-                        new SpannerParameter("p3", SpannerDbType.String, "Concert Hall"),
-                        new SpannerParameter("p4", SpannerDbType.ArrayOf(SpannerDbType.Float64))
-                    );
-                    Assert.Equal(1L, updateCount);
+                    if (UsesClientLib())
+                    {
+                        var updateCount = await db.Database.ExecuteSqlRawAsync(insertSql,
+                            new SpannerParameter("p0", SpannerDbType.String, "C1"),
+                            new SpannerParameter("p1", SpannerDbType.Bool, true),
+                            new SpannerParameter("p2", SpannerDbType.Int64, 1000L),
+                            new SpannerParameter("p3", SpannerDbType.String, "Concert Hall"),
+                            new SpannerParameter("p4", SpannerDbType.ArrayOf(SpannerDbType.Float64))
+                        );
+                        Assert.Equal(1L, updateCount);
+                    }
+                    else
+                    {
+                        var updateCount = await db.Database.ExecuteSqlRawAsync(
+                            insertSql, "C1", true, 1000L, "Concert Hall", null);
+                        Assert.Equal(1L, updateCount);
+                    }
                     if (useExplicitTransaction)
                     {
                         await transaction.CommitAsync();

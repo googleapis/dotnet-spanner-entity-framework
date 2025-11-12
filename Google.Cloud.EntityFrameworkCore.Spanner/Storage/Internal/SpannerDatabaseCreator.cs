@@ -23,6 +23,8 @@ using Microsoft.EntityFrameworkCore.Storage;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Google.Cloud.Spanner.DataProvider;
+using Google.Rpc;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 
@@ -56,6 +58,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public override void Create()
         {
             using var masterConnection = _connection.CreateMasterConnection();
+            masterConnection.Open();
             Dependencies.MigrationCommandExecutor
                 .ExecuteNonQuery(CreateCreateOperations(), masterConnection);
         }
@@ -64,7 +67,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <inheritdoc />
         public override async Task CreateAsync(CancellationToken cancellationToken = default)
         {
-            using var masterConnection = _connection.CreateMasterConnection();
+            await using var masterConnection = _connection.CreateMasterConnection();
+            await masterConnection.OpenAsync(cancellationToken);
             await Dependencies.MigrationCommandExecutor
                 .ExecuteNonQueryAsync(CreateCreateOperations(), masterConnection, cancellationToken)
                 .ConfigureAwait(false);
@@ -131,7 +135,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             {
                 return false;
             }
-            catch (SpannerLib.SpannerException e) when (e.ErrorCode == SpannerLib.ErrorCode.NotFound)
+            catch (SpannerDbException e) when (e.Status.Code == (int) Code.NotFound)
             {
                 return false;
             }
@@ -142,6 +146,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public override void Delete()
         {
             using var masterConnection = _connection.CreateMasterConnection();
+            masterConnection.Open();
             Dependencies.MigrationCommandExecutor
                 .ExecuteNonQuery(CreateDropCommands(), masterConnection);
         }
@@ -149,7 +154,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <inheritdoc />
         public override async Task DeleteAsync(CancellationToken cancellationToken = default)
         {
-            using var masterConnection = _connection.CreateMasterConnection();
+            await using var masterConnection = _connection.CreateMasterConnection();
+            await masterConnection.OpenAsync(cancellationToken);
             await Dependencies.MigrationCommandExecutor
                 .ExecuteNonQueryAsync(CreateDropCommands(), masterConnection, cancellationToken)
                 .ConfigureAwait(false);
