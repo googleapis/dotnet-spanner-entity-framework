@@ -675,7 +675,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             return Tuple.Create(cmd, selectCommand);
         }
 
-        private Tuple<DbCommand, DbCommand> CreateSpannerDmlCommand(
+        private Tuple<Cloud.Spanner.DataProvider.SpannerCommand, DbCommand> CreateSpannerDmlCommand(
             IUpdateSqlGenerator updateSqlGenerator,
             SpannerConnection connection,
             IReadOnlyModificationCommand modificationCommand,

@@ -59,17 +59,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 ConnectionString = ConnectionString,
                 SessionPoolManager = SpannerDbContextOptionsExtensions.SessionPoolManager
             };
-            if (ConnectionString!.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase))
-            {
-                var con = new SpannerConnection(builder);
-                return new SpannerRetriableConnection(con);
-            }
-            else
-            {
+            // if (ConnectionString!.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase))
+            // {
+            //     var con = new SpannerConnection(builder);
+            //     return new SpannerRetriableConnection(con);
+            // }
+            // else
+            // {
                 var con = new Google.Cloud.Spanner.DataProvider.SpannerConnection();
                 con.ConnectionString = builder.ConnectionString;
                 return con;
-            }
+            // }
         }
 
         /// <summary>

@@ -42,7 +42,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
             else if (dbTx is SpannerTransaction spannerTransaction)
             {
                 var cmd = spannerTransaction.Connection!.CreateCommand();
-                cmd.CommandText = "set retry_aborts_internally = false";
+                cmd.CommandText = "set local retry_aborts_internally = false";
                 cmd.ExecuteNonQuery();
             }
             else

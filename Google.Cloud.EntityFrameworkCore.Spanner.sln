@@ -13,11 +13,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Google.Cloud.EntityFramewor
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks", "Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks\Google.Cloud.EntityFrameworkCore.Spanner.Benchmarks.csproj", "{A1721F06-FE32-408E-BFAF-A6C94E28E9B0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Google.Cloud.SpannerLib", "..\..\GolandProjects\go-sql-spanner\spannerlib\dotnet-spannerlib\Google.Cloud.SpannerLib\Google.Cloud.SpannerLib.csproj", "{3BA950B5-B713-4442-BDBC-C7812557B6D0}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Google.Cloud.Spanner.DataProvider", "..\SpannerDriver\Google.Cloud.Spanner.DataProvider\Google.Cloud.Spanner.DataProvider.csproj", "{0367D545-9834-443D-9EDA-C607A9EADCAD}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Google.Cloud.SpannerLib.MockServer", "..\..\GolandProjects\go-sql-spanner\spannerlib\dotnet-spannerlib\Google.Cloud.SpannerLib.MockServer\Google.Cloud.SpannerLib.MockServer.csproj", "{44390C83-D9C4-4A32-8EB2-717202978F07}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spanner-ado-net", "..\..\GolandProjects\go-sql-spanner\drivers\spanner-ado-net\spanner-ado-net\spanner-ado-net.csproj", "{FE047135-AD08-4942-981D-BF4D730E1A94}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -45,18 +41,10 @@ Global
 		{A1721F06-FE32-408E-BFAF-A6C94E28E9B0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A1721F06-FE32-408E-BFAF-A6C94E28E9B0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A1721F06-FE32-408E-BFAF-A6C94E28E9B0}.Release|Any CPU.Build.0 = Release|Any CPU
-		{3BA950B5-B713-4442-BDBC-C7812557B6D0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3BA950B5-B713-4442-BDBC-C7812557B6D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3BA950B5-B713-4442-BDBC-C7812557B6D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3BA950B5-B713-4442-BDBC-C7812557B6D0}.Release|Any CPU.Build.0 = Release|Any CPU
-		{0367D545-9834-443D-9EDA-C607A9EADCAD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{0367D545-9834-443D-9EDA-C607A9EADCAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{0367D545-9834-443D-9EDA-C607A9EADCAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{0367D545-9834-443D-9EDA-C607A9EADCAD}.Release|Any CPU.Build.0 = Release|Any CPU
-		{44390C83-D9C4-4A32-8EB2-717202978F07}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{44390C83-D9C4-4A32-8EB2-717202978F07}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{44390C83-D9C4-4A32-8EB2-717202978F07}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{44390C83-D9C4-4A32-8EB2-717202978F07}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FE047135-AD08-4942-981D-BF4D730E1A94}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE047135-AD08-4942-981D-BF4D730E1A94}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE047135-AD08-4942-981D-BF4D730E1A94}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE047135-AD08-4942-981D-BF4D730E1A94}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

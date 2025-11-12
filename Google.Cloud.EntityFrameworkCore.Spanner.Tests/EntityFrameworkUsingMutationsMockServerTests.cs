@@ -28,6 +28,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Google.Cloud.Spanner.DataProvider;
+using Google.Rpc;
 using Xunit;
 using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
 using V1 = Google.Cloud.Spanner.V1;
@@ -92,12 +94,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             service.SpannerMock.Reset();
         }
 
-        //private string ConnectionString => $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
-        private string ConnectionString => $"{_fixture.Host}:{_fixture.Port}/projects/p1/instances/i1/databases/d1;usePlainText=true";
+        private string ConnectionString => $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port};UsePlainText=true";
+        //private string ConnectionString => $"{_fixture.Host}:{_fixture.Port}/projects/p1/instances/i1/databases/d1;usePlainText=true";
         
         bool UsesClientLib()
         {
-            return ConnectionString.StartsWith("Data Source=", StringComparison.Ordinal);
+            return Environment.GetEnvironmentVariable("USE_CLIENT_LIB") == "true";
         }
 
         [Fact]
@@ -496,8 +498,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
                 else
                 {
-                    var e = await Assert.ThrowsAsync<SpannerLib.SpannerException>(() => transaction.CommitAsync());
-                    Assert.Equal(SpannerLib.ErrorCode.Aborted, e.ErrorCode);
+                    var e = await Assert.ThrowsAsync<SpannerDbException>(() => transaction.CommitAsync());
+                    Assert.Equal((int) Code.Aborted, e.Status.Code);
                 }
             }
             else

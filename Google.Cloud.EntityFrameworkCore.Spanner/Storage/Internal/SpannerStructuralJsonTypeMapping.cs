@@ -70,6 +70,10 @@ public class SpannerStructuralJsonTypeMapping : JsonTypeMapping
 
     protected override void ConfigureParameter(DbParameter parameter)
     {
-        ((SpannerParameter)parameter).SpannerDbType = SpannerDbType.Json;
+        if (parameter is SpannerParameter spannerParameter)
+        {
+            spannerParameter.SpannerDbType = SpannerDbType.Json;
+        }
         base.ConfigureParameter(parameter);
-    }}
+    }
+}

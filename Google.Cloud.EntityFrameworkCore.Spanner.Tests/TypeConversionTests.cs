@@ -69,7 +69,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             service.SpannerMock.Reset();
         }
 
-        private string ConnectionString => $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
+        private string ConnectionString => $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port};UsePlainText=true";
+        
+        bool UsesClientLib()
+        {
+            return Environment.GetEnvironmentVariable("USE_CLIENT_LIB") == "true";
+        }
 
         [Fact]
         public async Task TestEntity_ConvertValuesWithoutPrecisionLossOrOverflow_Succeeds()
@@ -171,7 +176,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             ));
 
             using var db = new TypeConversionDbContext(ConnectionString);
-            await Assert.ThrowsAsync<OverflowException>(() => db.TestEntities.FindAsync(1L).AsTask());
+            if (UsesClientLib())
+            {
+                await Assert.ThrowsAsync<OverflowException>(() => db.TestEntities.FindAsync(1L).AsTask());
+            }
+            else
+            {
+                await Assert.ThrowsAsync<InvalidCastException>(() => db.TestEntities.FindAsync(1L).AsTask());
+            }
         }
     }
 }
