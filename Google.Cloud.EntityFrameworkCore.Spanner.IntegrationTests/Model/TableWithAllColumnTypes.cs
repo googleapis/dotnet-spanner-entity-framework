@@ -14,7 +14,6 @@
 
 using System;
 using System.Collections.Generic;
-using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.Spanner.V1;
 using System.Text.Json;
 using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;

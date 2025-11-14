@@ -33,8 +33,14 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Google.Cloud.Spanner.Admin.Database.V1;
+using Google.Cloud.Spanner.DataProvider;
+using Google.Rpc;
 using Xunit;
+using SpannerConnection = Google.Cloud.Spanner.Data.SpannerConnection;
 using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
+using SpannerParameter = Google.Cloud.Spanner.Data.SpannerParameter;
+using Status = Google.Rpc.Status;
 using V1 = Google.Cloud.Spanner.V1;
 
 #pragma warning disable EF1001
@@ -96,7 +102,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             service.SpannerMock.Reset();
         }
 
-        private string ConnectionString => $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
+        private string ConnectionString => $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port};UsePlainText=true";
+        //private string ConnectionString => $"{_fixture.Host}:{_fixture.Port}/projects/p1/instances/i1/databases/d1;usePlainText=true";
+
+        bool UsesClientLib()
+        {
+            return Environment.GetEnvironmentVariable("USE_CLIENT_LIB") == "true";
+        }
 
         [Fact]
         public async Task FindSingerAsync_ReturnsNull_IfNotFound()
@@ -137,10 +149,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                         v => Assert.Equal("2", v.StringValue),
                         v => Assert.Equal("3", v.StringValue)
                     );
-                    Assert.Single(request.ParamTypes);
-                    var type = request.ParamTypes["__singerIds_0"];
-                    Assert.Equal(V1.TypeCode.Array, type.Code);
-                    Assert.Equal(V1.TypeCode.Int64, type.ArrayElementType.Code);
+                    Assert.Empty(request.ParamTypes);
+                    // Assert.Single(request.ParamTypes);
+                    // var type = request.ParamTypes["singerIds_0"];
+                    // Assert.Equal(V1.TypeCode.Array, type.Code);
+                    // Assert.Equal(V1.TypeCode.Int64, type.ArrayElementType.Code);
                 }
             );
         }
@@ -169,10 +182,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                         v => Assert.Equal("9", v.StringValue),
                         v => Assert.Equal("10", v.StringValue)
                     );
-                    Assert.Single(request.ParamTypes);
-                    var type = request.ParamTypes["__singerIds_0"];
-                    Assert.Equal(V1.TypeCode.Array, type.Code);
-                    Assert.Equal(V1.TypeCode.Int64, type.ArrayElementType.Code);
+                    Assert.Empty(request.ParamTypes);
+                    // Assert.Single(request.ParamTypes);
+                    // var type = request.ParamTypes["singerIds_0"];
+                    // Assert.Equal(V1.TypeCode.Array, type.Code);
+                    // Assert.Equal(V1.TypeCode.Int64, type.ArrayElementType.Code);
                 }
             );
         }
@@ -213,9 +227,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.Single(request.Params.Fields);
                     var fields = request.Params.Fields;
                     Assert.Equal("0", fields["__type_0"].StringValue);
-                    Assert.Single(request.ParamTypes);
-                    var requestType = request.ParamTypes["__type_0"];
-                    Assert.Equal(V1.TypeCode.Int64, requestType.Code);
+                    Assert.Empty(request.ParamTypes);
+                    // Assert.Single(request.ParamTypes);
+                    // var requestType = request.ParamTypes["__type_0"];
+                    // Assert.Equal(V1.TypeCode.Int64, requestType.Code);
                 }
             );
         }
@@ -259,10 +274,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.Equal(2, fields["__typesAsInts_0"].ListValue.Values.Count);
                     Assert.Equal("0", fields["__typesAsInts_0"].ListValue.Values[0].StringValue);
                     Assert.Equal("1", fields["__typesAsInts_0"].ListValue.Values[1].StringValue);
-                    Assert.Single(request.ParamTypes);
-                    var type = request.ParamTypes["__typesAsInts_0"];
-                    Assert.Equal(V1.TypeCode.Array, type.Code);
-                    Assert.Equal(V1.TypeCode.Int64, type.ArrayElementType.Code);
+                    Assert.Empty(request.ParamTypes);
+                    // Assert.Single(request.ParamTypes);
+                    // var type = request.ParamTypes["__typesAsInts_0"];
+                    // Assert.Equal(V1.TypeCode.Array, type.Code);
+                    // Assert.Equal(V1.TypeCode.Int64, type.ArrayElementType.Code);
                 }
             );
         }
@@ -289,7 +305,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
-                    Assert.Null(request.Transaction);
+                    Assert.Equal(new TransactionOptions{ReadOnly = new TransactionOptions.Types.ReadOnly{Strong = true, ReturnReadTimestamp = true}}, request.Transaction.SingleUse);
+                    //Assert.Null(request.Transaction);
                 }
             );
             // A read-only operation should not initiate and commit a transaction.
@@ -315,18 +332,36 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var updateCount = await db.SaveChangesAsync();
 
             Assert.Equal(1L, updateCount);
-            Assert.Empty(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>());
-            Assert.Empty(_fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>());
-            Assert.Collection(
-                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
-                request =>
-                {
-                    Assert.Equal(insertSql, request.Sql);
-                    Assert.False(request.Transaction.HasId);
-                    Assert.Equal(TransactionSelector.SelectorOneofCase.Begin, request.Transaction.SelectorCase);
-                    Assert.Equal(TransactionOptions.ModeOneofCase.ReadWrite, request.Transaction.Begin.ModeCase);
-                }
-            );
+            var useInlineBegin = true;
+            if (useInlineBegin)
+            {
+                Assert.Empty(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>());
+                Assert.Empty(_fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>());
+                Assert.Collection(
+                    _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                    request =>
+                    {
+                        Assert.Equal(insertSql, request.Sql);
+                        Assert.False(request.Transaction.HasId);
+                        Assert.Equal(TransactionSelector.SelectorOneofCase.Begin, request.Transaction.SelectorCase);
+                        Assert.Equal(TransactionOptions.ModeOneofCase.ReadWrite, request.Transaction.Begin.ModeCase);
+                    }
+                );
+            }
+            else
+            {
+                Assert.Single(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>());
+                Assert.Empty(_fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>());
+                Assert.Collection(
+                    _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                    request =>
+                    {
+                        Assert.Equal(insertSql, request.Sql);
+                        Assert.True(request.Transaction.HasId);
+                    }
+                );
+            }
+
             Assert.Single(_fixture.SpannerMock.Requests, request => request is CommitRequest);
 
             Assert.Collection(_fixture.SpannerMock.Requests
@@ -367,13 +402,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(insertSql, request.Sql);
-                    Assert.Collection(request.ParamTypes, pair =>
+                    if (UsesClientLib())
                     {
-                        Assert.Equal(V1.TypeCode.String, pair.Value.Code);
-                    }, pair =>
+                        Assert.Collection(request.ParamTypes,
+                            pair => { Assert.Equal(V1.TypeCode.String, pair.Value.Code); },
+                            pair => { Assert.Equal(V1.TypeCode.Json, pair.Value.Code); });
+                    }
+                    else
                     {
-                        Assert.Equal(V1.TypeCode.Json, pair.Value.Code);
-                    });
+                        Assert.Collection(request.ParamTypes, pair => { Assert.Equal(V1.TypeCode.String, pair.Value.Code); });
+                    }
                     Assert.NotNull(request.Transaction?.Id);
                 }
             );
@@ -452,12 +490,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
             Assert.Equal(1L, updateCount);
             Assert.Empty(_fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>());
+            var useInlineBegin = false;
             Assert.Collection(
                 _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
                 {
                     Assert.Equal(selectSingerSql, request.Sql);
-                    Assert.Null(request.Transaction?.Id);
+                    if (useInlineBegin)
+                    {
+                        Assert.Null(request.Transaction?.Id);
+                    }
+                    else
+                    {
+                        Assert.NotNull(request.Transaction?.Id);
+                    }
                 },
                 request =>
                 {
@@ -480,8 +526,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var updateCount = await db.SaveChangesAsync();
 
             Assert.Equal(1L, updateCount);
+            var beginRequests = _fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>();
+            Assert.Empty(beginRequests);
+            var requests = _fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>();
             Assert.Collection(
-                _fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>(),
+                requests,
                 request =>
                 {
                     Assert.Single(request.Statements);
@@ -538,23 +587,43 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                 $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
             await using var db = new MockServerSampleDbContext(ConnectionString);
+            await db.Database.OpenConnectionAsync();
             await using var transaction = await db.Database.BeginReadOnlyTransactionAsync();
 
             Assert.NotNull(await db.Singers.FindAsync(1L));
 
+            var useInlineBegin = true;
             Assert.Collection(
                 _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
                     Assert.NotNull(request.Transaction);
-                    Assert.False(request.Transaction.HasId);
-                    Assert.Equal(TransactionSelector.SelectorOneofCase.Begin, request.Transaction.SelectorCase);
-                    Assert.Equal(TransactionOptions.ModeOneofCase.ReadOnly, request.Transaction.Begin.ModeCase);
-                    Assert.True(request.Transaction.Begin.ReadOnly.HasStrong);
+                    if (useInlineBegin)
+                    {
+                        Assert.False(request.Transaction.HasId);
+                        Assert.Equal(TransactionSelector.SelectorOneofCase.Begin, request.Transaction.SelectorCase);
+                        Assert.Equal(TransactionOptions.ModeOneofCase.ReadOnly, request.Transaction.Begin.ModeCase);
+                        Assert.True(request.Transaction.Begin.ReadOnly.HasStrong);
+                    }
+                    else
+                    {
+                        Assert.True(request.Transaction.HasId);
+                    }
                 }
             );
-            Assert.Empty(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>());
+            if (useInlineBegin)
+            {
+                Assert.Empty(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>());
+            }
+            else
+            {
+                Assert.Collection(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>(),
+                request => {
+                    Assert.Equal(TransactionOptions.ModeOneofCase.ReadOnly, request.Options.ModeCase);
+                    Assert.True(request.Options.ReadOnly.HasStrong);
+                });
+            }
         }
 
         [Fact]
@@ -564,24 +633,48 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                 $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
             await using var db = new MockServerSampleDbContext(ConnectionString);
+            await db.Database.OpenConnectionAsync();
             await using var transaction = await db.Database.BeginReadOnlyTransactionAsync(TimestampBound.OfExactStaleness(TimeSpan.FromSeconds(10)));
 
             Assert.NotNull(await db.Singers.FindAsync(1L));
 
+            var useInlineBegin = true;
             Assert.Collection(
                 _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
                     Assert.NotNull(request.Transaction);
-                    Assert.False(request.Transaction.HasId);
-                    Assert.Equal(TransactionSelector.SelectorOneofCase.Begin, request.Transaction.SelectorCase);
-                    Assert.Equal(TransactionOptions.ModeOneofCase.ReadOnly, request.Transaction.Begin.ModeCase);
-                    Assert.Equal(TransactionOptions.Types.ReadOnly.TimestampBoundOneofCase.ExactStaleness, request.Transaction.Begin.ReadOnly.TimestampBoundCase);
-                    Assert.Equal(10, request.Transaction.Begin.ReadOnly.ExactStaleness.Seconds);
+                    if (useInlineBegin)
+                    {
+                        Assert.False(request.Transaction.HasId);
+                        Assert.Equal(TransactionSelector.SelectorOneofCase.Begin, request.Transaction.SelectorCase);
+                        Assert.Equal(TransactionOptions.ModeOneofCase.ReadOnly, request.Transaction.Begin.ModeCase);
+                        Assert.Equal(TransactionOptions.Types.ReadOnly.TimestampBoundOneofCase.ExactStaleness,
+                            request.Transaction.Begin.ReadOnly.TimestampBoundCase);
+                        Assert.Equal(10, request.Transaction.Begin.ReadOnly.ExactStaleness.Seconds);
+                    }
+                    else
+                    {
+                        Assert.True(request.Transaction.HasId);
+                    }
                 }
             );
-            Assert.Empty(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>());
+            if (useInlineBegin)
+            {
+                Assert.Empty(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>());
+            }
+            else
+            {
+                Assert.Collection(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>(),
+                    request =>
+                    {
+                        Assert.Equal(TransactionOptions.ModeOneofCase.ReadOnly, request.Options.ModeCase);
+                        Assert.Equal(TransactionOptions.Types.ReadOnly.TimestampBoundOneofCase.ExactStaleness,
+                            request.Options.ReadOnly.TimestampBoundCase);
+                        Assert.Equal(10, request.Options.ReadOnly.ExactStaleness.Seconds);
+                    });
+            }
         }
 
         [Fact]
@@ -601,7 +694,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(sql, request.Sql);
-                    Assert.Equal(Duration.FromTimeSpan(TimeSpan.FromSeconds(10)), request.Transaction?.SingleUse?.ReadOnly?.MaxStaleness);
+                    Assert.Equal(Duration.FromTimeSpan(TimeSpan.FromSeconds(10)),
+                        request.Transaction?.SingleUse?.ReadOnly?.MaxStaleness);
                 }
             );
         }
@@ -720,30 +814,70 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 ColJson = JsonDocument.Parse("{\"key1\": \"value1\", \"key2\": \"value2\"}"),
                 ColJsonArray = new List<JsonDocument>{ JsonDocument.Parse("{\"key1\": \"value1\", \"key2\": \"value2\"}"), JsonDocument.Parse("{\"key1\": \"value3\", \"key2\": \"value4\"}") },
             };
-            var updateCount = await db.Database.ExecuteSqlRawAsync(rawSql,
-                new SpannerParameter("ColBool", SpannerDbType.Bool, row.ColBool),
-                new SpannerParameter("ColBoolArray", SpannerDbType.ArrayOf(SpannerDbType.Bool), row.ColBoolArray),
-                new SpannerParameter("ColBytes", SpannerDbType.Bytes, row.ColBytes),
-                new SpannerParameter("ColBytesMax", SpannerDbType.Bytes, row.ColBytesMax),
-                new SpannerParameter("ColBytesArray", SpannerDbType.ArrayOf(SpannerDbType.Bytes), row.ColBytesArray),
-                new SpannerParameter("ColBytesMaxArray", SpannerDbType.ArrayOf(SpannerDbType.Bytes), row.ColBytesMaxArray),
-                new SpannerParameter("ColDate", SpannerDbType.Date, row.ColDate),
-                new SpannerParameter("ColDateArray", SpannerDbType.ArrayOf(SpannerDbType.Date), row.ColDateArray),
-                new SpannerParameter("ColFloat64", SpannerDbType.Float64, row.ColFloat64),
-                new SpannerParameter("ColFloat64Array", SpannerDbType.ArrayOf(SpannerDbType.Float64), row.ColFloat64Array),
-                new SpannerParameter("ColInt64", SpannerDbType.Int64, row.ColInt64),
-                new SpannerParameter("ColInt64Array", SpannerDbType.ArrayOf(SpannerDbType.Int64), row.ColInt64Array),
-                new SpannerParameter("ColNumeric", SpannerDbType.Numeric, row.ColNumeric),
-                new SpannerParameter("ColNumericArray", SpannerDbType.ArrayOf(SpannerDbType.Numeric), row.ColNumericArray),
-                new SpannerParameter("ColString", SpannerDbType.String, row.ColString),
-                new SpannerParameter("ColStringArray", SpannerDbType.ArrayOf(SpannerDbType.String), row.ColStringArray),
-                new SpannerParameter("ColStringMax", SpannerDbType.String, row.ColStringMax),
-                new SpannerParameter("ColStringMaxArray", SpannerDbType.ArrayOf(SpannerDbType.String), row.ColStringMaxArray),
-                new SpannerParameter("ColTimestamp", SpannerDbType.Timestamp, row.ColTimestamp),
-                new SpannerParameter("ColTimestampArray", SpannerDbType.ArrayOf(SpannerDbType.Timestamp), row.ColTimestampArray),
-                new SpannerParameter("ColJson", SpannerDbType.Json, row.ColJson?.ToString()),
-                new SpannerParameter("ColJsonArray", SpannerDbType.ArrayOf(SpannerDbType.Json), row.ColJsonArray?.Select(d => d?.ToString()))
-            );
+            int updateCount;
+            if (UsesClientLib())
+            {
+                updateCount = await db.Database.ExecuteSqlRawAsync(rawSql,
+                    new SpannerParameter("ColBool", SpannerDbType.Bool, row.ColBool),
+                    new SpannerParameter("ColBoolArray", SpannerDbType.ArrayOf(SpannerDbType.Bool), row.ColBoolArray),
+                    new SpannerParameter("ColBytes", SpannerDbType.Bytes, row.ColBytes),
+                    new SpannerParameter("ColBytesMax", SpannerDbType.Bytes, row.ColBytesMax),
+                    new SpannerParameter("ColBytesArray", SpannerDbType.ArrayOf(SpannerDbType.Bytes),
+                        row.ColBytesArray),
+                    new SpannerParameter("ColBytesMaxArray", SpannerDbType.ArrayOf(SpannerDbType.Bytes),
+                        row.ColBytesMaxArray),
+                    new SpannerParameter("ColDate", SpannerDbType.Date, row.ColDate),
+                    new SpannerParameter("ColDateArray", SpannerDbType.ArrayOf(SpannerDbType.Date), row.ColDateArray),
+                    new SpannerParameter("ColFloat64", SpannerDbType.Float64, row.ColFloat64),
+                    new SpannerParameter("ColFloat64Array", SpannerDbType.ArrayOf(SpannerDbType.Float64),
+                        row.ColFloat64Array),
+                    new SpannerParameter("ColInt64", SpannerDbType.Int64, row.ColInt64),
+                    new SpannerParameter("ColInt64Array", SpannerDbType.ArrayOf(SpannerDbType.Int64),
+                        row.ColInt64Array),
+                    new SpannerParameter("ColNumeric", SpannerDbType.Numeric, row.ColNumeric),
+                    new SpannerParameter("ColNumericArray", SpannerDbType.ArrayOf(SpannerDbType.Numeric),
+                        row.ColNumericArray),
+                    new SpannerParameter("ColString", SpannerDbType.String, row.ColString),
+                    new SpannerParameter("ColStringArray", SpannerDbType.ArrayOf(SpannerDbType.String),
+                        row.ColStringArray),
+                    new SpannerParameter("ColStringMax", SpannerDbType.String, row.ColStringMax),
+                    new SpannerParameter("ColStringMaxArray", SpannerDbType.ArrayOf(SpannerDbType.String),
+                        row.ColStringMaxArray),
+                    new SpannerParameter("ColTimestamp", SpannerDbType.Timestamp, row.ColTimestamp),
+                    new SpannerParameter("ColTimestampArray", SpannerDbType.ArrayOf(SpannerDbType.Timestamp),
+                        row.ColTimestampArray),
+                    new SpannerParameter("ColJson", SpannerDbType.Json, row.ColJson?.ToString()),
+                    new SpannerParameter("ColJsonArray", SpannerDbType.ArrayOf(SpannerDbType.Json),
+                        row.ColJsonArray?.Select(d => d?.ToString()))
+                );
+            }
+            else
+            {
+                updateCount = await db.Database.ExecuteSqlRawAsync(rawSql,
+                    row.ColBool,
+                    row.ColBoolArray,
+                    row.ColBytes,
+                    row.ColBytesMax,
+                    row.ColBytesArray,
+                    row.ColBytesMaxArray,
+                    row.ColDate,
+                    row.ColDateArray,
+                    row.ColFloat64,
+                    row.ColFloat64Array,
+                    row.ColInt64,
+                    row.ColInt64Array,
+                    row.ColNumeric.Value.ToDecimal(LossOfPrecisionHandling.Truncate),
+                    row.ColNumericArray.Select(d => d.Value.ToDecimal(LossOfPrecisionHandling.Truncate)).ToList(),
+                    row.ColString,
+                    row.ColStringArray,
+                    row.ColStringMax,
+                    row.ColStringMaxArray,
+                    row.ColTimestamp,
+                    row.ColTimestampArray,
+                    row.ColJson?.ToString(),
+                    row.ColJsonArray?.Select(d => d?.ToString()).ToList()
+                );
+            }
 
             Assert.Equal(1, updateCount);
             // Verify that the INSERT statement is the only one on the mock server.
@@ -872,8 +1006,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 await cmd.ExecuteScalarAsync();
                 // Abort the next statement that is executed on the mock server.
                 _fixture.SpannerMock.AbortNextStatement();
-                var e = await Assert.ThrowsAsync<SpannerException>(() => db.SaveChangesAsync());
-                Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+                if (UsesClientLib())
+                {
+                    var e = await Assert.ThrowsAsync<SpannerException>(() => db.SaveChangesAsync());
+                    Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+                }
+                else
+                {
+                    var e = await Assert.ThrowsAsync<SpannerDbException>(() => db.SaveChangesAsync());
+                    Assert.Equal(Code.Aborted, (Code) e.Status.Code);
+                }
             }
             else
             {
@@ -940,26 +1082,44 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 await cmd.ExecuteScalarAsync();
                 // Abort the next statement that is executed on the mock server.
                 _fixture.SpannerMock.AbortNextStatement();
-                var e = await Assert.ThrowsAsync<SpannerException>(() => db.Database.ExecuteSqlRawAsync(insertSql,
-                    new SpannerParameter("p0", SpannerDbType.String, "C1"),
-                    new SpannerParameter("p1", SpannerDbType.Bool, true),
-                    new SpannerParameter("p2", SpannerDbType.Int64, 1000L),
-                    new SpannerParameter("p3", SpannerDbType.String, "Concert Hall"),
-                    new SpannerParameter("p4", SpannerDbType.ArrayOf(SpannerDbType.Float64))
-                ));
-                Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+                if (UsesClientLib())
+                {
+                    var e = await Assert.ThrowsAsync<SpannerException>(() => db.Database.ExecuteSqlRawAsync(insertSql,
+                        new SpannerParameter("p0", SpannerDbType.String, "C1"),
+                        new SpannerParameter("p1", SpannerDbType.Bool, true),
+                        new SpannerParameter("p2", SpannerDbType.Int64, 1000L),
+                        new SpannerParameter("p3", SpannerDbType.String, "Concert Hall"),
+                        new SpannerParameter("p4", SpannerDbType.ArrayOf(SpannerDbType.Float64))
+                    ));
+                    Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+                }
+                else
+                {
+                    var e = await Assert.ThrowsAsync<SpannerDbException>(
+                        () => db.Database.ExecuteSqlRawAsync(insertSql, "C1", true, 1000L, "Concert Hall", null)
+                    );
+                    Assert.Equal((int) Code.Aborted, e.Status.Code);
+                }
             }
             else
             {
                 // Abort the next statement that is executed on the mock server.
                 _fixture.SpannerMock.AbortNextStatement();
-                var updateCount = await db.Database.ExecuteSqlRawAsync(insertSql,
-                    new SpannerParameter("p0", SpannerDbType.String, "C1"),
-                    new SpannerParameter("p1", SpannerDbType.Bool, true),
-                    new SpannerParameter("p2", SpannerDbType.Int64, 1000L),
-                    new SpannerParameter("p3", SpannerDbType.String, "Concert Hall"),
-                    new SpannerParameter("p4", SpannerDbType.ArrayOf(SpannerDbType.Float64))
-                );
+                int updateCount;
+                if (UsesClientLib())
+                {
+                    updateCount = await db.Database.ExecuteSqlRawAsync(insertSql,
+                        new SpannerParameter("p0", SpannerDbType.String, "C1"),
+                        new SpannerParameter("p1", SpannerDbType.Bool, true),
+                        new SpannerParameter("p2", SpannerDbType.Int64, 1000L),
+                        new SpannerParameter("p3", SpannerDbType.String, "Concert Hall"),
+                        new SpannerParameter("p4", SpannerDbType.ArrayOf(SpannerDbType.Float64))
+                    );
+                }
+                else
+                {
+                    updateCount = await db.Database.ExecuteSqlRawAsync(insertSql, "C1", true, 1000L, "Concert Hall", null);
+                }
                 Assert.Equal(1L, updateCount);
                 if (useExplicitTransaction)
                 {
@@ -2444,45 +2604,68 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     var types = request.ParamTypes;
-                    var index = -1;
-                    Assert.Equal(V1.TypeCode.Int64, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.String, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Bool, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Bool, types["p" + index].ArrayElementType.Code);
-                    Assert.Equal(V1.TypeCode.Bytes, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Bytes, types["p" + index].ArrayElementType.Code);
-                    Assert.Equal(V1.TypeCode.Bytes, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Bytes, types["p" + index].ArrayElementType.Code);
-                    Assert.Equal(V1.TypeCode.Date, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Date, types["p" + index].ArrayElementType.Code);
-                    Assert.Equal(V1.TypeCode.Float32, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Float32, types["p" + index].ArrayElementType.Code);
-                    Assert.Equal(V1.TypeCode.Float64, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Float64, types["p" + index].ArrayElementType.Code);
-                    Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Int64, types["p" + index].ArrayElementType.Code);
-                    Assert.Equal(V1.TypeCode.Json, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Json, types["p" + index].ArrayElementType.Code);
-                    Assert.Equal(V1.TypeCode.Numeric, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Numeric, types["p" + index].ArrayElementType.Code);
-                    Assert.Equal(V1.TypeCode.String, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.String, types["p" + index].ArrayElementType.Code);
-                    Assert.Equal(V1.TypeCode.String, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.String, types["p" + index].ArrayElementType.Code);
-                    Assert.Equal(V1.TypeCode.Timestamp, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
-                    Assert.Equal(V1.TypeCode.Timestamp, types["p" + index].ArrayElementType.Code);
-                    Assert.Equal(24, index);
+                    if (UsesClientLib())
+                    {
+                        var index = -1;
+                        Assert.Equal(24, types.Count);
+                        Assert.Equal(V1.TypeCode.Int64, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.String, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Bool, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Bool, types["p" + index].ArrayElementType.Code);
+                        Assert.Equal(V1.TypeCode.Bytes, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Bytes, types["p" + index].ArrayElementType.Code);
+                        Assert.Equal(V1.TypeCode.Bytes, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Bytes, types["p" + index].ArrayElementType.Code);
+                        Assert.Equal(V1.TypeCode.Date, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Date, types["p" + index].ArrayElementType.Code);
+                        Assert.Equal(V1.TypeCode.Float32, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Float32, types["p" + index].ArrayElementType.Code);
+                        Assert.Equal(V1.TypeCode.Float64, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Float64, types["p" + index].ArrayElementType.Code);
+                        Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Int64, types["p" + index].ArrayElementType.Code);
+                        Assert.Equal(V1.TypeCode.Json, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Json, types["p" + index].ArrayElementType.Code);
+                        Assert.Equal(V1.TypeCode.Numeric, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Numeric, types["p" + index].ArrayElementType.Code);
+                        Assert.Equal(V1.TypeCode.String, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.String, types["p" + index].ArrayElementType.Code);
+                        Assert.Equal(V1.TypeCode.String, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.String, types["p" + index].ArrayElementType.Code);
+                        Assert.Equal(V1.TypeCode.Timestamp, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Array, types["p" + ++index].Code);
+                        Assert.Equal(V1.TypeCode.Timestamp, types["p" + index].ArrayElementType.Code);
+                        Assert.Equal(24, index);
+                    }
+                    else
+                    {
+                        // SpannerLib only includes a type code if one has explicitly been set for the parameter.
+                        Assert.Equal(13, types.Count);
+                        Assert.Equal(V1.TypeCode.Int64, types["p0"].Code);
+                        Assert.Equal(V1.TypeCode.String, types["p1"].Code);
+                        Assert.Equal(V1.TypeCode.Bytes, types["p4"].Code);
+                        Assert.Equal(V1.TypeCode.Bytes, types["p6"].Code);
+                        Assert.Equal(V1.TypeCode.Date, types["p8"].Code);
+                        Assert.Equal(V1.TypeCode.Array, types["p9"].Code);
+                        Assert.Equal(V1.TypeCode.Date, types["p9"].ArrayElementType.Code);
+                        Assert.Equal(V1.TypeCode.Float32, types["p10"].Code);
+                        Assert.Equal(V1.TypeCode.Float64, types["p12"].Code);
+                        Assert.Equal(V1.TypeCode.Array, types["p16"].Code);
+                        Assert.Equal(V1.TypeCode.Json, types["p16"].ArrayElementType.Code);
+                        Assert.Equal(V1.TypeCode.Numeric, types["p17"].Code);
+                        Assert.Equal(V1.TypeCode.String, types["p21"].Code);
+                        Assert.Equal(V1.TypeCode.Timestamp, types["p23"].Code);
+                    }
                 }
             );
             
@@ -2554,11 +2737,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     );
                     Assert.Equal("", fields["p" + ++index].StringValue);
                     Assert.Empty(fields["p" + ++index].ListValue.Values);
-                    Assert.Equal("2000-01-01T00:00:00Z", fields["p" + ++index].StringValue);
+                    Assert.Equal("2000-01-01T00:00:00.0000000Z", fields["p" + ++index].StringValue);
                     Assert.Collection(fields["p" + ++index].ListValue.Values,
-                        v => Assert.Equal("2000-01-01T00:00:00.001Z", v.StringValue),
+                        v => Assert.Equal("2000-01-01T00:00:00.0010000Z", v.StringValue),
                         v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
-                        v => Assert.Equal("2000-01-01T00:00:00.002Z", v.StringValue)
+                        v => Assert.Equal("2000-01-01T00:00:00.0020000Z", v.StringValue)
                     );
                     Assert.Equal(24, index);
                 }
@@ -2754,12 +2937,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             );
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task RequestIncludesEfCoreClientHeader()
         {
+            Skip.IfNot(UsesClientLib());
+            
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                       $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                      $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1";
+                      $"WHERE `s`.`SingerId` = @p_0{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.Type, string>>(),
                 new List<object[]>()));

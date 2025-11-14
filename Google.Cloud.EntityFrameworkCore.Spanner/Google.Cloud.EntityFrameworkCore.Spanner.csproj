@@ -39,4 +39,8 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\GolandProjects\go-sql-spanner\drivers\spanner-ado-net\spanner-ado-net\spanner-ado-net.csproj" />
+  </ItemGroup>
+
 </Project>

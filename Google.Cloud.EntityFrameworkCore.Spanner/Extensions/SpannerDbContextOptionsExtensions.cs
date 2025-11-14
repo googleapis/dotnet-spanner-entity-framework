@@ -24,6 +24,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using System;
+using System.Data.Common;
 using System.Threading;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
@@ -106,7 +107,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         /// <returns>The optionsBuilder for chaining</returns>
         internal static DbContextOptionsBuilder UseSpanner(
             this DbContextOptionsBuilder optionsBuilder,
-            SpannerRetriableConnection connection,
+            DbConnection connection,
             Action<SpannerDbContextOptionsBuilder> spannerOptionsAction = null,
             ChannelCredentials channelCredentials = null)
         {

@@ -28,6 +28,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Google.Cloud.Spanner.DataProvider;
+using Google.Rpc;
 using Xunit;
 using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
 using V1 = Google.Cloud.Spanner.V1;
@@ -92,7 +94,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             service.SpannerMock.Reset();
         }
 
-        private string ConnectionString => $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
+        private string ConnectionString => $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port};UsePlainText=true";
+        //private string ConnectionString => $"{_fixture.Host}:{_fixture.Port}/projects/p1/instances/i1/databases/d1;usePlainText=true";
+        
+        bool UsesClientLib()
+        {
+            return Environment.GetEnvironmentVariable("USE_CLIENT_LIB") == "true";
+        }
 
         [Fact]
         public async Task InsertAlbum()
@@ -132,6 +140,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var selectFullNameSql = AddSelectSingerFullNameResult("Alice Morrison", 0);
 
             await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            await db.Database.OpenConnectionAsync();
             db.Singers.Add(new Singers
             {
                 SingerId = 1L,
@@ -251,6 +260,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var selectFullNameSql = AddSelectSingerFullNameResult("Alice Pieterson-Morrison", 0);
 
             await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            await db.Database.OpenConnectionAsync();
             var singer = await db.Singers.FindAsync(1L);
             Assert.NotNull(singer);
             singer.LastName = "Pieterson-Morrison";
@@ -270,12 +280,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 request =>
                 {
                     Assert.Equal(selectSingerSql.Trim(), request.Sql.Trim());
-                    Assert.Null(request.Transaction?.Id);
+                    Assert.True(request.Transaction?.Id?.IsEmpty);
                 },
                 request =>
                 {
                     Assert.Equal(selectFullNameSql.Trim(), request.Sql.Trim());
-                    Assert.Null(request.Transaction?.Id);
+                    Assert.True(request.Transaction?.Id?.IsEmpty);
                 }
             );
             Assert.Collection(
@@ -481,8 +491,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             if (disableInternalRetries && useExplicitTransaction)
             {
                 await db.SaveChangesAsync();
-                var e = await Assert.ThrowsAsync<SpannerException>(() => transaction.CommitAsync());
-                Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+                if (UsesClientLib())
+                {
+                    var e = await Assert.ThrowsAsync<SpannerException>(() => transaction.CommitAsync());
+                    Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+                }
+                else
+                {
+                    var e = await Assert.ThrowsAsync<SpannerDbException>(() => transaction.CommitAsync());
+                    Assert.Equal((int) Code.Aborted, e.Status.Code);
+                }
             }
             else
             {
@@ -516,6 +534,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task CanInsertCommitTimestamp()
         {
             await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            await db.Database.OpenConnectionAsync();
             _fixture.SpannerMock.AddOrUpdateStatementResult($"{Environment.NewLine}SELECT `ColComputed`" +
                 $"{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p0", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
 
@@ -541,6 +560,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task CanUpdateCommitTimestamp()
         {
             await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            await db.Database.OpenConnectionAsync();
             _fixture.SpannerMock.AddOrUpdateStatementResult($"{Environment.NewLine}SELECT `ColComputed`{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p0", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
 
             var row = new TableWithAllColumnTypes { ColInt64 = 1L };
@@ -567,6 +587,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task CanInsertRowWithCommitTimestampAndComputedColumn()
         {
             await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            await db.Database.OpenConnectionAsync();
             var selectSql = $"{Environment.NewLine}SELECT `ColComputed`{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p0";
             _fixture.SpannerMock.AddOrUpdateStatementResult(selectSql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
 
@@ -607,6 +628,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task CanInsertAllTypes()
         {
             await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            await db.Database.OpenConnectionAsync();
             _fixture.SpannerMock.AddOrUpdateStatementResult($"{Environment.NewLine}SELECT `ColComputed`" +
                                                             $"{Environment.NewLine}FROM `TableWithAllColumnTypes`{Environment.NewLine}WHERE  TRUE  AND `ColInt64` = @p0", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.String }, "FOO"));
 
@@ -764,13 +786,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.Empty(values[index++].ListValue.Values);
                     Assert.Equal("ColTimestamp", columns[index]);
                     Assert.Equal(Value.KindOneofCase.StringValue, values[index].KindCase);
-                    Assert.Equal("2000-01-01T00:00:00Z", values[index++].StringValue);
+                    Assert.Equal("2000-01-01T00:00:00.0000000Z", values[index++].StringValue);
                     Assert.Equal("ColTimestampArray", columns[index]);
                     Assert.Equal(Value.KindOneofCase.ListValue, values[index].KindCase);
                     Assert.Collection(values[index].ListValue.Values,
-                        v => Assert.Equal("2000-01-01T00:00:00.001Z", v.StringValue),
+                        v => Assert.Equal("2000-01-01T00:00:00.0010000Z", v.StringValue),
                         v => Assert.Equal(Value.KindOneofCase.NullValue, v.KindCase),
-                        v => Assert.Equal("2000-01-01T00:00:00.002Z", v.StringValue)
+                        v => Assert.Equal("2000-01-01T00:00:00.0020000Z", v.StringValue)
                     );
                 }
             );
