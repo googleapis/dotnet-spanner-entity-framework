@@ -50,6 +50,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                 _ => queryable
             };
         }
+
+        public static IQueryable<TEntity> WithRequestTag<TEntity>([NotNull] this IQueryable<TEntity> queryable,
+            string tag)
+        {
+            return queryable.TagWith($"request_tag: {tag}");
+        }
         
         private static IQueryable<TEntity> WithMaxStaleness<TEntity>([NotNull] this IQueryable<TEntity> queryable, TimeSpan maxStaleness)
         {
@@ -128,7 +134,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         }
     }
 
-    internal abstract class TimestampBoundHint
+    // TODO: Support multiple different hints per command, so that a command can contain both a request_tag and a
+    //       staleness hint.
+    internal abstract class AbstractHint
     {
         protected abstract string Hint { get; }
 
@@ -137,13 +145,25 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
             return query.StartsWith(Hint, StringComparison.Ordinal);
         }
 
-        internal TimestampBound CreateTimestampBound(string query)
+        internal string GetHintValue(string query)
         {
             var index = query.IndexOf(Environment.NewLine, StringComparison.Ordinal);
             var length = index - Hint.Length;
             if (length > 0)
             {
-                var value = query.Substring(Hint.Length, length).Trim();
+                return query.Substring(Hint.Length, length).Trim();
+            }
+            return null;
+        }
+    }
+
+    internal abstract class TimestampBoundHint : AbstractHint
+    {
+        internal TimestampBound CreateTimestampBound(string query)
+        {
+            var value = GetHintValue(query);
+            if (value != null)
+            {
                 return ParseStaleness(value);
             }
             return null;
@@ -191,4 +211,68 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
             return DateTime.TryParse(value, out var timestamp) ? TimestampBound.OfMinReadTimestamp(timestamp.ToUniversalTime()) : null;
         }
     }
+
+    internal class RequestTagHint : AbstractHint
+    {
+        protected override string Hint => "-- request_tag:";
+
+        internal string GetTag(string query)
+        {
+            var index = query.IndexOf(Environment.NewLine, StringComparison.Ordinal);
+            var length = index - Hint.Length;
+            if (length > 0)
+            {
+                return query.Substring(Hint.Length, length).Trim();
+            }
+            return null;
+        }
+    }
+    
+    internal class TagHintCommandInterceptor : DbCommandInterceptor
+    {
+        internal static readonly TagHintCommandInterceptor TagHintInterceptor = new ();
+        
+        private static readonly RequestTagHint s_hint = new ();
+
+        private TagHintCommandInterceptor()
+        {
+        }
+
+        public override InterceptionResult<DbDataReader> ReaderExecuting(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result)
+        {
+            if (command is SpannerRetriableCommand cmd)
+            {
+                ManipulateCommand(cmd);
+            }
+            return result;
+        }
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            return ValueTask.FromResult(ReaderExecuting(command, eventData, result));
+        }
+
+        private static void ManipulateCommand(SpannerRetriableCommand command)
+        {
+            if (s_hint.IsHint(command.CommandText))
+            {
+                try
+                {
+                    command.Tag = s_hint.GetTag(command.CommandText);
+                }
+                catch (Exception)
+                {
+                    // Ignore any invalid tags the comment.
+                }
+            }
+        }
+    }
+    
 }

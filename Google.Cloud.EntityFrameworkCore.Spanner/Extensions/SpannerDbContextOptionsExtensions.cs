@@ -78,6 +78,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
 
             ConfigureWarnings(optionsBuilder);
             optionsBuilder.AddInterceptors(TimestampBoundHintCommandInterceptor.TimestampBoundHintInterceptor);
+            optionsBuilder.AddInterceptors(TagHintCommandInterceptor.TagHintInterceptor);
             spannerOptionsAction?.Invoke(new SpannerDbContextOptionsBuilder(optionsBuilder));
 
             return optionsBuilder;

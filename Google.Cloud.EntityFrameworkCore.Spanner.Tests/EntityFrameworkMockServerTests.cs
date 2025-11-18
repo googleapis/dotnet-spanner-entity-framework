@@ -532,6 +532,84 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task CanUseRequestTagWithQuery()
+        {
+            var sql = AddFindSingerResult($"-- request_tag: my_tag{Environment.NewLine}{Environment.NewLine}" +
+                                          $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
+                                          $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                                          $"WHERE `s`.`SingerId` = @__id_0{Environment.NewLine}LIMIT 1");
+
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            var id = 1L;
+            await db.Singers.WithRequestTag("my_tag").Where(s => s.SingerId == id).FirstAsync();
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal("my_tag", request.RequestOptions.RequestTag);
+                }
+            );
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task CanUseTransactionTag(bool async)
+        {
+            var insertSql = $"INSERT INTO `Singers` (`SingerId`, `BirthDate`, `FirstName`, `LastName`, `Picture`)" +
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4){Environment.NewLine}" +
+                            $"THEN RETURN `FullName`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type {Code = V1.TypeCode.String}, "FullName", "John Doe"));
+            var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
+                                          $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                                          $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var transaction = async
+                ? await db.Database.BeginTransactionAsync("my_tx_tag")
+                // ReSharper disable once MethodHasAsyncOverload
+                : db.Database.BeginTransaction("my_tx_tag");
+            await db.Singers.AddAsync(new Singers
+            {
+                SingerId = 1L,
+                FirstName = "John",
+                LastName = "Doe",
+            });
+            await db.SaveChangesAsync();
+            Assert.NotNull(await db.Singers.FindAsync(2L));
+            await transaction.CommitAsync();
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(insertSql, request.Sql);
+                    Assert.NotNull(request.Transaction);
+                    Assert.False(request.Transaction.HasId);
+                    Assert.Equal(TransactionSelector.SelectorOneofCase.Begin, request.Transaction.SelectorCase);
+                    Assert.Equal(TransactionOptions.ModeOneofCase.ReadWrite, request.Transaction.Begin.ModeCase);
+                    Assert.Equal("my_tx_tag", request.RequestOptions.TransactionTag);
+                },
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.NotNull(request.Transaction);
+                    Assert.True(request.Transaction.HasId);
+                    Assert.Equal("my_tx_tag", request.RequestOptions.TransactionTag);
+                }
+            );
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<CommitRequest>(),
+                request =>
+                {
+                    Assert.Equal("my_tx_tag", request.RequestOptions.TransactionTag);
+                }
+            );
+            Assert.Empty(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>());
+        }
+
+        [Fact]
         public async Task CanUseReadOnlyTransaction()
         {
             var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +

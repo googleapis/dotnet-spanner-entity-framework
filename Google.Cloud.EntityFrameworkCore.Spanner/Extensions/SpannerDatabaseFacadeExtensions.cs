@@ -44,6 +44,39 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
             }
             return connection.SpannerConnection;
         }
+
+        /// <summary>
+        /// Begins a read/write transaction with the given transaction tag on a Cloud Spanner database.
+        /// </summary>
+        /// <param name="databaseFacade">The Spanner database to begin the transaction on</param>
+        /// <param name="tag">The transaction tag to use for the transaction</param>
+        /// <returns>A read/write transaction using the given transaction tag</returns>
+        public static IDbContextTransaction BeginTransaction([NotNull] this DatabaseFacade databaseFacade, string tag)
+        {
+            var transactionManager = databaseFacade.GetService<IDbContextTransactionManager>();
+            if (transactionManager is SpannerRelationalConnection spannerRelationalConnection)
+            {
+                return spannerRelationalConnection.BeginTransaction(tag);
+            }
+            throw new InvalidOperationException("Transaction tags can only be used with Spanner databases");
+        }
+
+        /// <summary>
+        /// Begins a read/write transaction with the given transaction tag on a Cloud Spanner database.
+        /// </summary>
+        /// <param name="databaseFacade">The Spanner database to begin the transaction on</param>
+        /// <param name="tag">The transaction tag to use for the transaction</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken" /> cancellation token to monitor for the asynchronous operation.</param>
+        /// <returns>A read/write transaction using the given transaction tag</returns>
+        public static Task<IDbContextTransaction> BeginTransactionAsync([NotNull] this DatabaseFacade databaseFacade, string tag, CancellationToken cancellationToken = default)
+        {
+            var transactionManager = databaseFacade.GetService<IDbContextTransactionManager>();
+            if (transactionManager is SpannerRelationalConnection spannerRelationalConnection)
+            {
+                return spannerRelationalConnection.BeginTransactionAsync(tag);
+            }
+            throw new InvalidOperationException("Transaction tags can only be used with Spanner databases");
+        }
         
         /// <summary>
         /// Begins a read-only transaction for a Cloud Spanner database.

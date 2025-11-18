@@ -43,6 +43,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public override CommandType CommandType { get => _spannerCommand.CommandType; set => _spannerCommand.CommandType = value; }
         public override bool DesignTimeVisible { get => _spannerCommand.DesignTimeVisible; set => _spannerCommand.DesignTimeVisible = value; }
         public override UpdateRowSource UpdatedRowSource { get => _spannerCommand.UpdatedRowSource; set => _spannerCommand.UpdatedRowSource = value; }
+        public string Tag {get => _spannerCommand.Tag; set => _spannerCommand.Tag = value; }
         protected override DbConnection DbConnection
         {
             get => _connection;
