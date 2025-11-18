@@ -17,8 +17,10 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using Google.Cloud.Spanner.Admin.Database.V1;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests;
 
@@ -38,6 +40,17 @@ public class SpannerMockServerFixture : IDisposable
     public SpannerMockServerFixture()
     {
         SpannerMock = new MockSpannerService();
+        SpannerMock.AddOrUpdateStatementResult(
+            "select option_value from information_schema.database_options where option_name='database_dialect'",
+            StatementResult.CreateResultSet(
+                new List<Tuple<Cloud.Spanner.V1.TypeCode, string>>
+                {
+                    Tuple.Create(Cloud.Spanner.V1.TypeCode.String, "option_value"),
+                },
+                new List<object[]>
+                {
+                    new object[] { nameof(DatabaseDialect.GoogleStandardSql) },
+                }));
         DatabaseAdminMock = new MockDatabaseAdminService();
             
         var endpoint = IPEndPoint.Parse("127.0.0.1:0");

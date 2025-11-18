@@ -15,6 +15,7 @@
 using Google.Api.Gax;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Text;
+using Microsoft.EntityFrameworkCore.Query;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {

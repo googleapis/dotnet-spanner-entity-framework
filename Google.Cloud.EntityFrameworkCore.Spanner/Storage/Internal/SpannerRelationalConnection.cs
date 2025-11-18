@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal;
@@ -22,6 +23,8 @@ using Microsoft.EntityFrameworkCore.Storage;
 using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
+using Google.Cloud.Spanner.V1;
+using Google.Protobuf.WellKnownTypes;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
@@ -42,7 +45,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             ConnectionStringBuilder = relationalOptions.ConnectionStringBuilder;
         }
 
-        private SpannerRetriableConnection Connection => DbConnection as SpannerRetriableConnection;
+        //private SpannerRetriableConnection Connection => DbConnection as SpannerRetriableConnection;
 
         public MutationUsage MutationUsage { get; }
 
@@ -56,8 +59,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 ConnectionString = ConnectionString,
                 SessionPoolManager = SpannerDbContextOptionsExtensions.SessionPoolManager
             };
-            var con = new SpannerConnection(builder);
-            return new SpannerRetriableConnection(con);
+            // if (ConnectionString!.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase))
+            // {
+            //     var con = new SpannerConnection(builder);
+            //     return new SpannerRetriableConnection(con);
+            // }
+            // else
+            // {
+                var con = new Google.Cloud.Spanner.DataProvider.SpannerConnection();
+                con.ConnectionString = builder.ConnectionString;
+                return con;
+            // }
         }
 
         /// <summary>
@@ -71,8 +83,50 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// </summary>
         /// <param name="timestampBound">The read timestamp to use for the transaction</param>
         /// <returns>A read-only transaction that uses the specified <see cref="TimestampBound"/></returns>
-        public IDbContextTransaction BeginReadOnlyTransaction(TimestampBound timestampBound) =>
-            UseTransaction(Connection.BeginReadOnlyTransaction(timestampBound));
+        public IDbContextTransaction BeginReadOnlyTransaction(TimestampBound timestampBound)
+        {
+            if (DbConnection is SpannerRetriableConnection connection)
+            {
+                return UseTransaction(connection.BeginReadOnlyTransaction(timestampBound));
+            }
+            if (DbConnection is Google.Cloud.Spanner.DataProvider.SpannerConnection spannerConnection)
+            {
+                return UseTransaction(spannerConnection.BeginTransaction(CreateTransactionOptions(timestampBound)));
+            }
+            throw new ArgumentException("Not a Spanner connection");
+        }
+
+        private static TransactionOptions CreateTransactionOptions(TimestampBound timestampBound)
+        {
+            TransactionOptions options = new TransactionOptions
+            {
+                ReadOnly = new TransactionOptions.Types.ReadOnly
+                {
+                    ReturnReadTimestamp = timestampBound.ReturnReadTimestamp,
+                }
+            };
+            switch (timestampBound.Mode)
+            {
+                case TimestampBoundMode.Strong:
+                    options.ReadOnly.Strong = true;
+                    break;
+                case TimestampBoundMode.ReadTimestamp:
+                    options.ReadOnly.ReadTimestamp = Timestamp.FromDateTime(timestampBound.Timestamp);
+                    break;
+                case TimestampBoundMode.MinReadTimestamp:
+                    options.ReadOnly.MinReadTimestamp = Timestamp.FromDateTime(timestampBound.Timestamp);
+                    break;
+                case TimestampBoundMode.ExactStaleness:
+                    options.ReadOnly.ExactStaleness = Duration.FromTimeSpan(timestampBound.Staleness);
+                    break;
+                case TimestampBoundMode.MaxStaleness:
+                    options.ReadOnly.MaxStaleness = Duration.FromTimeSpan(timestampBound.Staleness);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(timestampBound.Mode), $"unknown timestampBound mode: {timestampBound.Mode}");
+            }
+            return options;
+        }
 
         /// <summary>
         /// Begins a read-only transaction on this connection.
@@ -86,8 +140,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <param name="timestampBound">The read timestamp to use for the transaction</param>
         /// <param name="cancellationToken">A <see cref="CancellationToken" /> cancellation token to monitor for the asynchronous operation.</param>
         /// <returns>A read-only transaction that uses the specified <see cref="TimestampBound"/></returns>
-        public async Task<IDbContextTransaction> BeginReadOnlyTransactionAsync(TimestampBound timestampBound, CancellationToken cancellationToken = default) =>
-            await UseTransactionAsync(await Connection.BeginReadOnlyTransactionAsync(timestampBound, cancellationToken));
+        public async Task<IDbContextTransaction> BeginReadOnlyTransactionAsync(TimestampBound timestampBound,
+            CancellationToken cancellationToken = default)
+        {
+            if (DbConnection is SpannerRetriableConnection connection)
+            {
+                return await UseTransactionAsync(
+                    await connection.BeginReadOnlyTransactionAsync(timestampBound, cancellationToken), cancellationToken);
+            }
+            if (DbConnection is Google.Cloud.Spanner.DataProvider.SpannerConnection spannerConnection)
+            {
+                return await UseTransactionAsync(spannerConnection.BeginTransaction(CreateTransactionOptions(timestampBound)), cancellationToken);
+            }
+            throw new ArgumentException("Not a Spanner connection");
+        }
 
         /// <summary>
         /// Creates a connection to the Cloud Spanner instance that is referenced by <see cref="RelationalConnection.ConnectionString"/>.
@@ -98,9 +164,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             // Spanner does not have anything like a master database, so we just return a new instance of a
             // RelationalConnection with the same options and dependencies. This ensures that all settings of the
             // underlying connection are carried over to the new RelationalConnection, such as credentials and host.
-            var masterConn = (SpannerRetriableConnection) CreateDbConnection();
+            var masterConn = CreateDbConnection();
             var optionsBuilder = new DbContextOptionsBuilder();
-            optionsBuilder.UseSpanner(masterConn);
+            if (masterConn is SpannerRetriableConnection spannerRetriableConnection)
+            {
+                optionsBuilder.UseSpanner(spannerRetriableConnection);
+            }
+            else if (masterConn is Google.Cloud.Spanner.DataProvider.SpannerConnection spannerConnection)
+            {
+                optionsBuilder.UseSpanner(spannerConnection);
+            }
 
 #pragma warning disable EF1001
             var dependencies = new RelationalConnectionDependencies(

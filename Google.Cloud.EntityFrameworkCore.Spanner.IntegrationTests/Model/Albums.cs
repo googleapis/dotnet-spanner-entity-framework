@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
 using System.Collections.Generic;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 
@@ -26,7 +27,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
 
         public long AlbumId { get; set; }
         public string Title { get; set; }
-        public SpannerDate? ReleaseDate { get; set; }
+        public DateOnly? ReleaseDate { get; set; }
         public long SingerId { get; set; }
         public HashSet<string> Awards { get; set; } = new ();
 

@@ -39,7 +39,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         private static readonly SpannerDateTypeMapping s_date = new SpannerDateTypeMapping();
         
-        private static readonly SpannerDateOnlyTypeMapping s_dateonly = new ();
+        //private static readonly SpannerDateOnlyTypeMapping s_dateonly = new ();
+        private static readonly DateOnlyTypeMapping s_dateonly = new ("DATE");
 
         private static readonly SpannerTimestampTypeMapping s_datetime = new SpannerTimestampTypeMapping();
 
@@ -161,6 +162,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         private static readonly SpannerNullableDateListTypeMapping s_nullableDateList = new SpannerNullableDateListTypeMapping();
         private static readonly SpannerDateListTypeMapping s_dateList = new SpannerDateListTypeMapping();
+        
+        private static readonly SpannerComplexTypeMapping s_nullableDateOnlyArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Date), typeof(DateOnly?[]));
+        private static readonly SpannerComplexTypeMapping s_dateOnlyArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Date), typeof(DateOnly[]));
+
+        private static readonly SpannerComplexTypeMapping s_nullableDateOnlyList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Date), typeof(List<DateOnly?>));
+        private static readonly SpannerComplexTypeMapping s_dateOnlyList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Date), typeof(List<DateOnly>));
 
         private static readonly SpannerComplexTypeMapping s_nullableTimestampArray
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Timestamp), typeof(DateTime?[]));
@@ -259,6 +270,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(SpannerDate?[]), s_nullableDateArray},
                     {typeof(List<SpannerDate>), s_dateList},
                     {typeof(List<SpannerDate?>), s_nullableDateList},
+                    {typeof(List<DateOnly>), s_dateOnlyList},
+                    {typeof(List<DateOnly?>), s_nullableDateOnlyList},
+                    {typeof(DateOnly[]), s_dateOnlyArray},
+                    {typeof(DateOnly?[]), s_nullableDateOnlyArray},
                     {typeof(List<DateTime>), s_timestampList},
                     {typeof(List<DateTime?>), s_nullableTimestampList},
                     {typeof(DateTime[]), s_timestampArray},
