@@ -17,6 +17,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 {
@@ -67,6 +69,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
         ///     This is internal functionality and not intended for public use.
         /// </summary>
         protected override bool InterpretExistsResult(object value) => (bool)value;
+
+        public override LockReleaseBehavior LockReleaseBehavior => LockReleaseBehavior.Explicit;
+
+        public override IMigrationsDatabaseLock AcquireDatabaseLock()
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<IMigrationsDatabaseLock> AcquireDatabaseLockAsync(CancellationToken cancellationToken = new CancellationToken())
+        {
+            throw new NotImplementedException();
+        }
 
         /// <summary>
         ///     This is internal functionality and not intended for public use.
