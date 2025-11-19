@@ -216,16 +216,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
     {
         protected override string Hint => "-- request_tag:";
 
-        internal string GetTag(string query)
-        {
-            var index = query.IndexOf(Environment.NewLine, StringComparison.Ordinal);
-            var length = index - Hint.Length;
-            if (length > 0)
-            {
-                return query.Substring(Hint.Length, length).Trim();
-            }
-            return null;
-        }
+        internal string GetTag(string query) => GetHintValue(query);
     }
     
     internal class TagHintCommandInterceptor : DbCommandInterceptor
@@ -263,14 +254,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         {
             if (s_hint.IsHint(command.CommandText))
             {
-                try
-                {
-                    command.Tag = s_hint.GetTag(command.CommandText);
-                }
-                catch (Exception)
-                {
-                    // Ignore any invalid tags the comment.
-                }
+                command.Tag = s_hint.GetTag(command.CommandText);
             }
         }
     }
