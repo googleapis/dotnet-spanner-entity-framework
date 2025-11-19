@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.7.0...Google.Cloud.EntityFrameworkCore.Spanner-3.8.0) (2025-11-19)
+
+
+### Features
+
+* support transaction and request tags ([#623](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/623)) ([d5f6f07](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/d5f6f0751f09416f2ccd1abd886778eb1e36242e))
+
 ## [3.7.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.6.0...Google.Cloud.EntityFrameworkCore.Spanner-3.7.0) (2025-09-19)
 
 
