@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System.Data;
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal;
@@ -59,6 +60,41 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             var con = new SpannerConnection(builder);
             return new SpannerRetriableConnection(con);
         }
+
+        /// <summary>
+        /// Begins a read/write transaction on this connection with the given transaction tag.
+        /// </summary>
+        /// <param name="tag">The transaction tag to use for the transaction</param>
+        /// <returns>A read/write transaction that uses the given tag</returns>
+        public IDbContextTransaction BeginTransaction(string tag) => BeginTransaction(IsolationLevel.Unspecified, tag);
+
+        /// <summary>
+        /// Begins a read/write transaction on this connection with the given isolation level and transaction tag.
+        /// </summary>
+        /// <param name="isolationLevel">The isolation level to use for the transaction</param>
+        /// <param name="tag">The transaction tag to use for the transaction</param>
+        /// <returns>A read/write transaction that uses the given isolation level and tag</returns>
+        public IDbContextTransaction BeginTransaction(IsolationLevel isolationLevel, string tag)
+            => UseTransaction(Connection.BeginTransaction(isolationLevel, tag));
+
+        /// <summary>
+        /// Begins a read/write transaction on this connection with the given transaction tag.
+        /// </summary>
+        /// <param name="tag">The transaction tag to use for the transaction</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken" /> cancellation token to monitor for the asynchronous operation.</param>
+        /// <returns>A read/write transaction that uses the given tag</returns>
+        public Task<IDbContextTransaction> BeginTransactionAsync(string tag, CancellationToken cancellationToken = default)
+            => BeginTransactionAsync(IsolationLevel.Unspecified, tag, cancellationToken);
+
+        /// <summary>
+        /// Begins a read/write transaction on this connection with the given isolation level and transaction tag.
+        /// </summary>
+        /// <param name="isolationLevel">The isolation level to use for the transaction</param>
+        /// <param name="tag">The transaction tag to use for the transaction</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken" /> cancellation token to monitor for the asynchronous operation.</param>
+        /// <returns>A read/write transaction that uses the given isolation level and tag</returns>
+        public async Task<IDbContextTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, string tag, CancellationToken cancellationToken = default)
+            => await UseTransactionAsync(await Connection.BeginTransactionAsync(isolationLevel, tag, cancellationToken), cancellationToken);
 
         /// <summary>
         /// Begins a read-only transaction on this connection.
