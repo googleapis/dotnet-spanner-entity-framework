@@ -146,7 +146,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 Dependencies.ConnectionStringResolver,
                 Dependencies.RelationalTransactionFactory,
                 Dependencies.CurrentContext,
-                Dependencies.RelationalCommandBuilderFactory);
+                Dependencies.RelationalCommandBuilderFactory,
+                Dependencies.ExceptionDetector);
 #pragma warning restore EF1001
             return new SpannerRelationalConnection(dependencies);
         }
