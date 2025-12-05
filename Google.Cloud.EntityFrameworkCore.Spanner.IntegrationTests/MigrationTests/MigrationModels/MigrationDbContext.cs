@@ -44,6 +44,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             {
                 entity.HasIndex(e => new { e.ColDate, e.ColCommitTimestamp })
                 .IsNullFiltered();
+                entity.HasIndex(e => new { e.ColBool, e.ColCommitTimestamp, e.ColDecimal, e.ColGuid })
+                    .IsDescending(false, true, false, true)
+                    .HasDatabaseName("IX_OrderedIndex");
+
                 entity.Property(e => e.ColCommitTimestamp)
                 .HasAnnotation("UpdateCommitTimestamp", SpannerUpdateCommitTimestamp.OnInsertAndUpdate);
             });

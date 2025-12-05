@@ -403,6 +403,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Migrations
                     Columns = new[] { "FullName" },
                 });
 
+        public virtual void CreateOrderedIndexOperation()
+            => Generate(
+                new CreateIndexOperation
+                {
+                    Name = "IX_Singer_NameOrdered",
+                    Table = "Singer",
+                    Columns = new[] { "FirstName", "LastName", "FullName", "MaidenName" },
+                    IsDescending = new[] { true, false, true, false }
+                });
+
         public virtual void CreateIndexOperation_is_null_filtered()
             => Generate(
                 modelBuilder => modelBuilder.Entity("Singer").Property<string>("FullName"),
