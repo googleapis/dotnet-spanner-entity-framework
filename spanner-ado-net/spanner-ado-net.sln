@@ -1,0 +1,52 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spanner-ado-net", "spanner-ado-net\spanner-ado-net.csproj", "{F8B29EAE-0147-4C45-84A3-EA0BA5EB78A1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spanner-ado-net-tests", "spanner-ado-net-tests\spanner-ado-net-tests.csproj", "{9EA2C512-0997-48D6-9E2F-595E6451FEC2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spanner-ado-net-specification-tests", "spanner-ado-net-specification-tests\spanner-ado-net-specification-tests.csproj", "{29899FA9-1B80-4CE6-89D0-7E3B4BA877BC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spanner-ado-net-benchmarks", "spanner-ado-net-benchmarks\spanner-ado-net-benchmarks.csproj", "{64C85B04-3130-47AA-A35C-8874C8DF6E25}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spanner-ado-net-samples", "spanner-ado-net-samples\spanner-ado-net-samples.csproj", "{EB85F704-AE4A-47A7-8A07-CED66E5DA3AC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spanner-ado-net-getting-started-guide", "spanner-ado-net-getting-started-guide\spanner-ado-net-getting-started-guide.csproj", "{D31E8AD5-5695-4F6E-8AEC-808982C0EAE8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spanner-ado-net-samples-tests", "spanner-ado-net-samples-tests\spanner-ado-net-samples-tests.csproj", "{48633E5C-A86A-4DFD-81A8-FA72C7E5673D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F8B29EAE-0147-4C45-84A3-EA0BA5EB78A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F8B29EAE-0147-4C45-84A3-EA0BA5EB78A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F8B29EAE-0147-4C45-84A3-EA0BA5EB78A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F8B29EAE-0147-4C45-84A3-EA0BA5EB78A1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9EA2C512-0997-48D6-9E2F-595E6451FEC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9EA2C512-0997-48D6-9E2F-595E6451FEC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9EA2C512-0997-48D6-9E2F-595E6451FEC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9EA2C512-0997-48D6-9E2F-595E6451FEC2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{29899FA9-1B80-4CE6-89D0-7E3B4BA877BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{29899FA9-1B80-4CE6-89D0-7E3B4BA877BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{29899FA9-1B80-4CE6-89D0-7E3B4BA877BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{29899FA9-1B80-4CE6-89D0-7E3B4BA877BC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{64C85B04-3130-47AA-A35C-8874C8DF6E25}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{64C85B04-3130-47AA-A35C-8874C8DF6E25}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{64C85B04-3130-47AA-A35C-8874C8DF6E25}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{64C85B04-3130-47AA-A35C-8874C8DF6E25}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EB85F704-AE4A-47A7-8A07-CED66E5DA3AC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB85F704-AE4A-47A7-8A07-CED66E5DA3AC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB85F704-AE4A-47A7-8A07-CED66E5DA3AC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB85F704-AE4A-47A7-8A07-CED66E5DA3AC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D31E8AD5-5695-4F6E-8AEC-808982C0EAE8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D31E8AD5-5695-4F6E-8AEC-808982C0EAE8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D31E8AD5-5695-4F6E-8AEC-808982C0EAE8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D31E8AD5-5695-4F6E-8AEC-808982C0EAE8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{48633E5C-A86A-4DFD-81A8-FA72C7E5673D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{48633E5C-A86A-4DFD-81A8-FA72C7E5673D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{48633E5C-A86A-4DFD-81A8-FA72C7E5673D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{48633E5C-A86A-4DFD-81A8-FA72C7E5673D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
