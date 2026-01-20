@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "ReadOnlyTransaction")]
 public static class ReadOnlyTransactionSample
 {
     // [START spanner_read_only_transaction]

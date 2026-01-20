@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "PDMLPG")]
 public static class PartitionedDmlSamplePostgreSql
 {
     // [START spanner_partitioned_dml]

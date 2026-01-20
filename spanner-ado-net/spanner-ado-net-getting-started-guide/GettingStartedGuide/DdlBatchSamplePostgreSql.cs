@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "DdlBatchPg")]
 public static class DdlBatchSamplePostgreSql
 {
     // [START spanner_ddl_batch]

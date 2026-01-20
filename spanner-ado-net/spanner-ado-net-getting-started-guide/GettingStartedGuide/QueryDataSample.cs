@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "Query")]
 public static class QueryDataSample
 {
     // [START spanner_query_data]

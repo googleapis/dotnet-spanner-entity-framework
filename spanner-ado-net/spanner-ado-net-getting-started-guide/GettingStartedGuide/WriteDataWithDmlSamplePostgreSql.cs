@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "DmlWritePg")]
 public static class WriteDataWithDmlSamplePostgreSql
 {
     // [START spanner_dml_getting_started_insert]

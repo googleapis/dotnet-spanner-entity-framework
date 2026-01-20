@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "DataBoost")]
 public static class DataBoostSample
 {
     // [START spanner_data_boost]

@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "WritePg")]
 public static class WriteDataWithMutationsSamplePostgreSql
 {
     // [START spanner_insert_data]

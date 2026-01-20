@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "QueryMarketingBudgetPg")]
 public static class QueryNewColumnSamplePostgreSql
 {
     // [START spanner_query_data_with_new_column]

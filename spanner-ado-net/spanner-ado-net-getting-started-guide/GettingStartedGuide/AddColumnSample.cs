@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "AddColumn")]
 public static class AddColumnSample
 {
     // [START spanner_add_column]

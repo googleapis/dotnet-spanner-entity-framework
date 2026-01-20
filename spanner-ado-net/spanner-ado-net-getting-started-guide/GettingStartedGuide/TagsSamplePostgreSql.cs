@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "TagsPg")]
 public static class TagsSamplePostgreSql
 {
     // [START spanner_transaction_and_statement_tag]

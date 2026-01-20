@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "CreateTables")]
 public static class CreateTablesSample
 {
     // [START spanner_create_database]
