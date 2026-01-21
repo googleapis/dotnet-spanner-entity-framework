@@ -22,7 +22,7 @@
     <PackageReference Include="Alpha.Google.Cloud.SpannerLib" Version="1.0.0-alpha.20260120140640" />
     <PackageReference Include="Alpha.Google.Cloud.SpannerLib.Grpc.V1" Version="1.0.0-alpha.20260120140640" />
     <PackageReference Include="Alpha.Google.Cloud.SpannerLib.GrpcImpl" Version="1.0.0-alpha.20260120140640" />
-    <PackageReference Include="Alpha.Google.Cloud.SpannerLib.NativeImpl" Version="1.0.0-alpha.20260120140640" />
+    <PackageReference Include="Alpha.Google.Cloud.SpannerLib.NativeImpl" Version="1.0.0-alpha.20260121173057" />
     <PackageReference Include="ConfigureAwaitChecker.Analyzer" Version="5.0.0.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
