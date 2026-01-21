@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "CreateTablesPg")]
 public static class CreateTablesSamplePostgreSql
 {
     // [START spanner_create_database]

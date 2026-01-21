@@ -32,3 +32,9 @@ jobs:
         working-directory: spanner-ado-net/spanner-ado-net-samples-tests
         run: dotnet test --verbosity normal
         shell: bash
+      - name: dotnet run sample
+        working-directory: spanner-ado-net/spanner-ado-net-samples
+        run: dotnet run HelloWorld
+        shell: bash
+        # Docker is only supported on Linux on GitHub Actions
+        if: runner.os == 'Linux'

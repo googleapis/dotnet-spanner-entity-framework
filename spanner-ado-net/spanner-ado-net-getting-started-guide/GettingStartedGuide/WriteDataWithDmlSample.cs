@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "DmlWrite")]
 public static class WriteDataWithDmlSample
 {
     // [START spanner_dml_getting_started_insert]

@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "Tags")]
 public static class TagsSample
 {
     // [START spanner_transaction_and_statement_tag]

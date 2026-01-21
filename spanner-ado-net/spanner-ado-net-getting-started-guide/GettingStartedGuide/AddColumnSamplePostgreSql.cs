@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "AddColumnPg")]
 public static class AddColumnSamplePostgreSql
 {
     // [START spanner_add_column]

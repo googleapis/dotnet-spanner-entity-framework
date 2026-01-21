@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "Update")]
 public static class UpdateDataWithMutationsSample
 {
     // [START spanner_update_data]

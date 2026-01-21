@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "ReadOnlyTransactionPg")]
 public static class ReadOnlyTransactionSamplePostgreSql
 {
     // [START spanner_read_only_transaction]

@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "DdlBatch")]
 public static class DdlBatchSample
 {
     // [START spanner_ddl_batch]

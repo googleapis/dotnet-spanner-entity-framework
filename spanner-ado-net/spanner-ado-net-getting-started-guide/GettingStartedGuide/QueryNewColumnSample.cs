@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "QueryMarketingBudget")]
 public static class QueryNewColumnSample
 {
     // [START spanner_query_data_with_new_column]

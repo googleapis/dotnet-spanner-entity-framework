@@ -16,9 +16,17 @@ using System.Data;
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "CreateConnection")]
 public static class CreateConnectionSample
 {
     // [START spanner_create_connection]
+    /// <summary>
+    /// Create an ADO.NET connection to a Spanner database.
+    /// </summary>
+    /// <param name="connectionString">
+    /// A connection string in the format
+    /// 'Data Source=projects/my-project/instances/my-instance/databases/my-database'.
+    /// </param>
     public static async Task CreateConnection(string connectionString)
     {
         // Use a SpannerConnectionStringBuilder to construct a connection string.

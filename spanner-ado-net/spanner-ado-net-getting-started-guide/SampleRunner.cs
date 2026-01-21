@@ -22,11 +22,8 @@ namespace Google.Cloud.Spanner.DataProvider;
 
 /// <summary>
 /// Main class for running a sample from the GettingStartedGuide directory.
-/// Usage: `dotnet run SampleName`
-/// Example: `dotnet run CreateConnection`
-/// 
-/// The SampleRunner will automatically start a docker container with a Spanner emulator and execute
-/// the sample on that emulator instance. No further setup or configuration is required.
+/// Usage: `dotnet run SampleName DatabaseName`
+/// Example: `dotnet run CreateConnection projects/my-project/instances/my-instance/databases/example-db`
 /// </summary>
 public static class SampleRunner
 {
@@ -34,35 +31,38 @@ public static class SampleRunner
     
     static void Main(string[] args)
     {
-        if (args.Length < 1)
+        if (args.Length < 2)
         {
-            Console.Error.WriteLine("Not enough arguments.\r\nUsage: dotnet run <SampleName>\r\nExample: dotnet run CreateConnection");
+            Console.Error.WriteLine(string.Join(Environment.NewLine,
+                "Not enough arguments.",
+                "Usage: dotnet run <SampleName> <DatabaseName>",
+                "Example: dotnet run CreateConnection projects/my-project/instances/my-instance/databases/example-db"));
             PrintValidSampleNames();
             return;
         }
         var sampleName = args[0];
+        var databaseName = args[1];
         if (sampleName.Equals("All"))
         {
             // Run all samples. This is used to test that all samples are runnable.
-            RunAllSamples();
+            RunAllSamples(databaseName);
         }
         else
         {
-            RunSample(sampleName, false);
+            RunSample(sampleName, databaseName);
         }
     }
-    
 
-    private static void RunAllSamples()
+    private static void RunAllSamples(string databaseName)
     {
         var sampleClasses = GetSampleClasses();
         foreach (var sample in sampleClasses)
         {
-            RunSample(sample.Name, true);
+            RunSample(GetSampleName(sample), databaseName);
         }
     }
 
-    internal static void RunSample(string sampleName, bool failOnException)
+    private static void RunSample(string sampleName, string databaseName)
     {
         if (sampleName.EndsWith("Sample"))
         {
@@ -74,92 +74,44 @@ public static class SampleRunner
             if (sampleMethod != null)
             {
                 Console.WriteLine($"Running sample {sampleName}");
-                RunSampleAsync((connectionString) => (Task)sampleMethod.Invoke(null, [connectionString])!).WaitWithUnwrappedExceptions();
+                var connectionString = $"Data Source={databaseName}";
+                ((Task)sampleMethod.Invoke(null, [connectionString])!).WaitWithUnwrappedExceptions();
             }
         }
         catch (Exception e)
         {
             Console.WriteLine($"Running sample failed: {e.Message}\n{e.StackTrace}");
-            if (failOnException)
-            {
-                throw;
-            }
+            throw;
         }
     }
 
-    private static async Task RunSampleAsync(Func<string, Task> sampleMethod)
+    private static System.Type? GetSampleClass(string sampleName)
     {
-        var emulatorRunner = new EmulatorRunner();
-        var startedEmulator = false;
-        try
+        var sampleClass = System.Type.GetType($"{SnippetsNamespace}.{sampleName}Sample");
+        if (sampleClass == null)
         {
-            Console.WriteLine("");
-            PortBinding? portBinding = null;
-            if (EmulatorRunner.IsEmulatorRunning())
-            {
-                Console.WriteLine("Emulator is already running. Re-using existing Emulator instance...");
-                Console.WriteLine("");
-            }
-            else
-            {
-                Console.WriteLine("Starting emulator...");
-                portBinding = await emulatorRunner.StartEmulator();
-                Console.WriteLine($"Emulator started on port {portBinding.HostPort}");
-                Console.WriteLine("");
-                startedEmulator = true;
-            }
-
-            var projectId = "sample-project";
-            var instanceId = "sample-instance";
-            var databaseId = "sample-database";
-            DatabaseName databaseName = DatabaseName.FromProjectInstanceDatabase(projectId, instanceId, databaseId);
-            var connectionStringBuilder = new SpannerConnectionStringBuilder
-            {
-                DataSource = databaseName.ToString(),
-                AutoConfigEmulator = true,
-            };
-            if (portBinding != null)
-            {
-                connectionStringBuilder.Host = portBinding.HostIP;
-                connectionStringBuilder.Port = uint.Parse(portBinding.HostPort);
-            }
-            
-            await ExecuteScript(connectionStringBuilder.ConnectionString, "create_sample_tables.sql");
-            await ExecuteScript(connectionStringBuilder.ConnectionString, "insert_sample_data.sql");
-            await sampleMethod.Invoke(connectionStringBuilder.ConnectionString);
+            sampleClass = GetSampleClasses()
+                .FirstOrDefault(t => string.Equals(GetSampleName(t), sampleName, StringComparison.OrdinalIgnoreCase));
         }
-        catch (Exception e)
-        {
-            Console.WriteLine($"Running sample failed: {e.Message}");
-            throw;
-        }
-        finally
-        {
-            if (startedEmulator)
-            {
-                Console.WriteLine("");
-                Console.WriteLine("Stopping emulator...");
-                emulatorRunner.StopEmulator().WaitWithUnwrappedExceptions();
-                Console.WriteLine("");
-            }
-        }
+        return  sampleClass;
     }
 
     private static MethodInfo? GetSampleMethod(string sampleName)
     {
         try
         {
-            var sampleClass = System.Type.GetType($"{SnippetsNamespace}.{sampleName}Sample");
+            var sampleClass = GetSampleClass(sampleName);
             if (sampleClass == null)
             {
                 Console.Error.WriteLine($"Unknown sample name: {sampleName}");
                 PrintValidSampleNames();
                 return null;
             }
-            var sampleMethod = sampleClass.GetMethod("Run");
+            var sampleMethods = sampleClass.GetMethods();
+            var sampleMethod = sampleMethods.SingleOrDefault(m => m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == typeof(string) && m.ReturnType == typeof(Task));
             if (sampleMethod == null)
             {
-                Console.Error.WriteLine($"{sampleName} is not a valid sample as it does not contain a Run method");
+                Console.Error.WriteLine($"{sampleName} is not a valid sample as it does not contain a method with a single string argument that returns a Task.");
                 PrintValidSampleNames();
                 return null;
             }
@@ -173,45 +125,17 @@ public static class SampleRunner
         }
     }
 
-    private static async Task ExecuteScript(string connectionString, string file)
-    {
-        var codeBaseUrl = new Uri(Assembly.GetExecutingAssembly().Location);
-        var codeBasePath = Uri.UnescapeDataString(codeBaseUrl.AbsolutePath);
-        var dirPath = Path.GetDirectoryName(codeBasePath);
-        if (dirPath == null)
-        {
-            throw new DirectoryNotFoundException("Could not find the sample directory");
-        }
-        var filePath = Path.Combine(dirPath, file);
-        var script = await File.ReadAllTextAsync(filePath);
-        var statements = script.Split(";").Where(statement => !string.IsNullOrWhiteSpace(statement));
-        await ExecuteBatchAsync(connectionString, statements);
-    }
-
-    private static async Task ExecuteBatchAsync(string connectionString, IEnumerable<string> statements)
-    {
-        await using var connection = new SpannerConnection(connectionString);
-        await connection.OpenAsync();
-        var batch = connection.CreateBatch();
-        foreach (var statement in statements)
-        {
-            var cmd = batch.CreateBatchCommand();
-            cmd.CommandText = statement;
-            batch.BatchCommands.Add(cmd);
-        }
-        await batch.ExecuteNonQueryAsync();
-    }
-
+    private static string GetSampleName(System.Type sampleClass) => sampleClass.GetCustomAttribute<Sample>()!.Name;
+    
     private static void PrintValidSampleNames()
     {
         var sampleClasses = GetSampleClasses();
         Console.Error.WriteLine("");
         Console.Error.WriteLine("Supported samples:");
-        sampleClasses.ToList().ForEach(t => Console.Error.WriteLine($"  * {t.Name}"));
+        sampleClasses.ToList().ForEach(t => Console.Error.WriteLine($"  * {GetSampleName(t)}"));
     }
-
+    
     private static IEnumerable<System.Type> GetSampleClasses()
-        => from t in Assembly.GetExecutingAssembly().GetTypes()
-            where t.IsClass && t.Name.EndsWith("Sample")
-            select t;
+        => Assembly.GetExecutingAssembly().GetTypes()
+            .Where(t => t.IsClass && t.GetCustomAttribute<Sample>() is not null);
 }

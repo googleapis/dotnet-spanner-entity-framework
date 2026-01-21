@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "Write")]
 public static class WriteDataWithMutationsSample
 {
     // [START spanner_insert_data]

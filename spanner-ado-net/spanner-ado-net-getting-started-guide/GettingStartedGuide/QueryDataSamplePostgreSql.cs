@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "QueryPg")]
 public static class QueryDataSamplePostgreSql
 {
     // [START spanner_query_data]

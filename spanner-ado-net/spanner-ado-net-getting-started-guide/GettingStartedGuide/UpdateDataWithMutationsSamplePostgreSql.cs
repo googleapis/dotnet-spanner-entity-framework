@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "UpdatePg")]
 public static class UpdateDataWithMutationsSamplePostgreSql
 {
     // [START spanner_update_data]

@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "QueryWithParameterPg")]
 public static class QueryDataWithParameterSamplePostgreSql
 {
     // [START spanner_query_with_parameter]

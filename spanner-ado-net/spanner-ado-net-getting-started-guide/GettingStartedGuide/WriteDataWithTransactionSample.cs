@@ -14,6 +14,7 @@
 
 namespace Google.Cloud.Spanner.DataProvider.GettingStartedGuide;
 
+[Sample(Name = "WriteWithTransactionUsingDml")]
 public static class WriteDataWithTransactionSample
 {
     // [START spanner_dml_getting_started_update]
