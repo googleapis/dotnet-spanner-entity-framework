@@ -1,0 +1,35 @@
+name: Sync SpannerLib .NET code from go-sql-spanner
+
+on:
+  workflow_dispatch: # Allows manual triggering
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-code:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Checkout go-sql-spanner
+        uses: actions/checkout@v6
+        with:
+          repository: 'googleapis/go-sql-spanner'
+          path: spanner-ado-net/spanner-ado-net/go-sql-spanner
+
+      - name: Copy SpannerLib code
+        run: ./copy-spannerlib-source.sh true
+        working-directory: spanner-ado-net/spanner-ado-net
+        shell: bash
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: sync SpannerLib code"
+          branch: automated-spanner-lib-code-update
+          title: "chore: sync SpannerLib code"
+          body: "Update the ADO.NET driver with the latest SpannerLib code."
+          base: main
