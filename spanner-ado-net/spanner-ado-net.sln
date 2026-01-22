@@ -14,6 +14,24 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spanner-ado-net-getting-sta
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spanner-ado-net-samples-tests", "spanner-ado-net-samples-tests\spanner-ado-net-samples-tests.csproj", "{48633E5C-A86A-4DFD-81A8-FA72C7E5673D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spannerlib-dotnet", "go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet\spannerlib-dotnet.csproj", "{F2920D6E-B886-4146-B88D-A2B476AC5C9E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spannerlib-dotnet-grpc-v1", "go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet-grpc-v1\spannerlib-dotnet-grpc-v1.csproj", "{23F06817-FE10-4AE9-AA77-3435192D543F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spannerlib-dotnet-grpc-impl", "go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet-grpc-impl\spannerlib-dotnet-grpc-impl.csproj", "{7BC0666A-5545-44A3-98F4-782FFD279AD4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spannerlib-dotnet-native-impl", "go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet-native-impl\spannerlib-dotnet-native-impl.csproj", "{B8BF2CC1-DA70-4907-8614-C55FEA60FB44}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spannerlib-dotnet-grpc-server", "go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet-grpc-server\spannerlib-dotnet-grpc-server.csproj", "{6AB3ED42-F1D7-4195-A1CE-357BFC9B0274}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spannerlib-dotnet-grpc-tests", "go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet-grpc-tests\spannerlib-dotnet-grpc-tests.csproj", "{97DEA17E-A6FC-4179-B248-9241A1A9F11B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spannerlib-dotnet-mockserver", "go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet-mockserver\spannerlib-dotnet-mockserver.csproj", "{9CD365C9-869A-453C-9263-598802F193EE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spannerlib-dotnet-native", "go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet-native\spannerlib-dotnet-native.csproj", "{253065A8-091E-4A6B-ADE6-2486AFB8DF98}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "spannerlib-dotnet-tests", "go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet-tests\spannerlib-dotnet-tests.csproj", "{E97BB43E-A6CB-4E2E-9F43-5029743DF404}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -48,5 +66,41 @@ Global
 		{48633E5C-A86A-4DFD-81A8-FA72C7E5673D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{48633E5C-A86A-4DFD-81A8-FA72C7E5673D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{48633E5C-A86A-4DFD-81A8-FA72C7E5673D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F2920D6E-B886-4146-B88D-A2B476AC5C9E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F2920D6E-B886-4146-B88D-A2B476AC5C9E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F2920D6E-B886-4146-B88D-A2B476AC5C9E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F2920D6E-B886-4146-B88D-A2B476AC5C9E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{23F06817-FE10-4AE9-AA77-3435192D543F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{23F06817-FE10-4AE9-AA77-3435192D543F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{23F06817-FE10-4AE9-AA77-3435192D543F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{23F06817-FE10-4AE9-AA77-3435192D543F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7BC0666A-5545-44A3-98F4-782FFD279AD4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7BC0666A-5545-44A3-98F4-782FFD279AD4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7BC0666A-5545-44A3-98F4-782FFD279AD4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7BC0666A-5545-44A3-98F4-782FFD279AD4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B8BF2CC1-DA70-4907-8614-C55FEA60FB44}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B8BF2CC1-DA70-4907-8614-C55FEA60FB44}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B8BF2CC1-DA70-4907-8614-C55FEA60FB44}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B8BF2CC1-DA70-4907-8614-C55FEA60FB44}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6AB3ED42-F1D7-4195-A1CE-357BFC9B0274}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6AB3ED42-F1D7-4195-A1CE-357BFC9B0274}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6AB3ED42-F1D7-4195-A1CE-357BFC9B0274}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6AB3ED42-F1D7-4195-A1CE-357BFC9B0274}.Release|Any CPU.Build.0 = Release|Any CPU
+		{97DEA17E-A6FC-4179-B248-9241A1A9F11B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{97DEA17E-A6FC-4179-B248-9241A1A9F11B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{97DEA17E-A6FC-4179-B248-9241A1A9F11B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{97DEA17E-A6FC-4179-B248-9241A1A9F11B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9CD365C9-869A-453C-9263-598802F193EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9CD365C9-869A-453C-9263-598802F193EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9CD365C9-869A-453C-9263-598802F193EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9CD365C9-869A-453C-9263-598802F193EE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{253065A8-091E-4A6B-ADE6-2486AFB8DF98}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{253065A8-091E-4A6B-ADE6-2486AFB8DF98}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{253065A8-091E-4A6B-ADE6-2486AFB8DF98}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{253065A8-091E-4A6B-ADE6-2486AFB8DF98}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E97BB43E-A6CB-4E2E-9F43-5029743DF404}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E97BB43E-A6CB-4E2E-9F43-5029743DF404}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E97BB43E-A6CB-4E2E-9F43-5029743DF404}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E97BB43E-A6CB-4E2E-9F43-5029743DF404}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

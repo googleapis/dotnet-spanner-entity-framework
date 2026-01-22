@@ -12,6 +12,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet-grpc-impl\spannerlib-dotnet-grpc-impl.csproj" />
+    <ProjectReference Include="..\go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet-grpc-server\spannerlib-dotnet-grpc-server.csproj" />
+    <ProjectReference Include="..\go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet-grpc-v1\spannerlib-dotnet-grpc-v1.csproj" />
     <ProjectReference Include="..\spanner-ado-net\spanner-ado-net.csproj" />
   </ItemGroup>
 

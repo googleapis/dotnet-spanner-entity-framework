@@ -16,17 +16,42 @@
     <Copyright>Apache v2.0</Copyright>
     <PackageLicenseUrl>https://github.com/googleapis/dotnet-spanner-entity-framework/spanner-ado-net/LICENSE</PackageLicenseUrl>
     <RepositoryUrl>https://github.com/googleapis/dotnet-spanner-entity-framework/spanner-ado-net</RepositoryUrl>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Alpha.Google.Cloud.SpannerLib" Version="1.0.0-alpha.20260120140640" />
-    <PackageReference Include="Alpha.Google.Cloud.SpannerLib.Grpc.V1" Version="1.0.0-alpha.20260120140640" />
-    <PackageReference Include="Alpha.Google.Cloud.SpannerLib.GrpcImpl" Version="1.0.0-alpha.20260120140640" />
-    <PackageReference Include="Alpha.Google.Cloud.SpannerLib.NativeImpl" Version="1.0.0-alpha.20260120140640" />
     <PackageReference Include="ConfigureAwaitChecker.Analyzer" Version="5.0.0.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet-grpc-impl\spannerlib-dotnet-grpc-impl.csproj" PrivateAssets="All" />
+    <ProjectReference Include="..\go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet-grpc-server\spannerlib-dotnet-grpc-server.csproj" PrivateAssets="All" />
+    <ProjectReference Include="..\go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet-grpc-v1\spannerlib-dotnet-grpc-v1.csproj" PrivateAssets="All" />
+    <ProjectReference Include="..\go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet\spannerlib-dotnet.csproj" PrivateAssets="All" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="runtimes/any/native/*" Pack="true" PackagePath="runtimes/any/native/" />
+    <None Include="runtimes/linux-x64/native/*" Pack="true" PackagePath="runtimes/linux-x64/native/" />
+    <None Include="runtimes/linux-arm64/native/*" Pack="true" PackagePath="runtimes/linux-arm64/native/" />
+    <None Include="runtimes/osx-arm64/native/*" Pack="true" PackagePath="runtimes/osx-arm64/native/" />
+    <None Include="runtimes/win-x64/native/*" Pack="true" PackagePath="runtimes/win-x64/native/" />
+  </ItemGroup>
+  
+  <Target Name="CopyProjectReferencesToPackage" DependsOnTargets="BuildOnlySettings;ResolveReferences">
+    <ItemGroup>
+      <!-- Filter out unnecessary files -->
+      <_ReferenceCopyLocalPaths Include="@(ReferenceCopyLocalPaths->WithMetadataValue('ReferenceSourceTarget', 'ProjectReference')->WithMetadataValue('PrivateAssets', 'All'))"/>
+    </ItemGroup>
+
+    <!-- Print batches for debug purposes -->
+    <Message Text="Batch for .nupkg: ReferenceCopyLocalPaths = @(_ReferenceCopyLocalPaths), ReferenceCopyLocalPaths.DestinationSubDirectory = %(_ReferenceCopyLocalPaths.DestinationSubDirectory) Filename = %(_ReferenceCopyLocalPaths.Filename) Extension = %(_ReferenceCopyLocalPaths.Extension)" Importance="High" Condition="'@(_ReferenceCopyLocalPaths)' != ''" />
+
+    <ItemGroup>
+      <!-- Add file to package with consideration of sub folder. If empty, the root folder is chosen. -->
+      <BuildOutputInPackage Include="@(_ReferenceCopyLocalPaths)" TargetPath="%(_ReferenceCopyLocalPaths.DestinationSubDirectory)"/>
+    </ItemGroup>
+  </Target>
 </Project>

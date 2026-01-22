@@ -14,7 +14,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Alpha.Google.Cloud.SpannerLib.MockServer" Version="1.0.0-alpha.20260116144609" />
     <PackageReference Include="coverlet.collector" Version="6.0.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -30,6 +29,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet-grpc-server\spannerlib-dotnet-grpc-server.csproj" />
+    <ProjectReference Include="..\go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet-grpc-v1\spannerlib-dotnet-grpc-v1.csproj" />
+    <ProjectReference Include="..\go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet-mockserver\spannerlib-dotnet-mockserver.csproj" />
+    <ProjectReference Include="..\go-sql-spanner\spannerlib\wrappers\spannerlib-dotnet\spannerlib-dotnet\spannerlib-dotnet.csproj" />
     <ProjectReference Include="..\spanner-ado-net\spanner-ado-net.csproj" />
   </ItemGroup>
 

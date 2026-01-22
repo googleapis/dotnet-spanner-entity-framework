@@ -1,0 +1,3 @@
+[submodule "spanner-ado-net/go-sql-spanner"]
+	path = spanner-ado-net/go-sql-spanner
+	url = git@github.com:googleapis/go-sql-spanner.git
