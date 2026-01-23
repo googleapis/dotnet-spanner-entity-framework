@@ -5,6 +5,15 @@ __ALPHA: This library is still in development. It is not yet ready for productio
 ADO.NET Data Provider for Spanner. This library implements the standard ADO.NET interfaces and classes
 and exposes an API that is similar to ADO.NET data providers for other relational database systems.
 
+## Supported Platforms
+
+This driver uses a native library for communication with Spanner. This library supports the following operating
+systems and architectures:
+- linux-x64
+- linux-arm64
+- osx-arm64
+- win-x64
+
 ## Usage
 
 Create a connection string using a `SpannerConnectionStringBuilder`:
