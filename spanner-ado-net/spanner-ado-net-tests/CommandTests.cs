@@ -396,7 +396,7 @@ public class CommandTests : AbstractMockServerTests
             conn.Close();
             Assert.That(conn.State, Is.EqualTo(ConnectionState.Closed));
             // Closing a SpannerConnection does not close the related readers.
-            Assert.False(reader.IsClosed);
+            Assert.That(reader.IsClosed, Is.False);
         }
 
         conn.Open();

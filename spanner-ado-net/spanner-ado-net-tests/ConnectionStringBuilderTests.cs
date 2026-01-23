@@ -24,7 +24,7 @@ public class ConnectionStringBuilderTests
         var builder = new SpannerConnectionStringBuilder();
         Assert.That(builder.Keys, Is.Empty);
         Assert.That(builder.Count, Is.EqualTo(0));
-        Assert.False(builder.ContainsKey("host"));
+        Assert.That(builder.ContainsKey("host"), Is.False);
         builder.Host = "myhost";
         Assert.That(builder["host"], Is.EqualTo("myhost"));
         Assert.That(builder.Count, Is.EqualTo(1));

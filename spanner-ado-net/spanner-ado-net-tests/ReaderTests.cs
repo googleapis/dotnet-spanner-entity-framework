@@ -305,7 +305,7 @@ public class ReaderTests : AbstractMockServerTests
         await using var conn = await OpenConnectionAsync();
         await using var cmd = new SpannerCommand(sql, conn);
         await using var reader = await cmd.ExecuteReaderAsync(CommandBehavior.SchemaOnly);
-        Assert.False(reader.Read());
+        Assert.That(reader.Read(), Is.False);
         Assert.That(reader.GetFieldType(0), Is.SameAs(typeof(long)));
 
         var request = Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().First();
@@ -434,7 +434,7 @@ public class ReaderTests : AbstractMockServerTests
         command.Parameters.Add(param);
 
         await using var dr = await command.ExecuteReaderAsync();
-        Assert.False(await dr.ReadAsync());
+        Assert.That(await dr.ReadAsync(), Is.False);
         // This line should throw the invalid operation exception as the data reader will
         // have an empty resultset.
         Assert.That(() => Console.WriteLine(dr.IsDBNull(0)),
@@ -727,7 +727,7 @@ public class ReaderTests : AbstractMockServerTests
             Assert.That(reader.HasRows, Is.True);
             Assert.That(reader.Read(), Is.False);
             Assert.That(reader.HasRows, Is.True);
-            Assert.False(await reader.NextResultAsync());
+            Assert.That(await reader.NextResultAsync(), Is.False);
         }
 
         command.CommandText = selectNoRows;
@@ -743,7 +743,7 @@ public class ReaderTests : AbstractMockServerTests
             Assert.That(reader.HasRows, Is.False);
             Assert.That(reader.Read(), Is.False);
             Assert.That(reader.HasRows, Is.False);
-            Assert.False(await reader.NextResultAsync());
+            Assert.That(await reader.NextResultAsync(), Is.False);
         }
 
         command.CommandText = "SELECT 1";
@@ -768,7 +768,7 @@ public class ReaderTests : AbstractMockServerTests
         using (var reader = await command.ExecuteReaderAsync())
         {
             Assert.That(reader.HasRows, Is.False);
-            Assert.False(reader.Read());
+            Assert.That(reader.Read(), Is.False);
         }
         
         const string selectRow = "SELECT * FROM my_table";
@@ -782,7 +782,7 @@ public class ReaderTests : AbstractMockServerTests
         using (var reader = await command.ExecuteReaderAsync())
         {
             Assert.That(reader.HasRows, Is.True);
-            Assert.True(reader.Read());
+            Assert.That(reader.Read(), Is.True);
             Assert.That(reader.GetString(0), Is.EqualTo("foo"));
         }
         Assert.That(await conn.ExecuteScalarAsync("SELECT 1"), Is.EqualTo(1));
