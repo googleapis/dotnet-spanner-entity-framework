@@ -14,7 +14,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Alpha.Google.Cloud.SpannerLib.MockServer" Version="1.0.0-alpha.20260116144609" />
+    <PackageReference Include="Alpha.Google.Cloud.SpannerLib.MockServer" Version="1.0.0-alpha.20260121173057" />
     <PackageReference Include="coverlet.collector" Version="6.0.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
