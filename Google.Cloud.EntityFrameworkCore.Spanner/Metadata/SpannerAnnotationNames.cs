@@ -40,6 +40,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Metadata
         public const string InterleaveInParentOnDelete = "Spanner:InterleaveInParentOnDelete";
         
         /// <summary>
+        /// Use this annotation for indexes that should be interleaved in another table.
+        /// </summary>
+        public const string InterleaveIn = "Spanner:InterleaveIn";
+        
+        /// <summary>
         /// Annotation for creating null-filtered indexes.
         /// </summary>
         public const string IsNullFilteredIndex = "Spanner:IsNullFiltered";

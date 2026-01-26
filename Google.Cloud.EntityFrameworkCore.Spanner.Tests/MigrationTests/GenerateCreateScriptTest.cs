@@ -169,6 +169,9 @@ CREATE TABLE `Performances` (
 
 CREATE INDEX `AlbumsByAlbumTitle2` ON `Albums` (`Title`) STORING (`MarketingBudget`, `ReleaseDate`)
 
+CREATE INDEX `idx_concerts_singerId_startTime` ON `Concerts` (`SingerId`, `StartTime`),
+ INTERLEAVE IN `Singers`
+
 CREATE INDEX `Idx_Singers_FullName` ON `Singers` (`FullName`)
 
 CREATE NULL_FILTERED INDEX `IDX_TableWithAllColumnTypes_ColDate_ColCommitTS` ON `TableWithAllColumnTypes` (`ColDate`, `ColCommitTS`)
@@ -279,6 +282,9 @@ CREATE TABLE `Performances` (
 
 CREATE INDEX `AlbumsByAlbumTitle2` ON `Albums` (`Title`) STORING (`MarketingBudget`, `ReleaseDate`)
 
+CREATE INDEX `idx_concerts_singerId_startTime` ON `Concerts` (`SingerId`, `StartTime`),
+ INTERLEAVE IN `Singers`
+
 CREATE INDEX `Idx_Singers_FullName` ON `Singers` (`FullName`)
 
 CREATE NULL_FILTERED INDEX `IDX_TableWithAllColumnTypes_ColDate_ColCommitTS` ON `TableWithAllColumnTypes` (`ColDate`, `ColCommitTS`)
@@ -388,6 +394,9 @@ CREATE TABLE `Performances` (
 )PRIMARY KEY (`VenueCode`, `SingerId`, `StartTime`)
 
 CREATE INDEX `AlbumsByAlbumTitle2` ON `Albums` (`Title`) STORING (`MarketingBudget`, `ReleaseDate`)
+
+CREATE INDEX `idx_concerts_singerId_startTime` ON `Concerts` (`SingerId`, `StartTime`),
+ INTERLEAVE IN `Singers`
 
 CREATE INDEX `Idx_Singers_FullName` ON `Singers` (`FullName`)
 

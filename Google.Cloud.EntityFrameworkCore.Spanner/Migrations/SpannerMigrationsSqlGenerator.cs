@@ -144,7 +144,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
                     .Append(ColumnList(storingColumns))
                     .Append(")");
             }
-
+            var interleaveAnnotation = operation.FindAnnotation(SpannerAnnotationNames.InterleaveIn);
+            if (interleaveAnnotation is { Value: not null } && model != null)
+            {
+                var interleaveInIdentifier = interleaveAnnotation.Value.ToString();
+                // The identifier can be either an entity type name (code-first) or a table name (database-first).
+                var interleaveInEntityType = model.FindEntityType(interleaveInIdentifier!) 
+                                             ?? model.GetEntityTypes().FirstOrDefault(e => e.GetTableName() == interleaveInIdentifier);
+                var parentTableName = interleaveInEntityType?.GetTableName();
+                if (parentTableName != null)
+                {
+                    builder.AppendLine(",")
+                        .Append(" INTERLEAVE IN ")
+                        .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(parentTableName));
+                }
+            }
+            
             if (terminate)
             {
                 EndStatement(builder, true);
