@@ -200,7 +200,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
         private void GetIndexes(DbConnection connection, IReadOnlyList<DatabaseTable> tables)
         {
             using var command = connection.CreateCommand();
-            var commandText = @"SELECT INDEXES.TABLE_NAME, INDEXES.INDEX_NAME, INDEXES.INDEX_TYPE, COLUMN_NAME, COLUMN_ORDERING, IS_UNIQUE, IS_NULL_FILTERED
+            var commandText = @"SELECT INDEXES.TABLE_NAME, INDEXES.INDEX_NAME, INDEXES.INDEX_TYPE, COLUMN_NAME, COLUMN_ORDERING, IS_UNIQUE, IS_NULL_FILTERED, PARENT_TABLE_NAME
                                 FROM INFORMATION_SCHEMA.INDEX_COLUMNS
                                 INNER JOIN INFORMATION_SCHEMA.INDEXES
                                         ON INDEX_COLUMNS.TABLE_CATALOG = INDEXES.TABLE_CATALOG
@@ -261,7 +261,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
                             Name: ddr.GetValueOrDefault<string>("INDEX_NAME"),
                             TypeDesc: ddr.GetValueOrDefault<string>("INDEX_TYPE"),
                             IsUnique: ddr.GetValueOrDefault<bool>("IS_UNIQUE"),
-                            IsNullFiltered: ddr.GetValueOrDefault<bool>("IS_NULL_FILTERED")
+                            IsNullFiltered: ddr.GetValueOrDefault<bool>("IS_NULL_FILTERED"),
+                            ParentTableName: ddr.GetValueOrDefault<string>("PARENT_TABLE_NAME")
                         )
                     ).ToArray();
 
@@ -281,6 +282,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Scaffolding.Internal
                     if (indexGroup.Key.IsNullFiltered)
                     {
                         index["Spanner:IsNullFiltered"] = true;
+                    }
+                    if (!string.IsNullOrEmpty(indexGroup.Key.ParentTableName))
+                    {
+                        index[SpannerAnnotationNames.InterleaveIn] = indexGroup.Key.ParentTableName;
                     }
 
                     foreach (var dataRecord in indexGroup)

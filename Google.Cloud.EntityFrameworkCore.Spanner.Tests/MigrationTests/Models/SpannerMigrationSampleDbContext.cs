@@ -76,6 +76,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
                     .HasForeignKey(d => d.SingerId)
                     .OnDelete(DeleteBehavior.Cascade)
                     .HasConstraintName("FK_Concerts_Singers");
+                entity.HasIndex(concert => new { concert.SingerId, concert.StartTime })
+                    .HasDatabaseName("idx_concerts_singerId_startTime")
+                    .InterleaveIn(typeof(Singers));
 
                 entity.HasOne(d => d.VenueCodeNavigation)
                     .WithMany(p => p.Concerts)
