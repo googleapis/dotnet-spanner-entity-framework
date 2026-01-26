@@ -530,15 +530,15 @@ public class ConnectionTests : AbstractMockServerTests
     public async Task RollbackOnClose()
     {
         await using var dataSource = CreateDataSource();
-        await using (var conn = await dataSource.OpenConnectionAsync() as SpannerConnection)
+        await using (var conn = await dataSource.OpenConnectionAsync())
         {
             await conn!.BeginTransactionAsync();
             await conn.ExecuteNonQueryAsync("SELECT 1");
             Assert.That(conn.HasTransaction);
         }
-        await using (var conn = await dataSource.OpenConnectionAsync() as SpannerConnection)
+        await using (var conn = await dataSource.OpenConnectionAsync())
         {
-            Assert.False(conn!.HasTransaction);
+            Assert.That(conn.HasTransaction, Is.False);
         }
     }
 
