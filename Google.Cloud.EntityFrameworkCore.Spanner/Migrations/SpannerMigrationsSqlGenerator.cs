@@ -133,9 +133,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
                 .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Name))
                 .Append(" ON ")
                 .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Table, operation.Schema))
-                .Append(" (")
-                .Append(ColumnList(operation.Columns))
-                .Append(")");
+                .Append(" (");
+            GenerateIndexColumnList(operation, model, builder);
+            builder.Append(")");
 
             if (operation[SpannerAnnotationNames.Storing] is string[] storingColumns
                             && storingColumns.Length > 0)
