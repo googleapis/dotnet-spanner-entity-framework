@@ -56,6 +56,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Migratio
                     Id = table.Column<long>().Annotation(SpannerAnnotationNames.Identity, new SpannerIdentityOptionsData{GenerationStrategy = GenerationStrategy.AutoIncrement}),
                     Value = table.Column<string>(),
                 });
+            migrationBuilder.CreateIndex(
+                name: "AlbumsBySingerIdReleaseDateMarketingBudgetTitle",
+                table: "Albums",
+                columns: ["SingerId", "ReleaseDate", "MarketingBudget", "Title"],
+                descending: [false, true, true, false]);
         }
     }
 }

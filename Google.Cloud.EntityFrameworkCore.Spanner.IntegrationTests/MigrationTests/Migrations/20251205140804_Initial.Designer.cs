@@ -6,6 +6,7 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Metadata;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -13,9 +14,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTests.Migrations
 {
     [DbContext(typeof(TestMigrationDbContext))]
-    partial class TestMigrationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251205140804_Initial")]
+    partial class Initial
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.22");

@@ -103,6 +103,13 @@ CONSTRAINT `Chk_Title_Length_Equal` CHECK (CHARACTER_LENGTH(Title) > 0),
         }
 
         [Fact]
+        public override void CreateOrderedIndexOperation()
+        {
+            base.CreateOrderedIndexOperation();
+            AssertSql(@"CREATE INDEX `IX_Singer_NameOrdered` ON `Singer` (`FirstName` DESC, `LastName`, `FullName` DESC, `MaidenName`)");
+        }
+
+        [Fact]
         public override void CreateIndexOperation_is_null_filtered()
         {
             base.CreateIndexOperation_is_null_filtered();

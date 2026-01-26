@@ -20,6 +20,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Xunit;
 using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
@@ -223,14 +224,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                 Assert.Equal(15.999f, row.ColFloat);
                 Assert.Equal(guid, row.ColGuid);
                 Assert.Equal(10, row.ColInt);
-                if (!SpannerFixtureBase.IsEmulator)
-                {
-                    Assert.Equal("{\"key\":\"value\"}", row.ColJson.RootElement.ToString());
-                    Assert.Equal(new[] { "{\"key1\":\"value1\"}", "{\"key2\":\"value2\"}" },
-                        row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToArray());
-                    Assert.Equal(new[] { "{\"key1\":\"value1\"}", "{\"key2\":\"value2\"}" },
-                        row.ColJsonList.Select(v => v?.RootElement.ToString()).ToList());
-                }
+                Assert.Equal("{\"key\":\"value\"}", row.ColJson.RootElement.ToString());
+                Assert.Equal(new[] { "{\"key1\":\"value1\"}", "{\"key2\":\"value2\"}" },
+                    row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToArray());
+                Assert.Equal(new[] { "{\"key1\":\"value1\"}", "{\"key2\":\"value2\"}" },
+                    row.ColJsonList.Select(v => v?.RootElement.ToString()).ToList());
                 Assert.Equal(155, row.ColLong);
                 Assert.Equal(new long[] { 15, 16 }, row.ColLongArray);
                 Assert.Equal(new List<long> { 20, 25 }, row.ColLongList);
@@ -322,14 +320,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                 Assert.Equal(new List<double> { 30.9 }, row.ColDoubleList);
                 Assert.Equal(16.52f, row.ColFloat);
                 Assert.Equal(200, row.ColInt);
-                if (!SpannerFixtureBase.IsEmulator)
-                {
-                    Assert.Equal("{\"key\":\"new-value\"}", row.ColJson.RootElement.ToString());
-                    Assert.Equal(new[] { "{\"key1\":\"new-value1\"}", "{\"key2\":\"new-value2\"}" },
-                        row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToArray());
-                    Assert.Equal(new[] { "{\"key1\":\"new-value1\"}", "{\"key2\":\"new-value2\"}" },
-                        row.ColJsonList.Select(v => v?.RootElement.ToString()).ToList());
-                }
+                Assert.Equal("{\"key\":\"new-value\"}", row.ColJson.RootElement.ToString());
+                Assert.Equal(new[] { "{\"key1\":\"new-value1\"}", "{\"key2\":\"new-value2\"}" },
+                    row.ColJsonArray.Select(v => v?.RootElement.ToString()).ToArray());
+                Assert.Equal(new[] { "{\"key1\":\"new-value1\"}", "{\"key2\":\"new-value2\"}" },
+                    row.ColJsonList.Select(v => v?.RootElement.ToString()).ToList());
                 Assert.Equal(19999, row.ColLong);
                 Assert.Equal(new long[] { 17, 18 }, row.ColLongArray);
                 Assert.Equal(new List<long> { 25, 26 }, row.ColLongList);
@@ -619,6 +614,35 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
             {
                 Assert.Empty(authors);
             }
+        }
+
+        [Fact]
+        public async Task OrderedIndex()
+        {
+            await using var context = new TestMigrationDbContext(_fixture.DatabaseName);
+
+            var expectedColumns = new IndexColumnsProjection[]
+            {
+                new() { ColumnName = "ColBool", ColumnOrdering = "ASC" },
+                new() { ColumnName = "ColCommitTimestamp", ColumnOrdering = "DESC" },
+                new() { ColumnName = "ColDecimal", ColumnOrdering = "ASC" },
+                new() { ColumnName = "ColGuid", ColumnOrdering = "DESC" }
+            };
+
+            var indexColumns = await context.Database.SqlQuery<IndexColumnsProjection>(
+                    @$"SELECT COLUMN_NAME AS  ColumnName, COLUMN_ORDERING AS ColumnOrdering 
+                        FROM INFORMATION_SCHEMA.INDEX_COLUMNS 
+                        WHERE TABLE_NAME = 'AllColTypes' AND INDEX_NAME = 'IX_OrderedIndex' 
+                        ORDER BY ORDINAL_POSITION")
+                .ToArrayAsync();
+
+            Assert.Equivalent(expectedColumns, indexColumns);
+        }
+
+        public record IndexColumnsProjection
+        {
+            public string ColumnName { get; set;  }
+            public string ColumnOrdering { get; set; }
         }
     }
 }

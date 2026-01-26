@@ -55,6 +55,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
                     .HasDatabaseName("AlbumsByAlbumTitle2")
                     .Storing(a => new { a.MarketingBudget, a.ReleaseDate });
 
+                entity.HasIndex(e => new { e.SingerId, e.ReleaseDate, e.MarketingBudget, e.Title })
+                    .IsDescending(false, true, true, false)
+                    .HasDatabaseName("AlbumsBySingerIdReleaseDateMarketingBudgetTitle");
+
                 entity.HasOne(d => d.Singer)
                     .WithMany(p => p.Albums)
                     .HasForeignKey(d => d.SingerId)
