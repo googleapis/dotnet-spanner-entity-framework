@@ -71,14 +71,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         {
             // Handle JsonElement.GetProperty - this accesses a nested JSON property
             // For example: jsonColumn.GetProperty("propertyName")
-            // This should already be handled by VisitJsonScalar when EF Core generates JsonScalarExpression
-            // But we keep this for explicit GetProperty calls
+            // Note: This is typically handled by EF Core's JsonScalarExpression generation
+            // and processed by VisitJsonScalar. We return null here to let EF Core's
+            // default translation handle this case.
             if (s_getPropertyMethodInfo?.Equals(method) == true && instance != null && arguments.Count == 1)
             {
-                // The instance is the JSON column/expression, and arguments[0] is the property name
-                // Return the instance as-is since the JSON path will be built by VisitJsonScalar
-                // This method is typically not called directly, as EF Core uses JsonScalarExpression
-                return instance;
+                // Return null to indicate we don't handle this - EF Core will use JsonScalarExpression
+                return null;
             }
 
             // Handle JsonElement.GetString - extract string value from JSON
