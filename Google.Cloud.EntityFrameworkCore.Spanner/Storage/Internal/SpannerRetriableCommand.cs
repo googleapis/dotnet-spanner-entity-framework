@@ -73,6 +73,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             _transaction == null
             ? ExecuteNonQueryWithRetryAsync(_spannerCommand, cancellationToken)
             : _transaction.ExecuteNonQueryWithRetryAsync(_spannerCommand, cancellationToken);
+        
+        /// <summary>
+        /// Starts a DDL operation without waiting for the long-running operation to finish.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token for the RPC that creates the LRO</param>
+        /// <returns>A task that returns the long-running operation ID that was started</returns>
+        internal Task<string> StartDdlOperationAsync(CancellationToken cancellationToken = default) => _spannerCommand.StartDdlAsync(cancellationToken);
 
         /// <summary>
         /// Wraps a DML command in a Spanner retriable transaction to retry Aborted errors.

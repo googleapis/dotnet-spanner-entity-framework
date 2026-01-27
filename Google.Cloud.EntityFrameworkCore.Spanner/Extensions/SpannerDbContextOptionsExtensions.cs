@@ -154,7 +154,34 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
             where TContext : DbContext
             => (DbContextOptionsBuilder<TContext>)UseSpanner(
                 optionsBuilder, new SpannerRetriableConnection(connection), spannerOptionsAction);
+        
+        /// <summary>
+        /// Configure the execution strategy for DDL operations for migrations on this database context.
+        /// The default is to block until the DDL operation has finished. This guarantees that all schema objects
+        /// have been created when the migration command has finished.
+        ///
+        /// The <seealso cref="DdlExecutionStrategy.StartOperation">StartOperation</seealso> option can be used
+        /// for migrations that only create schema objects that are not directly required by the application, such
+        /// as secondary indexes, or tables that the application checks whether exist before trying to use these.
+        ///
+        /// You can also use the <seealso cref="SpannerDatabaseFacadeExtensions.StartMigrateAsync(DatabaseFacade, CancellationToken)">
+        /// SpannerDatabaseFacadeExtensions.StartMigrateAsync(DatabaseFacade,CancellationToken)
+        /// </seealso> method to override the default for only a single migration operation.
+        /// </summary>
+        /// <param name="optionsBuilder">the optionsBuilder to configure</param>
+        /// <param name="ddlExecutionStrategy">the configuration option to use for the DbContext</param>
+        /// <returns>the optionsBuilder</returns>
+        public static DbContextOptionsBuilder UseMigrationDdlExecutionStrategy(
+            this DbContextOptionsBuilder optionsBuilder,
+            DdlExecutionStrategy ddlExecutionStrategy)
+        {
+            GaxPreconditions.CheckNotNull(optionsBuilder, nameof(optionsBuilder));
+            var extension = GetOrCreateExtension(optionsBuilder).WithDdlExecutionStrategy(ddlExecutionStrategy);
+            ((IDbContextOptionsBuilderInfrastructure)optionsBuilder).AddOrUpdateExtension(extension);
 
+            return optionsBuilder;
+        }
+        
         /// <summary>
         /// This option is intended for advanced users.
         /// 

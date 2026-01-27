@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     internal interface ISpannerRelationalConnection : IRelationalConnection
     {
-        //Note: The relationalconnection classes represent an efcore level abstraction over the EFCore
+        internal DdlExecutionStrategy DdlExecutionStrategy { get; set; }
+        
+        //Note: The RelationalConnection classes represent an EFCore level abstraction over the EFCore
         // providers.
 
         /// <summary>

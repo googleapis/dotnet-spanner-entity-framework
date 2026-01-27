@@ -56,6 +56,31 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure
         Always
     }
 
+    /// <summary>
+    /// This enum can be used to configure how the Spanner driver should execute DDL statements.
+    /// DDL statements are executed as long-running operations on Spanner and can take a long time to finish.
+    /// The Spanner driver will by default block and wait until the long-running operation on Spanner has finished.
+    /// This guarantees that all schema changes have been applied to Spanner before the driver returns.
+    ///
+    /// The default behavior can be undesirable for DDL operations that are known to take a long time, and that are not
+    /// required to finish before continuing with the next step. A typical example is the creation of a secondary index
+    /// on an existing table.
+    /// </summary>
+    public enum DdlExecutionStrategy
+    {
+        /// <summary>
+        /// BlockUntilCompleted instructs the driver to block and poll the long-running operation until it has finished.
+        /// </summary>
+        BlockUntilCompleted,
+        /// <summary>
+        /// StartOperation instructs the driver to only start the long-running operation for the DDL statement, and
+        /// then return control to the calling thread. The driver does not wait until the schema change has actually
+        /// been applied to Spanner. This option can be used for the creation of for example secondary indexes or for
+        /// other schema objects that the application does not have a hard dependency on.
+        /// </summary>
+        StartOperation,
+    }
+
     public class SpannerDbContextOptionsBuilder
            : RelationalDbContextOptionsBuilder<SpannerDbContextOptionsBuilder, SpannerOptionsExtension>
     {

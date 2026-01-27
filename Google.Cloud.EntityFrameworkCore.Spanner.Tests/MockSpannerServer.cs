@@ -68,6 +68,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             return CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "COL1", 1);
         }
 
+        internal static StatementResult CreateSelectTrueResultSet()
+        {
+            return CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Bool }, "C", true);
+        }
+
         internal static StatementResult CreateSingleColumnResultSet(V1.Type type, string col, params object[] values)
             => CreateSingleColumnResultSet(null, type, col, values);
 
@@ -721,6 +726,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         private readonly ConcurrentQueue<IMessage> _requests = new ConcurrentQueue<IMessage>();
 
         public IEnumerable<IMessage> Requests => new List<IMessage>(_requests).AsReadOnly();
+        
+        public void Reset() => _requests.Clear();
 
         public override Task<Operation> CreateDatabase(CreateDatabaseRequest request, ServerCallContext context)
         {

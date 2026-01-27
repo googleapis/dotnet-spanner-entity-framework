@@ -39,12 +39,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             : base(dependencies)
         {
             var relationalOptions = (SpannerOptionsExtension) RelationalOptionsExtension.Extract(dependencies.ContextOptions);
+            DdlExecutionStrategy = relationalOptions.DdlExecutionStrategy;
             MutationUsage = relationalOptions.MutationUsage;
             ConnectionStringBuilder = relationalOptions.ConnectionStringBuilder;
         }
 
         private SpannerRetriableConnection Connection => DbConnection as SpannerRetriableConnection;
 
+        /// <summary>
+        /// Implements ISpannerRelationalConnection.DdlExecutionStrategy
+        /// </summary>
+        public DdlExecutionStrategy DdlExecutionStrategy { get; set; }
+        
         public MutationUsage MutationUsage { get; }
 
         private SpannerConnectionStringBuilder ConnectionStringBuilder { get; }
@@ -148,7 +154,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 Dependencies.CurrentContext,
                 Dependencies.RelationalCommandBuilderFactory);
 #pragma warning restore EF1001
-            return new SpannerRelationalConnection(dependencies);
+            var masterConnection = new SpannerRelationalConnection(dependencies);
+            masterConnection.DdlExecutionStrategy = DdlExecutionStrategy;
+            return masterConnection;
         }
     }
 }

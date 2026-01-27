@@ -44,6 +44,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
             : base(original)
         {
             _info = original._info;
+            DdlExecutionStrategy = original.DdlExecutionStrategy;
             MutationUsage = original.MutationUsage;
             ConnectionStringBuilder = original.ConnectionStringBuilder;
         }
@@ -52,12 +53,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal
 
         public override int? MinBatchSize => 2;
 
+        public DdlExecutionStrategy DdlExecutionStrategy { get; private set; } = DdlExecutionStrategy.BlockUntilCompleted;
+
         /// <summary>
         /// This is internal functionality and not intended for public use.
         /// </summary>
         public MutationUsage MutationUsage { get; private set; } = MutationUsage.ImplicitTransactions;
 
         internal SpannerConnectionStringBuilder ConnectionStringBuilder { get; private set; }
+
+        /// <summary>
+        /// This is internal functionality and not intended for public use.
+        /// </summary>
+        public SpannerOptionsExtension WithDdlExecutionStrategy(DdlExecutionStrategy ddlExecutionStrategy)
+        {
+            SpannerOptionsExtension clone = (SpannerOptionsExtension)Clone();
+            clone.DdlExecutionStrategy = ddlExecutionStrategy;
+            return clone;
+        }
 
         /// <summary>
         /// This is internal functionality and not intended for public use.

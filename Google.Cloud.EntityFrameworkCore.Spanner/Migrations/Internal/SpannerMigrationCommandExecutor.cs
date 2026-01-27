@@ -21,6 +21,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 {
@@ -40,16 +41,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                 return;
             }
             var ddlStatements = statements.Where(IsDdlStatement).ToArray();
-            var otherStatements = statements.Where(x => !IsDdlStatement(x));
-            var spannerConnection = ((SpannerRelationalConnection) connection).DbConnection as SpannerRetriableConnection;
+            var otherStatements = statements.Where(x => !IsDdlStatement(x)).ToList();
+            var spannerConnection = (((SpannerRelationalConnection) connection).DbConnection as SpannerRetriableConnection)!;
             if (ddlStatements.Any())
             {
                 var cmd = spannerConnection.CreateDdlCommand(ddlStatements[0], ddlStatements.Skip(1).ToArray());
-                await cmd.ExecuteNonQueryAsync(cancellationToken);
+                var spannerRelationalConnection = connection as SpannerRelationalConnection;
+                if (spannerRelationalConnection?.DdlExecutionStrategy == DdlExecutionStrategy.StartOperation)
+                {
+                    await cmd.StartDdlOperationAsync(cancellationToken);
+                }
+                else
+                {
+                    await cmd.ExecuteNonQueryAsync(cancellationToken);
+                }
             }
             if (otherStatements.Any())
             {
-                using var transaction = await spannerConnection.BeginTransactionAsync(cancellationToken);
+                await using var transaction = await spannerConnection.BeginTransactionAsync(cancellationToken);
                 var cmd = spannerConnection.CreateBatchDmlCommand();
                 cmd.Transaction = transaction;
                 foreach (var statement in otherStatements)
