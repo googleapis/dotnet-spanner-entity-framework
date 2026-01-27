@@ -203,6 +203,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             }
             
             // Generate Spanner JSON path access using bracket notation: JsonColumn['Property']['SubProperty']
+            // This is Spanner's native syntax for JSON path traversal
             foreach (var pathSegment in path)
             {
                 if (pathSegment.PropertyName != null)
