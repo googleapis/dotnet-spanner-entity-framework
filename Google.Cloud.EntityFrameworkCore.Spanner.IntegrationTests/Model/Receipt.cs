@@ -2,7 +2,7 @@ using System;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 
-public struct Receipt
+public class Receipt
 {
     public DateOnly Date { get; set; }
     

@@ -195,13 +195,90 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         
         protected override Expression VisitJsonScalar(JsonScalarExpression jsonScalarExpression)
         {
-            Visit(jsonScalarExpression.Json);
             var path = jsonScalarExpression.Path;
             if (path.Count == 0)
             {
+                Visit(jsonScalarExpression.Json);
                 return jsonScalarExpression;
             }
-            throw new ArgumentException("json path expressions are not supported");
+            
+            // JSON_VALUE in Spanner always returns STRING.
+            // For non-string types, we need to wrap the result in CAST() to convert to the expected type.
+            // This is similar to how SQL Server handles JSON_VALUE (which returns nvarchar(4000)).
+            var typeMapping = jsonScalarExpression.TypeMapping;
+            var needsCast = typeMapping != null 
+                && typeMapping.StoreType != "STRING" 
+                && typeMapping.StoreType != "JSON";
+            
+            if (needsCast)
+            {
+                Sql.Append("CAST(");
+            }
+            
+            // Use JSON_VALUE with JSONPath syntax for Spanner
+            // Example: JSON_VALUE(column, '$.property.nested')
+            
+            // Build JSONPath expression: $.property.nested or $.property[0]
+            var jsonPathBuilder = new System.Text.StringBuilder("$");
+            foreach (var pathSegment in path)
+            {
+                if (pathSegment.PropertyName != null)
+                {
+                    // Use dot notation for properties: $.property
+                    // Escape property names if they contain special characters
+                    var propertyName = pathSegment.PropertyName;
+                    
+                    // If property name has special characters, use bracket notation in JSONPath
+                    if (propertyName.Contains(".") || propertyName.Contains("'") || propertyName.Contains("\"") || propertyName.Contains(" "))
+                    {
+                        // Escape quotes for JSONPath bracket notation
+                        var escapedName = propertyName.Replace("\"", "\\\"");
+                        jsonPathBuilder.Append($"[\"{escapedName}\"]");
+                    }
+                    else
+                    {
+                        jsonPathBuilder.Append($".{propertyName}");
+                    }
+                }
+                else if (pathSegment.ArrayIndex != null)
+                {
+                    // For array indices: $[0] or $.property[0]
+                    // Note: ArrayIndex is a SqlExpression, for constant indices this works
+                    // For dynamic indices, this would need more complex handling
+                    jsonPathBuilder.Append("[");
+                    // Try to get constant value if possible
+                    if (pathSegment.ArrayIndex is SqlConstantExpression constantExpr)
+                    {
+                        jsonPathBuilder.Append(constantExpr.Value);
+                    }
+                    else
+                    {
+                        // For non-constant indices, we'd need dynamic evaluation
+                        // For now, use placeholder
+                        jsonPathBuilder.Append("0");
+                    }
+                    jsonPathBuilder.Append("]");
+                }
+            }
+            
+            var jsonPath = jsonPathBuilder.ToString();
+            
+            // Generate: JSON_VALUE(column, '$.path')
+            Sql.Append("JSON_VALUE(");
+            Visit(jsonScalarExpression.Json);
+            Sql.Append(", '");
+            Sql.Append(jsonPath);
+            Sql.Append("')");
+            
+            // Close the CAST if needed
+            if (needsCast)
+            {
+                Sql.Append(" AS ");
+                Sql.Append(typeMapping!.StoreType);
+                Sql.Append(")");
+            }
+            
+            return jsonScalarExpression;
         }
         
     }

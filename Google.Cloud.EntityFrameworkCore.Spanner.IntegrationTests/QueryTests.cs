@@ -1489,5 +1489,562 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 .Select(c => c.ASC).ToList();
             Assert.Collection(result4, s => Assert.Equal("string1", s));
         }
+
+        [Fact]
+        public async Task CanInsertAndReadJsonColumnData()
+        {
+            // Test that the JSON column implementation doesn't break insert/read functionality
+            // with the value converter approach used by TicketSales.Receipt
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            
+            var ticketId = _fixture.RandomLong();
+            var receipt = new Receipt
+            {
+                Date = new DateOnly(2024, 1, 15),
+                Number = "RCT-001"
+            };
+            
+            db.TicketSales.Add(new TicketSales
+            {
+                Id = ticketId,
+                CustomerName = "John Doe",
+                Receipt = receipt
+            });
+            await db.SaveChangesAsync();
+
+            // Read back and verify
+            var result = await db.TicketSales.FirstAsync(t => t.Id == ticketId);
+            Assert.Equal("John Doe", result.CustomerName);
+            Assert.NotNull(result.Receipt);
+            Assert.Equal("RCT-001", result.Receipt.Number);
+            Assert.Equal(new DateOnly(2024, 1, 15), result.Receipt.Date);
+        }
+
+        [Fact]
+        public async Task CanQueryJsonColumnUsingRawSql()
+        {
+            // Test JSON_VALUE functionality using raw SQL queries
+            // This verifies that the JSON_VALUE function works correctly with Spanner
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            
+            var ticketId1 = _fixture.RandomLong();
+            var ticketId2 = _fixture.RandomLong();
+            
+            db.TicketSales.AddRange(
+                new TicketSales
+                {
+                    Id = ticketId1,
+                    CustomerName = "Alice",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 2, 20), Number = "PREMIUM-001" }
+                },
+                new TicketSales
+                {
+                    Id = ticketId2,
+                    CustomerName = "Bob",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 3, 15), Number = "STANDARD-001" }
+                }
+            );
+            await db.SaveChangesAsync();
+
+            // Query using JSON_VALUE in raw SQL to filter by Receipt.Number
+            var results = await db.TicketSales
+                .FromSqlRaw($@"
+                    SELECT * FROM TicketSales 
+                    WHERE JSON_VALUE(Receipt, '$.Number') LIKE 'PREMIUM%' 
+                    AND Id IN ({ticketId1}, {ticketId2})")
+                .ToListAsync();
+            
+            Assert.Single(results);
+            Assert.Equal(ticketId1, results[0].Id);
+            Assert.Equal("Alice", results[0].CustomerName);
+            Assert.Contains("PREMIUM", results[0].Receipt?.Number);
+        }
+
+        [Fact]
+        public async Task CanQueryJsonColumnDatePropertyUsingRawSql()
+        {
+            // Test JSON_VALUE with date properties using raw SQL
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            
+            var ticketId1 = _fixture.RandomLong();
+            var ticketId2 = _fixture.RandomLong();
+            var targetDate = "2024-05-10"; // DateOnly format for JSON
+            
+            db.TicketSales.AddRange(
+                new TicketSales
+                {
+                    Id = ticketId1,
+                    CustomerName = "Charlie",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 5, 10), Number = "MAY-001" }
+                },
+                new TicketSales
+                {
+                    Id = ticketId2,
+                    CustomerName = "Dana",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 6, 15), Number = "JUNE-001" }
+                }
+            );
+            await db.SaveChangesAsync();
+
+            // Query using JSON_VALUE to extract and filter by Date
+            var results = await db.TicketSales
+                .FromSqlRaw($@"
+                    SELECT * FROM TicketSales 
+                    WHERE JSON_VALUE(Receipt, '$.Date') = '{targetDate}'
+                    AND Id IN ({ticketId1}, {ticketId2})")
+                .ToListAsync();
+            
+            Assert.Single(results);
+            Assert.Equal(ticketId1, results[0].Id);
+            Assert.Equal("Charlie", results[0].CustomerName);
+            Assert.Equal(new DateOnly(2024, 5, 10), results[0].Receipt?.Date);
+        }
+
+        [Fact]
+        public async Task CanProjectJsonPropertiesUsingRawSql()
+        {
+            // Test projecting JSON properties using JSON_VALUE in SELECT clause
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            
+            var ticketId = _fixture.RandomLong();
+            db.TicketSales.Add(new TicketSales
+            {
+                Id = ticketId,
+                CustomerName = "Eve",
+                Receipt = new Receipt { Date = new DateOnly(2024, 7, 4), Number = "JULY4-001" }
+            });
+            await db.SaveChangesAsync();
+
+            // Use raw SQL to project JSON properties
+            var connection = db.Database.GetDbConnection();
+            await connection.OpenAsync();
+            
+            using var command = connection.CreateCommand();
+            command.CommandText = $@"
+                SELECT 
+                    CustomerName,
+                    JSON_VALUE(Receipt, '$.Number') AS ReceiptNumber,
+                    JSON_VALUE(Receipt, '$.Date') AS ReceiptDate
+                FROM TicketSales 
+                WHERE Id = {ticketId}";
+            
+            using var reader = await command.ExecuteReaderAsync();
+            Assert.True(await reader.ReadAsync());
+            
+            Assert.Equal("Eve", reader.GetString(0));
+            Assert.Equal("JULY4-001", reader.GetString(1));
+            Assert.Equal("2024-07-04", reader.GetString(2));
+        }
+
+        [Fact]
+        public async Task JsonValueFunctionDoesNotBreakStructuralJsonInserts()
+        {
+            // Regression test: Verify that the VisitJsonScalar implementation doesn't
+            // interfere with structural JSON inserts (arrays of objects)
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            
+            // Code column is STRING(10), so we need a short venue code
+            var venueCode = $"V{_fixture.RandomLong() % 1000000:D6}";  // 7 chars: V + 6 digits
+            db.Venues.Add(new Venues
+            {
+                Code = venueCode,
+                Name = "Test Arena",
+                Active = true,
+                Capacity = 5000,
+                Descriptions = new List<VenueDescription>
+                {
+                    new VenueDescription 
+                    { 
+                        Category = "Concert", 
+                        Description = "Main hall", 
+                        Capacity = 5000, 
+                        Active = true 
+                    },
+                    new VenueDescription 
+                    { 
+                        Category = "Sports", 
+                        Description = "Arena floor", 
+                        Capacity = 3000, 
+                        Active = true 
+                    }
+                }
+            });
+
+            // Should not throw any JSON path related exceptions
+            var count = await db.SaveChangesAsync();
+            Assert.Equal(1, count);
+            
+            // Verify data was saved correctly
+            var venue = await db.Venues.FirstAsync(v => v.Code == venueCode);
+            Assert.NotNull(venue.Descriptions);
+            Assert.Equal(2, venue.Descriptions.Count);
+            Assert.Equal("Concert", venue.Descriptions[0].Category);
+            Assert.Equal("Sports", venue.Descriptions[1].Category);
+        }
+
+        [Fact]
+        public async Task CanProjectJsonOwnedEntityUsingLinq()
+        {
+            // Test projecting the whole JSON owned entity using LINQ Select
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            
+            var ticketId = _fixture.RandomLong();
+            var expectedReceipt = new Receipt { Date = new DateOnly(2024, 11, 15), Number = "PROJ-001" };
+            db.TicketSales.Add(new TicketSales
+            {
+                Id = ticketId,
+                CustomerName = "ProjectionTest",
+                Receipt = expectedReceipt
+            });
+            await db.SaveChangesAsync();
+
+            // Project just the Receipt owned entity
+            // Note: AsNoTracking() is required by EF Core when projecting JSON entities directly
+            var receipt = await db.TicketSales
+                .AsNoTracking()
+                .Where(ts => ts.Id == ticketId)
+                .Select(ts => ts.Receipt)
+                .FirstOrDefaultAsync();
+
+            // Verify the projected Receipt is correctly deserialized
+            Assert.NotNull(receipt);
+            Assert.Equal("PROJ-001", receipt.Number);
+            Assert.Equal(new DateOnly(2024, 11, 15), receipt.Date);
+        }
+
+        [Fact]
+        public async Task CanQueryJsonColumnByNumberProperty()
+        {
+            // Test querying JSON column using LINQ with navigation to Receipt.Number
+            // This should generate: WHERE JSON_VALUE(Receipt, '$.Number') = 'xxx'
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            
+            var ticketId = _fixture.RandomLong();
+            var receiptNumber = $"RN-{ticketId}";  // Unique receipt number to avoid conflicts
+            db.TicketSales.Add(new TicketSales
+            {
+                Id = ticketId,
+                CustomerName = "Eve",
+                Receipt = new Receipt { Date = new DateOnly(2024, 7, 4), Number = receiptNumber }
+            });
+            await db.SaveChangesAsync();
+
+            // Query using LINQ - EF Core should generate JSON_VALUE
+            var sales = await db.TicketSales
+                .Where(ts => ts.Receipt.Number == receiptNumber)
+                .ToListAsync();
+
+            // Assertion
+            Assert.Single(sales);
+            Assert.Equal(ticketId, sales[0].Id);
+            Assert.Equal("Eve", sales[0].CustomerName);
+            Assert.Equal(receiptNumber, sales[0].Receipt.Number);
+        }
+
+        [Fact]
+        public async Task CanQueryJsonColumnByDateProperty()
+        {
+            // Test querying JSON column using LINQ with navigation to Receipt.Date
+            // This should generate: WHERE JSON_VALUE(Receipt, '$.Date') = '2024-08-15'
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            
+            var ticketId1 = _fixture.RandomLong();
+            var ticketId2 = _fixture.RandomLong();
+            var targetDate = new DateOnly(2024, 8, 15);
+            
+            db.TicketSales.AddRange(
+                new TicketSales
+                {
+                    Id = ticketId1,
+                    CustomerName = "Frank",
+                    Receipt = new Receipt { Date = targetDate, Number = "AUG-001" }
+                },
+                new TicketSales
+                {
+                    Id = ticketId2,
+                    CustomerName = "Grace",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 9, 1), Number = "SEP-001" }
+                }
+            );
+            await db.SaveChangesAsync();
+
+            // Query using LINQ - EF Core should generate JSON_VALUE for Date comparison
+            var sales = await db.TicketSales
+                .Where(ts => ts.Receipt.Date == targetDate)
+                .ToListAsync();
+
+            Assert.Single(sales);
+            Assert.Equal("Frank", sales[0].CustomerName);
+            Assert.Equal(targetDate, sales[0].Receipt.Date);
+        }
+
+        [Fact]
+        public async Task CanQueryJsonColumnWithStringContains()
+        {
+            // Test using string.Contains on a JSON property
+            // This should generate: WHERE STRPOS(JSON_VALUE(Receipt, '$.Number'), 'SPECIAL') > 0
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            
+            var ticketId1 = _fixture.RandomLong();
+            var ticketId2 = _fixture.RandomLong();
+            
+            db.TicketSales.AddRange(
+                new TicketSales
+                {
+                    Id = ticketId1,
+                    CustomerName = "Helen",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 10, 1), Number = "SPECIAL-OFFER-001" }
+                },
+                new TicketSales
+                {
+                    Id = ticketId2,
+                    CustomerName = "Ivan",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 10, 2), Number = "REGULAR-002" }
+                }
+            );
+            await db.SaveChangesAsync();
+
+            // Query using LINQ with Contains
+            var sales = await db.TicketSales
+                .Where(ts => ts.Receipt.Number.Contains("SPECIAL"))
+                .ToListAsync();
+
+            Assert.Single(sales);
+            Assert.Equal("Helen", sales[0].CustomerName);
+            Assert.Contains("SPECIAL", sales[0].Receipt.Number);
+        }
+
+        [Fact]
+        public async Task CanQueryJsonColumnByDatePropertyGreaterThanOrEqual()
+        {
+            // Test querying JSON DATE property with >= comparison
+            // This should generate: WHERE CAST(JSON_VALUE(Receipt, '$.Date') AS DATE) >= @targetDate
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            
+            var ticketId1 = _fixture.RandomLong();
+            var ticketId2 = _fixture.RandomLong();
+            var ticketId3 = _fixture.RandomLong();
+            var cutoffDate = new DateOnly(2024, 6, 15);
+            
+            db.TicketSales.AddRange(
+                new TicketSales
+                {
+                    Id = ticketId1,
+                    CustomerName = "Kate",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 6, 15), Number = $"GTE-{ticketId1}" } // Equal to cutoff
+                },
+                new TicketSales
+                {
+                    Id = ticketId2,
+                    CustomerName = "Leo",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 7, 1), Number = $"GTE-{ticketId2}" } // After cutoff
+                },
+                new TicketSales
+                {
+                    Id = ticketId3,
+                    CustomerName = "Mia",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 5, 1), Number = $"GTE-{ticketId3}" } // Before cutoff
+                }
+            );
+            await db.SaveChangesAsync();
+
+            // Query using LINQ with >= on Date property
+            var sales = await db.TicketSales
+                .Where(ts => ts.Receipt.Date >= cutoffDate && new[] { ticketId1, ticketId2, ticketId3 }.Contains(ts.Id))
+                .OrderBy(ts => ts.Receipt.Date)
+                .ToListAsync();
+
+            Assert.Equal(2, sales.Count);
+            Assert.Equal("Kate", sales[0].CustomerName); // June 15 (equal)
+            Assert.Equal("Leo", sales[1].CustomerName);  // July 1 (after)
+        }
+
+        [Fact]
+        public async Task CanQueryJsonColumnByDatePropertyLessThan()
+        {
+            // Test querying JSON DATE property with < comparison
+            // This should generate: WHERE CAST(JSON_VALUE(Receipt, '$.Date') AS DATE) < @targetDate
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            
+            var ticketId1 = _fixture.RandomLong();
+            var ticketId2 = _fixture.RandomLong();
+            var ticketId3 = _fixture.RandomLong();
+            var cutoffDate = new DateOnly(2024, 6, 15);
+            
+            db.TicketSales.AddRange(
+                new TicketSales
+                {
+                    Id = ticketId1,
+                    CustomerName = "Nina",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 6, 14), Number = $"LT-{ticketId1}" } // Before cutoff
+                },
+                new TicketSales
+                {
+                    Id = ticketId2,
+                    CustomerName = "Oscar",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 6, 15), Number = $"LT-{ticketId2}" } // Equal to cutoff (excluded)
+                },
+                new TicketSales
+                {
+                    Id = ticketId3,
+                    CustomerName = "Paula",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 5, 1), Number = $"LT-{ticketId3}" } // Before cutoff
+                }
+            );
+            await db.SaveChangesAsync();
+
+            // Query using LINQ with < on Date property
+            var sales = await db.TicketSales
+                .Where(ts => ts.Receipt.Date < cutoffDate && new[] { ticketId1, ticketId2, ticketId3 }.Contains(ts.Id))
+                .OrderBy(ts => ts.Receipt.Date)
+                .ToListAsync();
+
+            Assert.Equal(2, sales.Count);
+            Assert.Equal("Paula", sales[0].CustomerName); // May 1
+            Assert.Equal("Nina", sales[1].CustomerName);  // June 14
+        }
+
+        [Fact]
+        public async Task CanQueryJsonColumnWithStringStartsWith()
+        {
+            // Test using string.StartsWith on a JSON property
+            // This should generate: WHERE STARTS_WITH(JSON_VALUE(Receipt, '$.Number'), @prefix)
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            
+            var ticketId1 = _fixture.RandomLong();
+            var ticketId2 = _fixture.RandomLong();
+            var ticketId3 = _fixture.RandomLong();
+            
+            db.TicketSales.AddRange(
+                new TicketSales
+                {
+                    Id = ticketId1,
+                    CustomerName = "Quinn",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 11, 1), Number = "VIP-GOLD-001" }
+                },
+                new TicketSales
+                {
+                    Id = ticketId2,
+                    CustomerName = "Rachel",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 11, 2), Number = "VIP-SILVER-002" }
+                },
+                new TicketSales
+                {
+                    Id = ticketId3,
+                    CustomerName = "Sam",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 11, 3), Number = "STANDARD-003" }
+                }
+            );
+            await db.SaveChangesAsync();
+
+            // Query using LINQ with StartsWith
+            var prefix = "VIP";
+            var sales = await db.TicketSales
+                .Where(ts => ts.Receipt.Number.StartsWith(prefix) && new[] { ticketId1, ticketId2, ticketId3 }.Contains(ts.Id))
+                .OrderBy(ts => ts.Receipt.Number)
+                .ToListAsync();
+
+            Assert.Equal(2, sales.Count);
+            Assert.Equal("Quinn", sales[0].CustomerName);  // VIP-GOLD-001
+            Assert.Equal("Rachel", sales[1].CustomerName); // VIP-SILVER-002
+        }
+
+        [Fact]
+        public async Task CanQueryJsonColumnWithStringEndsWith()
+        {
+            // Test using string.EndsWith on a JSON property
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            
+            var ticketId1 = _fixture.RandomLong();
+            var ticketId2 = _fixture.RandomLong();
+            var ticketId3 = _fixture.RandomLong();
+            
+            db.TicketSales.AddRange(
+                new TicketSales
+                {
+                    Id = ticketId1,
+                    CustomerName = "Tom",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 12, 1), Number = "ORDER-PREMIUM" }
+                },
+                new TicketSales
+                {
+                    Id = ticketId2,
+                    CustomerName = "Uma",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 12, 2), Number = "ORDER-BASIC" }
+                },
+                new TicketSales
+                {
+                    Id = ticketId3,
+                    CustomerName = "Vera",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 12, 3), Number = "ORDER-PREMIUM" }
+                }
+            );
+            await db.SaveChangesAsync();
+
+            // Query using LINQ with EndsWith
+            var suffix = "PREMIUM";
+            var sales = await db.TicketSales
+                .Where(ts => ts.Receipt.Number.EndsWith(suffix) && new[] { ticketId1, ticketId2, ticketId3 }.Contains(ts.Id))
+                .OrderBy(ts => ts.CustomerName)
+                .ToListAsync();
+
+            Assert.Equal(2, sales.Count);
+            Assert.Equal("Tom", sales[0].CustomerName);
+            Assert.Equal("Vera", sales[1].CustomerName);
+        }
+
+        [Fact]
+        public async Task CanQueryJsonColumnByDatePropertyBetweenRange()
+        {
+            // Test querying JSON DATE property with range comparison (>= AND <)
+            // Verifies that CAST works correctly in combined conditions
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            
+            var ticketId1 = _fixture.RandomLong();
+            var ticketId2 = _fixture.RandomLong();
+            var ticketId3 = _fixture.RandomLong();
+            var ticketId4 = _fixture.RandomLong();
+            var startDate = new DateOnly(2024, 3, 1);
+            var endDate = new DateOnly(2024, 4, 1);
+            
+            db.TicketSales.AddRange(
+                new TicketSales
+                {
+                    Id = ticketId1,
+                    CustomerName = "Will",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 2, 28), Number = $"RNG-{ticketId1}" } // Before range
+                },
+                new TicketSales
+                {
+                    Id = ticketId2,
+                    CustomerName = "Xena",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 3, 15), Number = $"RNG-{ticketId2}" } // In range
+                },
+                new TicketSales
+                {
+                    Id = ticketId3,
+                    CustomerName = "Yuki",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 3, 31), Number = $"RNG-{ticketId3}" } // In range (end boundary)
+                },
+                new TicketSales
+                {
+                    Id = ticketId4,
+                    CustomerName = "Zara",
+                    Receipt = new Receipt { Date = new DateOnly(2024, 4, 1), Number = $"RNG-{ticketId4}" } // At end (excluded)
+                }
+            );
+            await db.SaveChangesAsync();
+
+            // Query using LINQ with date range
+            var sales = await db.TicketSales
+                .Where(ts => ts.Receipt.Date >= startDate && ts.Receipt.Date < endDate 
+                          && new[] { ticketId1, ticketId2, ticketId3, ticketId4 }.Contains(ts.Id))
+                .OrderBy(ts => ts.Receipt.Date)
+                .ToListAsync();
+
+            Assert.Equal(2, sales.Count);
+            Assert.Equal("Xena", sales[0].CustomerName);  // March 15
+            Assert.Equal("Yuki", sales[1].CustomerName);  // March 31
+        }
     }
 }
