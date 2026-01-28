@@ -46,7 +46,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         {
             GaxPreconditions.CheckNotNull(serviceCollection, nameof(serviceCollection));
 
-            var builder = new EntityFrameworkRelationalServicesBuilder(serviceCollection)
+            var builder = new EntityFrameworkRelationalServicesBuilder(serviceCollection);
+            builder
                 .TryAdd<LoggingDefinitions, SpannerLoggingDefinitions>()
                 .TryAdd<IDatabaseProvider, DatabaseProvider<SpannerOptionsExtension>>()
                 .TryAdd<IRelationalTypeMappingSource, SpannerTypeMappingSource>()
@@ -59,6 +60,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                 .TryAdd<IBatchExecutor, SpannerBatchExecutor>()
                 .TryAdd<IModificationCommandBatchFactory, SpannerModificationCommandBatchFactory>()
                 .TryAdd<IQuerySqlGeneratorFactory, SpannerQuerySqlGeneratorFactory>()
+                .TryAdd<IRelationalSqlTranslatingExpressionVisitorFactory, SpannerSqlTranslatingExpressionVisitorFactory>()
                 .TryAdd<IMethodCallTranslatorProvider, SpannerMethodCallTranslatorProvider>()
                 .TryAdd<IMemberTranslatorProvider, SpannerMemberTranslatorProvider>()
                 .TryAdd<IRelationalConnection>(p => p.GetService<ISpannerRelationalConnection>())
@@ -73,6 +75,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                   .TryAddProviderSpecificServices(b => b
                   .TryAddScoped<ISpannerRelationalConnection, SpannerRelationalConnection>()
                 );
+            // Add Core services after the Spanner-specific services to let the
+            // Spanner-specific services take precedence.
             builder.TryAddCoreServices();
             serviceCollection.AddEntityFrameworkProxies();
             return serviceCollection;

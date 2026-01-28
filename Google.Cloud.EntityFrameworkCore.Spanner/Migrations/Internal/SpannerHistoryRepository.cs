@@ -14,12 +14,32 @@
 
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
-using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 {
+    internal sealed class NoOpMigrationsDatabaseLock : IMigrationsDatabaseLock
+    {
+        public IHistoryRepository HistoryRepository { get; }
+
+        internal NoOpMigrationsDatabaseLock(IHistoryRepository historyRepository)
+        {
+            HistoryRepository = historyRepository;
+        }
+        
+        public void Dispose()
+        {
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return ValueTask.CompletedTask;
+        }
+    }
+    
     /// <summary>
     ///     This is internal functionality and not intended for public use.
     /// </summary>
@@ -46,22 +66,29 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 
         protected override HistoryRepositoryDependencies Dependencies { get; }
 
+        public override LockReleaseBehavior LockReleaseBehavior { get; } = LockReleaseBehavior.Explicit;
+
+        public override IMigrationsDatabaseLock AcquireDatabaseLock()
+        {
+            // Spanner does not have a feature that can be used to exclusively lock the entire database.
+            // So we translate this to a no-op.
+            return new NoOpMigrationsDatabaseLock(this);
+        }
+
+        public override Task<IMigrationsDatabaseLock> AcquireDatabaseLockAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(AcquireDatabaseLock());
+        }
+
+
         /// <summary>
         ///     This is internal functionality and not intended for public use.
         /// </summary>
-        protected override string ExistsSql
-        {
-            get
-            {
-                var stringTypeMapping = Dependencies.TypeMappingSource.GetMapping(typeof(string));
-
-                var builder = new StringBuilder();
-                builder.Append("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_catalog = '' and table_schema = '' and table_name = ")
-                    .Append($"{stringTypeMapping.GenerateSqlLiteral(Dependencies.SqlGenerationHelper.DelimitIdentifier(TableName, TableSchema))})");
-                builder.Replace("`", "");
-                return builder.ToString();
-            }
-        }
+        protected override string ExistsSql =>
+            $"SELECT EXISTS(SELECT 1 " +
+            $"FROM information_schema.tables " +
+            $"WHERE table_schema = '{TableSchema}' " +
+            $"  AND table_name = '{TableName}')";
 
         /// <summary>
         ///     This is internal functionality and not intended for public use.
@@ -73,7 +100,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
         /// </summary>
         public override string GetCreateIfNotExistsScript()
         {
-            throw new NotSupportedException("Cloud Spanner does not support CREATE IF NOT EXISTS style commands.");
+            return GetCreateScript().Replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS");
         }
 
         /// <summary>

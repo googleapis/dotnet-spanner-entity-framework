@@ -19,6 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore.Storage.Json;
 
@@ -206,6 +207,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(SpannerNumeric), s_numeric},
                     {typeof(JsonDocument), s_json},
                     {typeof(JsonElement), s_structuralJson},
+                    {typeof(JsonTypePlaceholder), s_structuralJson},
                     {typeof(uint), s_uint},
                     {typeof(bool), s_bool},
                     {typeof(SpannerDate), s_date},

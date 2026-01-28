@@ -62,7 +62,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
                     var update = request as UpdateDatabaseDdlRequest;
                     Assert.NotNull(update);
                     Assert.Collection(update.Statements,
-                        sql => Assert.StartsWith("CREATE TABLE `EFMigrationsHistory`", sql)
+                        sql => Assert.StartsWith("CREATE TABLE IF NOT EXISTS `EFMigrationsHistory`", sql)
                     );
                 },
                 // Each migration will be executed as a separate DDL batch.

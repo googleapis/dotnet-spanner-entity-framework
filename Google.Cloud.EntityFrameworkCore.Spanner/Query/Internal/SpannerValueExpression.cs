@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
+using System.Linq.Expressions;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -25,4 +27,9 @@ internal abstract class SpannerValueExpression : SqlExpression
     }
 
     internal abstract SqlExpression Value { get; }
+    
+    public override Expression Quote()
+    {
+        throw new NotImplementedException();
+    }
 }

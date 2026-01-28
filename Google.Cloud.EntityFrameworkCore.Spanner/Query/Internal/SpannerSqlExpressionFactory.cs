@@ -29,15 +29,23 @@ public class SpannerSqlExpressionFactory : SqlExpressionFactory
     {
         _boolTypeMapping = dependencies.TypeMappingSource.FindMapping(typeof(bool), dependencies.Model)!;
     }
-    
-    public override InExpression In(SqlExpression item, SqlParameterExpression valuesParameter)
+
+    public override SqlExpression Convert(SqlExpression operand, System.Type type, RelationalTypeMapping? typeMapping = null)
     {
+        typeMapping ??= Dependencies.TypeMappingSource.FindMapping(type, Dependencies.Model);
+        return base.Convert(operand, type, typeMapping);
+    }
+
+
+    public override SqlExpression In(SqlExpression item, SqlParameterExpression valuesParameter)
+    {
+        var itemTypeMapping = Dependencies.TypeMappingSource.FindMapping(item.Type);
         var parametersTypeMapping = Dependencies.TypeMappingSource.FindMapping(valuesParameter.Type);
-        if (parametersTypeMapping != null)
+        if (itemTypeMapping != null && parametersTypeMapping != null)
         {
             return new SpannerInExpression(
                 item,
-                (SqlParameterExpression) valuesParameter.ApplyTypeMapping(parametersTypeMapping),
+                valuesParameter.ApplyTypeMapping(parametersTypeMapping),
                 _boolTypeMapping);
         }
         return base.In(item, valuesParameter);
