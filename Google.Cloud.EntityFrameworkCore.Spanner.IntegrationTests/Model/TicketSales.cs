@@ -21,7 +21,7 @@ public class TicketSales
     public string CustomerName { get; set; }
     
     /// <summary>
-    /// Receipt is stored as a JSON column in the database.
+    /// Receipt is stored as a JSON column in the database using OwnsOne with ToJson.
     /// </summary>
     public Receipt? Receipt { get; set; }
 }

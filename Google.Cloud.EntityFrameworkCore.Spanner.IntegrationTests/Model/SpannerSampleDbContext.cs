@@ -218,11 +218,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
             
             modelBuilder.Entity<TicketSales>(entity =>
             {
-                entity.Property(e => e.Receipt)
-                    .HasConversion<string>(
-                        v => v == null ? null : JsonConvert.SerializeObject(v),
-                        v => v == null ? null : JsonConvert.DeserializeObject<Receipt>(v))
-                    .HasColumnType("JSON");
+                // Use EF Core 8+ JSON column support with owned entities
+                // This allows EF Core to generate JsonScalarExpression nodes for property access
+                // which our VisitJsonScalar implementation translates to JSON_VALUE calls
+                entity.OwnsOne(e => e.Receipt, ownedBuilder =>
+                {
+                    ownedBuilder.ToJson();
+                    ownedBuilder.Property(r => r.Date).IsRequired();
+                    ownedBuilder.Property(r => r.Number).IsRequired();
+                });
             });
         }
     }

@@ -202,6 +202,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 return jsonScalarExpression;
             }
             
+            // JSON_VALUE in Spanner always returns STRING.
+            // For non-string types, we need to wrap the result in CAST() to convert to the expected type.
+            // This is similar to how SQL Server handles JSON_VALUE (which returns nvarchar(4000)).
+            var typeMapping = jsonScalarExpression.TypeMapping;
+            var needsCast = typeMapping != null 
+                && typeMapping.StoreType != "STRING" 
+                && typeMapping.StoreType != "JSON";
+            
+            if (needsCast)
+            {
+                Sql.Append("CAST(");
+            }
+            
             // Use JSON_VALUE with JSONPath syntax for Spanner
             // Example: JSON_VALUE(column, '$.property.nested')
             
@@ -256,6 +269,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             Sql.Append(", '");
             Sql.Append(jsonPath);
             Sql.Append("')");
+            
+            // Close the CAST if needed
+            if (needsCast)
+            {
+                Sql.Append(" AS ");
+                Sql.Append(typeMapping!.StoreType);
+                Sql.Append(")");
+            }
             
             return jsonScalarExpression;
         }
