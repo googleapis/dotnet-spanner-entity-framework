@@ -38,5 +38,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
             builder.Metadata.AddAnnotation(SpannerAnnotationNames.InterleaveInParentOnDelete, onDelete);
             return builder;
         }
+
+        /// <summary>
+        /// Indicates that an index should be interleaved in a table.
+        /// </summary>
+        /// <param name="builder">The index builder to modify</param>
+        /// <param name="interleaveInEntity">The entity (table) that the index should be interleaved in</param>
+        /// <typeparam name="TEntity">The entity type that owns the index</typeparam>
+        /// <returns> The same builder instance so that multiple configuration calls can be chained.</returns>
+        public static IndexBuilder<TEntity> InterleaveIn<TEntity>(
+            this IndexBuilder<TEntity> builder, System.Type interleaveInEntity) where TEntity : class
+        {
+            builder.Metadata.AddAnnotation(SpannerAnnotationNames.InterleaveIn, interleaveInEntity.FullName);
+            return builder;
+        }
     }
 }
