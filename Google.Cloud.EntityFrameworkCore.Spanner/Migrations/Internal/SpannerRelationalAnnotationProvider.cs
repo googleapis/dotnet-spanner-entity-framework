@@ -124,6 +124,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                 {
                     indexAnnotations = indexAnnotations.Concat(new[] { storingIndexAnnotation });
                 }
+
+                var interleaveInAnnotation = mapping.FindAnnotation(SpannerAnnotationNames.InterleaveIn);
+                if (interleaveInAnnotation != null)
+                {
+                    indexAnnotations = indexAnnotations.Concat(new[] { interleaveInAnnotation });
+                }
             }
 
             return indexAnnotations;

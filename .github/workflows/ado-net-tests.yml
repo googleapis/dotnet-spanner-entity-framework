@@ -20,6 +20,19 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ matrix.dotnet-version }}
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.x'
+      - name: Checkout go-sql-spanner
+        uses: actions/checkout@v6
+        with:
+          repository: 'googleapis/go-sql-spanner'
+          path: spanner-ado-net/spanner-ado-net/go-sql-spanner
+      - name: Build SpannerLib binaries
+        run: ./build-binaries.sh true
+        working-directory: spanner-ado-net/spanner-ado-net
+        shell: bash
       - name: spanner-ado-net-tests
         working-directory: spanner-ado-net/spanner-ado-net-tests
         run: dotnet test --verbosity normal

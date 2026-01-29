@@ -20,8 +20,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
 {
@@ -73,7 +77,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
             var transactionManager = databaseFacade.GetService<IDbContextTransactionManager>();
             if (transactionManager is SpannerRelationalConnection spannerRelationalConnection)
             {
-                return spannerRelationalConnection.BeginTransactionAsync(tag);
+                return spannerRelationalConnection.BeginTransactionAsync(tag, cancellationToken);
             }
             throw new InvalidOperationException("Transaction tags can only be used with Spanner databases");
         }
@@ -122,6 +126,91 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
                 return spannerRelationalConnection.BeginReadOnlyTransactionAsync(timestampBound, cancellationToken);
             }
             throw new InvalidOperationException("Read-only transactions can only be started for Spanner databases");
+        }
+
+        /// <summary>
+        /// Starts the DDL operations that are needed for any pending migrations, but does not wait for the DDL
+        /// operations to finish. The returned task is done when the DDL operations have successfully been started.
+        ///
+        /// This method calls the <seealso cref="SpannerCommand.StartDdlAsync(CancellationToken)"/> method instead of
+        /// the standard <seealso cref="SpannerCommand.ExecuteNonQueryAsync(CancellationToken)"/> method.
+        ///
+        /// This method should only be used for Spanner databases, and only for migrations that create schema objects
+        /// that are not directly required by the application, as the objects are not guaranteed to have been created
+        /// when this method or the task that it returns have finished.
+        /// </summary>
+        /// <param name="databaseFacade">The Spanner database to start the DDL operations on.</param>
+        /// <param name="cancellationToken">
+        /// A <see cref="CancellationToken" /> cancellation token for the RPC that starts the DDL operation. Note that
+        /// this token cannot be used to cancel the execution of the DDL operation once it has been started.
+        /// It can only be used to cancel the creation of the DDL operation.
+        /// </param>
+        public static Task StartMigrateAsync([NotNull] this DatabaseFacade databaseFacade, CancellationToken cancellationToken = default)
+            => StartMigrateAsync(databaseFacade, null, cancellationToken);
+        
+        /// <summary>
+        /// Starts the DDL operations that are needed for any pending migrations up until the target migration,
+        /// but does not wait for the DDL operations to finish. The returned task is done when the DDL operations
+        /// have successfully been started.
+        ///
+        /// This method calls the <seealso cref="SpannerCommand.StartDdlAsync(CancellationToken)"/> method instead of
+        /// the standard <seealso cref="SpannerCommand.ExecuteNonQueryAsync(CancellationToken)"/> method.
+        ///
+        /// This method should only be used for Spanner databases, and only for migrations that create schema objects
+        /// that are not directly required by the application, as the objects are not guaranteed to have been created
+        /// when this method or the task that it returns have finished.
+        /// </summary>
+        /// <param name="databaseFacade">The Spanner database to start the DDL operations on.</param>
+        /// <param name="targetMigration">The target migration to migrate the database to, or null to migrate to the latest.</param>
+        /// <param name="cancellationToken">
+        /// A <see cref="CancellationToken" /> cancellation token for the RPC that starts the DDL operation. Note that
+        /// this token cannot be used to cancel the execution of the DDL operation once it has been started.
+        /// It can only be used to cancel the creation of the DDL operation.
+        /// </param>
+        public static async Task StartMigrateAsync([NotNull] this DatabaseFacade databaseFacade, [CanBeNull] string targetMigration, CancellationToken cancellationToken = default)
+        {
+            var connection = databaseFacade.GetService<ISpannerRelationalConnection>();
+            var migrator = databaseFacade.GetService<IMigrator>();
+            var originalDdlExecutionStrategy = connection.DdlExecutionStrategy;
+            try
+            {
+                connection.DdlExecutionStrategy = DdlExecutionStrategy.StartOperation;
+                await migrator.MigrateAsync(targetMigration, cancellationToken);
+            }
+            finally
+            {
+                connection.DdlExecutionStrategy = originalDdlExecutionStrategy;
+            }
+        }
+
+        /// <summary>
+        /// Starts a DDL operation on Spanner with the given statements and returns the ID of the long-running
+        /// operation that was started. The method does not wait for the execution of the DDL statements to finish.
+        /// 
+        /// The cancellation token can only be used to cancel the request to start the execution of the DDL statements.
+        /// It cannot be used to cancel the long-running operation once it has been started.
+        /// The command must contain only DDL statements. The method returns null if the list of statements is empty,
+        /// or if the list of DDL statements only contains a DROP DATABASE statement.
+        /// </summary>
+        /// <param name="databaseFacade">The Spanner database to start the DDL operations on.</param>
+        /// <param name="ddlStatements">The DDL statements to start executing.</param>
+        /// <param name="cancellationToken">
+        /// A cancellation token for the RPC that starts the DDL operation.
+        /// This token cannot be used to cancel the execution of the DDL operation once it has been started.
+        /// </param>
+        /// <returns>The ID of the long-running operation that was started.</returns>
+        [ItemCanBeNull]
+        public static Task<string> StartDdlAsync([NotNull] this DatabaseFacade databaseFacade, string[] ddlStatements, CancellationToken cancellationToken = default)
+        {
+            GaxPreconditions.CheckNotNull(databaseFacade, nameof(databaseFacade));
+            GaxPreconditions.CheckNotNull(ddlStatements, nameof(ddlStatements));
+            if (ddlStatements.Length == 0)
+            {
+                return null;
+            }
+            var connection = GetSpannerConnection(databaseFacade);
+            var command = connection.CreateDdlCommand(ddlStatements.First(), ddlStatements.Skip(1).ToArray());
+            return command.StartDdlAsync(cancellationToken);
         }
     }
 }

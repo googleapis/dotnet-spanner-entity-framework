@@ -9,24 +9,44 @@
     <PackageId>Alpha.Google.Cloud.Spanner.DataProvider</PackageId>
     <Title>.NET Data Provider for Spanner</Title>
     <Authors>Google</Authors>
-    <Version>1.0.0-alpha.20251217172149</Version>
+    <Version>1.0.0-alpha.20260123102444</Version>
     <Description>ADO.NET Data Provider.
 
       Alpha version: Not for production use</Description>
     <Copyright>Apache v2.0</Copyright>
-    <PackageLicenseUrl>https://github.com/googleapis/dotnet-spanner-entity-framework/spanner-ado-net/LICENSE</PackageLicenseUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageIconUrl>https://cloud.google.com/images/gcp-icon-64x64.png</PackageIconUrl>
     <RepositoryUrl>https://github.com/googleapis/dotnet-spanner-entity-framework/spanner-ado-net</RepositoryUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <DebugType>portable</DebugType>
+    <Deterministic>true</Deterministic>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Alpha.Google.Cloud.SpannerLib" Version="1.0.0-alpha.20260121173057" />
-    <PackageReference Include="Alpha.Google.Cloud.SpannerLib.Grpc.V1" Version="1.0.0-alpha.20260121173057" />
-    <PackageReference Include="Alpha.Google.Cloud.SpannerLib.GrpcImpl" Version="1.0.0-alpha.20260121173057" />
-    <PackageReference Include="Alpha.Google.Cloud.SpannerLib.NativeImpl" Version="1.0.0-alpha.20260121173057" />
     <PackageReference Include="ConfigureAwaitChecker.Analyzer" Version="5.0.0.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Google.Cloud.Spanner.V1" Version="5.12.0" />
+    <PackageReference Include="Grpc.Net.Client" Version="2.76.0" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="runtimes/any/native/*" Pack="true" PackagePath="runtimes/any/native/" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="runtimes/linux-x64/native/*" Pack="true" PackagePath="runtimes/linux-x64/native/" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="runtimes/linux-arm64/native/*" Pack="true" PackagePath="runtimes/linux-arm64/native/" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="runtimes/osx-arm64/native/*" Pack="true" PackagePath="runtimes/osx-arm64/native/" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="runtimes/win-x64/native/*" Pack="true" PackagePath="runtimes/win-x64/native/" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
