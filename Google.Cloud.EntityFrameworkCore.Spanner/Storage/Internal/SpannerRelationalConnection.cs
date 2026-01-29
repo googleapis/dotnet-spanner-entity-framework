@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
 using System.Data;
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
@@ -23,6 +24,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
+using Google.Api.Gax;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
@@ -81,7 +83,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <param name="tag">The transaction tag to use for the transaction</param>
         /// <returns>A read/write transaction that uses the given isolation level and tag</returns>
         public IDbContextTransaction BeginTransaction(IsolationLevel isolationLevel, string tag)
-            => UseTransaction(Connection.BeginTransaction(isolationLevel, tag));
+        {
+            GaxPreconditions.CheckState(CurrentTransaction == null, "This connection already has a transaction");
+            var transaction = Connection.BeginTransaction(isolationLevel, tag);
+            CurrentTransaction = CreateRelationalTransaction(transaction, Guid.NewGuid(), transactionOwned: true);
+            return CurrentTransaction;
+        }
+        
+        private IDbContextTransaction CreateRelationalTransaction(DbTransaction transaction, Guid transactionId, bool transactionOwned)
+            => CurrentTransaction
+                = Dependencies.RelationalTransactionFactory.Create(
+                    this,
+                    transaction,
+                    transactionId,
+                    Dependencies.TransactionLogger,
+                    transactionOwned: transactionOwned);
 
         /// <summary>
         /// Begins a read/write transaction on this connection with the given transaction tag.
@@ -100,7 +116,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <param name="cancellationToken">A <see cref="CancellationToken" /> cancellation token to monitor for the asynchronous operation.</param>
         /// <returns>A read/write transaction that uses the given isolation level and tag</returns>
         public async Task<IDbContextTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, string tag, CancellationToken cancellationToken = default)
-            => await UseTransactionAsync(await Connection.BeginTransactionAsync(isolationLevel, tag, cancellationToken), cancellationToken);
+        {
+            GaxPreconditions.CheckState(CurrentTransaction == null, "This connection already has a transaction");
+            var transaction = await Connection.BeginTransactionAsync(isolationLevel, tag,  cancellationToken).ConfigureAwait(false);
+            CurrentTransaction = CreateRelationalTransaction(transaction, Guid.NewGuid(), transactionOwned: true);
+            return CurrentTransaction;
+        }
 
         /// <summary>
         /// Begins a read-only transaction on this connection.
@@ -113,8 +134,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// </summary>
         /// <param name="timestampBound">The read timestamp to use for the transaction</param>
         /// <returns>A read-only transaction that uses the specified <see cref="TimestampBound"/></returns>
-        public IDbContextTransaction BeginReadOnlyTransaction(TimestampBound timestampBound) =>
-            UseTransaction(Connection.BeginReadOnlyTransaction(timestampBound));
+        public IDbContextTransaction BeginReadOnlyTransaction(TimestampBound timestampBound)
+        {
+            GaxPreconditions.CheckState(CurrentTransaction == null, "This connection already has a transaction");
+            var transaction = Connection.BeginReadOnlyTransaction(timestampBound);
+            CurrentTransaction = CreateRelationalTransaction(transaction, Guid.NewGuid(), transactionOwned: true);
+            return CurrentTransaction;
+        }
 
         /// <summary>
         /// Begins a read-only transaction on this connection.
@@ -128,8 +154,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <param name="timestampBound">The read timestamp to use for the transaction</param>
         /// <param name="cancellationToken">A <see cref="CancellationToken" /> cancellation token to monitor for the asynchronous operation.</param>
         /// <returns>A read-only transaction that uses the specified <see cref="TimestampBound"/></returns>
-        public async Task<IDbContextTransaction> BeginReadOnlyTransactionAsync(TimestampBound timestampBound, CancellationToken cancellationToken = default) =>
-            await UseTransactionAsync(await Connection.BeginReadOnlyTransactionAsync(timestampBound, cancellationToken));
+        public async Task<IDbContextTransaction> BeginReadOnlyTransactionAsync(TimestampBound timestampBound, CancellationToken cancellationToken = default)
+        {
+            GaxPreconditions.CheckState(CurrentTransaction == null, "This connection already has a transaction");
+            var transaction = await Connection.BeginReadOnlyTransactionAsync(timestampBound, cancellationToken).ConfigureAwait(false);
+            CurrentTransaction = CreateRelationalTransaction(transaction, Guid.NewGuid(), transactionOwned: true);
+            return CurrentTransaction;
+        }
 
         /// <summary>
         /// Creates a connection to the Cloud Spanner instance that is referenced by <see cref="RelationalConnection.ConnectionString"/>.

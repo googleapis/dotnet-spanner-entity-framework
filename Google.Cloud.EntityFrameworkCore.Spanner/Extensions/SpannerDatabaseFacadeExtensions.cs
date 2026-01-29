@@ -77,7 +77,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
             var transactionManager = databaseFacade.GetService<IDbContextTransactionManager>();
             if (transactionManager is SpannerRelationalConnection spannerRelationalConnection)
             {
-                return spannerRelationalConnection.BeginTransactionAsync(tag);
+                return spannerRelationalConnection.BeginTransactionAsync(tag, cancellationToken);
             }
             throw new InvalidOperationException("Transaction tags can only be used with Spanner databases");
         }
