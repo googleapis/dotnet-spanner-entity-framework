@@ -2201,21 +2201,43 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
-        public async Task OnlyDisposingReadOnlyTransactionWithoutCommitting_LeaksSession()
+        public async Task OnlyDisposingReadOnlyTransactionWithoutCommitting_DoesNotLeakSession()
         {
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
                                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
                                 $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
 
-            var exception = await Assert.ThrowsAsync<SpannerException>(() => Repeat(async () =>
+            await Repeat(async () =>
             {
                 using var db = CreateContext();
                 // NOTE: This transaction is being disposed, but it's not being committed or rolled back.
                 using var transaction = await db.Database.BeginReadOnlyTransactionAsync();
                 Assert.NotNull(await db.Singers.FindAsync(1L));
                 // Note: No Commit or Rollback
-            }));
-            Assert.Equal(ErrorCode.ResourceExhausted, exception.ErrorCode);
+            });
+        }
+
+        [Fact]
+        public async Task EmptyReadWriteTransactionWithTagDoesNotLeakSession()
+        {
+            await using var db = CreateContext();
+            await Repeat(async () =>
+            {
+                // Execute an empty read/write transaction with a tag.
+                await using var transaction = await db.Database.BeginTransactionAsync("some_tag");
+                await transaction.CommitAsync();
+            });
+        }
+
+        [Fact]
+        public async Task StartingTwoTransactionsOnSameConnectionFailsAndDoesNotLeakSession()
+        {
+            await using var db = CreateContext();
+            await Repeat(async () =>
+            {
+                await using var transaction1 = await db.Database.BeginTransactionAsync("some_tag1");
+                await Assert.ThrowsAsync<InvalidOperationException>(async () => await db.Database.BeginTransactionAsync("some_tag2"));
+            });
         }
 
         private void AddFindSingerResult(string sql)

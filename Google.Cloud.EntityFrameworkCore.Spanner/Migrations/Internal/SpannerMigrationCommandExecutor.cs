@@ -22,6 +22,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using IsolationLevel = System.Data.IsolationLevel;
+using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 {
@@ -49,6 +50,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             CancellationToken cancellationToken = default)
         {
             GaxPreconditions.CheckArgument(connection is SpannerRelationalConnection, nameof(connection), "Can only be used with Spanner connections");
+            // Spanner does not support DDL transactions. We therefore ignore the transaction options given
+            // for the migration commands. Any DML statements are executed in a separate transaction.
+            // Any existing transaction on the connection is auto-committed before the execution of the
+            // migration commands.
+            if (executionState.Transaction != null)
+            {
+                await executionState.Transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                executionState.Transaction.Dispose();
+                executionState.Transaction = null;
+            }
+            
             var useIsolationLevel = isolationLevel ?? IsolationLevel.Unspecified;
             var result = 0;
             var statements = migrationCommands.Select(x => x.CommandText).ToArray();
@@ -56,15 +68,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             {
                 return result;
             }
-            // Spanner does not support DDL transactions. We therefore ignore the transaction options given
-            // for the migration commands. Any DML statements are executed in a separate transaction.
             var ddlStatements = statements.Where(IsDdlStatement).ToArray();
             var otherStatements = statements.Where(x => !IsDdlStatement(x)).ToArray();
             var spannerConnection = (((SpannerRelationalConnection) connection).DbConnection as SpannerRetriableConnection)!;
             if (ddlStatements.Length != 0)
             {
                 var cmd = spannerConnection.CreateDdlCommand(ddlStatements[0], ddlStatements.Skip(1).ToArray());
-                await cmd.ExecuteNonQueryAsync(cancellationToken);
+                var spannerRelationalConnection = connection as SpannerRelationalConnection;
+                if (spannerRelationalConnection?.DdlExecutionStrategy == DdlExecutionStrategy.StartOperation)
+                {
+                    await cmd.StartDdlOperationAsync(cancellationToken);
+                }
+                else
+                {
+                    await cmd.ExecuteNonQueryAsync(cancellationToken);
+                }
             }
             if (otherStatements.Length != 0)
             {
@@ -82,7 +100,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             return result;
         }
 
-        private bool IsDdlStatement(string statement)
+        private static bool IsDdlStatement(string statement)
         {
             return SpannerCommandTextBuilder.FromCommandText(statement).SpannerCommandType == SpannerCommandType.Ddl;
         }

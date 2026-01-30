@@ -54,6 +54,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
                 entity.HasIndex(e => e.Title)
                     .HasDatabaseName("AlbumsByAlbumTitle2")
                     .Storing(a => new { a.MarketingBudget, a.ReleaseDate });
+                entity.HasIndex(e => new { e.SingerId, e.ReleaseDate, e.MarketingBudget, e.Title })
+                    .IsDescending(false, true, true, false)
+                    .HasDatabaseName("AlbumsBySingerIdReleaseDateMarketingBudgetTitle");
 
                 entity.HasOne(d => d.Singer)
                     .WithMany(p => p.Albums)
@@ -76,6 +79,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests.Models
                     .HasForeignKey(d => d.SingerId)
                     .OnDelete(DeleteBehavior.Cascade)
                     .HasConstraintName("FK_Concerts_Singers");
+                entity.HasIndex(concert => new { concert.SingerId, concert.StartTime })
+                    .HasDatabaseName("idx_concerts_singerId_startTime")
+                    .InterleaveIn(typeof(Singers));
 
                 entity.HasOne(d => d.VenueCodeNavigation)
                     .WithMany(p => p.Concerts)

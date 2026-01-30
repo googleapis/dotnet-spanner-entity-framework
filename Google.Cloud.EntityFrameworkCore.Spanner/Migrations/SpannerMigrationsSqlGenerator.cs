@@ -133,9 +133,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
                 .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Name))
                 .Append(" ON ")
                 .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Table, operation.Schema))
-                .Append(" (")
-                .Append(ColumnList(operation.Columns))
-                .Append(")");
+                .Append(" (");
+            GenerateIndexColumnList(operation, model, builder);
+            builder.Append(")");
 
             if (operation[SpannerAnnotationNames.Storing] is string[] storingColumns
                             && storingColumns.Length > 0)
@@ -144,7 +144,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
                     .Append(ColumnList(storingColumns))
                     .Append(")");
             }
-
+            var interleaveAnnotation = operation.FindAnnotation(SpannerAnnotationNames.InterleaveIn);
+            if (interleaveAnnotation is { Value: not null } && model != null)
+            {
+                var interleaveInIdentifier = interleaveAnnotation.Value.ToString();
+                // The identifier can be either an entity type name (code-first) or a table name (database-first).
+                var interleaveInEntityType = model.FindEntityType(interleaveInIdentifier!) 
+                                             ?? model.GetEntityTypes().FirstOrDefault(e => e.GetTableName() == interleaveInIdentifier);
+                var parentTableName = interleaveInEntityType?.GetTableName();
+                if (parentTableName != null)
+                {
+                    builder.AppendLine(",")
+                        .Append(" INTERLEAVE IN ")
+                        .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(parentTableName));
+                }
+            }
+            
             if (terminate)
             {
                 EndStatement(builder, true);
