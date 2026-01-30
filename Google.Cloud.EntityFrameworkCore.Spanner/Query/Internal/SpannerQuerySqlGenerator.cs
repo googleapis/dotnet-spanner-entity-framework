@@ -253,9 +253,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                     }
                     else
                     {
-                        // For non-constant indices, we'd need dynamic evaluation
-                        // For now, use placeholder
-                        jsonPathBuilder.Append("0");
+                        // For non-constant indices, we'd need dynamic evaluation.
+                        // Throw an exception to prevent silently generating a potentially incorrect query.
+                        throw new NotSupportedException("The Cloud Spanner EF Core provider does not support using a non-constant index when querying a JSON array.");
                     }
                     jsonPathBuilder.Append("]");
                 }
