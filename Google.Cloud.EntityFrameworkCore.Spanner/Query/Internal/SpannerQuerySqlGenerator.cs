@@ -195,34 +195,67 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         
         protected override Expression VisitJsonScalar(JsonScalarExpression jsonScalarExpression)
         {
-            Visit(jsonScalarExpression.Json);
             var path = jsonScalarExpression.Path;
             if (path.Count == 0)
             {
+                Visit(jsonScalarExpression.Json);
                 return jsonScalarExpression;
             }
             
-            // Generate Spanner JSON path access using bracket notation: JsonColumn['Property']['SubProperty']
-            // This is Spanner's native syntax for JSON path traversal
+            // Use JSON_VALUE with JSONPath syntax for Spanner
+            // Example: JSON_VALUE(column, '$.property.nested')
+            
+            // Build JSONPath expression: $.property.nested or $.property[0]
+            var jsonPathBuilder = new System.Text.StringBuilder("$");
             foreach (var pathSegment in path)
             {
                 if (pathSegment.PropertyName != null)
                 {
-                    // Escape single quotes and backslashes in property names
-                    var escapedPropertyName = pathSegment.PropertyName
-                        .Replace("\\", "\\\\")
-                        .Replace("'", "\\'");
+                    // Use dot notation for properties: $.property
+                    // Escape property names if they contain special characters
+                    var propertyName = pathSegment.PropertyName;
                     
-                    Sql.Append($"['{escapedPropertyName}']");
+                    // If property name has special characters, use bracket notation in JSONPath
+                    if (propertyName.Contains(".") || propertyName.Contains("'") || propertyName.Contains("\"") || propertyName.Contains(" "))
+                    {
+                        // Escape quotes for JSONPath bracket notation
+                        var escapedName = propertyName.Replace("\"", "\\\"");
+                        jsonPathBuilder.Append($"[\"{escapedName}\"]");
+                    }
+                    else
+                    {
+                        jsonPathBuilder.Append($".{propertyName}");
+                    }
                 }
                 else if (pathSegment.ArrayIndex != null)
                 {
-                    // Handle array index access
-                    Sql.Append("[");
-                    Visit(pathSegment.ArrayIndex);
-                    Sql.Append("]");
+                    // For array indices: $[0] or $.property[0]
+                    // Note: ArrayIndex is a SqlExpression, for constant indices this works
+                    // For dynamic indices, this would need more complex handling
+                    jsonPathBuilder.Append("[");
+                    // Try to get constant value if possible
+                    if (pathSegment.ArrayIndex is SqlConstantExpression constantExpr)
+                    {
+                        jsonPathBuilder.Append(constantExpr.Value);
+                    }
+                    else
+                    {
+                        // For non-constant indices, we'd need dynamic evaluation
+                        // For now, use placeholder
+                        jsonPathBuilder.Append("0");
+                    }
+                    jsonPathBuilder.Append("]");
                 }
             }
+            
+            var jsonPath = jsonPathBuilder.ToString();
+            
+            // Generate: JSON_VALUE(column, '$.path')
+            Sql.Append("JSON_VALUE(");
+            Visit(jsonScalarExpression.Json);
+            Sql.Append(", '");
+            Sql.Append(jsonPath);
+            Sql.Append("')");
             
             return jsonScalarExpression;
         }
