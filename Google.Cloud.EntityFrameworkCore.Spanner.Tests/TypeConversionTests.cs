@@ -76,7 +76,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             var sql = $"SELECT `t`.`Id`, `t`.`ByteCol`, `t`.`DecimalCol`, `t`.`FloatCol`" +
                 $"{Environment.NewLine}FROM `TestEntities` AS `t`{Environment.NewLine}" +
-                $"WHERE `t`.`Id` = @__p_0{Environment.NewLine}LIMIT 1";
+                $"WHERE `t`.`Id` = @p{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.Type, string>>
                 {
@@ -105,7 +105,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             var sql = $"SELECT `t`.`Id`, `t`.`ByteCol`, `t`.`DecimalCol`, `t`.`FloatCol`" +
                 $"{Environment.NewLine}FROM `TestEntities` AS `t`{Environment.NewLine}" +
-                $"WHERE `t`.`Id` = @__p_0{Environment.NewLine}LIMIT 1";
+                $"WHERE `t`.`Id` = @p{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.Type, string>>
                 {
@@ -129,7 +129,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             var sql = $"SELECT `t`.`Id`, `t`.`ByteCol`, `t`.`DecimalCol`, `t`.`FloatCol`" +
                 $"{Environment.NewLine}FROM `TestEntities` AS `t`{Environment.NewLine}" +
-                $"WHERE `t`.`Id` = @__p_0{Environment.NewLine}LIMIT 1";
+                $"WHERE `t`.`Id` = @p{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.Type, string>>
                 {
@@ -155,7 +155,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             var sql = $"SELECT `t`.`Id`, `t`.`ByteCol`, `t`.`DecimalCol`, `t`.`FloatCol`" +
                 $"{Environment.NewLine}FROM `TestEntities` AS `t`{Environment.NewLine}" +
-                $"WHERE `t`.`Id` = @__p_0{Environment.NewLine}LIMIT 1";
+                $"WHERE `t`.`Id` = @p{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.Type, string>>
                 {
