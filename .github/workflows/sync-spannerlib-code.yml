@@ -33,3 +33,4 @@ jobs:
           title: "chore: sync SpannerLib code"
           body: "Update the ADO.NET driver with the latest SpannerLib code."
           base: main
+          committer: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
