@@ -201,7 +201,29 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             {
                 return jsonScalarExpression;
             }
-            throw new ArgumentException("json path expressions are not supported");
+            
+            // Generate Spanner JSON path access using bracket notation: JsonColumn['Property']['SubProperty']
+            foreach (var pathSegment in path)
+            {
+                if (pathSegment.PropertyName != null)
+                {
+                    // Escape single quotes and backslashes in property names
+                    var escapedPropertyName = pathSegment.PropertyName
+                        .Replace("\\", "\\\\")
+                        .Replace("'", "\\'");
+                    
+                    Sql.Append($"['{escapedPropertyName}']");
+                }
+                else if (pathSegment.ArrayIndex != null)
+                {
+                    // Handle array index access
+                    Sql.Append("[");
+                    Visit(pathSegment.ArrayIndex);
+                    Sql.Append("]");
+                }
+            }
+            
+            return jsonScalarExpression;
         }
         
     }
