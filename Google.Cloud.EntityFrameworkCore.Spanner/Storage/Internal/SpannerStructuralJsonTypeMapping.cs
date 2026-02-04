@@ -24,7 +24,11 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 
-public class SpannerStructuralJsonTypeMapping : JsonTypeMapping
+/// <summary>
+/// Type mapping for JSON columns used by owned entities with .ToJson().
+/// Follows SQL Server's pattern of using JsonTypeMapping with JsonStringReaderWriter.
+/// </summary>
+internal class SpannerStructuralJsonTypeMapping : JsonTypeMapping
 {
     private static readonly MethodInfo CreateUtf8StreamMethod
         = typeof(SpannerStructuralJsonTypeMapping).GetMethod(nameof(CreateUtf8Stream), [typeof(string)])!;
@@ -34,7 +38,7 @@ public class SpannerStructuralJsonTypeMapping : JsonTypeMapping
 
     public static SpannerStructuralJsonTypeMapping Default => JsonTypeDefault;
 
-    public static SpannerStructuralJsonTypeMapping JsonTypeDefault { get; } = new("json");
+    public static SpannerStructuralJsonTypeMapping JsonTypeDefault { get; } = new("JSON");
 
     public SpannerStructuralJsonTypeMapping(string storeType)
         : base(storeType, typeof(JsonElement), System.Data.DbType.String)
@@ -58,11 +62,15 @@ public class SpannerStructuralJsonTypeMapping : JsonTypeMapping
 
     protected override string GenerateNonNullSqlLiteral(object value)
     {
-        if (value is string s)
+        if (value is not string stringValue)
         {
-            return $"JSON '{s}'";
+            throw new ArgumentException($"{value} is not valid for database type JSON");
         }
-        throw new ArgumentException($"{value} is not valid for database type JSON");
+
+        // For owned entities serialized to JSON, value is a string containing JSON
+        // Escape single quotes for SQL
+        var escaped = stringValue.Replace("'", "\\'");
+        return $"JSON '{escaped}'";
     }
 
     protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters)
@@ -72,4 +80,5 @@ public class SpannerStructuralJsonTypeMapping : JsonTypeMapping
     {
         ((SpannerParameter)parameter).SpannerDbType = SpannerDbType.Json;
         base.ConfigureParameter(parameter);
-    }}
+    }
+}
