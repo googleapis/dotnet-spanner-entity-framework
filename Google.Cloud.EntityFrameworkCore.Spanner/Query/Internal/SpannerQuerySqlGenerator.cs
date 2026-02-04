@@ -231,8 +231,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                     // If property name has special characters, use bracket notation in JSONPath
                     if (propertyName.Contains(".") || propertyName.Contains("'") || propertyName.Contains("\"") || propertyName.Contains(" "))
                     {
-                        // Escape quotes for JSONPath bracket notation
-                        var escapedName = propertyName.Replace("\"", "\\\"");
+                        // Escape quotes and backslashes for JSONPath bracket notation
+                        var escapedName = propertyName.Replace("\\", "\\\\").Replace("\"", "\\\"");
                         jsonPathBuilder.Append($"[\"{escapedName}\"]");
                     }
                     else
