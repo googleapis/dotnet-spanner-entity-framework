@@ -62,8 +62,12 @@ internal class SpannerStructuralJsonTypeMapping : JsonTypeMapping
 
     protected override string GenerateNonNullSqlLiteral(object value)
     {
+        if (value is not string stringValue)
+        {
+            throw new ArgumentException($"{value} is not valid for database type JSON");
+        }
+
         // For owned entities serialized to JSON, value is a string containing JSON
-        var stringValue = (string)value;
         // Escape single quotes for SQL
         var escaped = stringValue.Replace("'", "\'");
         return $"JSON '{escaped}'";
