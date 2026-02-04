@@ -69,19 +69,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             IReadOnlyList<SqlExpression> arguments,
             IDiagnosticsLogger<DbLoggerCategory.Query> logger)
         {
+            if (instance == null)
+            {
+                return null;
+            }
+
             // Handle JsonElement.GetProperty - this accesses a nested JSON property
             // For example: jsonColumn.GetProperty("propertyName")
             // Note: This is typically handled by EF Core's JsonScalarExpression generation
             // and processed by VisitJsonScalar. We return null here to let EF Core's
             // default translation handle this case.
-            if (s_getPropertyMethodInfo?.Equals(method) == true && instance != null && arguments.Count == 1)
+            if (s_getPropertyMethodInfo?.Equals(method) == true && arguments.Count == 1)
             {
                 // Return null to indicate we don't handle this - EF Core will use JsonScalarExpression
                 return null;
             }
 
             // Handle JsonElement.GetString - extract string value from JSON
-            if (s_getStringMethodInfo?.Equals(method) == true && instance != null)
+            if (s_getStringMethodInfo?.Equals(method) == true)
             {
                 // Cast the JSON value to STRING type
                 // Spanner will automatically extract the scalar value when casting
@@ -89,25 +94,25 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             }
 
             // Handle JsonElement.GetInt32 - extract int value from JSON
-            if (s_getInt32MethodInfo?.Equals(method) == true && instance != null)
+            if (s_getInt32MethodInfo?.Equals(method) == true)
             {
                 return _sqlExpressionFactory.Convert(instance, typeof(int));
             }
 
             // Handle JsonElement.GetInt64 - extract long value from JSON
-            if (s_getInt64MethodInfo?.Equals(method) == true && instance != null)
+            if (s_getInt64MethodInfo?.Equals(method) == true)
             {
                 return _sqlExpressionFactory.Convert(instance, typeof(long));
             }
 
             // Handle JsonElement.GetBoolean - extract bool value from JSON
-            if (s_getBooleanMethodInfo?.Equals(method) == true && instance != null)
+            if (s_getBooleanMethodInfo?.Equals(method) == true)
             {
                 return _sqlExpressionFactory.Convert(instance, typeof(bool));
             }
 
             // Handle JsonElement.GetDouble - extract double value from JSON
-            if (s_getDoubleMethodInfo?.Equals(method) == true && instance != null)
+            if (s_getDoubleMethodInfo?.Equals(method) == true)
             {
                 return _sqlExpressionFactory.Convert(instance, typeof(double));
             }
