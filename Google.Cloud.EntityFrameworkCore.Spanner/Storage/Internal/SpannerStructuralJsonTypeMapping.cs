@@ -69,7 +69,7 @@ internal class SpannerStructuralJsonTypeMapping : JsonTypeMapping
 
         // For owned entities serialized to JSON, value is a string containing JSON
         // Escape single quotes for SQL
-        var escaped = stringValue.Replace("'", "\'");
+        var escaped = stringValue.Replace("'", "\\'");
         return $"JSON '{escaped}'";
     }
 
