@@ -21,8 +21,10 @@ using Grpc.Core;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Xunit;
 using V1 = Google.Cloud.Spanner.V1;
@@ -181,19 +183,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
-        public void VisitJsonScalar_SpecialCharactersInPropertyName_UsesBracketNotation()
+        public void VisitJsonScalar_SpecialCharactersInPropertyName_UsesQuotedNotation()
         {
             // This test documents the expected behavior for property names with special characters.
             // 
             // The VisitJsonScalar implementation handles special characters by:
             // 1. Checking if property name contains: . ' " or whitespace
-            // 2. Using bracket notation: $["property.name"] instead of $.property.name
-            // 3. Escaping quotes within property names
+            // 2. Using double-quoted notation: $."property.name" instead of $.property.name
+            // 3. Escaping double quotes within property names using backslash
             //
             // Example expected outputs:
-            // - Property "my.property" -> JSON_VALUE(col, '$["my.property"]')
-            // - Property "it's" -> JSON_VALUE(col, '$["it\'s"]')  
-            // - Property "with space" -> JSON_VALUE(col, '$["with space"]')
+            // - Property "my.property" -> JSON_VALUE(col, '$."my.property"')
+            // - Property "it's" -> JSON_VALUE(col, '$."it's"')  
+            // - Property "with space" -> JSON_VALUE(col, '$."with space"')
             //
             // Note: C# property names cannot contain these characters, so this scenario
             // only applies when using [JsonPropertyName] attributes or dynamic JSON.
@@ -201,14 +203,167 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             
             using var db = new MockServerSampleDbContext(ConnectionString);
             
-            // Verify standard property names use dot notation (not bracket notation)
+            // Verify standard property names use dot notation (not quoted notation)
             var sql = db.TicketSales
                 .Where(ts => ts.Receipt.Number == "TEST")
                 .ToQueryString();
 
             // Standard properties should use simple dot notation
             Assert.Contains("'$.Number'", sql);
-            Assert.DoesNotContain("$[\"Number\"]", sql);
+            Assert.DoesNotContain("$.\"Number\"", sql);
+        }
+
+        #endregion
+
+        #region Special Character Property Name Tests
+        
+        /// <summary>
+        /// Tests that JSON property names containing a dot (.) use double-quoted notation.
+        /// Example: property "my.property" -> JSON_VALUE(col, '$."my.property"')
+        /// </summary>
+        [Fact]
+        public void VisitJsonScalar_PropertyNameWithDot_UsesQuotedNotation()
+        {
+            using var db = new SpecialPropertyNamesDbContext(ConnectionString);
+            
+            var sql = db.TestEntities
+                .Where(e => e.JsonData.PropertyWithDot == "test")
+                .ToQueryString();
+
+            // Should use double-quoted notation for property name containing a dot
+            Assert.Contains("$.\"property.with.dot\"", sql);
+            Assert.DoesNotContain("$.property.with.dot'", sql);
+        }
+
+        /// <summary>
+        /// Tests that JSON property names containing a single quote (') use double-quoted notation.
+        /// Single quotes are escaped with backslash inside the JSONPath.
+        /// Example: property "it's" -> JSON_VALUE(col, '$."it\'s"')
+        /// </summary>
+        [Fact]
+        public void VisitJsonScalar_PropertyNameWithSingleQuote_UsesQuotedNotation()
+        {
+            using var db = new SpecialPropertyNamesDbContext(ConnectionString);
+            
+            var sql = db.TestEntities
+                .Where(e => e.JsonData.PropertyWithSingleQuote == "test")
+                .ToQueryString();
+
+            // Should use double-quoted notation with escaped single quote
+            // The JSONPath in SQL is: $."it\'s"
+            Assert.Contains(".\"it\\'s\"", sql);
+        }
+
+        /// <summary>
+        /// Tests that JSON property names containing a double quote (") use double-quoted notation with proper escaping.
+        /// Example: property 'say "hello"' -> JSON_VALUE(col, '$.".say \\"hello\\""')
+        /// </summary>
+        [Fact]
+        public void VisitJsonScalar_PropertyNameWithDoubleQuote_UsesQuotedNotation()
+        {
+            using var db = new SpecialPropertyNamesDbContext(ConnectionString);
+            
+            var sql = db.TestEntities
+                .Where(e => e.JsonData.PropertyWithDoubleQuote == "test")
+                .ToQueryString();
+
+            // Should use double-quoted notation with escaped double quotes
+            // Double quote needs double backslash for SQL + escaped quote: " -> \\" in SQL
+            Assert.Contains(".\"say \\\\\"hello\\\\\"\"" , sql);
+        }
+
+        /// <summary>
+        /// Tests that JSON property names containing spaces use double-quoted notation.
+        /// Example: property "with space" -> JSON_VALUE(col, '$."with space"')
+        /// </summary>
+        [Fact]
+        public void VisitJsonScalar_PropertyNameWithSpace_UsesQuotedNotation()
+        {
+            using var db = new SpecialPropertyNamesDbContext(ConnectionString);
+            
+            var sql = db.TestEntities
+                .Where(e => e.JsonData.PropertyWithSpace == "test")
+                .ToQueryString();
+
+            // Should use double-quoted notation for property name containing a space
+            Assert.Contains("$.\"property with space\"", sql);
+            Assert.DoesNotContain("$.property with space'", sql);
+        }
+
+        /// <summary>
+        /// Tests that JSON property names without special characters use dot notation.
+        /// Example: property "NormalProperty" -> JSON_VALUE(col, '$.NormalProperty')
+        /// </summary>
+        [Fact]
+        public void VisitJsonScalar_PropertyNameWithoutSpecialCharacters_UsesDotNotation()
+        {
+            using var db = new SpecialPropertyNamesDbContext(ConnectionString);
+            
+            var sql = db.TestEntities
+                .Where(e => e.JsonData.NormalProperty == "test")
+                .ToQueryString();
+
+            // Should use simple dot notation for standard property name
+            Assert.Contains("$.NormalProperty", sql);
+            Assert.DoesNotContain("$.\"NormalProperty\"", sql);
+        }
+
+        /// <summary>
+        /// Tests that JSON property names containing only a backslash (without other special chars)
+        /// use dot notation. Backslash alone does not trigger bracket notation in the current implementation.
+        /// Note: This test documents current behavior - backslash without other special chars uses dot notation.
+        /// </summary>
+        [Fact]
+        public void VisitJsonScalar_PropertyNameWithOnlyBackslash_UsesDotNotation()
+        {
+            using var db = new SpecialPropertyNamesDbContext(ConnectionString);
+            
+            var sql = db.TestEntities
+                .Where(e => e.JsonData.PropertyWithBackslash == "test")
+                .ToQueryString();
+
+            // Current implementation: backslash alone does NOT trigger bracket notation
+            // So it uses dot notation: $.back\slash (backslash passes through)
+            Assert.Contains("$.back\\slash", sql);
+            Assert.DoesNotContain("$['back", sql);
+        }
+
+        /// <summary>
+        /// Tests that when quoted notation is triggered by a special character (space),
+        /// backslashes in the property name are properly escaped.
+        /// Example: property "path with\backslash" -> JSON_VALUE(col, '$."path with\\\\backslash"')
+        /// Note: backslash needs quadruple escaping (2 for JSONPath, doubled again for SQL literal)
+        /// </summary>
+        [Fact]
+        public void VisitJsonScalar_PropertyNameWithSpaceAndBackslash_EscapesBackslash()
+        {
+            using var db = new SpecialPropertyNamesDbContext(ConnectionString);
+            
+            var sql = db.TestEntities
+                .Where(e => e.JsonData.PropertyWithSpaceAndBackslash == "test")
+                .ToQueryString();
+
+            // Space triggers quoted notation, and backslash should be escaped for both SQL and JSONPath
+            // (doubled for JSONPath, then doubled again for SQL string literal = 4 backslashes)
+            Assert.Contains(".\"path with\\\\\\\\backslash\"", sql);
+        }
+
+        /// <summary>
+        /// Tests that JSON property names with multiple special characters are handled correctly.
+        /// </summary>
+        [Fact]
+        public void VisitJsonScalar_PropertyNameWithMultipleSpecialChars_UsesQuotedNotation()
+        {
+            using var db = new SpecialPropertyNamesDbContext(ConnectionString);
+            
+            var sql = db.TestEntities
+                .Where(e => e.JsonData.PropertyWithMultipleSpecialChars == "test")
+                .ToQueryString();
+
+            // Should use double-quoted notation with all special characters handled
+            // The property has dots, spaces, and single quotes: "complex.name with 'quotes'"
+            // Single quotes are backslash-escaped
+            Assert.Contains(".\"complex.name with \\'quotes\\'\"", sql);
         }
 
         [Fact]
@@ -259,6 +414,117 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                         .UseMutations(MutationUsage.Never)
                         .UseLazyLoadingProxies();
                 }
+            }
+        }
+        
+        #endregion
+        
+        #region Test Models for Special Character Property Names
+        
+        /// <summary>
+        /// Test entity containing a JSON column with special character property names.
+        /// </summary>
+        public class TestEntityWithSpecialJsonProps
+        {
+            [Key]
+            public int Id { get; set; }
+            
+            public SpecialPropertyNamesJson JsonData { get; set; }
+        }
+        
+        /// <summary>
+        /// JSON data model with property names containing special characters.
+        /// Uses [JsonPropertyName] to map C# property names to JSON names with special characters.
+        /// </summary>
+        public class SpecialPropertyNamesJson
+        {
+            /// <summary>
+            /// Maps to JSON property name containing a dot: "property.with.dot"
+            /// </summary>
+            [JsonPropertyName("property.with.dot")]
+            public string PropertyWithDot { get; set; }
+            
+            /// <summary>
+            /// Maps to JSON property name containing a single quote: "it's"
+            /// </summary>
+            [JsonPropertyName("it's")]
+            public string PropertyWithSingleQuote { get; set; }
+            
+            /// <summary>
+            /// Maps to JSON property name containing double quotes: 'say "hello"'
+            /// </summary>
+            [JsonPropertyName("say \"hello\"")]
+            public string PropertyWithDoubleQuote { get; set; }
+            
+            /// <summary>
+            /// Maps to JSON property name containing a space: "property with space"
+            /// </summary>
+            [JsonPropertyName("property with space")]
+            public string PropertyWithSpace { get; set; }
+            
+            /// <summary>
+            /// Maps to JSON property name containing a backslash: "back\slash"
+            /// Note: In C# string literals, backslash needs to be escaped as \\
+            /// </summary>
+            [JsonPropertyName("back\\slash")]
+            public string PropertyWithBackslash { get; set; }
+            
+            /// <summary>
+            /// Maps to JSON property name with multiple special characters
+            /// </summary>
+            [JsonPropertyName("complex.name with 'quotes'")]
+            public string PropertyWithMultipleSpecialChars { get; set; }
+            
+            /// <summary>
+            /// Maps to JSON property name with a space and backslash: "path with\\backslash"
+            /// This triggers bracket notation due to space, and backslash should be escaped.
+            /// </summary>
+            [JsonPropertyName("path with\\backslash")]
+            public string PropertyWithSpaceAndBackslash { get; set; }
+            
+            /// <summary>
+            /// Standard property name without special characters.
+            /// </summary>
+            public string NormalProperty { get; set; }
+        }
+        
+        /// <summary>
+        /// DbContext for testing JSON property names with special characters.
+        /// </summary>
+        internal class SpecialPropertyNamesDbContext : DbContext
+        {
+            private readonly string _connectionString;
+
+            public SpecialPropertyNamesDbContext(string connectionString)
+            {
+                _connectionString = connectionString;
+            }
+
+            public DbSet<TestEntityWithSpecialJsonProps> TestEntities { get; set; }
+
+            protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            {
+                if (!optionsBuilder.IsConfigured)
+                {
+                    optionsBuilder
+                        .UseSpanner(_connectionString, _ => SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false), ChannelCredentials.Insecure)
+                        .UseMutations(MutationUsage.Never);
+                }
+            }
+
+            protected override void OnModelCreating(ModelBuilder modelBuilder)
+            {
+                modelBuilder.Entity<TestEntityWithSpecialJsonProps>(entity =>
+                {
+                    entity.ToTable("TestEntitiesWithSpecialJsonProps");
+                    entity.HasKey(e => e.Id);
+                    
+                    // Configure JsonData as an owned JSON entity
+                    entity.OwnsOne(e => e.JsonData, ownedBuilder =>
+                    {
+                        ownedBuilder.ToJson();
+                    });
+                });
             }
         }
         

@@ -84,6 +84,12 @@ CREATE TABLE TicketSales (
   Receipt      JSON,
 ) PRIMARY KEY (Id);
 
+CREATE TABLE TestEntityWithSpecialJsonProperties (
+  Id           INT64 NOT NULL,
+  Name         STRING(MAX),
+  JsonData     JSON,
+) PRIMARY KEY (Id);
+
 CREATE TABLE TableWithAllColumnTypes (
 	ColInt64 INT64 NOT NULL,
     ColFloat32 FLOAT32,

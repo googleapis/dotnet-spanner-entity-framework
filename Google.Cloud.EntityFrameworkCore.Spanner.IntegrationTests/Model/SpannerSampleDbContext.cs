@@ -38,6 +38,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
         public virtual DbSet<Tracks> Tracks { get; set; }
         public virtual DbSet<Venues> Venues { get; set; }
         public virtual DbSet<TicketSales> TicketSales { get; set; }
+        public virtual DbSet<TestEntityWithSpecialJsonProperties> TestEntityWithSpecialJsonProperties { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -226,6 +227,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model
                     ownedBuilder.ToJson();
                     ownedBuilder.Property(r => r.Date).IsRequired();
                     ownedBuilder.Property(r => r.Number).IsRequired();
+                });
+            });
+            
+            modelBuilder.Entity<TestEntityWithSpecialJsonProperties>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedNever();
+                
+                // Use EF Core 8+ JSON column support with owned entity
+                // The JsonPropertiesWithSpecialNames class has properties with [JsonPropertyName]
+                // attributes that contain special characters (dots, spaces, quotes)
+                entity.OwnsOne(e => e.JsonData, ownedBuilder =>
+                {
+                    ownedBuilder.ToJson();
                 });
             });
         }

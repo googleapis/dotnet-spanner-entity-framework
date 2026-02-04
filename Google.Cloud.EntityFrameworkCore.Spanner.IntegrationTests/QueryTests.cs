@@ -2046,5 +2046,224 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Equal("Xena", sales[0].CustomerName);  // March 15
             Assert.Equal("Yuki", sales[1].CustomerName);  // March 31
         }
+
+        #region JSON Property Names with Special Characters Tests
+
+        /// <summary>
+        /// Tests that querying a JSON property with a dot in the name correctly retrieves data.
+        /// This verifies end-to-end that the bracket notation $["property.with.dot"] works.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonPropertyWithDotInName()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+
+            db.TestEntityWithSpecialJsonProperties.Add(new TestEntityWithSpecialJsonProperties
+            {
+                Id = id,
+                Name = "TestDot",
+                JsonData = new JsonPropertiesWithSpecialNames
+                {
+                    PropertyWithDot = "dot-value",
+                    NormalProperty = "normal"
+                }
+            });
+            await db.SaveChangesAsync();
+
+            var entity = await db.TestEntityWithSpecialJsonProperties
+                .Where(e => e.JsonData.PropertyWithDot == "dot-value" && e.Id == id)
+                .FirstOrDefaultAsync();
+
+            Assert.NotNull(entity);
+            Assert.Equal(id, entity.Id);
+            Assert.Equal("dot-value", entity.JsonData.PropertyWithDot);
+        }
+
+        /// <summary>
+        /// Tests that querying a JSON property with a space in the name correctly retrieves data.
+        /// This verifies end-to-end that the bracket notation $["property with space"] works.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonPropertyWithSpaceInName()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+
+            db.TestEntityWithSpecialJsonProperties.Add(new TestEntityWithSpecialJsonProperties
+            {
+                Id = id,
+                Name = "TestSpace",
+                JsonData = new JsonPropertiesWithSpecialNames
+                {
+                    PropertyWithSpace = "space-value",
+                    NormalProperty = "normal"
+                }
+            });
+            await db.SaveChangesAsync();
+
+            var entity = await db.TestEntityWithSpecialJsonProperties
+                .Where(e => e.JsonData.PropertyWithSpace == "space-value" && e.Id == id)
+                .FirstOrDefaultAsync();
+
+            Assert.NotNull(entity);
+            Assert.Equal(id, entity.Id);
+            Assert.Equal("space-value", entity.JsonData.PropertyWithSpace);
+        }
+
+        /// <summary>
+        /// Tests that querying a JSON property with a single quote in the name correctly retrieves data.
+        /// This verifies end-to-end that the backslash-escaped quote $."it\\'s" works.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonPropertyWithSingleQuoteInName()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+
+            db.TestEntityWithSpecialJsonProperties.Add(new TestEntityWithSpecialJsonProperties
+            {
+                Id = id,
+                Name = "TestSingleQuote",
+                JsonData = new JsonPropertiesWithSpecialNames
+                {
+                    PropertyWithSingleQuote = "quote-value",
+                    NormalProperty = "normal"
+                }
+            });
+            await db.SaveChangesAsync();
+
+            var entity = await db.TestEntityWithSpecialJsonProperties
+                .Where(e => e.JsonData.PropertyWithSingleQuote == "quote-value" && e.Id == id)
+                .FirstOrDefaultAsync();
+
+            Assert.NotNull(entity);
+            Assert.Equal(id, entity.Id);
+            Assert.Equal("quote-value", entity.JsonData.PropertyWithSingleQuote);
+        }
+
+        /// <summary>
+        /// Tests that querying a JSON property with double quotes in the name correctly retrieves data.
+        /// This verifies end-to-end that the backslash-escaped quotes $."say \\"hello\\"" works.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonPropertyWithDoubleQuoteInName()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+
+            db.TestEntityWithSpecialJsonProperties.Add(new TestEntityWithSpecialJsonProperties
+            {
+                Id = id,
+                Name = "TestDoubleQuote",
+                JsonData = new JsonPropertiesWithSpecialNames
+                {
+                    PropertyWithDoubleQuote = "dquote-value",
+                    NormalProperty = "normal"
+                }
+            });
+            await db.SaveChangesAsync();
+
+            var entity = await db.TestEntityWithSpecialJsonProperties
+                .Where(e => e.JsonData.PropertyWithDoubleQuote == "dquote-value" && e.Id == id)
+                .FirstOrDefaultAsync();
+
+            Assert.NotNull(entity);
+            Assert.Equal(id, entity.Id);
+            Assert.Equal("dquote-value", entity.JsonData.PropertyWithDoubleQuote);
+        }
+
+        /// <summary>
+        /// Tests that querying a normal JSON property (no special characters) correctly retrieves data.
+        /// This verifies end-to-end that the standard dot notation $.NormalProperty still works.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonPropertyWithNormalName()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+
+            db.TestEntityWithSpecialJsonProperties.Add(new TestEntityWithSpecialJsonProperties
+            {
+                Id = id,
+                Name = "TestNormal",
+                JsonData = new JsonPropertiesWithSpecialNames
+                {
+                    NormalProperty = "normal-value"
+                }
+            });
+            await db.SaveChangesAsync();
+
+            var entity = await db.TestEntityWithSpecialJsonProperties
+                .Where(e => e.JsonData.NormalProperty == "normal-value" && e.Id == id)
+                .FirstOrDefaultAsync();
+
+            Assert.NotNull(entity);
+            Assert.Equal(id, entity.Id);
+            Assert.Equal("normal-value", entity.JsonData.NormalProperty);
+        }
+
+        /// <summary>
+        /// Tests that querying with multiple JSON properties with special characters in a single query works.
+        /// This verifies complex queries involving multiple special character property names.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryMultipleJsonPropertiesWithSpecialNames()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id1 = _fixture.RandomLong();
+            var id2 = _fixture.RandomLong();
+            var id3 = _fixture.RandomLong();
+
+            db.TestEntityWithSpecialJsonProperties.AddRange(
+                new TestEntityWithSpecialJsonProperties
+                {
+                    Id = id1,
+                    Name = "Entity1",
+                    JsonData = new JsonPropertiesWithSpecialNames
+                    {
+                        PropertyWithDot = "match",
+                        PropertyWithSpace = "match",
+                        NormalProperty = "normal1"
+                    }
+                },
+                new TestEntityWithSpecialJsonProperties
+                {
+                    Id = id2,
+                    Name = "Entity2",
+                    JsonData = new JsonPropertiesWithSpecialNames
+                    {
+                        PropertyWithDot = "match",
+                        PropertyWithSpace = "no-match",
+                        NormalProperty = "normal2"
+                    }
+                },
+                new TestEntityWithSpecialJsonProperties
+                {
+                    Id = id3,
+                    Name = "Entity3",
+                    JsonData = new JsonPropertiesWithSpecialNames
+                    {
+                        PropertyWithDot = "no-match",
+                        PropertyWithSpace = "match",
+                        NormalProperty = "normal3"
+                    }
+                }
+            );
+            await db.SaveChangesAsync();
+
+            // Query with multiple special character properties
+            var entities = await db.TestEntityWithSpecialJsonProperties
+                .Where(e => e.JsonData.PropertyWithDot == "match" 
+                         && e.JsonData.PropertyWithSpace == "match"
+                         && new[] { id1, id2, id3 }.Contains(e.Id))
+                .ToListAsync();
+
+            Assert.Single(entities);
+            Assert.Equal(id1, entities[0].Id);
+            Assert.Equal("Entity1", entities[0].Name);
+        }
+
+        #endregion
     }
 }

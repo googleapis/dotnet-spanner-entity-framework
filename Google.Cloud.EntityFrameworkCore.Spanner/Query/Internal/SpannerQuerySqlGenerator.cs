@@ -228,12 +228,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                     // Escape property names if they contain special characters
                     var propertyName = pathSegment.PropertyName;
                     
-                    // If property name has special characters, use bracket notation in JSONPath
+                    // If property name has special characters, use double-quoted notation in JSONPath
+                    // Example: $."property.with.dot" instead of $["property.with.dot"]
                     if (propertyName.Contains(".") || propertyName.Contains("'") || propertyName.Contains("\"") || propertyName.Contains(" "))
                     {
-                        // Escape quotes and backslashes for JSONPath bracket notation
-                        var escapedName = propertyName.Replace("\\", "\\\\").Replace("\"", "\\\"");
-                        jsonPathBuilder.Append($"[\"{escapedName}\"]");
+                        // Escape for JSONPath quoted notation, accounting for SQL string literal parsing.
+                        // The JSONPath is embedded in a SQL string literal '...', so backslashes are 
+                        // interpreted at the SQL level first, then at the JSONPath level.
+                        // 
+                        // For a property like: say "hello"
+                        // JSONPath needs: $."say \"hello\""
+                        // SQL literal needs: '$."say \\"hello\\""' (double backslash survives SQL parsing as single backslash)
+                        var escapedName = propertyName
+                            .Replace("\\", "\\\\\\\\")  // Backslash -> 4 backslashes (2 for JSONPath escape, doubled for SQL)
+                            .Replace("\"", "\\\\\"")    // Double quote -> 2 backslashes + quote (escaped at both levels)
+                            .Replace("'", "\\'");       // Single quote -> escaped for SQL string literal
+                        jsonPathBuilder.Append($".\"{escapedName}\"");
                     }
                     else
                     {
