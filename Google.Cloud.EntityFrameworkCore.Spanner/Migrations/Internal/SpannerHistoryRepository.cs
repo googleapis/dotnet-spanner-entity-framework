@@ -14,12 +14,36 @@
 
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
-using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
+using Google.Cloud.Spanner.Data;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
 {
+    internal sealed class NoOpMigrationsDatabaseLock : IMigrationsDatabaseLock
+    {
+        public IHistoryRepository HistoryRepository { get; }
+
+        internal NoOpMigrationsDatabaseLock(IHistoryRepository historyRepository)
+        {
+            HistoryRepository = historyRepository;
+        }
+        
+        public void Dispose()
+        {
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return ValueTask.CompletedTask;
+        }
+    }
+    
     /// <summary>
     ///     This is internal functionality and not intended for public use.
     /// </summary>
@@ -39,41 +63,91 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             Dependencies = dependencies;
 
             var relationalOptions = RelationalOptionsExtension.Extract(dependencies.Options);
-            TableName = relationalOptions?.MigrationsHistoryTableName ?? DefaultMigrationsHistoryTableName;
+            TableName = relationalOptions.MigrationsHistoryTableName ?? DefaultMigrationsHistoryTableName;
         }
 
         protected override string TableName { get; }
 
         protected override HistoryRepositoryDependencies Dependencies { get; }
 
-        /// <summary>
-        ///     This is internal functionality and not intended for public use.
-        /// </summary>
-        protected override string ExistsSql
-        {
-            get
-            {
-                var stringTypeMapping = Dependencies.TypeMappingSource.GetMapping(typeof(string));
+        public override LockReleaseBehavior LockReleaseBehavior => LockReleaseBehavior.Explicit;
 
-                var builder = new StringBuilder();
-                builder.Append("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_catalog = '' and table_schema = '' and table_name = ")
-                    .Append($"{stringTypeMapping.GenerateSqlLiteral(Dependencies.SqlGenerationHelper.DelimitIdentifier(TableName, TableSchema))})");
-                builder.Replace("`", "");
-                return builder.ToString();
+        public override IMigrationsDatabaseLock AcquireDatabaseLock()
+        {
+            // Spanner does not have a feature that can be used to exclusively lock the entire database.
+            // So we translate this to a no-op.
+            return new NoOpMigrationsDatabaseLock(this);
+        }
+
+        public override Task<IMigrationsDatabaseLock> AcquireDatabaseLockAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(AcquireDatabaseLock());
+        }
+
+        public override bool Exists()
+        {
+            if (!Dependencies.DatabaseCreator.Exists())
+            {
+                return false;
             }
+            var connection = Dependencies.Connection.DbConnection;
+            // Unwrap the underlying Spanner connection, so we can execute the query outside any transaction
+            // that might be registered on the connection that is used by Entity Framework. We need to do this,
+            // as Spanner does not allow queries on INFORMATION_SCHEMA in a transaction.
+            if (connection is SpannerRetriableConnection spannerConnection)
+            {
+                using var command = spannerConnection.SpannerConnection.CreateSelectCommand(ExistsSql);
+                using var reader = command.ExecuteReader();
+                if (reader.Read())
+                {
+                    return reader.GetBoolean(0);
+                }
+            }
+            return false;
+        }
+
+        public override async Task<bool> ExistsAsync(CancellationToken cancellationToken = default)
+        {
+            if (!await Dependencies.DatabaseCreator.ExistsAsync(cancellationToken))
+            {
+                return false;
+            }
+            var connection = Dependencies.Connection.DbConnection;
+            // Unwrap the underlying Spanner connection, so we can execute the query outside any transaction
+            // that might be registered on the connection that is used by Entity Framework. We need to do this,
+            // as Spanner does not allow queries on INFORMATION_SCHEMA in a transaction.
+            if (connection is SpannerRetriableConnection spannerConnection)
+            {
+                await using var command = spannerConnection.SpannerConnection.CreateSelectCommand(ExistsSql);
+                await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+                if (await reader.ReadAsync(cancellationToken))
+                {
+                    return reader.GetBoolean(0);
+                }
+            }
+            return false;
         }
 
         /// <summary>
         ///     This is internal functionality and not intended for public use.
         /// </summary>
-        protected override bool InterpretExistsResult(object value) => (bool)value;
+        protected override string ExistsSql =>
+            $"SELECT EXISTS(SELECT 1 " +
+            $"FROM information_schema.tables " +
+            $"WHERE table_schema = '{TableSchema}' " +
+            $"    AND table_name = '{TableName}')";
+
+        /// <summary>
+        ///     This is internal functionality and not intended for public use.
+        /// </summary>
+        protected override bool InterpretExistsResult(object value) => value != null && (bool)value;
 
         /// <summary>
         ///     This is internal functionality and not intended for public use.
         /// </summary>
         public override string GetCreateIfNotExistsScript()
         {
-            throw new NotSupportedException("Cloud Spanner does not support CREATE IF NOT EXISTS style commands.");
+            return GetCreateScript().Replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS");
         }
 
         /// <summary>
@@ -81,14 +155,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
         /// </summary>
         public override string GetBeginIfNotExistsScript(string migrationId)
         {
-            throw new NotSupportedException("Cloud Spanner does not support CREATE IF NOT EXISTS style commands.");
+            throw new NotSupportedException("Cloud Spanner does not support conditional SQL execution blocks.");
         }
         /// <summary>
         ///     This is internal functionality and not intended for public use.
         /// </summary>
         public override string GetBeginIfExistsScript(string migrationId)
         {
-            throw new NotSupportedException("Cloud Spanner does not support CREATE IF NOT EXISTS style commands.");
+            throw new NotSupportedException("Cloud Spanner does not support conditional SQL execution blocks.");
         }
 
         /// <summary>
