@@ -43,7 +43,7 @@ public class SpannerSqlTranslatingExpressionVisitor(
     {
         var resultTypeMapping = ExpressionExtensions.InferTypeMapping(expressions);
         return _sqlExpressionFactory.Function(
-            "GREATEST", expressions, nullable: true, Enumerable.Repeat(false, expressions.Count), resultType, resultTypeMapping);
+            "GREATEST", expressions, nullable: true, Enumerable.Repeat(true, expressions.Count), resultType, resultTypeMapping);
     }
 
     /// <summary>
@@ -56,7 +56,7 @@ public class SpannerSqlTranslatingExpressionVisitor(
     {
         var resultTypeMapping = ExpressionExtensions.InferTypeMapping(expressions);
         return _sqlExpressionFactory.Function(
-            "LEAST", expressions, nullable: true, Enumerable.Repeat(false, expressions.Count), resultType, resultTypeMapping);
+            "LEAST", expressions, nullable: true, Enumerable.Repeat(true, expressions.Count), resultType, resultTypeMapping);
     }
     
 }

@@ -54,7 +54,7 @@ public class SpannerContainsExpression : SqlExpression
 
     public override Expression Quote()
     {
-        throw new NotImplementedException();
+        return this;
     }
 
     protected override void Print(ExpressionPrinter expressionPrinter)

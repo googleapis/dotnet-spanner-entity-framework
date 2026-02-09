@@ -2185,11 +2185,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task QueryWithoutGettingResults_DoesNotLeakSession()
         {
-            using var db = CreateContext();
-            var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, `s`.`Picture`" +
-                      $"{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}WHERE STRPOS(`s`.`FirstName`, @__firstName_0) > 0";
-            AddFindSingerResult(sql);
-
+            // We don't have to set up any results for the test, as the query is not actually executed.
+            await using var db = CreateContext();
             await Repeat(() =>
             {
                 // Create a query without actually executing it / getting the results.

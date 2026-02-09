@@ -58,8 +58,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 optionsBuilder
                     .UseSpanner(_connectionString, _ => SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false), ChannelCredentials.Insecure)
                     .UseMutations(MutationUsage.Never)
-                    .UseLazyLoadingProxies()
-                    .UseLoggerFactory(LoggerFactory.Create(builder => { builder.AddConsole(); }));
+                    .UseLazyLoadingProxies();
             }
         }
     }
