@@ -1,3 +1,4 @@
 {
-  ".": "3.9.0"
+  ".": "3.9.0",
+  "spanner-ado-net/spanner-ado-net": "0.1.0"
 }
