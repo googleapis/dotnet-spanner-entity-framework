@@ -21,6 +21,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using IsolationLevel = System.Data.IsolationLevel;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
@@ -32,18 +33,45 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             ExecuteNonQueryAsync(migrationCommands, connection).WaitWithUnwrappedExceptions();
         }
 
-        public async Task ExecuteNonQueryAsync(IEnumerable<MigrationCommand> migrationCommands, IRelationalConnection connection, CancellationToken cancellationToken = default)
+        public int ExecuteNonQuery(IReadOnlyList<MigrationCommand> migrationCommands, IRelationalConnection connection,
+            MigrationExecutionState executionState, bool commitTransaction, IsolationLevel? isolationLevel = null)
+        {
+            return ExecuteNonQueryAsync(migrationCommands, connection, executionState, commitTransaction, isolationLevel).ConfigureAwait(false).GetAwaiter().GetResult();
+        }
+
+        public Task ExecuteNonQueryAsync(IEnumerable<MigrationCommand> migrationCommands, IRelationalConnection connection, CancellationToken cancellationToken = default)
+        {
+            return ExecuteNonQueryAsync(migrationCommands.ToList(), connection, new MigrationExecutionState(),
+                commitTransaction: true, IsolationLevel.Unspecified, cancellationToken);
+        }
+
+        public async Task<int> ExecuteNonQueryAsync(IReadOnlyList<MigrationCommand> migrationCommands, IRelationalConnection connection,
+            MigrationExecutionState executionState, bool commitTransaction, IsolationLevel? isolationLevel = null,
+            CancellationToken cancellationToken = default)
         {
             GaxPreconditions.CheckArgument(connection is SpannerRelationalConnection, nameof(connection), "Can only be used with Spanner connections");
+            // Spanner does not support DDL transactions. We therefore ignore the transaction options given
+            // for the migration commands. Any DML statements are executed in a separate transaction.
+            // Any existing transaction on the connection is auto-committed before the execution of the
+            // migration commands.
+            if (executionState.Transaction != null)
+            {
+                await executionState.Transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                executionState.Transaction.Dispose();
+                executionState.Transaction = null;
+            }
+            
+            var useIsolationLevel = isolationLevel ?? IsolationLevel.Unspecified;
+            var result = 0;
             var statements = migrationCommands.Select(x => x.CommandText).ToArray();
             if (statements.Length == 0)
             {
-                return;
+                return result;
             }
             var ddlStatements = statements.Where(IsDdlStatement).ToArray();
-            var otherStatements = statements.Where(x => !IsDdlStatement(x)).ToList();
+            var otherStatements = statements.Where(x => !IsDdlStatement(x)).ToArray();
             var spannerConnection = (((SpannerRelationalConnection) connection).DbConnection as SpannerRetriableConnection)!;
-            if (ddlStatements.Any())
+            if (ddlStatements.Length != 0)
             {
                 var cmd = spannerConnection.CreateDdlCommand(ddlStatements[0], ddlStatements.Skip(1).ToArray());
                 var spannerRelationalConnection = connection as SpannerRelationalConnection;
@@ -56,21 +84,23 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
                     await cmd.ExecuteNonQueryAsync(cancellationToken);
                 }
             }
-            if (otherStatements.Any())
+            if (otherStatements.Length != 0)
             {
-                await using var transaction = await spannerConnection.BeginTransactionAsync(cancellationToken);
+                await using var transaction = await spannerConnection.BeginTransactionAsync(useIsolationLevel, cancellationToken);
                 var cmd = spannerConnection.CreateBatchDmlCommand();
                 cmd.Transaction = transaction;
                 foreach (var statement in otherStatements)
                 {
                     cmd.Add(statement);
                 }
-                await cmd.ExecuteNonQueryAsync(cancellationToken);
+                var updateCounts = await cmd.ExecuteNonQueryAsync(cancellationToken);
+                result = (int) updateCounts.Sum();
                 await transaction.CommitAsync(cancellationToken);
             }
+            return result;
         }
 
-        private bool IsDdlStatement(string statement)
+        private static bool IsDdlStatement(string statement)
         {
             return SpannerCommandTextBuilder.FromCommandText(statement).SpannerCommandType == SpannerCommandType.Ddl;
         }

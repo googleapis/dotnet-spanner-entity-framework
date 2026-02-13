@@ -52,6 +52,11 @@ public class SpannerContainsExpression : SqlExpression
         return Update(item, values);
     }
 
+    public override Expression Quote()
+    {
+        return this;
+    }
+
     protected override void Print(ExpressionPrinter expressionPrinter)
     {
         expressionPrinter.Visit(Item);
