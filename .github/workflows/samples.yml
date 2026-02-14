@@ -21,3 +21,9 @@ jobs:
     - name: Run samples
       working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.Samples
       run: dotnet run All
+    - name: Compile sample model
+      working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.Samples
+      run: |
+        dotnet tool install --global dotnet-ef
+        dotnet tool restore
+        ./optimize.sh

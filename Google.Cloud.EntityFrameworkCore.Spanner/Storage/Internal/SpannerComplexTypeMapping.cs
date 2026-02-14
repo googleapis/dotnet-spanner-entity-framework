@@ -24,20 +24,27 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     /// Represents a complex spanner type mapping. This class is used for setting up type conversions.
     /// This class can be used to hold a type mapping for any <see cref="SpannerDbType"/>
     /// </summary>
-    internal class SpannerComplexTypeMapping : RelationalTypeMapping
+    public class SpannerComplexTypeMapping : RelationalTypeMapping
     {
-        private static readonly List<SpannerDbType> s_arrayTypes = new List<SpannerDbType>
+        public static SpannerComplexTypeMapping Default { get; } = new(SpannerDbType.Int64, typeof(long));
+        
+        private static readonly List<SpannerDbType> s_arrayTypes = CreateArrayTypes();
+
+        private static List<SpannerDbType> CreateArrayTypes()
         {
-            SpannerDbType.ArrayOf(SpannerDbType.Bool),
-            SpannerDbType.ArrayOf(SpannerDbType.Bytes),
-            SpannerDbType.ArrayOf(SpannerDbType.Date),
-            SpannerDbType.ArrayOf(SpannerDbType.Float64),
-            SpannerDbType.ArrayOf(SpannerDbType.Int64),
-            SpannerDbType.ArrayOf(SpannerDbType.Json),
-            SpannerDbType.ArrayOf(SpannerDbType.Numeric),
-            SpannerDbType.ArrayOf(SpannerDbType.String),
-            SpannerDbType.ArrayOf(SpannerDbType.Timestamp),
-        };
+            return
+            [
+                SpannerDbType.ArrayOf(SpannerDbType.Bool),
+                SpannerDbType.ArrayOf(SpannerDbType.Bytes),
+                SpannerDbType.ArrayOf(SpannerDbType.Date),
+                SpannerDbType.ArrayOf(SpannerDbType.Float64),
+                SpannerDbType.ArrayOf(SpannerDbType.Int64),
+                SpannerDbType.ArrayOf(SpannerDbType.Json),
+                SpannerDbType.ArrayOf(SpannerDbType.Numeric),
+                SpannerDbType.ArrayOf(SpannerDbType.String),
+                SpannerDbType.ArrayOf(SpannerDbType.Timestamp)
+            ];
+        }
 
         private readonly SpannerDbType _complexType;
         private readonly System.Type _clrType;
@@ -48,7 +55,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
             _complexType = complexType;
             _clrType = clrType;
-            IsArrayType = s_arrayTypes.Contains(complexType);
+            // s_arrayTypes is null at design time.
+            IsArrayType = (s_arrayTypes ?? CreateArrayTypes()).Contains(complexType);
         }
 
         private SpannerComplexTypeMapping(RelationalTypeMappingParameters parameters, SpannerDbType complexType, System.Type clrType)
@@ -56,7 +64,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
             _complexType = complexType;
             _clrType = clrType;
-            IsArrayType = s_arrayTypes.Contains(complexType);
+            // s_arrayTypes is null at design time.
+            IsArrayType = (s_arrayTypes ?? CreateArrayTypes()).Contains(complexType);
         }
 
         protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters)

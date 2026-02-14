@@ -22,9 +22,17 @@ using System.Text.Json;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
-    internal class SpannerJsonTypeMapping : RelationalTypeMapping
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public class SpannerJsonTypeMapping : RelationalTypeMapping
     {
-        internal static readonly JsonDocumentOptions JsonOptions = new JsonDocumentOptions
+        public static SpannerJsonTypeMapping Default { get; } = new();
+        
+        public static readonly JsonDocumentOptions JsonOptions = new()
             { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip, MaxDepth = 100 };
         private static readonly ValueConverter s_converter = new ValueConverter<JsonDocument, string>(
             v => v.RootElement.ToString(),
