@@ -23,7 +23,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25.x'
+          go-version: '1.26.x'
       - name: Checkout go-sql-spanner
         uses: actions/checkout@v6
         with:
