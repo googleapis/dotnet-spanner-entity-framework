@@ -15,6 +15,7 @@
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore.Storage.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -314,6 +315,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             var clrType = mappingInfo.ClrType;
             var storeTypeName = mappingInfo.StoreTypeName;
             var storeTypeNameBase = mappingInfo.StoreTypeNameBase;
+
+            // Handle JsonTypePlaceholder type for EF Core 8's .ToJson() owned entities.
+            // JsonTypePlaceholder is an internal type in EF Core, so we detect it by name.
+            if (clrType != null && clrType.Name == "JsonTypePlaceholder")
+            {
+                // Return the structural JSON type mapping which uses JSON '...' literal syntax
+                return s_structuralJson;
+            }
 
             if (storeTypeName != null)
             {

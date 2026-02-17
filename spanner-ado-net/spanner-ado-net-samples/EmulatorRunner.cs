@@ -30,7 +30,7 @@ using System.Threading.Tasks;
 /// </summary>
 internal class EmulatorRunner
 {
-    private const string EmulatorImageName = "gcr.io/cloud-spanner-emulator/emulator:1.5.48";
+    private const string EmulatorImageName = "gcr.io/cloud-spanner-emulator/emulator";
     private readonly DockerClient _dockerClient;
     private string? _containerId;
 
@@ -120,7 +120,7 @@ internal class EmulatorRunner
         await _dockerClient.Images.CreateImageAsync(new ImagesCreateParameters
         {
             FromImage = EmulatorImageName,
-            Tag = "1.5.48"
+            Tag = "latest"
         }, new AuthConfig(), new Progress<JSONMessage>());
     }
 

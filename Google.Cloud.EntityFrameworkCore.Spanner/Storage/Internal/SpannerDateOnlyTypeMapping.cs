@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore.Storage.Json;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System;
 
@@ -33,9 +34,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         
         public SpannerDateOnlyTypeMapping()
             : base(new RelationalTypeMappingParameters(
-                new CoreTypeMappingParameters(typeof(SpannerDate), s_converter),
+                new CoreTypeMappingParameters(
+                    typeof(DateOnly), 
+                    s_converter, 
+                    jsonValueReaderWriter: JsonDateOnlyReaderWriter.Instance),
                 "DATE", StoreTypePostfix.None, System.Data.DbType.Date))
-
         { }
 
         protected SpannerDateOnlyTypeMapping(RelationalTypeMappingParameters parameters)
