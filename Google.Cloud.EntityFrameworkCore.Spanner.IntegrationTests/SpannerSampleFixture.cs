@@ -87,6 +87,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 var cmd = transaction.CreateBatchDmlCommand();
                 foreach (var table in new string[]
                 {
+                    "TestEntityWithSpecialJsonProperties",
                     "TableWithAllColumnTypes",
                     "Performances",
                     "Concerts",
