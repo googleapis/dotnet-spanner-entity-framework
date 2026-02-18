@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.10.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.9.0...Google.Cloud.EntityFrameworkCore.Spanner-3.10.0) (2026-02-18)
+
+
+### Features
+
+* Add ToJson() and JSONPath query support ([#678](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/678)) ([4a5b374](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/4a5b3746b1b2924bdbf4aeb1a5ef58aa504a291b))
+* support generating compiled models ([#685](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/685)) ([02f7648](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/02f7648e23552f120559cc81576644506449f354))
+
 ## [3.9.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.8.0...Google.Cloud.EntityFrameworkCore.Spanner-3.9.0) (2026-01-29)
 
 
