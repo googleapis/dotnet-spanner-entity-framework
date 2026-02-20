@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.Spanner.DataProvider-0.2.0...Google.Cloud.Spanner.DataProvider-0.2.1) (2026-02-20)
+
+
+### Bug Fixes
+
+* document failed release job and retrigger release ([#701](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/701)) ([ee7f72b](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/ee7f72be66c554184f98c085f3093d8faa67d084))
+
 ## [0.2.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.Spanner.DataProvider-0.1.0...Google.Cloud.Spanner.DataProvider-0.2.0) (2026-02-18)
 
 Release job failed.
