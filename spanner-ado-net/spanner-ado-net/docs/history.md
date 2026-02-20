@@ -2,6 +2,7 @@
 
 ## [0.2.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.Spanner.DataProvider-0.1.0...Google.Cloud.Spanner.DataProvider-0.2.0) (2026-02-18)
 
+Release job failed.
 
 ### Features
 
