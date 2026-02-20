@@ -2,6 +2,7 @@
 
 ## [3.10.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.9.0...Google.Cloud.EntityFrameworkCore.Spanner-3.10.0) (2026-02-18)
 
+Note: Release job failed
 
 ### Features
 
