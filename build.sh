@@ -15,6 +15,28 @@ echo Packing...
 rm -rf nupkg
 dotnet pack -nologo -v quiet Google.Cloud.EntityFrameworkCore.Spanner -o $PWD/nupkg
 
+# Download and install Go
+GO_VERSION="1.26.0"
+MSI_FILE="go${GO_VERSION}.windows-amd64.msi"
+DOWNLOAD_URL="https://go.dev/dl/${MSI_FILE}"
+
+echo "Downloading Go ${GO_VERSION}..."
+curl -fL -o "$MSI_FILE" "$DOWNLOAD_URL"
+
+echo "Installing Go silently"
+# /i = install, /quiet = no UI, /norestart = don't reboot the machine
+msiexec.exe //i "$MSI_FILE" //quiet //norestart
+
+echo "Cleaning up installer file..."
+rm "$MSI_FILE"
+echo "Installation finished."
+
+echo "Updating PATH for the current script session..."
+# Use standard Bash export, converting the C:\ path to a Git Bash /c/ path
+export PATH=$PATH:/c/Program\ Files/Go/bin
+# Verify that Go is installed and works
+go version
+
 echo Building spanner-ado-net...
 pushd spanner-ado-net/spanner-ado-net
 
