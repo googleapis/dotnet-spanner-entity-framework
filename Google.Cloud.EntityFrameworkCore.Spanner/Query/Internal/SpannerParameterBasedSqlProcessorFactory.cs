@@ -27,6 +27,6 @@ public class SpannerParameterBasedSqlProcessorFactory : IRelationalParameterBase
     protected virtual RelationalParameterBasedSqlProcessorDependencies Dependencies { get; }
 
     /// <inheritdoc />
-    public virtual RelationalParameterBasedSqlProcessor Create(bool useRelationalNulls)
-        => new SpannerParameterBasedSqlProcessor(Dependencies, useRelationalNulls);
+    public virtual RelationalParameterBasedSqlProcessor Create(RelationalParameterBasedSqlProcessorParameters parameters)
+        => new SpannerParameterBasedSqlProcessor(Dependencies, parameters);
 }

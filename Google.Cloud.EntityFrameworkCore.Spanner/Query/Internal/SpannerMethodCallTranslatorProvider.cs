@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+﻿// Copyright 2026 Google LLC
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,25 +23,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
     ///     any release. You should only use it directly in your code with extreme caution and knowing that
     ///     doing so can result in application failures when updating to a new Entity Framework Core release.
     /// </summary>
-    internal class SpannerMethodCallTranslatorProvider : RelationalMethodCallTranslatorProvider
+    internal sealed class SpannerMethodCallTranslatorProvider : RelationalMethodCallTranslatorProvider
     {
-        public SpannerMethodCallTranslatorProvider([NotNull] RelationalMethodCallTranslatorProviderDependencies dependencies)
+        public SpannerMethodCallTranslatorProvider(
+            [NotNull] RelationalMethodCallTranslatorProviderDependencies dependencies)
             : base(dependencies)
         {
             var sqlExpressionFactory = (SpannerSqlExpressionFactory) dependencies.SqlExpressionFactory;
 
-            AddTranslators(
-                new IMethodCallTranslator[]
-                {
-                    new SpannerNullableMethodTranslator(sqlExpressionFactory),
-                    new SpannerObjectToStringTranslator(sqlExpressionFactory),
-                    new SpannerStringMethodTranslator(sqlExpressionFactory),
-                    new SpannerRegexMethodTranslator(sqlExpressionFactory),
-                    new SpannerDateTimeMethodTranslator(sqlExpressionFactory),
-                    new SpannerMathTranslator(sqlExpressionFactory),
-                    new SpannerListMethodCallTranslator(sqlExpressionFactory),
-                    new SpannerJsonMethodCallTranslator(sqlExpressionFactory),
-                });
+            AddTranslators([
+                new SpannerNullableMethodTranslator(sqlExpressionFactory),
+                new SpannerObjectToStringTranslator(sqlExpressionFactory),
+                new SpannerStringMethodTranslator(sqlExpressionFactory),
+                new SpannerRegexMethodTranslator(sqlExpressionFactory),
+                new SpannerDateTimeMethodTranslator(sqlExpressionFactory),
+                new SpannerMathTranslator(sqlExpressionFactory),
+                new SpannerListMethodCallTranslator(sqlExpressionFactory),
+                new SpannerJsonMethodCallTranslator(sqlExpressionFactory),
+            ]);
         }
     }
 }

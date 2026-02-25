@@ -14,8 +14,6 @@
 
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Query;
-using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
-using System.Collections.Generic;
 using System.Linq.Expressions;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal;
@@ -26,16 +24,17 @@ public class SpannerParameterBasedSqlProcessor : RelationalParameterBasedSqlProc
     /// <summary>
     /// Only for internal use.
     /// </summary>
-    public SpannerParameterBasedSqlProcessor([NotNull] RelationalParameterBasedSqlProcessorDependencies dependencies, bool useRelationalNulls) :
-        base(dependencies, useRelationalNulls)
+    public SpannerParameterBasedSqlProcessor(
+        [NotNull] RelationalParameterBasedSqlProcessorDependencies dependencies,
+        RelationalParameterBasedSqlProcessorParameters parameters) :
+        base(dependencies, parameters)
     {
     }
     
     /// <inheritdoc />
     protected override Expression ProcessSqlNullability(
         Expression selectExpression,
-        [ItemCanBeNull] IReadOnlyDictionary<string, object> parametersValues,
-        out bool canCache)
-        => new SpannerSqlNullabilityProcessor(Dependencies, UseRelationalNulls).Process(
-            selectExpression, parametersValues, out canCache);
+        ParametersCacheDecorator decorator)
+        => new SpannerSqlNullabilityProcessor(Dependencies, Parameters).Process(
+            selectExpression, decorator);
 }

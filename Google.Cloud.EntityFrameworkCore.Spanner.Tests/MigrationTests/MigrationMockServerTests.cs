@@ -17,8 +17,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.Spanner.V1;
 using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
@@ -58,6 +60,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
             using var db = new MockMigrationSampleDbContext(ConnectionString);
             db.Database.Migrate();
             
+            var requests = _fixture.SpannerMock.Requests.ToList();
+            // There is one BatchDmlRequest per migration.
+            var batchDmlRequests = requests.OfType<ExecuteBatchDmlRequest>();
+            Assert.Equal(2, batchDmlRequests.Count());
+            // Each BatchDmlRequest is executed as a separate transaction.
+            var commitRequests = requests.OfType<CommitRequest>().ToList();
+            Assert.Equal(2, commitRequests.Count);
+            
             Assert.Collection(_fixture.DatabaseAdminMock.Requests,
                 // The initial request will create an empty database and then create the migrations history table.
                 request => Assert.IsType<CreateDatabaseRequest>(request),
@@ -66,7 +76,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
                     var update = request as UpdateDatabaseDdlRequest;
                     Assert.NotNull(update);
                     Assert.Collection(update.Statements,
-                        sql => Assert.StartsWith("CREATE TABLE `EFMigrationsHistory`", sql)
+                        sql => Assert.StartsWith("CREATE TABLE IF NOT EXISTS `EFMigrationsHistory`", sql)
                     );
                 },
                 // Each migration will be executed as a separate DDL batch.
@@ -113,7 +123,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
             var formattedVersion = $"{version.Major}.{version.Minor}.{version.Build}";
             _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSelect1ResultSet());
             _fixture.SpannerMock.AddOrUpdateStatementResult(
-                "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_catalog = '' and table_schema = '' and table_name = '''EFMigrationsHistory''')",
+                "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema = ''     AND table_name = 'EFMigrationsHistory')",
                 StatementResult.CreateSelectTrueResultSet());
             _fixture.SpannerMock.AddOrUpdateStatementResult($"SELECT `MigrationId`, `ProductVersion`{Environment.NewLine}" +
                                                             $"FROM `EFMigrationsHistory`{Environment.NewLine}" +
@@ -138,6 +148,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
             Assert.Collection(_fixture.DatabaseAdminMock.Requests,
                 // Each migration will be executed as a separate DDL batch.
                 request =>
+                {
+                    var update = request as UpdateDatabaseDdlRequest;
+                    Assert.NotNull(update);
+                    Assert.Collection(update.Statements,
+                        // Entity Framework 10 executes this regardless whether database provider has already told it
+                        // that the table exists or not.
+                        sql => Assert.StartsWith("CREATE TABLE IF NOT EXISTS `EFMigrationsHistory`", sql)
+                    );
+                }, request =>
                 {
                     var update = request as UpdateDatabaseDdlRequest;
                     Assert.NotNull(update);

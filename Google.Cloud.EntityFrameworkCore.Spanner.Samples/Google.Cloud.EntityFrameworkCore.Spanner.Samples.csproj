@@ -3,7 +3,7 @@
   <PropertyGroup>
     <AssemblyName>SampleRunner</AssemblyName>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RollForward>LatestMajor</RollForward>
   </PropertyGroup>
 
@@ -25,7 +25,7 @@
 
   <ItemGroup>
     <PackageReference Include="Docker.DotNet" Version="3.125.15" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.24">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.2">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>

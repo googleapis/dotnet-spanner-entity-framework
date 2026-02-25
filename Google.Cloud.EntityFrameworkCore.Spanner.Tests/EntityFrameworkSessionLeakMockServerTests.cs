@@ -114,7 +114,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1";
+                $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.Type, string>>(),
                 new List<object[]>()
@@ -133,7 +133,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
                 $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+                $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
 
             using var db = CreateContext();
             await Repeat(async () => {
@@ -174,7 +174,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _fixture.SpannerMock.AddOrUpdateStatementResult(updateSql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type{Code = V1.TypeCode.String}, "FullName", "Alice Pieterson-Morrison"));
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, " +
                 $"`s`.`FullName`, `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+                $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
 
             using var db = CreateContext();
             await Repeat(async () =>
@@ -207,7 +207,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+                $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
             using var db = CreateContext();
 
             await Repeat(async () =>
@@ -224,7 +224,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+                $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
             using var db = CreateContext();
 
             await Repeat(async () =>
@@ -245,7 +245,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                   $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
                   $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}" +
                   $"FROM `Singers` AS `s`{Environment.NewLine}" +
-                  $"WHERE `s`.`SingerId` = @__id_0{Environment.NewLine}LIMIT 1");
+                  $"WHERE `s`.`SingerId` = @id{Environment.NewLine}LIMIT 1");
 
             using var db = CreateContext();
             var id = 1L;
@@ -262,7 +262,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             AddFindSingerResult($"-- exact_staleness: 5{CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator}5{Environment.NewLine}{Environment.NewLine}" +
                   $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
                   $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                  $"WHERE `s`.`SingerId` = @__id_0{Environment.NewLine}LIMIT 1");
+                  $"WHERE `s`.`SingerId` = @id{Environment.NewLine}LIMIT 1");
 
             using var db = CreateContext();
             var id = 1L;
@@ -279,7 +279,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             AddFindSingerResult($"-- min_read_timestamp: 2021-09-08T15:18:01.1230000Z{Environment.NewLine}{Environment.NewLine}" +
                   $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
                   $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                  $"WHERE `s`.`SingerId` = @__id_0{Environment.NewLine}LIMIT 1");
+                  $"WHERE `s`.`SingerId` = @id{Environment.NewLine}LIMIT 1");
 
             using var db = CreateContext();
             var id = 1L;
@@ -299,7 +299,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             AddFindSingerResult($"-- read_timestamp: 2021-09-08T15:18:02.0000000Z{Environment.NewLine}{Environment.NewLine}" +
                   $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
                   $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                  $"WHERE `s`.`SingerId` = @__id_0{Environment.NewLine}LIMIT 1");
+                  $"WHERE `s`.`SingerId` = @id{Environment.NewLine}LIMIT 1");
 
             using var db = CreateContext();
             var id = 1L;
@@ -532,7 +532,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}ORDER BY `s`.`LastName`" +
-                $"{Environment.NewLine}LIMIT @__p_0";
+                $"{Environment.NewLine}LIMIT @p";
             AddFindSingerResult(sql);
 
             await Repeat(async () =>
@@ -550,7 +550,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"ORDER BY `s`.`LastName`{Environment.NewLine}LIMIT @__p_1 OFFSET @__p_0";
+                $"ORDER BY `s`.`LastName`{Environment.NewLine}LIMIT @p1 OFFSET @p";
             AddFindSingerResult(sql);
 
             await Repeat(async () =>
@@ -569,7 +569,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"ORDER BY `s`.`LastName`{Environment.NewLine}LIMIT {long.MaxValue / 2} OFFSET @__p_0";
+                $"ORDER BY `s`.`LastName`{Environment.NewLine}LIMIT {long.MaxValue / 2} OFFSET @p";
             AddFindSingerResult(sql);
 
             await Repeat(async () =>
@@ -663,7 +663,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE STRPOS(`s`.`FirstName`, @__firstName_0) > 0";
+                $"WHERE STRPOS(`s`.`FirstName`, @firstName) > 0";
             AddFindSingerResult(sql);
 
             await Repeat(async () =>
@@ -681,7 +681,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE STARTS_WITH(`s`.`FullName`, @__fullName_0)";
+                $"WHERE STARTS_WITH(`s`.`FullName`, @fullName)";
             AddFindSingerResult(sql);
 
             await Repeat(async () => {
@@ -698,7 +698,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE ENDS_WITH(`s`.`FullName`, @__fullName_0)";
+                $"WHERE ENDS_WITH(`s`.`FullName`, @fullName)";
             AddFindSingerResult(sql);
 
             await Repeat(async () =>
@@ -716,7 +716,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
                 $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE CHAR_LENGTH(`s`.`FirstName`) > @__minLength_0";
+                $"WHERE CHAR_LENGTH(`s`.`FirstName`) > @minLength";
             AddFindSingerResult(sql);
 
             await Repeat(async () =>
@@ -766,8 +766,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task CanUseRegexReplace()
         {
             using var db = CreateContext();
-            var sql = $"SELECT REGEXP_REPLACE(`s`.`FirstName`, @__regex_1, @__replacement_2)" +
-                $"{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}WHERE `s`.`SingerId` = @__singerId_0";
+            var sql = $"SELECT REGEXP_REPLACE(`s`.`FirstName`, @regex, @replacement)" +
+                $"{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}WHERE `s`.`SingerId` = @singerId";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -799,7 +799,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             // Note: AddYears cannot be applied server side to a TIMESTAMP, only to a DATE, so this is handled client side.
             var sql = $"SELECT `c`.`StartTime`{Environment.NewLine}FROM `Concerts` AS `c`" +
-                $"{Environment.NewLine}WHERE `c`.`SingerId` = @__singerId_0";
+                $"{Environment.NewLine}WHERE `c`.`SingerId` = @singerId";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -829,7 +829,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT DATE_ADD(`s`.`BirthDate`, INTERVAL 1 YEAR){Environment.NewLine}" +
                 $"FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE `s`.`SingerId` = @__singerId_0 AND `s`.`BirthDate` IS NOT NULL";
+                $"WHERE `s`.`SingerId` = @singerId AND `s`.`BirthDate` IS NOT NULL";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -858,7 +858,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             // Note: AddMonths cannot be applied server side to a TIMESTAMP, only to a DATE, so this is handled client side.
             var sql = $"SELECT `c`.`StartTime`{Environment.NewLine}FROM `Concerts` AS `c`" +
-                $"{Environment.NewLine}WHERE `c`.`SingerId` = @__singerId_0";
+                $"{Environment.NewLine}WHERE `c`.`SingerId` = @singerId";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -888,7 +888,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT DATE_ADD(`s`.`BirthDate`, INTERVAL 1 MONTH){Environment.NewLine}" +
                 $"FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE `s`.`SingerId` = @__singerId_0 AND `s`.`BirthDate` IS NOT NULL";
+                $"WHERE `s`.`SingerId` = @singerId AND `s`.`BirthDate` IS NOT NULL";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -917,7 +917,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT TIMESTAMP_ADD(`c`.`StartTime`, INTERVAL CAST(1.0 AS INT64) DAY)" +
                 $"{Environment.NewLine}FROM `Concerts` AS `c`{Environment.NewLine}" +
-                $"WHERE `c`.`SingerId` = @__singerId_0";
+                $"WHERE `c`.`SingerId` = @singerId";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -947,7 +947,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT DATE_ADD(`s`.`BirthDate`, INTERVAL 1 DAY){Environment.NewLine}" +
                 $"FROM `Singers` AS `s`{Environment.NewLine}" +
-                $"WHERE `s`.`SingerId` = @__singerId_0 AND `s`.`BirthDate` IS NOT NULL";
+                $"WHERE `s`.`SingerId` = @singerId AND `s`.`BirthDate` IS NOT NULL";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -976,7 +976,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT TIMESTAMP_ADD(`c`.`StartTime`, INTERVAL CAST(1.0 AS INT64) HOUR)" +
                 $"{Environment.NewLine}FROM `Concerts` AS `c`{Environment.NewLine}" +
-                $"WHERE `c`.`SingerId` = @__singerId_0";
+                $"WHERE `c`.`SingerId` = @singerId";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1006,7 +1006,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT TIMESTAMP_ADD(`c`.`StartTime`, INTERVAL CAST(1.0 AS INT64) MINUTE)" +
                 $"{Environment.NewLine}FROM `Concerts` AS `c`{Environment.NewLine}" +
-                $"WHERE `c`.`SingerId` = @__singerId_0";
+                $"WHERE `c`.`SingerId` = @singerId";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1036,7 +1036,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT TIMESTAMP_ADD(`c`.`StartTime`, INTERVAL CAST(1.0 AS INT64) SECOND)" +
                 $"{Environment.NewLine}FROM `Concerts` AS `c`{Environment.NewLine}" +
-                $"WHERE `c`.`SingerId` = @__singerId_0";
+                $"WHERE `c`.`SingerId` = @singerId";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1066,7 +1066,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT TIMESTAMP_ADD(`c`.`StartTime`, INTERVAL CAST(1.0 AS INT64) MILLISECOND)" +
                 $"{Environment.NewLine}FROM `Concerts` AS `c`{Environment.NewLine}" +
-                $"WHERE `c`.`SingerId` = @__singerId_0";
+                $"WHERE `c`.`SingerId` = @singerId";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1096,7 +1096,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT TIMESTAMP_ADD(`c`.`StartTime`, INTERVAL 100 * 1 NANOSECOND)" +
                 $"{Environment.NewLine}FROM `Concerts` AS `c`{Environment.NewLine}" +
-                $"WHERE `c`.`SingerId` = @__singerId_0";
+                $"WHERE `c`.`SingerId` = @singerId";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1125,7 +1125,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"SELECT ABS(`t`.`ColInt64`){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1153,7 +1153,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"SELECT ABS(COALESCE(`t`.`ColFloat64`, 0.0)){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1181,7 +1181,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"SELECT ABS(COALESCE(`t`.`ColNumeric`, 0)){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1209,7 +1209,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"SELECT GREATEST(`t`.`ColInt64`, 2){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1238,7 +1238,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT GREATEST(COALESCE(`t`.`ColFloat64`, 0.0), 3.1400000000000001)" +
                 $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}" +
-                $"WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1266,7 +1266,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"SELECT LEAST(`t`.`ColInt64`, 2){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1295,7 +1295,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT LEAST(COALESCE(`t`.`ColFloat64`, 0.0), 3.1400000000000001)" +
                 $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}" +
-                $"WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1323,7 +1323,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"SELECT ROUND(COALESCE(`t`.`ColFloat64`, 0.0)){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1351,7 +1351,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"SELECT ROUND(COALESCE(`t`.`ColNumeric`, 0)){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1381,7 +1381,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"SELECT ROUND(COALESCE(`t`.`ColFloat64`, 0.0), 1){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1409,7 +1409,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"SELECT CEIL(COALESCE(`t`.`ColFloat64`, 0.0)){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1437,7 +1437,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"SELECT FLOOR(COALESCE(`t`.`ColFloat64`, 0.0)){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1467,7 +1467,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var sql = $"SELECT EXTRACT(YEAR FROM COALESCE(`t`.`ColTimestamp`, TIMESTAMP '0001-01-01T00:00:00Z') AT TIME ZONE 'UTC') AS `Year`, " +
                 $"EXTRACT(MONTH FROM COALESCE(`t`.`ColTimestamp`, TIMESTAMP '0001-01-01T00:00:00Z') AT TIME ZONE 'UTC') AS `Month`" +
                 $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1507,7 +1507,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 "EXTRACT(DAYOFYEAR FROM COALESCE(`t`.`ColDate`, DATE '0001-01-01')) AS `DayOfYear`, " +
                 "EXTRACT(DAYOFWEEK FROM COALESCE(`t`.`ColDate`, DATE '0001-01-01')) - 1 AS `DayOfWeek`" +
                 $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}" +
-                $"WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1555,7 +1555,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var db = CreateContext();
             var sql = $"SELECT CAST(COALESCE(`t`.`ColBool`, false) AS STRING)" +
                 $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}" +
-                $"WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1582,7 +1582,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"SELECT CAST(`t`.`ColBytes` AS STRING){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1610,7 +1610,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"SELECT CAST(`t`.`ColInt64` AS STRING){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1638,7 +1638,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"SELECT CAST(COALESCE(`t`.`ColNumeric`, 0) AS STRING){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1666,7 +1666,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"SELECT CAST(COALESCE(`t`.`ColFloat64`, 0.0) AS STRING){Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
-                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0{Environment.NewLine}LIMIT 1";
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
                 {
@@ -1695,7 +1695,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"SELECT CAST(COALESCE(`t`.`ColDate`, DATE '0001-01-01') AS STRING)" +
-                $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0" +
+                $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}WHERE `t`.`ColInt64` = @id" +
                 $"{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
@@ -1725,7 +1725,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"SELECT FORMAT_TIMESTAMP('''%FT%H:%M:%E*SZ''', COALESCE(`t`.`ColTimestamp`, TIMESTAMP '0001-01-01T00:00:00Z'), '''UTC''')" +
-                $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}WHERE `t`.`ColInt64` = @__id_0" +
+                $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}WHERE `t`.`ColInt64` = @id" +
                 $"{Environment.NewLine}LIMIT 1";
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
                 new List<Tuple<V1.TypeCode, string>>
@@ -1937,7 +1937,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             using var db = CreateContext();
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, `s`.`Picture`" +
-                $"{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}WHERE STRPOS(`s`.`FirstName`, @__firstName_0) > 0";
+                $"{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}WHERE STRPOS(`s`.`FirstName`, @firstName) > 0";
             AddFindSingerResult(sql);
 
             await Repeat(async () =>
@@ -2034,7 +2034,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
                                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+                                $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
 
             await Repeat(async () =>
             {
@@ -2050,7 +2050,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
                                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+                                $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
 
             await Repeat(async () =>
             {
@@ -2068,7 +2068,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
                                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+                                $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
 
             await using var db = CreateContext();
             await Repeat(async () =>
@@ -2084,7 +2084,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
                                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+                                $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
 
             await using var db = CreateContext();
 
@@ -2111,7 +2111,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
                                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+                                $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
 
             using var db1 = CreateContext();
             using (var transaction1 = await db1.Database.BeginTransactionAsync())
@@ -2139,7 +2139,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
                                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+                                $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
 
             await Repeat(async () =>
             {
@@ -2155,7 +2155,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
                                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+                                $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
 
             using var db = CreateContext();
             await Repeat(async () =>
@@ -2171,7 +2171,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, " +
                                 $"`s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+                                $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
 
             await Repeat(async () => {
                 // Note: No 'using' or other means of disposing it.
@@ -2185,11 +2185,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         [Fact]
         public async Task QueryWithoutGettingResults_DoesNotLeakSession()
         {
-            using var db = CreateContext();
-            var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, `s`.`Picture`" +
-                      $"{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}WHERE STRPOS(`s`.`FirstName`, @__firstName_0) > 0";
-            AddFindSingerResult(sql);
-
+            // We don't have to set up any results for the test, as the query is not actually executed.
+            await using var db = CreateContext();
             await Repeat(() =>
             {
                 // Create a query without actually executing it / getting the results.
@@ -2205,7 +2202,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         {
             AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
                                 $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
-                                $"WHERE `s`.`SingerId` = @__p_0{Environment.NewLine}LIMIT 1");
+                                $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
 
             await Repeat(async () =>
             {
