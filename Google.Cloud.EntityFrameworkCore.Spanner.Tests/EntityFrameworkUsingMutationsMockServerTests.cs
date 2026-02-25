@@ -806,10 +806,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.Equal(Mutation.OperationOneofCase.Insert, mutation.OperationCase);
             Assert.Equal(2, mutation.Insert.Columns.Count);
             Assert.Single(mutation.Insert.Values);
-            Assert.Equal("CustomerName", mutation.Insert.Columns[0]);
-            Assert.Equal("Receipt", mutation.Insert.Columns[1]);
-            Assert.Equal($"New Customer{index}", mutation.Insert.Values[0].Values[0].StringValue);
-            Assert.Equal("{\"Date\":\"2025-09-01\",\"Number\":\"" + index + "\"}", mutation.Insert.Values[0].Values[1].StringValue);
+            
+            // Column order may vary - validate by finding the column position
+            var columns = mutation.Insert.Columns.ToList();
+            var values = mutation.Insert.Values[0].Values.ToList();
+            
+            var receiptIndex = columns.IndexOf("Receipt");
+            var customerNameIndex = columns.IndexOf("CustomerName");
+            
+            Assert.True(receiptIndex >= 0, "Receipt column not found");
+            Assert.True(customerNameIndex >= 0, "CustomerName column not found");
+            
+            Assert.Equal("{\"Date\":\"2025-09-01\",\"Number\":\"" + index + "\"}", values[receiptIndex].StringValue);
+            Assert.Equal($"New Customer{index}", values[customerNameIndex].StringValue);
         }
 
         private string AddFindSingerResult(string sql)

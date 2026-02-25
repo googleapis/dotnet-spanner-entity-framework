@@ -15,13 +15,13 @@
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore.Storage.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using Microsoft.EntityFrameworkCore.Storage.Json;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
@@ -40,7 +40,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         private static readonly SpannerDateTypeMapping s_date = new SpannerDateTypeMapping();
         
-        private static readonly SpannerDateOnlyTypeMapping s_dateonly = new ();
+        private static readonly SpannerDateOnlyTypeMapping s_dateOnly = new ();
 
         private static readonly SpannerTimestampTypeMapping s_datetime = new SpannerTimestampTypeMapping();
 
@@ -211,7 +211,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(uint), s_uint},
                     {typeof(bool), s_bool},
                     {typeof(SpannerDate), s_date},
-                    {typeof(DateOnly), s_dateonly},
+                    {typeof(DateOnly), s_dateOnly},
                     {typeof(DateTime), s_datetime},
                     {typeof(float), s_float},
                     {typeof(double), s_double},
@@ -317,6 +317,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             var clrType = mappingInfo.ClrType;
             var storeTypeName = mappingInfo.StoreTypeName;
             var storeTypeNameBase = mappingInfo.StoreTypeNameBase;
+
+            // Handle JsonTypePlaceholder type for EF Core 8's .ToJson() owned entities.
+            // JsonTypePlaceholder is an internal type in EF Core, so we detect it by name.
+            if (clrType != null && clrType.Name == "JsonTypePlaceholder")
+            {
+                // Return the structural JSON type mapping which uses JSON '...' literal syntax
+                return s_structuralJson;
+            }
 
             if (storeTypeName != null)
             {

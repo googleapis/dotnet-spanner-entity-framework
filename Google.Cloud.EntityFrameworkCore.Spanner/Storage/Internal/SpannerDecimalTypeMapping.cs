@@ -19,10 +19,18 @@ using System.Data.Common;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
-    internal class SpannerDecimalTypeMapping() : RelationalTypeMapping(new RelationalTypeMappingParameters(
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
+    public class SpannerDecimalTypeMapping() : RelationalTypeMapping(new RelationalTypeMappingParameters(
         new CoreTypeMappingParameters(typeof(decimal)),
         SpannerDbType.Numeric.ToString(), StoreTypePostfix.None, System.Data.DbType.VarNumeric))
     {
+        public static SpannerDecimalTypeMapping Default { get; } = new();
+        
         protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters) =>
             new SpannerDecimalTypeMapping();
 

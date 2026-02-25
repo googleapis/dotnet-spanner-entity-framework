@@ -1,5 +1,28 @@
 # Changelog
 
+## [3.10.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.9.0...Google.Cloud.EntityFrameworkCore.Spanner-3.10.0) (2026-02-18)
+
+Note: Release job failed
+
+### Features
+
+* Add ToJson() and JSONPath query support ([#678](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/678)) ([4a5b374](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/4a5b3746b1b2924bdbf4aeb1a5ef58aa504a291b))
+* support generating compiled models ([#685](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/685)) ([02f7648](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/02f7648e23552f120559cc81576644506449f354))
+
+## [3.9.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.8.0...Google.Cloud.EntityFrameworkCore.Spanner-3.9.0) (2026-01-29)
+
+
+### Features
+
+* async DDL execution ([#664](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/664)) ([03598af](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/03598af3f53966bb9a32a7d4a1d1ceafd34f6363))
+* index column ordering in migrations ([#665](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/665)) ([dbdb211](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/dbdb211a3d79f918efc4c757f213fbc93511f96d)), closes [#631](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/631) [#630](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/630)
+* InterleaveIn for indexes ([#666](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/666)) ([9b01ba9](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/9b01ba987b0126d74d0a54d02e6486d356e9e2a2)), closes [#634](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/634)
+
+
+### Bug Fixes
+
+* session leak for empty transaction with tag ([#667](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/667)) ([519f393](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/519f39321216b9eaf2eae47e25c561cbe37b18a1)), closes [#635](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/635)
+
 ## [3.8.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.7.0...Google.Cloud.EntityFrameworkCore.Spanner-3.8.0) (2025-11-19)
 
 

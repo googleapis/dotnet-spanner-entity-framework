@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System.Diagnostics;
 using System.Net.Sockets;
 
 namespace Google.Cloud.Spanner.DataProvider.Samples;
@@ -87,8 +88,19 @@ internal class EmulatorRunner
         _containerId = response.ID;
         await _dockerClient.Containers.StartContainerAsync(_containerId, null);
         var inspectResponse = await _dockerClient.Containers.InspectContainerAsync(_containerId);
-        Thread.Sleep(500);
-        return inspectResponse.NetworkSettings.Ports["9010/tcp"][0];
+        var timeout = TimeSpan.FromSeconds(5);
+        var watch = Stopwatch.StartNew();
+        while (!inspectResponse.NetworkSettings.Ports.ContainsKey("9010/tcp") && watch.Elapsed < timeout)
+        {
+            await Task.Delay(100);
+            inspectResponse = await _dockerClient.Containers.InspectContainerAsync(_containerId);
+        }
+        if (!inspectResponse.NetworkSettings.Ports.TryGetValue("9010/tcp", out IList<PortBinding>? value))
+        {
+            throw new Exception($"Emulator port mapping for '9010/tcp' timed out. Available ports: {string.Join(", ", inspectResponse.NetworkSettings.Ports.Keys)}");
+        }
+        await Task.Delay(500);
+        return value[0];
     }
 
     /// <summary>

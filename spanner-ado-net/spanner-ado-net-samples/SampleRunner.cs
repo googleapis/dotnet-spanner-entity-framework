@@ -104,7 +104,7 @@ public static class SampleRunner
             {
                 Console.WriteLine("Starting emulator...");
                 portBinding = await emulatorRunner.StartEmulator();
-                Console.WriteLine($"Emulator started on port {portBinding.HostPort}");
+                Console.WriteLine($"Emulator started on IP/port {portBinding.HostIP}:{portBinding.HostPort}");
                 Console.WriteLine("");
                 startedEmulator = true;
             }

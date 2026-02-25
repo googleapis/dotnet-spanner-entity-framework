@@ -344,7 +344,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         public async Task InsertTicketSale_ReturnsId()
         {
             // Setup results.
-            var insertSql = $"INSERT INTO `TicketSales` (`CustomerName`, `Receipt`){Environment.NewLine}" +
+            var insertSql = $"INSERT INTO `TicketSales` (`Receipt`, `CustomerName`){Environment.NewLine}" +
                             $"VALUES (@p0, @p1){Environment.NewLine}" +
                             $"THEN RETURN `Id`{Environment.NewLine}";
             _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type {Code = V1.TypeCode.Int64}, "Id", "12345"));
@@ -371,10 +371,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.Equal(insertSql, request.Sql);
                     Assert.Collection(request.ParamTypes, pair =>
                     {
-                        Assert.Equal(V1.TypeCode.String, pair.Value.Code);
+                        Assert.Equal(V1.TypeCode.Json, pair.Value.Code);
                     }, pair =>
                     {
-                        Assert.Equal(V1.TypeCode.Json, pair.Value.Code);
+                        Assert.Equal(V1.TypeCode.String, pair.Value.Code);
                     });
                     Assert.NotNull(request.Transaction?.Id);
                 }
@@ -396,7 +396,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             // Setup results.
             for (var p = 0; p < 6; p+=2)
             {
-                var insertSql = $"INSERT INTO `TicketSales` (`CustomerName`, `Receipt`){Environment.NewLine}" +
+                var insertSql = $"INSERT INTO `TicketSales` (`Receipt`, `CustomerName`){Environment.NewLine}" +
                                 $"VALUES (@p{p}, @p{p+1}){Environment.NewLine}" +
                                 $"THEN RETURN `Id`{Environment.NewLine}";
                 _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql,
@@ -407,9 +407,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             await using var db = new MockServerSampleDbContext(ConnectionString);
             var transaction = await db.Database.BeginTransactionAsync();
             db.TicketSales.AddRange(
-                new TicketSales { CustomerName = "New Customer1"},
-                new TicketSales { CustomerName = "New Customer2"},
-                new TicketSales { CustomerName = "New Customer3"}
+                new TicketSales { CustomerName = "New Customer1", Receipt = new Receipt { Date = new DateOnly(2025, 9, 1), Number = "1" }},
+                new TicketSales { CustomerName = "New Customer2", Receipt = new Receipt { Date = new DateOnly(2025, 9, 1), Number = "2" }},
+                new TicketSales { CustomerName = "New Customer3", Receipt = new Receipt { Date = new DateOnly(2025, 9, 1), Number = "3" }}
             );
             var updateCount = await db.SaveChangesAsync();
             await transaction.CommitAsync();

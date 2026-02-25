@@ -4,5 +4,4 @@
 # For syntax help see:
 # https://help.github.com/en/github/creating-cloning-and-archiving-repositories/about-code-owners#codeowners-syntax
 
-# The @googleapis/api-spanner is the default owner for changes in this repo
-*               @googleapis/api-spanner
+*               @googleapis/spanner-team @googleapis/cloud-sdk-dotnet-team

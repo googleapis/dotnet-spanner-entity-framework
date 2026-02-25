@@ -4,6 +4,7 @@
     <AssemblyName>SampleRunner</AssemblyName>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <RollForward>LatestMajor</RollForward>
   </PropertyGroup>
 
   <ItemGroup>

@@ -2,11 +2,15 @@
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "release-type": "simple",
   "changelog-path": "docs/history.md",
+  "separate-pull-requests": true,
   "include-component-in-tag": true,
   "include-v-in-tag": false,
   "packages": {
     ".": {
       "component": "Google.Cloud.EntityFrameworkCore.Spanner",
+      "exclude-paths": [
+        "spanner-ado-net"
+      ],
       "extra-files": [
         {
           "type": "xml",
@@ -17,6 +21,16 @@
           "type": "xml",
           "path": "Google.Cloud.EntityFrameworkCore.Spanner/Google.Cloud.EntityFrameworkCore.Spanner.csproj",
           "xpath": "//Project/PropertyGroup/PackageVersion"
+        }
+      ]
+    },
+    "spanner-ado-net/spanner-ado-net": {
+      "component": "Google.Cloud.Spanner.DataProvider",
+      "extra-files": [
+        {
+          "type": "xml",
+          "path": "spanner-ado-net/spanner-ado-net/spanner-ado-net.csproj",
+          "xpath": "//Project/PropertyGroup/Version"
         }
       ]
     }

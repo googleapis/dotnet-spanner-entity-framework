@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,14 +14,18 @@
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 
-public class TicketSales
+/// <summary>
+/// Entity to test JSON column queries with property names containing special characters.
+/// The JsonData column uses an owned entity with ToJson() configuration.
+/// </summary>
+public class TestEntityWithSpecialJsonProperties
 {
     public long Id { get; set; }
 
-    public string CustomerName { get; set; }
-    
+    public string Name { get; set; }
+
     /// <summary>
-    /// Receipt is stored as a JSON column in the database using OwnsOne with ToJson.
+    /// JSON column containing properties with special characters in their names.
     /// </summary>
-    public Receipt? Receipt { get; set; }
+    public JsonPropertiesWithSpecialNames JsonData { get; set; }
 }
