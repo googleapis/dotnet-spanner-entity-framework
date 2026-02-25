@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.Spanner.DataProvider-0.2.2...Google.Cloud.Spanner.DataProvider-0.2.3) (2026-02-25)
+
+
+### Bug Fixes
+
+* remove 'Alpha' prefix from package name ([#707](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/707)) ([0f02447](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/0f02447c539e08ff63303ff0f4ae412a940a078a))
+
 ## [0.2.2](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.Spanner.DataProvider-0.2.1...Google.Cloud.Spanner.DataProvider-0.2.2) (2026-02-24)
 
 
