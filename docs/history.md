@@ -1,5 +1,16 @@
 # Changelog
 
+## [4.0.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.10.0...Google.Cloud.EntityFrameworkCore.Spanner-4.0.0) (2026-02-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* efcore 10 and .NET 10 ([#671](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/671))
+
+### Features
+
+* efcore 10 and .NET 10 ([#671](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/671)) ([a147adc](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/a147adc76e86cf357b9000b83034a7b27ab461ae))
+
 ## [3.10.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.9.0...Google.Cloud.EntityFrameworkCore.Spanner-3.10.0) (2026-02-18)
 
 Note: Release job failed
