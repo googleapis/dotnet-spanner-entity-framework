@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.1.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.Spanner.DataProvider-1.0.0...Google.Cloud.Spanner.DataProvider-1.1.0) (2026-03-23)
+
+
+### Features
+
+* allow string to be mapped to JSON columns ([#598](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/598)) ([a0c1414](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/a0c14146e9fe2cef1bd44d7fd1ad20861efd5383))
+
+
+### Bug Fixes
+
+* **ado.net:** trigger release of ADO.NET ([#720](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/720)) ([bec40ec](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/bec40ec08dfff9c49b5d237cff79158f89b967f4))
+* document failed release job and retrigger release ([#701](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/701)) ([ee7f72b](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/ee7f72be66c554184f98c085f3093d8faa67d084))
+* re-trigger ADO.NET release ([#705](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/705)) ([91e223f](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/91e223f7e50f08ce3e7c41a5243d477c9e8bb5f5))
+* remove 'Alpha' prefix from package name ([#707](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/707)) ([0f02447](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/0f02447c539e08ff63303ff0f4ae412a940a078a))
+* trigger a release ([#436](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/436)) ([4d42348](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/4d42348be469fa88310b88f0da4802fafafce7f1))
+
 ## [0.2.3](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.Spanner.DataProvider-0.2.2...Google.Cloud.Spanner.DataProvider-0.2.3) (2026-02-25)
 
 
