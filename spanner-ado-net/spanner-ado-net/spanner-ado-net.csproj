@@ -9,7 +9,7 @@
     <PackageId>Google.Cloud.Spanner.DataProvider</PackageId>
     <Title>.NET Data Provider for Spanner</Title>
     <Authors>Google</Authors>
-    <Version>1.0.0-alpha.20260123102444</Version>
+    <Version>1.0.0</Version>
     <Description>ADO.NET Data Provider.
 
       Alpha version: Not for production use</Description>
