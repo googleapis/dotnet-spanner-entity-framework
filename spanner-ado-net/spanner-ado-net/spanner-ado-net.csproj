@@ -10,9 +10,7 @@
     <Title>.NET Data Provider for Spanner</Title>
     <Authors>Google</Authors>
     <Version>1.0.0</Version>
-    <Description>ADO.NET Data Provider.
-
-      Alpha version: Not for production use</Description>
+    <Description>ADO.NET Data Provider.</Description>
     <Copyright>Apache v2.0</Copyright>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
