@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.0.1](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-4.0.0...Google.Cloud.EntityFrameworkCore.Spanner-4.0.1) (2026-04-29)
+
+
+### Bug Fixes
+
+* **ado.net:** set the correct initial version number ([#723](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/723)) ([03bdec9](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/03bdec98ecc605195ef5808b4fbd68ca259b483f))
+
 ## [4.0.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.10.0...Google.Cloud.EntityFrameworkCore.Spanner-4.0.0) (2026-02-25)
 
 
