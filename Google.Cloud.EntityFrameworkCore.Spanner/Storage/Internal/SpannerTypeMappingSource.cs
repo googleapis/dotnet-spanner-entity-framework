@@ -39,6 +39,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             = new SpannerBoolTypeMapping(SpannerDbType.Bool.ToString());
 
         private static readonly SpannerDateTypeMapping s_date = new SpannerDateTypeMapping();
+        private static readonly SpannerDateDateTimeTypeMapping s_dateTimeDate = new SpannerDateDateTimeTypeMapping();
         
         private static readonly SpannerDateOnlyTypeMapping s_dateOnly = new ();
 
@@ -337,6 +338,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 if (_storeTypeMappings.TryGetValue(storeTypeName, out var mapping)
                     || _storeTypeMappings.TryGetValue(storeTypeNameBase, out mapping))
                 {
+                    // if DateTime is being used to map to DATE we need to use the default DateTime<>DateTime mapping instead of trying to use DateTime<>SpannerDate
+                    if (mapping == s_date && clrType == typeof(DateTime))
+                    {
+                        return s_dateTimeDate;
+                    }
+
                     if (clrType == null
                         || mapping.ClrType == clrType
                         || mapping.Converter?.ProviderClrType == clrType)
