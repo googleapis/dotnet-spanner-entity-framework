@@ -1,8 +1,10 @@
 {
-  "baseBranches": ["main"],
+  "baseBranchPatterns": [
+    "main"
+  ],
   "semanticCommitType": "deps",
   "semanticCommitScope": "",
   "extends": [
-    "config:base"
+    "config:recommended"
   ]
 }
