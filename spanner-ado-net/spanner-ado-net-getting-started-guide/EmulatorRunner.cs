@@ -61,6 +61,48 @@ internal class EmulatorRunner
         return true;
     }
 
+    private static async Task WaitUntilReady(int port, int timeoutSeconds = 15)
+    {
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var oldEmulatorHost = Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST");
+        Exception? lastException = null;
+        try
+        {
+            Environment.SetEnvironmentVariable("SPANNER_EMULATOR_HOST", $"localhost:{port}");
+            var connStr = $"Data Source=projects/p/instances/i/databases/d;Host=localhost;Port={port};UsePlainText=true";
+            while (watch.Elapsed < TimeSpan.FromSeconds(timeoutSeconds))
+            {
+                try
+                {
+                    using (var connection = new SpannerConnection(connStr))
+                    {
+                        await connection.OpenAsync();
+                        using (var cmd = new SpannerCommand("SELECT 1", connection))
+                        {
+                            await cmd.ExecuteScalarAsync();
+                            return;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+                    var msg = ex.ToString();
+                    if (msg.Contains("NotFound") || msg.Contains("not found") || msg.Contains("Database not found"))
+                    {
+                        return;
+                    }
+                }
+                await Task.Delay(200);
+            }
+            throw new Exception($"Emulator failed to start and respond to requests on port {port} within {timeoutSeconds} seconds. Last exception: {lastException}", lastException);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("SPANNER_EMULATOR_HOST", oldEmulatorHost);
+        }
+    }
+
     /// <summary>
     /// Downloads the latest Spanner emulator docker image and starts the emulator on port 9010.
     /// </summary>
@@ -87,8 +129,9 @@ internal class EmulatorRunner
         _containerId = response.ID;
         await _dockerClient.Containers.StartContainerAsync(_containerId, null);
         var inspectResponse = await _dockerClient.Containers.InspectContainerAsync(_containerId);
-        Thread.Sleep(500);
-        return inspectResponse.NetworkSettings.Ports["9010/tcp"][0];
+        var portBinding = inspectResponse.NetworkSettings.Ports["9010/tcp"][0];
+        await WaitUntilReady(int.Parse(portBinding.HostPort));
+        return portBinding;
     }
 
     /// <summary>
