@@ -12,9 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Checkout go-sql-spanner
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: 'googleapis/go-sql-spanner'
           path: spanner-ado-net/spanner-ado-net/go-sql-spanner
