@@ -149,7 +149,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             // Use a fixed initial capacity (1KB) to avoid double traversal of fields via CalculateSize()
             // while minimizing buffer expansion allocations for typical row sizes.
             using var ms = new MemoryStream(1024);
-            var cos = new CodedOutputStream(ms);
+            var cos = new CodedOutputStream(ms, 256);
             Protobuf.WellKnownTypes.Value.ForBool(readResult).WriteTo(cos);
             if (readResult)
             {
