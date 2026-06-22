@@ -2,6 +2,7 @@
 [Google Cloud Spanner](https://cloud.google.com/spanner/docs/) database provider for [Entity Framework Core](https://docs.microsoft.com/en-us/ef/core/).
 
 Supported .NET versions and Entity Framework Core versions:
+* Version 4.x of this provider targets Entity Framework Core version 10.0 and .NET 10.
 * Version 3.x of this provider targets Entity Framework Core version 8.0 and .NET 8.
 * Version 2.x of this provider targets Entity Framework Core version 6.0 and .NET 6.
 * Version 1.x of this provider targets Entity Framework Core 3.1.
