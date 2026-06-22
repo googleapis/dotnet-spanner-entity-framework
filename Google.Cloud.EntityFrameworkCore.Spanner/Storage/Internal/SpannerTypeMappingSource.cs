@@ -269,12 +269,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(List<byte[]>), s_byteList},
                 };
 
-            _storeTypeMappings = new Dictionary<string, RelationalTypeMapping>
+            _storeTypeMappings = new Dictionary<string, RelationalTypeMapping>(StringComparer.OrdinalIgnoreCase)
             {
                 {SpannerDbType.Bool.ToString(), s_bool},
                 {SpannerDbType.Bytes.ToString(), s_bytes},
                 {SpannerDbType.Date.ToString(), s_date},
-                {SpannerDbType.Float32.ToString(), s_double},
+                {SpannerDbType.Float32.ToString(), s_float},
                 {SpannerDbType.Float64.ToString(), s_double},
                 {SpannerDbType.Int64.ToString(), s_long},
                 {SpannerDbType.Timestamp.ToString(), s_datetime},
@@ -293,7 +293,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {"ARRAY<JSON>", s_jsonList}
             };
 
-            _arrayTypeMappings = new Dictionary<string, RelationalTypeMapping>
+            _arrayTypeMappings = new Dictionary<string, RelationalTypeMapping>(StringComparer.OrdinalIgnoreCase)
             {
                 {"ARRAY<BOOL>", s_nullableBoolArray},
                 {"ARRAY<BYTES", s_byteArray},
