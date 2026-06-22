@@ -87,13 +87,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
             Assert.Equal("FLOAT32", GetTypeMapping(typeof(float)).StoreType);
         }
 
-        [Fact]
-        public void Can_map_float32_by_name()
+        [Theory]
+        [InlineData("FLOAT32")]
+        [InlineData("float32")]
+        [InlineData("Float32")]
+        public void Can_map_float32_by_name(string typeName)
         {
-            var mapping = CreateTypeMapper().FindMapping("FLOAT32");
+            var mapping = CreateTypeMapper().FindMapping(typeName);
             Assert.NotNull(mapping);
             Assert.Equal(typeof(float), mapping.ClrType);
-            Assert.Equal("FLOAT32", mapping.StoreType);
+            Assert.Equal(typeName, mapping.StoreType);
         }
 
         [Fact]
