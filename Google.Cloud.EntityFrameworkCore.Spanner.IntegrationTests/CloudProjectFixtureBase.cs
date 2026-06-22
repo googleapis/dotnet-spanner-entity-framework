@@ -1,4 +1,4 @@
-﻿// Copyright 2020 Google LLC
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             {
                 throw new XunitException("Test is not allowed to be skipped in this environment.");
             }
-            Skip.If(true);
+            Assert.Skip("Test skipped");
         }
     }
 }
