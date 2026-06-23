@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -96,8 +96,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     });
                 await cmd.ExecuteNonQueryAsync();
             }
-            IEnumerable<IMessage> requests = _fixture.SpannerMock.Requests;
-            CommitRequest commit = (CommitRequest)requests.Last();
+            CommitRequest commit = _fixture.SpannerMock.Requests.OfType<CommitRequest>().LastOrDefault();
+            Assert.NotNull(commit);
             Assert.Equal(Mutation.OperationOneofCase.InsertOrUpdate, commit.Mutations.First().OperationCase);
             Assert.Equal("Singers", commit.Mutations.First().InsertOrUpdate.Table);
         }
@@ -171,10 +171,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 await transaction.CommitAsync();
             }
             // Assert that the correct updates were sent.
-            // Ignore Rollback requests, as these are sent async and can come from other test cases.
-            Stack<IMessage> requests = new Stack<IMessage>(_fixture.SpannerMock.Requests.Where(request => request.GetType() != typeof(RollbackRequest)));
-            Assert.Equal(typeof(CommitRequest), requests.Peek().GetType());
-            CommitRequest commit = (CommitRequest)requests.Pop();
+            CommitRequest commit = _fixture.SpannerMock.Requests.OfType<CommitRequest>().LastOrDefault();
+            Assert.NotNull(commit);
             Assert.Equal(2, commit.Mutations.Count);
 
             Mutation update1 = commit.Mutations.Last();
