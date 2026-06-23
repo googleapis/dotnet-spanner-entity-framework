@@ -123,7 +123,7 @@ public class SpannerTransaction : DbTransaction
 
     protected override void Dispose(bool disposing)
     {
-        if (!IsCompleted)
+        if (disposing && !IsCompleted)
         {
             try
             {
@@ -136,6 +136,7 @@ public class SpannerTransaction : DbTransaction
             }
         }
         _disposed = true;
+        base.Dispose(disposing);
     }
 
     public override async ValueTask DisposeAsync()
@@ -153,6 +154,7 @@ public class SpannerTransaction : DbTransaction
             }
         }
         _disposed = true;
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 
     private void CheckDisposed()

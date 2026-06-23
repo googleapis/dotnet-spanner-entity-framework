@@ -34,27 +34,45 @@ public class SpannerDbException : DbException
         }
     }
     
-    internal static async Task TranslateException(Task task)
+    internal static Task TranslateException(Task task)
     {
-        try
+        if (task.Status == TaskStatus.RanToCompletion)
         {
-            await task.ConfigureAwait(false);
+            return Task.CompletedTask;
         }
-        catch (SpannerException exception)
+        return TranslateExceptionAsync(task);
+
+        static async Task TranslateExceptionAsync(Task t)
         {
-            throw TranslateException(exception);
+            try
+            {
+                await t.ConfigureAwait(false);
+            }
+            catch (SpannerException exception)
+            {
+                throw TranslateException(exception);
+            }
         }
     }
 
-    internal static async Task<T> TranslateException<T>(Task<T> task)
+    internal static Task<T> TranslateException<T>(Task<T> task)
     {
-        try
+        if (task.Status == TaskStatus.RanToCompletion)
         {
-            return await task.ConfigureAwait(false);
+            return task;
         }
-        catch (SpannerException exception)
+        return TranslateExceptionAsync(task);
+
+        static async Task<T> TranslateExceptionAsync(Task<T> t)
         {
-            throw TranslateException(exception);
+            try
+            {
+                return await t.ConfigureAwait(false);
+            }
+            catch (SpannerException exception)
+            {
+                throw TranslateException(exception);
+            }
         }
     }
 
