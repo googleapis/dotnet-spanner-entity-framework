@@ -829,4 +829,25 @@ public class TransactionTests : AbstractMockServerTests
         });
     }
 
+    [Test]
+    public async Task RollbackAsync_PropagatesException_IfConnectionIsClosed()
+    {
+        await using var connection = new SpannerConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        await connection.CloseAsync();
+
+        Assert.ThrowsAsync<ObjectDisposedException>(async () => await transaction.RollbackAsync());
+    }
+
+    [Test]
+    public async Task CommitAsync_PropagatesException_IfConnectionIsClosed()
+    {
+        await using var connection = new SpannerConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        await connection.CloseAsync();
+
+        Assert.ThrowsAsync<ObjectDisposedException>(async () => await transaction.CommitAsync());
+    }
 }

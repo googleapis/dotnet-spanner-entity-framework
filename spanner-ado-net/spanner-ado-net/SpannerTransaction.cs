@@ -125,8 +125,15 @@ public class SpannerTransaction : DbTransaction
     {
         if (!IsCompleted)
         {
-            // Do a shoot-and-forget rollback.
-            Rollback();
+            try
+            {
+                // Do a shoot-and-forget rollback.
+                Rollback();
+            }
+            catch
+            {
+                // Ignored during dispose
+            }
         }
         _disposed = true;
     }
@@ -135,8 +142,15 @@ public class SpannerTransaction : DbTransaction
     {
         if (!IsCompleted)
         {
-            // Do a shoot-and-forget rollback.
-            await RollbackAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                // Do a shoot-and-forget rollback.
+                await RollbackAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Ignored during dispose
+            }
         }
         _disposed = true;
     }
