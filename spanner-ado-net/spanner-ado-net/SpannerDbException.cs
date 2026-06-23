@@ -36,9 +36,21 @@ public class SpannerDbException : DbException
     
     internal static Task TranslateException(Task task)
     {
-        if (task.Status == TaskStatus.RanToCompletion)
+        if (task.IsCompleted)
         {
-            return Task.CompletedTask;
+            if (task.Status == TaskStatus.RanToCompletion)
+            {
+                return Task.CompletedTask;
+            }
+            if (task.IsFaulted)
+            {
+                var inner = task.Exception?.InnerException;
+                if (inner is SpannerException spannerException)
+                {
+                    return Task.FromException(TranslateException(spannerException));
+                }
+            }
+            return task;
         }
         return TranslateExceptionAsync(task);
 
@@ -57,8 +69,20 @@ public class SpannerDbException : DbException
 
     internal static Task<T> TranslateException<T>(Task<T> task)
     {
-        if (task.Status == TaskStatus.RanToCompletion)
+        if (task.IsCompleted)
         {
+            if (task.Status == TaskStatus.RanToCompletion)
+            {
+                return task;
+            }
+            if (task.IsFaulted)
+            {
+                var inner = task.Exception?.InnerException;
+                if (inner is SpannerException spannerException)
+                {
+                    return Task.FromException<T>(TranslateException(spannerException));
+                }
+            }
             return task;
         }
         return TranslateExceptionAsync(task);
