@@ -36,27 +36,68 @@ public class SpannerDbException : DbException
     
     internal static Task TranslateException(Task task)
     {
-        return task.ContinueWith( t => 
+        if (task.IsCompleted)
+        {
+            if (task.Status == TaskStatus.RanToCompletion)
             {
-                if (t.IsFaulted && t.Exception.InnerException is SpannerException spannerException)
+                return Task.CompletedTask;
+            }
+            if (task.IsFaulted)
+            {
+                var inner = task.Exception?.InnerException;
+                if (inner is SpannerException spannerException)
                 {
-                    throw TranslateException(spannerException);
+                    return Task.FromException(TranslateException(spannerException));
                 }
-            },
-            TaskContinuationOptions.ExecuteSynchronously);
+            }
+            return task;
+        }
+        return TranslateExceptionAsync(task);
+
+        static async Task TranslateExceptionAsync(Task t)
+        {
+            try
+            {
+                await t.ConfigureAwait(false);
+            }
+            catch (SpannerException exception)
+            {
+                throw TranslateException(exception);
+            }
+        }
     }
 
     internal static Task<T> TranslateException<T>(Task<T> task)
     {
-        return task.ContinueWith( t => 
+        if (task.IsCompleted)
+        {
+            if (task.Status == TaskStatus.RanToCompletion)
             {
-                if (t.IsFaulted && t.Exception.InnerException is SpannerException spannerException)
+                return task;
+            }
+            if (task.IsFaulted)
+            {
+                var inner = task.Exception?.InnerException;
+                if (inner is SpannerException spannerException)
                 {
-                    throw TranslateException(spannerException);
+                    return Task.FromException<T>(TranslateException(spannerException));
                 }
-                return t.Result;
-            },
-            TaskContinuationOptions.ExecuteSynchronously);
+            }
+            return task;
+        }
+        return TranslateExceptionAsync(task);
+
+        static async Task<T> TranslateExceptionAsync(Task<T> t)
+        {
+            try
+            {
+                return await t.ConfigureAwait(false);
+            }
+            catch (SpannerException exception)
+            {
+                throw TranslateException(exception);
+            }
+        }
     }
 
     internal static Exception TranslateException(SpannerException exception)
