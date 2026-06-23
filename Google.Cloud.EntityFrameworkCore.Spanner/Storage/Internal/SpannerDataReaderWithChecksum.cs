@@ -149,26 +149,30 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             // Use a fixed initial capacity (1KB) to avoid double traversal of fields via CalculateSize()
             // while minimizing buffer expansion allocations for typical row sizes.
             using var ms = new MemoryStream(1024);
-            var cos = new CodedOutputStream(ms, 256);
-            Protobuf.WellKnownTypes.Value.ForBool(readResult).WriteTo(cos);
-            if (readResult)
+            using (var cos = new CodedOutputStream(ms, 256))
             {
-                for (int i = 0; i < reader.FieldCount; i++)
+                Protobuf.WellKnownTypes.Value.ForBool(readResult).WriteTo(cos);
+                if (readResult)
                 {
-                    reader.GetJsonValue(i).WriteTo(cos);
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+                        reader.GetJsonValue(i).WriteTo(cos);
+                    }
                 }
-            }
-            // Flush the CodedOutputStream to ensure all bytes are flushed to the MemoryStream.
-            cos.Flush();
-            
-            // Access the underlying buffer directly if possible to avoid allocating a new byte array via ToArray().
-            if (ms.TryGetBuffer(out var buffer))
-            {
-                hash.AppendData(buffer.Array, buffer.Offset, (int)ms.Length);
-            }
-            else
-            {
-                hash.AppendData(ms.ToArray());
+                // Flush the CodedOutputStream to ensure all bytes are flushed to the MemoryStream.
+                cos.Flush();
+
+                // Access the underlying buffer directly if possible to avoid allocating a new byte array via ToArray().
+                // We must do this inside the using block before the CodedOutputStream is disposed, as disposing the
+                // CodedOutputStream will close and dispose the underlying MemoryStream.
+                if (ms.TryGetBuffer(out var buffer))
+                {
+                    hash.AppendData(buffer.Array, buffer.Offset, (int)ms.Length);
+                }
+                else
+                {
+                    hash.AppendData(ms.ToArray());
+                }
             }
         }
 
