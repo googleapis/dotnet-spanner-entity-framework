@@ -78,7 +78,7 @@ public abstract class AbstractLibObject : IDisposable, IAsyncDisposable
         }
         try
         {
-            if (Id > 0)
+            if (disposing && Id > 0)
             {
                 CloseLibObject();
             }

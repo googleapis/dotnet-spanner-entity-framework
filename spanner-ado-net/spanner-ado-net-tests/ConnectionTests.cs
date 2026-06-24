@@ -555,5 +555,22 @@ public class ConnectionTests : AbstractMockServerTests
         var got = await conn!.ExecuteScalarAsync(sql);
         Assert.That(got, Is.EqualTo(value));
     }
-    
+
+    [Test]
+    public async Task Finalizer_DoesNotThrow_IfConnectionIsClosed()
+    {
+        var connection = new SpannerConnection(ConnectionString);
+        await connection.OpenAsync();
+        
+        var libConnectionField = typeof(SpannerConnection).GetField("_libConnection", 
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        var libConnection = libConnectionField!.GetValue(connection);
+
+        await connection.CloseAsync();
+
+        var disposeMethod = typeof(Google.Cloud.SpannerLib.AbstractLibObject).GetMethod("Dispose", 
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        Assert.DoesNotThrow(() => disposeMethod!.Invoke(libConnection, new[] { (object)false }));
+    }
 }

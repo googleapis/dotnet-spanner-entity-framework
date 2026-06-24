@@ -243,8 +243,11 @@ public class Server : IDisposable
         }
         try
         {
-            Stop();
-            _process?.Dispose();
+            if (disposing)
+            {
+                Stop();
+                _process?.Dispose();
+            }
         }
         finally
         {

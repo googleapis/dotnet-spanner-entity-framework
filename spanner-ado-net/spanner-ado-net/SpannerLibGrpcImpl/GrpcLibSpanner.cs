@@ -131,11 +131,17 @@ public sealed class GrpcLibSpanner : ISpannerLib
         }
         try
         {
-            foreach (var channel in _channels)
+            if (disposing)
             {
-                channel.Dispose();
+                if (_channels != null)
+                {
+                    foreach (var channel in _channels)
+                    {
+                        channel?.Dispose();
+                    }
+                }
+                _server?.Dispose();
             }
-            _server.Dispose();
         }
         finally
         {
