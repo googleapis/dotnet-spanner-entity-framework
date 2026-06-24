@@ -846,9 +846,9 @@ public class SpannerDataReader : DbDataReader
             case TypeCode.Enum:
                 return long.Parse(value.StringValue);
             case TypeCode.Float32:
-                return (float)value.NumberValue;
+                return value.HasNumberValue ? (float)value.NumberValue : float.Parse(value.StringValue, CultureInfo.InvariantCulture);
             case TypeCode.Float64:
-                return value.NumberValue;
+                return value.HasNumberValue ? value.NumberValue : double.Parse(value.StringValue, CultureInfo.InvariantCulture);
             case TypeCode.Int64:
                 return long.Parse(value.StringValue);
             case TypeCode.Interval:
