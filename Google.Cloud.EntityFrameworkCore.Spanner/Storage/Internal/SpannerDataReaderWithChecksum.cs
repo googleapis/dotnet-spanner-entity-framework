@@ -34,7 +34,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     internal sealed class SpannerDataReaderWithChecksum : DbDataReader, IRetriableStatement
     {
         private int _numberOfReadCalls;
-        private byte[] _currentChecksum = new byte[0];
+        private readonly IncrementalHash _incrementalHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        private byte[] _finalChecksum;
+        private bool _hashDisposed;
         private SpannerException _firstException;
         private readonly SpannerCommand _spannerCommand;
 
@@ -75,9 +77,30 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             base.Close();
         }
 
+        /// <summary>
+        /// Retrieves the current running checksum. If the reader has already been disposed,
+        /// returns the final checksum snapshot taken at disposal.
+        /// </summary>
+        private byte[] GetChecksum()
+        {
+            return _finalChecksum ?? _incrementalHash.GetCurrentHash();
+        }
+
         protected override void Dispose(bool disposing)
         {
-            _spannerDataReader.Dispose();
+            if (disposing)
+            {
+                _spannerDataReader.Dispose();
+                if (!_hashDisposed)
+                {
+                    // Cache the final checksum before disposing the IncrementalHash, as the transaction
+                    // retry engine may still need it for consistency checks if the transaction aborts
+                    // after this reader has been closed/disposed by the client.
+                    _finalChecksum = _incrementalHash.GetCurrentHash();
+                    _incrementalHash.Dispose();
+                    _hashDisposed = true;
+                }
+            }
             base.Dispose(disposing);
         }
 
@@ -91,7 +114,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 try
                 {
                     bool res = await _spannerDataReader.ReadAsync(cancellationToken);
-                    _currentChecksum = CalculateNextChecksum(_spannerDataReader, _currentChecksum, res);
+                    AppendRowToHash(_incrementalHash, _spannerDataReader, res);
                     _numberOfReadCalls++;
                     return res;
                 }
@@ -118,34 +141,39 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             return result;
         }
 
-        internal static byte[] CalculateNextChecksum(SpannerDataReader reader, byte[] currentChecksum, bool readResult)
+        /// <summary>
+        /// Serializes the row data and appends it to the IncrementalHash.
+        /// </summary>
+        private static void AppendRowToHash(IncrementalHash hash, SpannerDataReader reader, bool readResult)
         {
-            int size = currentChecksum.Length;
-            size += Protobuf.WellKnownTypes.Value.ForBool(readResult).CalculateSize();
-            if (readResult)
+            // Use a fixed initial capacity (1KB) to avoid double traversal of fields via CalculateSize()
+            // while minimizing buffer expansion allocations for typical row sizes.
+            using var ms = new MemoryStream(1024);
+            using (var cos = new CodedOutputStream(ms, 256))
             {
-                for (int i = 0; i < reader.FieldCount; i++)
+                Protobuf.WellKnownTypes.Value.ForBool(readResult).WriteTo(cos);
+                if (readResult)
                 {
-                    size += reader.GetJsonValue(i).CalculateSize();
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+                        reader.GetJsonValue(i).WriteTo(cos);
+                    }
+                }
+                // Flush the CodedOutputStream to ensure all bytes are flushed to the MemoryStream.
+                cos.Flush();
+
+                // Access the underlying buffer directly if possible to avoid allocating a new byte array via ToArray().
+                // We must do this inside the using block before the CodedOutputStream is disposed, as disposing the
+                // CodedOutputStream will close and dispose the underlying MemoryStream.
+                if (ms.TryGetBuffer(out var buffer))
+                {
+                    hash.AppendData(buffer.Array, buffer.Offset, (int)ms.Length);
+                }
+                else
+                {
+                    hash.AppendData(ms.ToArray());
                 }
             }
-            using var ms = new MemoryStream(size);
-            ms.Write(currentChecksum, 0, currentChecksum.Length);
-            using var cos = new CodedOutputStream(ms);
-            Protobuf.WellKnownTypes.Value.ForBool(readResult).WriteTo(cos);
-            if (readResult)
-            {
-                for (int i = 0; i < reader.FieldCount; i++)
-                {
-                    reader.GetJsonValue(i).WriteTo(cos);
-                }
-            }
-            // Flush the protobuf stream so everything is written to the memory stream.
-            cos.Flush();
-            // Then reset the memory stream to the start so the hash is calculated over all the bytes in the buffer.
-            ms.Position = 0;
-            SHA256 checksum = SHA256.Create();
-            return checksum.ComputeHash(ms);
         }
 
         async Task IRetriableStatement.RetryAsync(SpannerRetriableTransaction transaction, CancellationToken cancellationToken, int timeoutSeconds)
@@ -154,14 +182,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             var reader = await _spannerCommand.ExecuteReaderAsync(cancellationToken);
             int counter = 0;
             bool read = true;
-            byte[] newChecksum = new byte[0];
+            using var retryHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             SpannerException newException = null;
             while (read && counter < _numberOfReadCalls)
             {
                 try
                 {
                     read = await reader.ReadAsync(cancellationToken);
-                    newChecksum = CalculateNextChecksum(reader, newChecksum, read);
+                    AppendRowToHash(retryHash, reader, read);
                     counter++;
                 }
                 catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
@@ -176,8 +204,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     break;
                 }
             }
+            var originalChecksum = GetChecksum();
+            var newChecksum = retryHash.GetHashAndReset();
             if (counter == _numberOfReadCalls
-                && newChecksum.SequenceEqual(_currentChecksum)
+                && newChecksum.SequenceEqual(originalChecksum)
                 && SpannerRetriableTransaction.SpannerExceptionsEqualForRetry(newException, _firstException))
             {
                 // Checksum is ok, we only need to replace the delegate result set if it's still open.
