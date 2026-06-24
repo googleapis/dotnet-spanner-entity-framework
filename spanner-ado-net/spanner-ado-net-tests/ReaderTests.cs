@@ -22,6 +22,9 @@ using Google.Cloud.Spanner.V1;
 using Google.Cloud.SpannerLib.MockServer;
 using Grpc.Core;
 using TypeCode = Google.Cloud.Spanner.V1.TypeCode;
+using ProtobufValue = Google.Protobuf.WellKnownTypes.Value;
+using ListValue = Google.Protobuf.WellKnownTypes.ListValue;
+
 
 namespace Google.Cloud.Spanner.DataProvider.Tests;
 
@@ -1466,4 +1469,123 @@ public class ReaderTests : AbstractMockServerTests
         Assert.That(() => reader.GetTextReader(0), Throws.Nothing);
     }
 
+    [Test]
+    public async Task GetFloat64_SpecialValues()
+    {
+        const string sql = "SELECT val FROM float_table";
+        var resultSet = new ResultSet
+        {
+            Metadata = new ResultSetMetadata
+            {
+                RowType = new StructType
+                {
+                    Fields =
+                    {
+                        new StructType.Types.Field
+                        {
+                            Name = "val",
+                            Type = new Google.Cloud.Spanner.V1.Type
+                            {
+                                Code = TypeCode.Float64
+                            }
+                        }
+                    }
+                }
+            },
+            Rows =
+            {
+                new ListValue { Values = { new ProtobufValue { StringValue = "NaN" } } },
+                new ListValue { Values = { new ProtobufValue { StringValue = "Infinity" } } },
+                new ListValue { Values = { new ProtobufValue { StringValue = "-Infinity" } } },
+                new ListValue { Values = { new ProtobufValue { NumberValue = 3.14 } } }
+            }
+        };
+        Fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateQuery(resultSet));
+
+        await using var conn = await OpenConnectionAsync();
+        await using var cmd = new SpannerCommand(sql, conn);
+        await using var reader = await cmd.ExecuteReaderAsync();
+
+        // 1. NaN
+        Assert.That(await reader.ReadAsync(), Is.True);
+        Assert.That(reader.GetDouble(0), Is.EqualTo(double.NaN));
+        Assert.That(reader.GetValue(0), Is.EqualTo(double.NaN));
+
+        // 2. PositiveInfinity
+        Assert.That(await reader.ReadAsync(), Is.True);
+        Assert.That(reader.GetDouble(0), Is.EqualTo(double.PositiveInfinity));
+        Assert.That(reader.GetValue(0), Is.EqualTo(double.PositiveInfinity));
+
+        // 3. NegativeInfinity
+        Assert.That(await reader.ReadAsync(), Is.True);
+        Assert.That(reader.GetDouble(0), Is.EqualTo(double.NegativeInfinity));
+        Assert.That(reader.GetValue(0), Is.EqualTo(double.NegativeInfinity));
+
+        // 4. Normal value
+        Assert.That(await reader.ReadAsync(), Is.True);
+        Assert.That(reader.GetDouble(0), Is.EqualTo(3.14));
+        Assert.That(reader.GetValue(0), Is.EqualTo(3.14));
+
+        Assert.That(await reader.ReadAsync(), Is.False);
+    }
+
+    [Test]
+    public async Task GetFloat32_SpecialValues()
+    {
+        const string sql = "SELECT val FROM float32_table";
+        var resultSet = new ResultSet
+        {
+            Metadata = new ResultSetMetadata
+            {
+                RowType = new StructType
+                {
+                    Fields =
+                    {
+                        new StructType.Types.Field
+                        {
+                            Name = "val",
+                            Type = new Google.Cloud.Spanner.V1.Type
+                            {
+                                Code = TypeCode.Float32
+                            }
+                        }
+                    }
+                }
+            },
+            Rows =
+            {
+                new ListValue { Values = { new ProtobufValue { StringValue = "NaN" } } },
+                new ListValue { Values = { new ProtobufValue { StringValue = "Infinity" } } },
+                new ListValue { Values = { new ProtobufValue { StringValue = "-Infinity" } } },
+                new ListValue { Values = { new ProtobufValue { NumberValue = 3.14 } } }
+            }
+        };
+        Fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateQuery(resultSet));
+
+        await using var conn = await OpenConnectionAsync();
+        await using var cmd = new SpannerCommand(sql, conn);
+        await using var reader = await cmd.ExecuteReaderAsync();
+
+        // 1. NaN
+        Assert.That(await reader.ReadAsync(), Is.True);
+        Assert.That(reader.GetFloat(0), Is.EqualTo(float.NaN));
+        Assert.That(reader.GetValue(0), Is.EqualTo(float.NaN));
+
+        // 2. PositiveInfinity
+        Assert.That(await reader.ReadAsync(), Is.True);
+        Assert.That(reader.GetFloat(0), Is.EqualTo(float.PositiveInfinity));
+        Assert.That(reader.GetValue(0), Is.EqualTo(float.PositiveInfinity));
+
+        // 3. NegativeInfinity
+        Assert.That(await reader.ReadAsync(), Is.True);
+        Assert.That(reader.GetFloat(0), Is.EqualTo(float.NegativeInfinity));
+        Assert.That(reader.GetValue(0), Is.EqualTo(float.NegativeInfinity));
+
+        // 4. Normal value
+        Assert.That(await reader.ReadAsync(), Is.True);
+        Assert.That(reader.GetFloat(0), Is.EqualTo(3.14f));
+        Assert.That(reader.GetValue(0), Is.EqualTo(3.14f));
+
+        Assert.That(await reader.ReadAsync(), Is.False);
+    }
 }

@@ -846,9 +846,9 @@ public class SpannerDataReader : DbDataReader
             case TypeCode.Enum:
                 return long.Parse(value.StringValue);
             case TypeCode.Float32:
-                return (float)value.NumberValue;
+                return value.KindCase == Value.KindOneofCase.NumberValue ? (float)value.NumberValue : ParseFloat32(value.StringValue);
             case TypeCode.Float64:
-                return value.NumberValue;
+                return value.KindCase == Value.KindOneofCase.NumberValue ? value.NumberValue : ParseFloat64(value.StringValue);
             case TypeCode.Int64:
                 return long.Parse(value.StringValue);
             case TypeCode.Interval:
@@ -966,4 +966,25 @@ public class SpannerDataReader : DbDataReader
         }
     }
 
+    private static float ParseFloat32(string value)
+    {
+        return value switch
+        {
+            "NaN" => float.NaN,
+            "Infinity" => float.PositiveInfinity,
+            "-Infinity" => float.NegativeInfinity,
+            _ => float.Parse(value, CultureInfo.InvariantCulture)
+        };
+    }
+
+    private static double ParseFloat64(string value)
+    {
+        return value switch
+        {
+            "NaN" => double.NaN,
+            "Infinity" => double.PositiveInfinity,
+            "-Infinity" => double.NegativeInfinity,
+            _ => double.Parse(value, CultureInfo.InvariantCulture)
+        };
+    }
 }
