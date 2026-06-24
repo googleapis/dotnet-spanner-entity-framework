@@ -137,13 +137,20 @@ public class SpannerDataReader : DbDataReader
 
     public override bool Read()
     {
-        if (!InternalRead())
+        try
         {
-            _hasReadData = true;
-            _currentRow = LibRows.Next();
+            if (!InternalRead())
+            {
+                _hasReadData = true;
+                _currentRow = LibRows.Next();
+            }
+            _hasData = _hasData || _currentRow != null;
+            return _currentRow != null;
         }
-        _hasData = _hasData || _currentRow != null;
-        return _currentRow != null;
+        catch (SpannerException exception)
+        {
+            throw SpannerDbException.TranslateException(exception);
+        }
     }
 
     public override async Task<bool> ReadAsync(CancellationToken cancellationToken)
@@ -184,8 +191,15 @@ public class SpannerDataReader : DbDataReader
 
     private bool CheckForRows()
     {
-        _tempRow ??= LibRows.Next();
-        return _tempRow != null;
+        try
+        {
+            _tempRow ??= LibRows.Next();
+            return _tempRow != null;
+        }
+        catch (SpannerException exception)
+        {
+            throw SpannerDbException.TranslateException(exception);
+        }
     }
 
     public override DataTable? GetSchemaTable()
@@ -916,18 +930,25 @@ public class SpannerDataReader : DbDataReader
 
     public override bool NextResult()
     {
-        CheckNotClosed();
-        if (IsSingleRow || IsSingleResult)
+        try
         {
-            return false;
+            CheckNotClosed();
+            if (IsSingleRow || IsSingleResult)
+            {
+                return false;
+            }
+            _currentRow = null;
+            _tempRow = null;
+            _hasData = false;
+            _hasReadData = false;
+            _metadata = null;
+            _stats = null;
+            return LibRows.NextResultSet();
         }
-        _currentRow = null;
-        _tempRow = null;
-        _hasData = false;
-        _hasReadData = false;
-        _metadata = null;
-        _stats = null;
-        return LibRows.NextResultSet();
+        catch (SpannerException exception)
+        {
+            throw SpannerDbException.TranslateException(exception);
+        }
     }
 
     public override IEnumerator GetEnumerator()

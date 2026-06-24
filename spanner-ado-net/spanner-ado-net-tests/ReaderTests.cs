@@ -486,6 +486,49 @@ public class ReaderTests : AbstractMockServerTests
         Fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateException(new RpcException(new Status(StatusCode.Internal, "test"))));
         Assert.That(async () => await cmd.ExecuteReaderAsync(), Throws.Exception.TypeOf<SpannerDbException>());
     }
+
+    [NonParallelizable]
+    [Test]
+    public async Task Exception_thrown_from_Read_and_ReadAsync([Values(true, false)] bool asyncRead)
+    {
+        var oldStyle = Environment.GetEnvironmentVariable("SPANNER_ADO_COMMUNICATION_STYLE");
+        Environment.SetEnvironmentVariable("SPANNER_ADO_COMMUNICATION_STYLE", "ServerStreaming");
+        SpannerPool.CloseSpannerLib();
+        try
+        {
+            const string sql = "SELECT Id FROM test_table";
+            Fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = TypeCode.Int64 }, "Id", 1L, 2L));
+
+            var executionTime = ExecutionTime.StreamException(
+                new RpcException(new Status(StatusCode.Internal, "test error")), 
+                1, 
+                new System.Collections.Concurrent.BlockingCollection<int>());
+            executionTime.AlwaysAllowWrite();
+            Fixture.SpannerMock.AddOrUpdateExecutionTime(nameof(MockSpannerService.ExecuteStreamingSql), executionTime);
+
+            await using var conn = await OpenConnectionAsync();
+            await using var cmd = new SpannerCommand(sql, conn);
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            if (asyncRead)
+            {
+                Assert.That(await reader.ReadAsync(), Is.True);
+                Assert.That(reader.GetInt64(0), Is.EqualTo(1L));
+                Assert.That(async () => await reader.ReadAsync(), Throws.Exception.TypeOf<SpannerDbException>());
+            }
+            else
+            {
+                Assert.That(reader.Read(), Is.True);
+                Assert.That(reader.GetInt64(0), Is.EqualTo(1L));
+                Assert.That(() => reader.Read(), Throws.Exception.TypeOf<SpannerDbException>());
+            }
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("SPANNER_ADO_COMMUNICATION_STYLE", oldStyle);
+            SpannerPool.CloseSpannerLib();
+        }
+    }
     
     [Ignore("Require multi-statement support")]
     [Test]
