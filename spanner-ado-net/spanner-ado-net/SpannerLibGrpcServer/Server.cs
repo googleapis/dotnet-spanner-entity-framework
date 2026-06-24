@@ -245,7 +245,14 @@ public class Server : IDisposable
         {
             if (disposing)
             {
-                Stop();
+                try
+                {
+                    Stop();
+                }
+                catch (Exception)
+                {
+                    // Ignore exceptions during shutdown/dispose
+                }
                 _process?.Dispose();
             }
         }
