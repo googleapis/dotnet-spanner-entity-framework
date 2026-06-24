@@ -556,7 +556,7 @@ public class ConnectionTests : AbstractMockServerTests
         Assert.That(got, Is.EqualTo(value));
     }
 
-    public class TestLibObject : Google.Cloud.SpannerLib.AbstractLibObject
+    private class TestLibObject : Google.Cloud.SpannerLib.AbstractLibObject
     {
         public bool CloseLibObjectCalled { get; private set; }
 

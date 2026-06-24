@@ -42,11 +42,6 @@ public abstract class AbstractLibObject : IDisposable, IAsyncDisposable
         Id = id;
     } 
 
-    ~AbstractLibObject()
-    {
-        Dispose(false);
-    }
-
     protected void MarkDisposed()
     {
         _disposed = true;

@@ -114,9 +114,7 @@ public sealed class GrpcLibSpanner : ISpannerLib
             _clients[i] = new V1.SpannerLib.SpannerLibClient(_channels[i]);
         }
     }
-    
-    ~GrpcLibSpanner() => Dispose(false);
-    
+
     public void Dispose()
     {
         Dispose(true);

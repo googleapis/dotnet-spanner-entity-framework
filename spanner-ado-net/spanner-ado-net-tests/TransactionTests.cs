@@ -861,7 +861,10 @@ public class TransactionTests : AbstractMockServerTests
         var initialRollbacks = Fixture.SpannerMock.Requests.OfType<RollbackRequest>().Count();
 
         var disposeMethod = typeof(SpannerTransaction).GetMethod("Dispose", 
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic,
+            binder: null,
+            types: new[] { typeof(bool) },
+            modifiers: null);
         disposeMethod!.Invoke(transaction, new[] { (object)false });
 
         var currentRollbacks = Fixture.SpannerMock.Requests.OfType<RollbackRequest>().Count();
