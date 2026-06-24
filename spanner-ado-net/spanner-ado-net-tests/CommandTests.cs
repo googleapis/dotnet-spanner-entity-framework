@@ -890,6 +890,108 @@ public class CommandTests : AbstractMockServerTests
         Assert.Throws<InvalidOperationException>(() => cmd.Transaction = tx);
     }
 
+    [Test]
+    public async Task TestExecuteNonQueryDml()
+    {
+        const string update = "UPDATE my_table SET int=int+1 WHERE int > 10";
+        Fixture.SpannerMock.AddOrUpdateStatementResult(update, StatementResult.CreateUpdateCount(5));
+
+        await using var connection = await OpenConnectionAsync();
+        
+        // Test Synchronous execution path
+        await using (var command = new SpannerCommand(update, connection))
+        {
+            var affected = command.ExecuteNonQuery();
+            Assert.That(affected, Is.EqualTo(5));
+        }
+
+        // Test Asynchronous execution path
+        await using (var command = new SpannerCommand(update, connection))
+        {
+            var affected = await command.ExecuteNonQueryAsync();
+            Assert.That(affected, Is.EqualTo(5));
+        }
+    }
+
+    [Test]
+    public async Task TestExecuteNonQueryMultiStatementDml()
+    {
+        const string update1 = "UPDATE my_table SET int=int+1 WHERE int > 10;";
+        const string update2 = "UPDATE my_table SET int=int+2 WHERE int > 20;";
+        Fixture.SpannerMock.AddOrUpdateStatementResult(update1, StatementResult.CreateUpdateCount(2));
+        Fixture.SpannerMock.AddOrUpdateStatementResult(update1[..^1], StatementResult.CreateUpdateCount(2));
+        Fixture.SpannerMock.AddOrUpdateStatementResult(update2, StatementResult.CreateUpdateCount(3));
+        Fixture.SpannerMock.AddOrUpdateStatementResult(update2[..^1], StatementResult.CreateUpdateCount(3));
+
+        await using var connection = await OpenConnectionAsync();
+
+        // 1. Test Synchronous execution path
+        await using (var command = new SpannerCommand(update1 + update2, connection))
+        {
+            var affected = command.ExecuteNonQuery();
+            Assert.That(affected, Is.EqualTo(5));
+        }
+
+        // 2. Test Asynchronous execution path
+        await using (var command = new SpannerCommand(update1 + update2, connection))
+        {
+            var affected = await command.ExecuteNonQueryAsync();
+            Assert.That(affected, Is.EqualTo(5));
+        }
+    }
+
+    [Test]
+    public async Task TestDmlWithReturningClause()
+    {
+        const string sql = "INSERT INTO my_table (id, name) VALUES (1, 'One') RETURNING id";
+        
+        // Mock a single-column result set that returns 5 rows and specifies 5 affected rows.
+        var type = new Google.Cloud.Spanner.V1.Type { Code = Google.Cloud.Spanner.V1.TypeCode.Int64 };
+        var mockResult = StatementResult.CreateSingleColumnResultSet(5L, type, "id", 1L, 2L, 3L, 4L, 5L);
+        Fixture.SpannerMock.AddOrUpdateStatementResult(sql, mockResult);
+
+        await using var connection = await OpenConnectionAsync();
+
+        // 1. Test Synchronous execution path
+        await using (var command = new SpannerCommand(sql, connection))
+        {
+            await using var reader = command.ExecuteReader();
+            
+            // Note: Due to a limitation in the Go SpannerLib library (which does not expose ResultSetStats
+            // for query iterators), the Go proxy is unable to retrieve the update count for DML statements with 
+            // a RETURNING clause. It therefore returns 0 affected rows.
+            Assert.That(reader.RecordsAffected, Is.EqualTo(0));
+
+            var rowCount = 0;
+            while (reader.Read())
+            {
+                rowCount++;
+                Assert.That(reader.GetInt64(0), Is.EqualTo((long)rowCount));
+            }
+            Assert.That(rowCount, Is.EqualTo(5));
+
+            Assert.That(reader.RecordsAffected, Is.EqualTo(0));
+        }
+
+        // 2. Test Asynchronous execution path
+        await using (var command = new SpannerCommand(sql, connection))
+        {
+            await using var reader = await command.ExecuteReaderAsync();
+            
+            Assert.That(reader.RecordsAffected, Is.EqualTo(0));
+
+            var rowCount = 0;
+            while (await reader.ReadAsync())
+            {
+                rowCount++;
+                Assert.That(reader.GetInt64(0), Is.EqualTo((long)rowCount));
+            }
+            Assert.That(rowCount, Is.EqualTo(5));
+
+            Assert.That(reader.RecordsAffected, Is.EqualTo(0));
+        }
+    }
+
     private void AddParameter(DbCommand command, string name, object? value)
     {
         var parameter = command.CreateParameter();
