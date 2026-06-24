@@ -556,21 +556,42 @@ public class ConnectionTests : AbstractMockServerTests
         Assert.That(got, Is.EqualTo(value));
     }
 
-    [Test]
-    public async Task Finalizer_DoesNotThrow_IfConnectionIsClosed()
+    public class TestLibObject : Google.Cloud.SpannerLib.AbstractLibObject
     {
-        var connection = new SpannerConnection(ConnectionString);
-        await connection.OpenAsync();
-        
-        var libConnectionField = typeof(SpannerConnection).GetField("_libConnection", 
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-        var libConnection = libConnectionField!.GetValue(connection);
+        public bool CloseLibObjectCalled { get; private set; }
 
-        await connection.CloseAsync();
+        public TestLibObject(long id) : base(null!, id)
+        {
+        }
 
-        var disposeMethod = typeof(Google.Cloud.SpannerLib.AbstractLibObject).GetMethod("Dispose", 
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        protected override void CloseLibObject()
+        {
+            CloseLibObjectCalled = true;
+        }
 
-        Assert.DoesNotThrow(() => disposeMethod!.Invoke(libConnection, new[] { (object)false }));
+        public void CallDispose(bool disposing)
+        {
+            Dispose(disposing);
+        }
+    }
+
+    [Test]
+    public void Finalizer_DoesNotCallCloseLibObject()
+    {
+        var testObj = new TestLibObject(id: 42);
+
+        testObj.CallDispose(disposing: false);
+
+        Assert.That(testObj.CloseLibObjectCalled, Is.False);
+    }
+
+    [Test]
+    public void Dispose_CallsCloseLibObject()
+    {
+        var testObj = new TestLibObject(id: 42);
+
+        testObj.CallDispose(disposing: true);
+
+        Assert.That(testObj.CloseLibObjectCalled, Is.True);
     }
 }
