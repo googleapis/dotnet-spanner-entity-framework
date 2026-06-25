@@ -12,15 +12,97 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
 using System.Data;
 using System.Data.Common;
 using System.Text.RegularExpressions;
+using Google.Cloud.SpannerLib.MockServer;
 using TypeCode = Google.Cloud.Spanner.V1.TypeCode;
 
 namespace Google.Cloud.Spanner.DataProvider.Tests;
 
 public class SchemaTests : AbstractMockServerTests
 {
+    [SetUp]
+    public void SetupSchemaResults()
+    {
+        Fixture.SpannerMock.AddOrUpdateStatementResult(
+            "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE FROM INFORMATION_SCHEMA.TABLES WHERE 1=1",
+            StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(TypeCode.String, "TABLE_CATALOG"),
+                    Tuple.Create(TypeCode.String, "TABLE_SCHEMA"),
+                    Tuple.Create(TypeCode.String, "TABLE_NAME"),
+                    Tuple.Create(TypeCode.String, "TABLE_TYPE")
+                ],
+                [
+                    ["", "", "my_table", "BASE TABLE"]
+                ]));
+
+        Fixture.SpannerMock.AddOrUpdateStatementResult(
+            "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION, COLUMN_DEFAULT, IS_NULLABLE, SPANNER_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE 1=1",
+            StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(TypeCode.String, "TABLE_CATALOG"),
+                    Tuple.Create(TypeCode.String, "TABLE_SCHEMA"),
+                    Tuple.Create(TypeCode.String, "TABLE_NAME"),
+                    Tuple.Create(TypeCode.String, "COLUMN_NAME"),
+                    Tuple.Create(TypeCode.Int64, "ORDINAL_POSITION"),
+                    Tuple.Create(TypeCode.String, "COLUMN_DEFAULT"),
+                    Tuple.Create(TypeCode.String, "IS_NULLABLE"),
+                    Tuple.Create(TypeCode.String, "SPANNER_TYPE")
+                ],
+                [
+                    ["", "", "my_table", "id", 1L, null, "NO", "INT64"]
+                ]));
+
+        Fixture.SpannerMock.AddOrUpdateStatementResult(
+            "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE 1=1",
+            StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(TypeCode.String, "TABLE_CATALOG"),
+                    Tuple.Create(TypeCode.String, "TABLE_SCHEMA"),
+                    Tuple.Create(TypeCode.String, "TABLE_NAME"),
+                    Tuple.Create(TypeCode.String, "INDEX_NAME"),
+                    Tuple.Create(TypeCode.String, "INDEX_TYPE"),
+                    Tuple.Create(TypeCode.Bool, "IS_UNIQUE"),
+                    Tuple.Create(TypeCode.Bool, "IS_NULL_FILTERED"),
+                    Tuple.Create(TypeCode.String, "INDEX_STATE")
+                ],
+                [
+                    ["", "", "my_table", "PRIMARY_KEY", "PRIMARY_KEY", true, false, "READY"]
+                ]));
+
+        Fixture.SpannerMock.AddOrUpdateStatementResult(
+            "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, COLUMN_NAME, ORDINAL_POSITION, COLUMN_ORDERING FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE 1=1",
+            StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(TypeCode.String, "TABLE_CATALOG"),
+                    Tuple.Create(TypeCode.String, "TABLE_SCHEMA"),
+                    Tuple.Create(TypeCode.String, "TABLE_NAME"),
+                    Tuple.Create(TypeCode.String, "INDEX_NAME"),
+                    Tuple.Create(TypeCode.String, "COLUMN_NAME"),
+                    Tuple.Create(TypeCode.Int64, "ORDINAL_POSITION"),
+                    Tuple.Create(TypeCode.String, "COLUMN_ORDERING")
+                ],
+                [
+                    ["", "", "my_table", "PRIMARY_KEY", "id", 1L, "ASC"]
+                ]));
+
+        Fixture.SpannerMock.AddOrUpdateStatementResult(
+            "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE CONSTRAINT_TYPE = 'FOREIGN KEY'",
+            StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(TypeCode.String, "TABLE_CATALOG"),
+                    Tuple.Create(TypeCode.String, "TABLE_SCHEMA"),
+                    Tuple.Create(TypeCode.String, "TABLE_NAME"),
+                    Tuple.Create(TypeCode.String, "CONSTRAINT_NAME")
+                ],
+                [
+                    ["", "", "my_table", "FK_my_table_parent"]
+                ]));
+    }
+
     [Test]
     public async Task MetaDataCollections()
     {
@@ -245,6 +327,142 @@ public class SchemaTests : AbstractMockServerTests
         await using var conn = await OpenConnectionAsync();
         var reservedWords = conn.GetSchema(DbMetaDataCollectionNames.ReservedWords);
         Assert.That(reservedWords.Rows, Has.Count.GreaterThan(0));
+    }
+
+    [Test]
+    public async Task TablesWithRestrictions()
+    {
+        Fixture.SpannerMock.AddOrUpdateStatementResult(
+            "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE FROM INFORMATION_SCHEMA.TABLES WHERE 1=1 AND TABLE_NAME = @p2",
+            StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(TypeCode.String, "TABLE_CATALOG"),
+                    Tuple.Create(TypeCode.String, "TABLE_SCHEMA"),
+                    Tuple.Create(TypeCode.String, "TABLE_NAME"),
+                    Tuple.Create(TypeCode.String, "TABLE_TYPE")
+                ],
+                [
+                    ["", "", "my_table", "BASE TABLE"]
+                ]));
+
+        await using var conn = await OpenConnectionAsync();
+
+        var tables = conn.GetSchema("Tables", [null, null, "my_table"]);
+        Assert.That(tables.Rows, Has.Count.EqualTo(1));
+        var row = tables.Rows.Cast<DataRow>().Single();
+        Assert.That(row["TABLE_NAME"], Is.EqualTo("my_table"));
+    }
+
+    [Test]
+    public async Task ColumnsWithRestrictions()
+    {
+        Fixture.SpannerMock.AddOrUpdateStatementResult(
+            "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION, COLUMN_DEFAULT, IS_NULLABLE, SPANNER_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE 1=1 AND TABLE_NAME = @p2 AND COLUMN_NAME = @p3",
+            StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(TypeCode.String, "TABLE_CATALOG"),
+                    Tuple.Create(TypeCode.String, "TABLE_SCHEMA"),
+                    Tuple.Create(TypeCode.String, "TABLE_NAME"),
+                    Tuple.Create(TypeCode.String, "COLUMN_NAME"),
+                    Tuple.Create(TypeCode.Int64, "ORDINAL_POSITION"),
+                    Tuple.Create(TypeCode.String, "COLUMN_DEFAULT"),
+                    Tuple.Create(TypeCode.String, "IS_NULLABLE"),
+                    Tuple.Create(TypeCode.String, "SPANNER_TYPE")
+                ],
+                [
+                    ["", "", "my_table", "id", 1L, null, "NO", "INT64"]
+                ]));
+
+        await using var conn = await OpenConnectionAsync();
+
+        var columns = conn.GetSchema("Columns", [null, null, "my_table", "id"]);
+        Assert.That(columns.Rows, Has.Count.EqualTo(1));
+        var row = columns.Rows.Cast<DataRow>().Single();
+        Assert.That(row["TABLE_NAME"], Is.EqualTo("my_table"));
+        Assert.That(row["COLUMN_NAME"], Is.EqualTo("id"));
+    }
+
+    [Test]
+    public async Task IndexesWithRestrictions()
+    {
+        Fixture.SpannerMock.AddOrUpdateStatementResult(
+            "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE 1=1 AND TABLE_NAME = @p2 AND INDEX_NAME = @p3",
+            StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(TypeCode.String, "TABLE_CATALOG"),
+                    Tuple.Create(TypeCode.String, "TABLE_SCHEMA"),
+                    Tuple.Create(TypeCode.String, "TABLE_NAME"),
+                    Tuple.Create(TypeCode.String, "INDEX_NAME"),
+                    Tuple.Create(TypeCode.String, "INDEX_TYPE"),
+                    Tuple.Create(TypeCode.Bool, "IS_UNIQUE"),
+                    Tuple.Create(TypeCode.Bool, "IS_NULL_FILTERED"),
+                    Tuple.Create(TypeCode.String, "INDEX_STATE")
+                ],
+                [
+                    ["", "", "my_table", "PRIMARY_KEY", "PRIMARY_KEY", true, false, "READY"]
+                ]));
+
+        await using var conn = await OpenConnectionAsync();
+
+        var indexes = conn.GetSchema("Indexes", [null, null, "my_table", "PRIMARY_KEY"]);
+        Assert.That(indexes.Rows, Has.Count.EqualTo(1));
+        var row = indexes.Rows.Cast<DataRow>().Single();
+        Assert.That(row["TABLE_NAME"], Is.EqualTo("my_table"));
+        Assert.That(row["INDEX_NAME"], Is.EqualTo("PRIMARY_KEY"));
+    }
+
+    [Test]
+    public async Task IndexColumnsWithRestrictions()
+    {
+        Fixture.SpannerMock.AddOrUpdateStatementResult(
+            "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, COLUMN_NAME, ORDINAL_POSITION, COLUMN_ORDERING FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE 1=1 AND TABLE_NAME = @p2 AND INDEX_NAME = @p3 AND COLUMN_NAME = @p4",
+            StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(TypeCode.String, "TABLE_CATALOG"),
+                    Tuple.Create(TypeCode.String, "TABLE_SCHEMA"),
+                    Tuple.Create(TypeCode.String, "TABLE_NAME"),
+                    Tuple.Create(TypeCode.String, "INDEX_NAME"),
+                    Tuple.Create(TypeCode.String, "COLUMN_NAME"),
+                    Tuple.Create(TypeCode.Int64, "ORDINAL_POSITION"),
+                    Tuple.Create(TypeCode.String, "COLUMN_ORDERING")
+                ],
+                [
+                    ["", "", "my_table", "PRIMARY_KEY", "id", 1L, "ASC"]
+                ]));
+
+        await using var conn = await OpenConnectionAsync();
+
+        var indexColumns = conn.GetSchema("IndexColumns", [null, null, "my_table", "PRIMARY_KEY", "id"]);
+        Assert.That(indexColumns.Rows, Has.Count.EqualTo(1));
+        var row = indexColumns.Rows.Cast<DataRow>().Single();
+        Assert.That(row["TABLE_NAME"], Is.EqualTo("my_table"));
+        Assert.That(row["INDEX_NAME"], Is.EqualTo("PRIMARY_KEY"));
+        Assert.That(row["COLUMN_NAME"], Is.EqualTo("id"));
+    }
+
+    [Test]
+    public async Task ForeignKeysWithRestrictions()
+    {
+        Fixture.SpannerMock.AddOrUpdateStatementResult(
+            "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE CONSTRAINT_TYPE = 'FOREIGN KEY' AND TABLE_NAME = @p2 AND CONSTRAINT_NAME = @p3",
+            StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(TypeCode.String, "TABLE_CATALOG"),
+                    Tuple.Create(TypeCode.String, "TABLE_SCHEMA"),
+                    Tuple.Create(TypeCode.String, "TABLE_NAME"),
+                    Tuple.Create(TypeCode.String, "CONSTRAINT_NAME")
+                ],
+                [
+                    ["", "", "my_table", "FK_my_table_parent"]
+                ]));
+
+        await using var conn = await OpenConnectionAsync();
+
+        var foreignKeys = conn.GetSchema("Foreign Keys", [null, null, "my_table", "FK_my_table_parent"]);
+        Assert.That(foreignKeys.Rows, Has.Count.EqualTo(1));
+        var row = foreignKeys.Rows.Cast<DataRow>().Single();
+        Assert.That(row["TABLE_NAME"], Is.EqualTo("my_table"));
+        Assert.That(row["CONSTRAINT_NAME"], Is.EqualTo("FK_my_table_parent"));
     }
 
 }

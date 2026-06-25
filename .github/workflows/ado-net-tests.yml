@@ -35,7 +35,7 @@ jobs:
         shell: bash
       - name: spanner-ado-net-tests
         working-directory: spanner-ado-net/spanner-ado-net-tests
-        run: dotnet test --verbosity normal
+        run: dotnet test --filter "Category!=Integration" --verbosity normal
         shell: bash
       - name: spanner-ado-net-specification-tests
         working-directory: spanner-ado-net/spanner-ado-net-specification-tests
@@ -52,3 +52,39 @@ jobs:
         shell: bash
         # Docker is only supported on Linux on GitHub Actions
         if: runner.os == 'Linux' && matrix.os != 'ubuntu-24.04-arm'
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      emulator:
+        image: gcr.io/cloud-spanner-emulator/emulator:latest
+        ports:
+          - 9010:9010
+          - 9020:9020
+    strategy:
+      matrix:
+        dotnet-version: ['8.0.x', '9.0.x']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Install dotnet
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ matrix.dotnet-version }}
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+      - name: Checkout go-sql-spanner
+        uses: actions/checkout@v7
+        with:
+          repository: 'googleapis/go-sql-spanner'
+          path: spanner-ado-net/spanner-ado-net/go-sql-spanner
+      - name: Build SpannerLib binaries
+        run: ./build-binaries.sh true
+        working-directory: spanner-ado-net/spanner-ado-net
+        shell: bash
+      - name: Run Schema Integration Tests
+        working-directory: spanner-ado-net/spanner-ado-net-tests
+        run: dotnet test --filter "Category=Integration" --verbosity normal
+        shell: bash
