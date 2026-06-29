@@ -2856,6 +2856,33 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             });
         }
 
+        [Fact]
+        public async Task JsonQuery_Materializes_Correctly()
+        {
+            var sql = "SELECT `t`.`Id`, `t`.`CustomerName`, `t`.`Receipt`" + Environment.NewLine +
+                "FROM `TicketSales` AS `t`" + Environment.NewLine +
+                "WHERE `t`.`Id` = 1" + Environment.NewLine +
+                "LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "CustomerName"),
+                    Tuple.Create(V1.TypeCode.Json, "Receipt"),
+                ],
+                [
+                    [1L, "Customer Name", "{\"Number\":\"123\",\"Date\":\"2026-06-29\"}"]
+                ]
+            ));
+
+            using (var db = new MockServerSampleDbContext(ConnectionString))
+            {
+                var result = await db.TicketSales.FirstOrDefaultAsync(t => t.Id == 1);
+                Assert.NotNull(result);
+                Assert.Equal("123", result.Receipt.Number);
+                Assert.Equal(new DateOnly(2026, 6, 29), result.Receipt.Date);
+            }
+        }
+
         private string AddFindSingerResult(string sql)
         {
             _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(

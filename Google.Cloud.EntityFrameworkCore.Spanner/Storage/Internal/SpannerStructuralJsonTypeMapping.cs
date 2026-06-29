@@ -53,9 +53,20 @@ public class SpannerStructuralJsonTypeMapping : JsonTypeMapping
     public override MethodInfo GetDataReaderMethod() => GetStringMethod;
 
     public static MemoryStream CreateUtf8Stream(string json)
-        => json == ""
-            ? throw new InvalidOperationException("json cannot be an empty string.")
-            : new MemoryStream(Encoding.UTF8.GetBytes(json));
+    {
+        if (json == "")
+        {
+            throw new InvalidOperationException("json cannot be an empty string.");
+        }
+
+        // Note: The stream returned here is compiled into the EF Core query shaper delegate
+        // and passed to the JSON deserializer. EF Core does NOT dispose of this stream after
+        // materialization.
+        // Therefore, we cannot use ArrayPool or other pooled resources here, as they would
+        // leak. Allocating a new byte array and MemoryStream and letting the Garbage Collector
+        // clean them up is the safest and most efficient approach for this lifecycle.
+        return new MemoryStream(Encoding.UTF8.GetBytes(json));
+    }
 
     public override Expression CustomizeDataReaderExpression(Expression expression)
         => Expression.Call(CreateUtf8StreamMethod, expression);
