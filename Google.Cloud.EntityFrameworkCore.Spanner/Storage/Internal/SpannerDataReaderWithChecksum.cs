@@ -176,6 +176,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             }
         }
 
+        void IRetriableStatement.Retry(SpannerRetriableTransaction transaction, int timeoutSeconds)
+        {
+            throw new System.NotImplementedException();
+        }
+
         async Task IRetriableStatement.RetryAsync(SpannerRetriableTransaction transaction, CancellationToken cancellationToken, int timeoutSeconds)
         {
             _spannerCommand.Transaction = transaction.SpannerTransaction;

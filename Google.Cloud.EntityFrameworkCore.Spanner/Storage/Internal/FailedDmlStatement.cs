@@ -1,4 +1,4 @@
-﻿// Copyright 2021, Google Inc. All rights reserved.
+// Copyright 2021, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,6 +39,25 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             {
                 _command.Transaction = transaction.SpannerTransaction;
                 await _command.ExecuteNonQueryAsync(cancellationToken);
+                // Fallthrough and throw the exception at the end of the method.
+            }
+            catch (SpannerException e) when (e.ErrorCode != ErrorCode.Aborted)
+            {
+                // Check that we got the exact same exception this time as the previous time.
+                if (SpannerRetriableTransaction.SpannerExceptionsEqualForRetry(e, _exception))
+                {
+                    return;
+                }
+            }
+            throw new SpannerAbortedDueToConcurrentModificationException();
+        }
+
+        void IRetriableStatement.Retry(SpannerRetriableTransaction transaction, int timeoutSeconds)
+        {
+            try
+            {
+                _command.Transaction = transaction.SpannerTransaction;
+                _command.ExecuteNonQuery();
                 // Fallthrough and throw the exception at the end of the method.
             }
             catch (SpannerException e) when (e.ErrorCode != ErrorCode.Aborted)

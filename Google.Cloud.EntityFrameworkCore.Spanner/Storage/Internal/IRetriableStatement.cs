@@ -1,4 +1,4 @@
-﻿// Copyright 2021, Google Inc. All rights reserved.
+// Copyright 2021, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,5 +23,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     internal interface IRetriableStatement
     {
         internal Task RetryAsync(SpannerRetriableTransaction transaction, CancellationToken cancellationToken, int timeoutSeconds);
+
+        internal void Retry(SpannerRetriableTransaction transaction, int timeoutSeconds);
     }
 }

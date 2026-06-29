@@ -1,4 +1,4 @@
-﻿// Copyright 2021, Google Inc. All rights reserved.
+// Copyright 2021, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,6 +42,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             {
                 _command.Transaction = transaction;
                 if (!_updateCounts.SequenceEqual(await _command.CreateSpannerBatchCommand().ExecuteNonQueryAsync(cancellationToken)))
+                {
+                    throw new SpannerAbortedDueToConcurrentModificationException();
+                }
+            }
+            catch (SpannerException e) when (e.ErrorCode != ErrorCode.Aborted)
+            {
+                throw new SpannerAbortedDueToConcurrentModificationException();
+            }
+        }
+
+        void IRetriableStatement.Retry(SpannerRetriableTransaction transaction, int timeoutSeconds)
+        {
+            try
+            {
+                _command.Transaction = transaction;
+                if (!_updateCounts.SequenceEqual(_command.CreateSpannerBatchCommand().ExecuteNonQuery()))
                 {
                     throw new SpannerAbortedDueToConcurrentModificationException();
                 }
