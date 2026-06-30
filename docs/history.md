@@ -1,5 +1,23 @@
 # Changelog
 
+## [4.1.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-4.0.0...Google.Cloud.EntityFrameworkCore.Spanner-4.1.0) (2026-06-30)
+
+
+### Features
+
+* **ado.net:** support more schema tables ([#778](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/778)) ([56f5b2f](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/56f5b2f8aab28028c5a4ff4e1fef2e7390dd7384))
+
+
+### Bug Fixes
+
+* **ado.net:** set the correct initial version number ([#723](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/723)) ([03bdec9](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/03bdec98ecc605195ef5808b4fbd68ca259b483f))
+* float32 was mapped to float64 when mapped by name ([#763](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/763)) ([b322bbd](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/b322bbd568e839e9519393060e047a4d12ae64b6))
+
+
+### Performance Improvements
+
+* optimize checksum calculation with IncrementalHash ([#764](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/764)) ([51f0b76](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/51f0b76af238c0f22cb5c120bf92fc36ffa5d093))
+
 ## [4.0.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-3.10.0...Google.Cloud.EntityFrameworkCore.Spanner-4.0.0) (2026-02-25)
 
 
