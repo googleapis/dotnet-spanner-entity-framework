@@ -1,4 +1,4 @@
-﻿// Copyright 2021, Google Inc. All rights reserved.
+// Copyright 2021, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,6 +40,25 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 // The DML statement should return the same update count as during the initial attempt
                 // for the retry to be deemed successful.
                 if (await _command.ExecuteNonQueryAsync(cancellationToken) != _updateCount)
+                {
+                    throw new SpannerAbortedDueToConcurrentModificationException();
+                }
+            }
+            catch (SpannerException e) when (e.ErrorCode != ErrorCode.Aborted)
+            {
+                throw new SpannerAbortedDueToConcurrentModificationException();
+            }
+        }
+
+        void IRetriableStatement.Retry(SpannerRetriableTransaction transaction, int timeoutSeconds)
+        {
+            try
+            {
+                _command.Transaction = transaction.SpannerTransaction;
+                _command.CommandTimeout = timeoutSeconds;
+                // The DML statement should return the same update count as during the initial attempt
+                // for the retry to be deemed successful.
+                if (_command.ExecuteNonQuery() != _updateCount)
                 {
                     throw new SpannerAbortedDueToConcurrentModificationException();
                 }

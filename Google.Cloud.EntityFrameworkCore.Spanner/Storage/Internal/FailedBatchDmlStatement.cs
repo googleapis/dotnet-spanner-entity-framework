@@ -67,5 +67,41 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             }
             throw new SpannerAbortedDueToConcurrentModificationException();
         }
+
+        void IRetriableStatement.Retry(SpannerRetriableTransaction transaction, int timeoutSeconds)
+        {
+            try
+            {
+                _command.Transaction = transaction;
+                var batchCommand = _command.CreateSpannerBatchCommand();
+                batchCommand.CommandTimeout = timeoutSeconds;
+                batchCommand.ExecuteNonQuery();
+                // Fallthrough and throw the exception at the end of the method.
+            }
+            catch (SpannerBatchNonQueryException e)
+            {
+                // Check that we got the exact same exception and results this time as the previous time.
+                if (_exception is SpannerBatchNonQueryException batchException
+                    && e.ErrorCode == _exception.ErrorCode
+                    && e.Message.Equals(_exception.Message)
+                    // A Batch DML statement returns the update counts of the first N statements and the error
+                    // that occurred for statement N+1.
+                    && e.SuccessfulCommandResults.SequenceEqual(batchException.SuccessfulCommandResults)
+                    )
+                {
+                    return;
+                }
+            }
+            catch (SpannerException e) when (e.ErrorCode != ErrorCode.Aborted)
+            {
+                // Check that we got the exact same exception during the retry as during the initial attempt.
+                // This happens if the Batch DML RPC itself failed, and not one of the DML statements.
+                if (!(_exception is SpannerBatchNonQueryException) && SpannerRetriableTransaction.SpannerExceptionsEqualForRetry(e, _exception))
+                {
+                    return;
+                }
+            }
+            throw new SpannerAbortedDueToConcurrentModificationException();
+        }
     }
 }
