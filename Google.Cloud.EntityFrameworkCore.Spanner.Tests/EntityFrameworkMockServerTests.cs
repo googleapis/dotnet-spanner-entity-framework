@@ -2874,13 +2874,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 ]
             ));
 
-            using (var db = new MockServerSampleDbContext(ConnectionString))
-            {
-                var result = await db.TicketSales.FirstOrDefaultAsync(t => t.Id == 1);
-                Assert.NotNull(result);
-                Assert.Equal("123", result.Receipt.Number);
-                Assert.Equal(new DateOnly(2026, 6, 29), result.Receipt.Date);
-            }
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            var result = await db.TicketSales.FirstOrDefaultAsync(t => t.Id == 1);
+            Assert.NotNull(result);
+            Assert.Equal("123", result.Receipt.Number);
+            Assert.Equal(new DateOnly(2026, 6, 29), result.Receipt.Date);
         }
 
         private string AddFindSingerResult(string sql)
