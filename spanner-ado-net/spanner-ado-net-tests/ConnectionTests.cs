@@ -555,5 +555,43 @@ public class ConnectionTests : AbstractMockServerTests
         var got = await conn!.ExecuteScalarAsync(sql);
         Assert.That(got, Is.EqualTo(value));
     }
-    
+
+    private class TestLibObject : Google.Cloud.SpannerLib.AbstractLibObject
+    {
+        public bool CloseLibObjectCalled { get; private set; }
+
+        public TestLibObject(long id) : base(null!, id)
+        {
+        }
+
+        protected override void CloseLibObject()
+        {
+            CloseLibObjectCalled = true;
+        }
+
+        public void CallDispose(bool disposing)
+        {
+            Dispose(disposing);
+        }
+    }
+
+    [Test]
+    public void Finalizer_DoesNotCallCloseLibObject()
+    {
+        var testObj = new TestLibObject(id: 42);
+
+        testObj.CallDispose(disposing: false);
+
+        Assert.That(testObj.CloseLibObjectCalled, Is.False);
+    }
+
+    [Test]
+    public void Dispose_CallsCloseLibObject()
+    {
+        var testObj = new TestLibObject(id: 42);
+
+        testObj.CallDispose(disposing: true);
+
+        Assert.That(testObj.CloseLibObjectCalled, Is.True);
+    }
 }

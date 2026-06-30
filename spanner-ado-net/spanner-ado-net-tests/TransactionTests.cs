@@ -850,4 +850,24 @@ public class TransactionTests : AbstractMockServerTests
 
         Assert.ThrowsAsync<ObjectDisposedException>(async () => await transaction.CommitAsync());
     }
+
+    [Test]
+    public async Task Finalizer_DoesNotExecuteRollback()
+    {
+        await using var connection = new SpannerConnection(ConnectionString);
+        await connection.OpenAsync();
+        var transaction = await connection.BeginTransactionAsync();
+        
+        var initialRollbacks = Fixture.SpannerMock.Requests.OfType<RollbackRequest>().Count();
+
+        var disposeMethod = typeof(SpannerTransaction).GetMethod("Dispose", 
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic,
+            binder: null,
+            types: new[] { typeof(bool) },
+            modifiers: null);
+        disposeMethod!.Invoke(transaction, new[] { (object)false });
+
+        var currentRollbacks = Fixture.SpannerMock.Requests.OfType<RollbackRequest>().Count();
+        Assert.That(currentRollbacks, Is.EqualTo(initialRollbacks));
+    }
 }
