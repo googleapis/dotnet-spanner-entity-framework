@@ -107,16 +107,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var command = connection.SpannerConnection.CreateDmlCommand(sql);
             command.Transaction = transaction.SpannerTransaction;
             
-            SpannerException caughtException = null;
-            try
-            {
-                command.ExecuteNonQuery();
-            }
-            catch (SpannerException e)
-            {
-                caughtException = e;
-            }
-            Assert.NotNull(caughtException);
+            var caughtException = Assert.Throws<SpannerException>(() => command.ExecuteNonQuery());
             
             var statement = new FailedDmlStatement(command, caughtException);
             
@@ -139,16 +130,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             var command = connection.SpannerConnection.CreateDmlCommand(sql);
             command.Transaction = transaction.SpannerTransaction;
             
-            SpannerException caughtException = null;
-            try
-            {
-                command.ExecuteNonQuery();
-            }
-            catch (SpannerException e)
-            {
-                caughtException = e;
-            }
-            Assert.NotNull(caughtException);
+            var caughtException = Assert.Throws<SpannerException>(() => command.ExecuteNonQuery());
             
             var statement = new FailedDmlStatement(command, caughtException);
             
@@ -205,17 +187,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             batchCmd.Add(sql1);
             batchCmd.Add(sql2);
             
-            SpannerException caughtException = null;
-            try
-            {
-                batchCmd.ExecuteNonQuery();
-            }
-            catch (SpannerException e)
-            {
-                caughtException = e;
-            }
-            Assert.NotNull(caughtException);
-            Assert.IsType<SpannerBatchNonQueryException>(caughtException);
+            var caughtException = Assert.Throws<SpannerBatchNonQueryException>(() => batchCmd.ExecuteNonQuery());
             
             var statement = new FailedBatchDmlStatement(batchCmd, caughtException);
             

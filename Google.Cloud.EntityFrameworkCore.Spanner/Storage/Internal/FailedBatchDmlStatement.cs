@@ -72,6 +72,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
             try
             {
+                _command.Transaction = transaction;
                 _command.CreateSpannerBatchCommand().ExecuteNonQuery();
                 // Fallthrough and throw the exception at the end of the method.
             }
