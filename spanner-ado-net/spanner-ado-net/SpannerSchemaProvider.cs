@@ -48,6 +48,26 @@ internal sealed class SpannerSchemaProvider(SpannerConnection connection)
 		{
 			FillRestrictions(dataTable, restrictionValues);
 		}
+		else if (string.Equals(collectionName, "Tables", StringComparison.OrdinalIgnoreCase))
+		{
+			FillTables(dataTable, restrictionValues);
+		}
+		else if (string.Equals(collectionName, "Columns", StringComparison.OrdinalIgnoreCase))
+		{
+			FillColumns(dataTable, restrictionValues);
+		}
+		else if (string.Equals(collectionName, "Indexes", StringComparison.OrdinalIgnoreCase))
+		{
+			FillIndexes(dataTable, restrictionValues);
+		}
+		else if (string.Equals(collectionName, "IndexColumns", StringComparison.OrdinalIgnoreCase))
+		{
+			FillIndexColumns(dataTable, restrictionValues);
+		}
+		else if (string.Equals(collectionName, "Foreign Keys", StringComparison.OrdinalIgnoreCase))
+		{
+			FillForeignKeys(dataTable, restrictionValues);
+		}
 		else
 		{
 			throw new ArgumentException($"Invalid collection name: '{collectionName}'.", nameof(collectionName));
@@ -72,6 +92,11 @@ internal sealed class SpannerSchemaProvider(SpannerConnection connection)
 		dataTable.Rows.Add(DbMetaDataCollectionNames.DataTypes, 0, 0);
 		dataTable.Rows.Add(DbMetaDataCollectionNames.ReservedWords, 0, 0);
 		dataTable.Rows.Add(DbMetaDataCollectionNames.Restrictions, 0, 0);
+		dataTable.Rows.Add("Tables", 4, 3);
+		dataTable.Rows.Add("Columns", 4, 4);
+		dataTable.Rows.Add("Indexes", 4, 4);
+		dataTable.Rows.Add("IndexColumns", 5, 5);
+		dataTable.Rows.Add("Foreign Keys", 4, 4);
 	}
 	
 	private void FillDataSourceInformation(DataTable dataTable, string?[]? restrictionValues)
@@ -355,5 +380,80 @@ internal sealed class SpannerSchemaProvider(SpannerConnection connection)
 		{
 			dataTable.Rows.Add(word);
 		}
+	}
+
+	private void FillSchemaFromQuery(DataTable dataTable, string query, string[] restrictionColumns, string?[]? restrictionValues)
+	{
+		if (connection.State != ConnectionState.Open)
+		{
+			throw new InvalidOperationException("The connection must be open to retrieve schema information.");
+		}
+
+		var sql = query;
+		var parameters = new System.Collections.Generic.List<SpannerParameter>();
+
+		if (restrictionValues != null)
+		{
+			for (var i = 0; i < Math.Min(restrictionValues.Length, restrictionColumns.Length); i++)
+			{
+				var val = restrictionValues[i];
+				if (!string.IsNullOrEmpty(val))
+				{
+					var paramName = $"@p{i}";
+					sql += $" AND {restrictionColumns[i]} = {paramName}";
+					parameters.Add(new SpannerParameter(paramName, val));
+				}
+			}
+		}
+
+		using var command = connection.CreateCommand();
+		command.CommandText = sql;
+		foreach (var param in parameters)
+		{
+			command.Parameters.Add(param);
+		}
+
+		using var reader = command.ExecuteReader();
+		dataTable.Load(reader);
+	}
+
+	private void FillTables(DataTable dataTable, string?[]? restrictionValues)
+	{
+		dataTable.TableName = "Tables";
+		var query = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE FROM INFORMATION_SCHEMA.TABLES WHERE 1=1";
+		var restrictionColumns = new[] { "TABLE_CATALOG", "TABLE_SCHEMA", "TABLE_NAME", "TABLE_TYPE" };
+		FillSchemaFromQuery(dataTable, query, restrictionColumns, restrictionValues);
+	}
+
+	private void FillColumns(DataTable dataTable, string?[]? restrictionValues)
+	{
+		dataTable.TableName = "Columns";
+		var query = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION, COLUMN_DEFAULT, IS_NULLABLE, SPANNER_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE 1=1";
+		var restrictionColumns = new[] { "TABLE_CATALOG", "TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME" };
+		FillSchemaFromQuery(dataTable, query, restrictionColumns, restrictionValues);
+	}
+
+	private void FillIndexes(DataTable dataTable, string?[]? restrictionValues)
+	{
+		dataTable.TableName = "Indexes";
+		var query = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_TYPE, IS_UNIQUE, IS_NULL_FILTERED, INDEX_STATE FROM INFORMATION_SCHEMA.INDEXES WHERE 1=1";
+		var restrictionColumns = new[] { "TABLE_CATALOG", "TABLE_SCHEMA", "TABLE_NAME", "INDEX_NAME" };
+		FillSchemaFromQuery(dataTable, query, restrictionColumns, restrictionValues);
+	}
+
+	private void FillIndexColumns(DataTable dataTable, string?[]? restrictionValues)
+	{
+		dataTable.TableName = "IndexColumns";
+		var query = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, COLUMN_NAME, ORDINAL_POSITION, COLUMN_ORDERING FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE 1=1";
+		var restrictionColumns = new[] { "TABLE_CATALOG", "TABLE_SCHEMA", "TABLE_NAME", "INDEX_NAME", "COLUMN_NAME" };
+		FillSchemaFromQuery(dataTable, query, restrictionColumns, restrictionValues);
+	}
+
+	private void FillForeignKeys(DataTable dataTable, string?[]? restrictionValues)
+	{
+		dataTable.TableName = "Foreign Keys";
+		var query = "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE CONSTRAINT_TYPE = 'FOREIGN KEY'";
+		var restrictionColumns = new[] { "TABLE_CATALOG", "TABLE_SCHEMA", "TABLE_NAME", "CONSTRAINT_NAME" };
+		FillSchemaFromQuery(dataTable, query, restrictionColumns, restrictionValues);
 	}
 }
