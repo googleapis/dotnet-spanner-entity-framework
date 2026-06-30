@@ -55,6 +55,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             try
             {
                 _command.Transaction = transaction.SpannerTransaction;
+                _command.CommandTimeout = timeoutSeconds;
                 // The DML statement should return the same update count as during the initial attempt
                 // for the retry to be deemed successful.
                 if (_command.ExecuteNonQuery() != _updateCount)

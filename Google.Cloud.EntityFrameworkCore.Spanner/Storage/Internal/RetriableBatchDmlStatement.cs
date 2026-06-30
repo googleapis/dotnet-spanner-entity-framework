@@ -57,7 +57,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             try
             {
                 _command.Transaction = transaction;
-                if (!_updateCounts.SequenceEqual(_command.CreateSpannerBatchCommand().ExecuteNonQuery()))
+                var batchCommand = _command.CreateSpannerBatchCommand();
+                batchCommand.CommandTimeout = timeoutSeconds;
+                if (!_updateCounts.SequenceEqual(batchCommand.ExecuteNonQuery()))
                 {
                     throw new SpannerAbortedDueToConcurrentModificationException();
                 }
