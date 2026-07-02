@@ -7,6 +7,9 @@ on:
     branches: [ main ]
   workflow_dispatch: 
 
+permissions:
+  contents: read
+
 jobs:
   unit-tests:
     strategy:
@@ -14,9 +17,11 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      with:
+        persist-credentials: false
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.0.0
       with:
         dotnet-version: 10.0.x
     - name: Restore dependencies
