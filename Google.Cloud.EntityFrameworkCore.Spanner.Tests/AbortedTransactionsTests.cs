@@ -1061,6 +1061,132 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
             Assert.Contains("Transaction was aborted because it aborted and retried too many times", e.Message);
         }
+
+        [Fact]
+        public void ReadWriteTransaction_Sync_WithoutAbort_DoesNotRetry()
+        {
+            string sql = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1));
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            var cmd = connection.CreateDmlCommand(sql);
+            cmd.Transaction = transaction;
+            var updateCount = cmd.ExecuteNonQuery();
+            var commitTimestamp = transaction.CommitAndReturnCommitTimestamp();
+            Assert.NotEqual(DateTime.UnixEpoch, commitTimestamp);
+            Assert.Equal(1, updateCount);
+            Assert.Equal(0, transaction.RetryCount);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void ReadWriteTransaction_Sync_AbortedDml_IsAutomaticallyRetried(bool enableInternalRetries)
+        {
+            _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
+            string sql = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1));
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+            transaction.EnableInternalRetries = enableInternalRetries;
+            // Execute a statement to ensure the transaction has been initialized.
+            var selectCmd = connection.CreateSelectCommand("SELECT 1");
+            selectCmd.Transaction = transaction;
+            selectCmd.ExecuteScalar();
+            
+            // Abort the transaction on the mock server. The transaction should be able to internally retry.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+            var cmd = connection.CreateDmlCommand(sql);
+            cmd.Transaction = transaction;
+            if (enableInternalRetries)
+            {
+                var updateCount = cmd.ExecuteNonQuery();
+                Assert.Equal(1, updateCount);
+                Assert.Equal(1, transaction.RetryCount);
+            }
+            else
+            {
+                var e = Assert.Throws<SpannerException>(() => cmd.ExecuteNonQuery());
+                Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+            }
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void ReadWriteTransaction_Sync_QueryFullyConsumed_CanBeRetried(bool enableInternalRetries)
+        {
+            string sql = $"SELECT Id FROM Foo WHERE Id={_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 1));
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+            transaction.EnableInternalRetries = enableInternalRetries;
+            var cmd = connection.CreateSelectCommand(sql);
+            cmd.Transaction = transaction;
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    Assert.Equal(1, reader.GetInt64(reader.GetOrdinal("Id")));
+                }
+            }
+            // Abort the transaction on the mock server. The transaction should be able to internally retry.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+            if (enableInternalRetries)
+            {
+                transaction.Commit();
+                Assert.Equal(1, transaction.RetryCount);
+            }
+            else
+            {
+                var e = Assert.Throws<SpannerException>(() => transaction.Commit());
+                Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+            }
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void ReadWriteTransaction_Sync_AbortedBatchDml_IsAutomaticallyRetried(bool enableInternalRetries)
+        {
+            _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
+            string sql1 = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
+            string sql2 = $"UPDATE Foo SET Bar='baz' WHERE Id IN ({_fixture.RandomLong()},{_fixture.RandomLong()})";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql1, StatementResult.CreateUpdateCount(1));
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql2, StatementResult.CreateUpdateCount(2));
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+            transaction.EnableInternalRetries = enableInternalRetries;
+            // Execute a statement to ensure the transaction has been initialized.
+            var selectCmd = connection.CreateSelectCommand("SELECT 1");
+            selectCmd.Transaction = transaction;
+            selectCmd.ExecuteScalar();
+            
+            var cmd = connection.CreateBatchDmlCommand();
+            cmd.Transaction = transaction;
+            cmd.Add(sql1);
+            cmd.Add(sql2);
+
+            // Abort the transaction on the mock server. The transaction should be able to internally retry.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+
+            if (enableInternalRetries)
+            {
+                var updateCounts = cmd.ExecuteNonQuery();
+                Assert.Equal(new List<long> { 1, 2 }, updateCounts);
+                Assert.Equal(1, transaction.RetryCount);
+            }
+            else
+            {
+                var e = Assert.Throws<SpannerException>(() => cmd.ExecuteNonQuery());
+                Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+            }
+        }
     }
 #pragma warning restore EF1001 // Internal EF Core API usage.
 }

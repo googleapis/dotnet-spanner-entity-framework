@@ -178,7 +178,54 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         void IRetriableStatement.Retry(SpannerRetriableTransaction transaction, int timeoutSeconds)
         {
-            throw new System.NotImplementedException();
+            _spannerCommand.Transaction = transaction.SpannerTransaction;
+            var reader = (SpannerDataReader)_spannerCommand.ExecuteReader();
+            int counter = 0;
+            bool read = true;
+            using var retryHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            SpannerException newException = null;
+            while (read && counter < _numberOfReadCalls)
+            {
+                try
+                {
+                    read = reader.Read();
+                    AppendRowToHash(retryHash, reader, read);
+                    counter++;
+                }
+                catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
+                {
+                    // Propagate Aborted errors to trigger a new retry.
+                    throw;
+                }
+                catch (SpannerException e)
+                {
+                    newException = e;
+                    counter++;
+                    break;
+                }
+            }
+            var originalChecksum = GetChecksum();
+            var newChecksum = retryHash.GetHashAndReset();
+            if (counter == _numberOfReadCalls
+                && newChecksum.SequenceEqual(originalChecksum)
+                && SpannerRetriableTransaction.SpannerExceptionsEqualForRetry(newException, _firstException))
+            {
+                // Checksum is ok, we only need to replace the delegate result set if it's still open.
+                if (IsClosed)
+                {
+                    reader.Close();
+                }
+                else
+                {
+                    _spannerDataReader = reader;
+                }
+            }
+            else
+            {
+                // The results are not equal, there is an actual concurrent modification, so we cannot
+                // continue the transaction.
+                throw new SpannerAbortedDueToConcurrentModificationException();
+            }
         }
 
         async Task IRetriableStatement.RetryAsync(SpannerRetriableTransaction transaction, CancellationToken cancellationToken, int timeoutSeconds)
