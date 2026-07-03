@@ -20,10 +20,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     /// <summary>
     /// Base interface for all statements that can be retried by SpannerRetriableTransaction.
     /// </summary>
-    internal interface IRetriableStatement
+    internal interface IRetriableStatement : System.IDisposable
     {
         internal Task RetryAsync(SpannerRetriableTransaction transaction, CancellationToken cancellationToken, int timeoutSeconds);
-
+ 
         internal void Retry(SpannerRetriableTransaction transaction, int timeoutSeconds);
     }
 }

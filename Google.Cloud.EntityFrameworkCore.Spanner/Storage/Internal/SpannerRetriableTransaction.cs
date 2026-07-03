@@ -329,58 +329,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         internal void Retry(SpannerException abortedException, int timeoutSeconds = MAX_TIMEOUT_SECONDS)
         {
-            if (!EnableInternalRetries)
-            {
-                throw abortedException;
-            }
-            DateTime? overallDeadline = _options.CalculateDeadline(_clock);
-            TimeSpan retryDelay = _options.InitialDelay;
-            // If there's a recommended retry delay specified on the exception
-            // we should respect it.
-            retryDelay = abortedException.RecommendedRetryDelay ?? _options.Jitter(retryDelay);
-            while (true)
-            {
-                if (RetryCount >= MaxInternalRetryCount)
-                {
-                    throw new SpannerException(ErrorCode.Aborted, "Transaction was aborted because it aborted and retried too many times");
-                }
-
-                DateTime expectedRetryTime = _clock.GetCurrentDateTimeUtc() + retryDelay;
-                if (expectedRetryTime > overallDeadline)
-                {
-                    throw new SpannerException(ErrorCode.Aborted, "Transaction was aborted because it timed out while retrying");
-                }
-                _scheduler.Delay(retryDelay, CancellationToken.None).Wait();
-
-                // TODO: Preferably the Spanner client library should have some 'reset' option on an existing
-                // transaction instead of having to begin a new transaction. This will potentially use a transaction
-                // on a different session, while the recommended behavior for a retry is to use the same session as
-                // the original attempt.
-                SpannerTransaction.Dispose();
-                SpannerTransaction = Connection.SpannerConnection.BeginTransaction();
-                RetryCount++;
-                try
-                {
-                    foreach (IRetriableStatement statement in _retriableStatements)
-                    {
-                        statement.Retry(this, timeoutSeconds);
-                    }
-                    break;
-                }
-                catch (SpannerAbortedDueToConcurrentModificationException)
-                {
-                    // Retry failed because of a concurrent modification.
-                    throw;
-                }
-                catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
-                {
-                    // Ignore and retry.
-                    retryDelay = e.RecommendedRetryDelay ?? _options.Jitter(_options.NextDelay(retryDelay));
-                }
-            }
+            RetryInternalAsync(abortedException, async: false, CancellationToken.None, timeoutSeconds).GetAwaiter().GetResult();
         }
 
         internal async Task RetryAsync(SpannerException abortedException, CancellationToken cancellationToken, int timeoutSeconds = MAX_TIMEOUT_SECONDS)
+        {
+            await RetryInternalAsync(abortedException, async: true, cancellationToken, timeoutSeconds);
+        }
+
+        private async ValueTask RetryInternalAsync(SpannerException abortedException, bool async, CancellationToken cancellationToken, int timeoutSeconds = MAX_TIMEOUT_SECONDS)
         {
             if (!EnableInternalRetries)
             {
@@ -403,20 +360,37 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {
                     throw new SpannerException(ErrorCode.Aborted, "Transaction was aborted because it timed out while retrying");
                 }
-                await _scheduler.Delay(retryDelay, cancellationToken).ConfigureAwait(false);
+
+                if (async)
+                {
+                    await _scheduler.Delay(retryDelay, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    _scheduler.Delay(retryDelay, CancellationToken.None).Wait();
+                }
 
                 // TODO: Preferably the Spanner client library should have some 'reset' option on an existing
                 // transaction instead of having to begin a new transaction. This will potentially use a transaction
                 // on a different session, while the recommended behavior for a retry is to use the same session as
                 // the original attempt.
                 SpannerTransaction.Dispose();
-                SpannerTransaction = await Connection.SpannerConnection.BeginTransactionAsync(cancellationToken);
+                SpannerTransaction = async
+                    ? await Connection.SpannerConnection.BeginTransactionAsync(cancellationToken)
+                    : Connection.SpannerConnection.BeginTransaction();
                 RetryCount++;
                 try
                 {
                     foreach (IRetriableStatement statement in _retriableStatements)
                     {
-                        await statement.RetryAsync(this, cancellationToken, timeoutSeconds);
+                        if (async)
+                        {
+                            await statement.RetryAsync(this, cancellationToken, timeoutSeconds);
+                        }
+                        else
+                        {
+                            statement.Retry(this, timeoutSeconds);
+                        }
                     }
                     break;
                 }
@@ -456,61 +430,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// </summary>
         /// <param name="cancellationToken">A cancellation token used for this task.</param>
         /// <returns>Returns the UTC timestamp when the data was written to the database.</returns>
-        public async Task<DateTime> CommitAndReturnCommitTimestampAsync(CancellationToken cancellationToken = default)
+        public Task<DateTime> CommitAndReturnCommitTimestampAsync(CancellationToken cancellationToken = default)
         {
-            var tracer = TracerProviderExtension.GetTracer();
-            using var span = tracer.StartActiveSpan(TracerProviderExtension.SPAN_NAME_COMMIT);
-            while (true)
-            {
-                try
-                {
-                    _commitTimestamp = await SpannerTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-                    // Propagate the commit timestamp to all columns that were automatically updated during this transaction.
-                    // Note that this transaction could both be a manual transaction started by the application, as well as
-                    // an implicit transaction started by Entity Framework.
-                    foreach (var modificationCommand in _commitTimestampModificationCommands)
-                    {
-                        foreach (var columnModification in modificationCommand.ColumnModifications)
-                        {
-                            if (columnModification is SpannerPendingCommitTimestampColumnModification
-                                pendingCommitTimestampColumnModification)
-                            {
-                                var property = pendingCommitTimestampColumnModification.Property.PropertyInfo;
-                                if (property != null)
-                                {
-                                    var entry = pendingCommitTimestampColumnModification.Entry;
-                                    var originalState = entry.EntityState;
-                                    var entity = entry.ToEntityEntry().Entity;
-                                    property.SetValue(entity, _commitTimestamp);
-                                    entry.EntityState = originalState;
-                                }
-                            }
-                        }
-                    }
-
-                    span.SetStatus(OpenTelemetry.Trace.Status.Ok);
-                    span.End();
-                    return (DateTime)_commitTimestamp;
-                }
-                catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
-                {
-                    span.SetAttribute(TracerProviderExtension.ATTRIBUTE_NAME_RETRYING, e.Message);
-                    await RetryAsync(e, cancellationToken).ConfigureAwait(false);
-                }
-                catch (InvalidOperationException e) when (e.Message.Contains("A transaction has not been acquired for this PooledSession because no command execution has been attempted."))
-                {
-                    span.AddEvent("Committed empty transaction, no commit timestamp will be available");
-                    span.SetStatus(OpenTelemetry.Trace.Status.Ok);
-                    span.End();
-                    return DateTime.UnixEpoch;
-                }
-                catch (Exception e)
-                {
-                    span.SetStatus(OpenTelemetry.Trace.Status.Error.WithDescription(e.Message));
-                    span.End();
-                    throw;
-                }
-            }
+            return CommitAndReturnCommitTimestampInternalAsync(async: true, cancellationToken).AsTask();
         }
 
         /// <summary>
@@ -519,14 +441,26 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <returns>Returns the UTC timestamp when the data was written to the database.</returns>
         public DateTime CommitAndReturnCommitTimestamp()
         {
+            return CommitAndReturnCommitTimestampInternalAsync(async: false, CancellationToken.None).GetAwaiter().GetResult();
+        }
+
+        private async ValueTask<DateTime> CommitAndReturnCommitTimestampInternalAsync(bool async, CancellationToken cancellationToken)
+        {
             var tracer = TracerProviderExtension.GetTracer();
             using var span = tracer.StartActiveSpan(TracerProviderExtension.SPAN_NAME_COMMIT);
             while (true)
             {
                 try
                 {
-                    SpannerTransaction.Commit(out var commitTimestamp);
-                    _commitTimestamp = commitTimestamp;
+                    if (async)
+                    {
+                        _commitTimestamp = await SpannerTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        SpannerTransaction.Commit(out var commitTimestamp);
+                        _commitTimestamp = commitTimestamp;
+                    }
                     // Propagate the commit timestamp to all columns that were automatically updated during this transaction.
                     // Note that this transaction could both be a manual transaction started by the application, as well as
                     // an implicit transaction started by Entity Framework.
@@ -557,7 +491,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
                 {
                     span.SetAttribute(TracerProviderExtension.ATTRIBUTE_NAME_RETRYING, e.Message);
-                    Retry(e);
+                    if (async)
+                    {
+                        await RetryAsync(e, cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        Retry(e);
+                    }
                 }
                 catch (InvalidOperationException e) when (e.Message.Contains("A transaction has not been acquired for this PooledSession because no command execution has been attempted."))
                 {
@@ -579,6 +520,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public override void Commit()
         {
             CommitAndReturnCommitTimestamp();
+        }
+
+        /// <inheritdoc />
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                foreach (var statement in _retriableStatements)
+                {
+                    statement.Dispose();
+                }
+            }
+            base.Dispose(disposing);
         }
     }
 }

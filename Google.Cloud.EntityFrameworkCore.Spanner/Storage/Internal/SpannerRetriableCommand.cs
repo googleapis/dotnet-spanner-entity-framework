@@ -136,5 +136,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         }
 
         public override void Prepare() => _spannerCommand.Prepare();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _spannerCommand.Dispose();
+            }
+            base.Dispose(disposing);
+        }
     }
 }

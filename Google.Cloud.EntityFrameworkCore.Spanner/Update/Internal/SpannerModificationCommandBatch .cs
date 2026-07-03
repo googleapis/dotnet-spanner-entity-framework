@@ -180,7 +180,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 {
                     var conditionOperations = operations.Where(o => o.IsCondition).ToList();
                     var concurrencySql = ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).GenerateSelectConcurrencyCheckSql(modificationCommand.TableName, conditionOperations);
-                    var concurrencyCommand = spannerConnection.CreateSelectCommand(concurrencySql);
+                    using var concurrencyCommand = spannerConnection.CreateSelectCommand(concurrencySql);
                     concurrencyCommand.Transaction = transaction;
                     foreach (var columnModification in conditionOperations)
                     {
@@ -206,7 +206,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                     transaction.AddSpannerPendingCommitTimestampModificationCommand(commitTimestampModificationCommand);
                 }
                 // Create the mutation command and execute it.
-                var cmd = CreateSpannerMutationCommand(spannerConnection, transaction, modificationCommand);
+                using var cmd = CreateSpannerMutationCommand(spannerConnection, transaction, modificationCommand);
                 // Note: The following line does not actually execute any command on the backend, it only buffers
                 // the mutation locally to be sent with the next Commit statement.
                 cmd.ExecuteNonQuery();
@@ -240,16 +240,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             var updateCounts = new List<long>(commands.Count);
             foreach (var command in commands)
             {
-                var reader = command.ExecuteReader();
-                var relationalReader = CreateRelationalDataReader(connection, command, reader);
-                var modificationCommand = _modificationCommands[index];
-                var rowsAffected = 0L;
-                while (relationalReader.Read())
+                using (command)
                 {
-                    modificationCommand.PropagateResults(relationalReader);
-                    rowsAffected++;
+                    using var reader = command.ExecuteReader();
+                    var relationalReader = CreateRelationalDataReader(connection, command, reader);
+                    var modificationCommand = _modificationCommands[index];
+                    var rowsAffected = 0L;
+                    while (relationalReader.Read())
+                    {
+                        modificationCommand.PropagateResults(relationalReader);
+                        rowsAffected++;
+                    }
+                    updateCounts.Add(rowsAffected);
                 }
-                updateCounts.Add(rowsAffected);
                 index++;
             }
             UpdateCounts = updateCounts;
@@ -341,7 +344,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 {
                     var conditionOperations = operations.Where(o => o.IsCondition).ToList();
                     var concurrencySql = ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).GenerateSelectConcurrencyCheckSql(modificationCommand.TableName, conditionOperations);
-                    var concurrencyCommand = spannerConnection.CreateSelectCommand(concurrencySql);
+                    using var concurrencyCommand = spannerConnection.CreateSelectCommand(concurrencySql);
                     concurrencyCommand.Transaction = transaction;
                     foreach (var columnModification in conditionOperations)
                     {
@@ -367,7 +370,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                     transaction.AddSpannerPendingCommitTimestampModificationCommand(commitTimestampModificationCommand);
                 }
                 // Create the mutation command and execute it.
-                var cmd = CreateSpannerMutationCommand(spannerConnection, transaction, modificationCommand);
+                using var cmd = CreateSpannerMutationCommand(spannerConnection, transaction, modificationCommand);
                 // Note: The following line does not actually execute any command on the backend, it only buffers
                 // the mutation locally to be sent with the next Commit statement.
                 await cmd.ExecuteNonQueryAsync(cancellationToken);
@@ -401,16 +404,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             var updateCounts = new List<long>(commands.Count);
             foreach (var command in commands)
             {
-                var reader = await command.ExecuteReaderAsync(cancellationToken);
-                var relationalReader = CreateRelationalDataReader(connection, command, reader);
-                var modificationCommand = _modificationCommands[index];
-                var rowsAffected = 0L;
-                while (await relationalReader.ReadAsync(cancellationToken))
+                using (command)
                 {
-                    modificationCommand.PropagateResults(relationalReader);
-                    rowsAffected++;
+                    using var reader = await command.ExecuteReaderAsync(cancellationToken);
+                    var relationalReader = CreateRelationalDataReader(connection, command, reader);
+                    var modificationCommand = _modificationCommands[index];
+                    var rowsAffected = 0L;
+                    while (await relationalReader.ReadAsync(cancellationToken))
+                    {
+                        modificationCommand.PropagateResults(relationalReader);
+                        rowsAffected++;
+                    }
+                    updateCounts.Add(rowsAffected);
                 }
-                updateCounts.Add(rowsAffected);
                 index++;
             }
             UpdateCounts = updateCounts;
@@ -461,11 +467,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 
         internal void PropagateResults(IRelationalConnection connection)
         {
-            if (_propagateResultsCommands.Count == 0)
-            {
-                return;
-            }
-            Task.Run(() => PropagateResultsAsync(connection)).WaitWithUnwrappedExceptions();
+            PropagateResultsInternalAsync(connection, async: false, CancellationToken.None).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -479,6 +481,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// </summary>
         internal async Task PropagateResultsAsync(IRelationalConnection connection, CancellationToken cancellationToken = default)
         {
+            await PropagateResultsInternalAsync(connection, async: true, cancellationToken);
+        }
+
+        private async ValueTask PropagateResultsInternalAsync(IRelationalConnection connection, bool async, CancellationToken cancellationToken)
+        {
             if (_propagateResultsCommands.Count == 0)
             {
                 return;
@@ -489,11 +496,23 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 if (modificationCommand.ColumnModifications.Any(m => m.IsRead))
                 {
                     var cmd = _propagateResultsCommands[index];
-                    using var reader = await _propagateResultsCommands[index].ExecuteReaderAsync(cancellationToken);
-                    var relationalReader = CreateRelationalDataReader(connection, cmd, reader);
-                    while (await relationalReader.ReadAsync(cancellationToken))
+                    var reader = async
+                        ? await cmd.ExecuteReaderAsync(cancellationToken)
+                        : cmd.ExecuteReader();
+                    using (reader)
                     {
-                        modificationCommand.PropagateResults(relationalReader);
+                        var relationalReader = CreateRelationalDataReader(connection, cmd, reader);
+                        var hasRow = true;
+                        while (hasRow)
+                        {
+                            hasRow = async
+                                ? await relationalReader.ReadAsync(cancellationToken)
+                                : relationalReader.Read();
+                            if (hasRow)
+                            {
+                                modificationCommand.PropagateResults(relationalReader);
+                            }
+                        }
                     }
                     index++;
                 }
