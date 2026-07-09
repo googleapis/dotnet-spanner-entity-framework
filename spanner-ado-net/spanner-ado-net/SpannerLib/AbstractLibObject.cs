@@ -42,6 +42,11 @@ public abstract class AbstractLibObject : IDisposable, IAsyncDisposable
         Id = id;
     } 
 
+    ~AbstractLibObject()
+    {
+        Dispose(false);
+    }
+
     protected void MarkDisposed()
     {
         _disposed = true;
@@ -73,7 +78,7 @@ public abstract class AbstractLibObject : IDisposable, IAsyncDisposable
         }
         try
         {
-            if (disposing && Id > 0)
+            if (Id > 0)
             {
                 CloseLibObject();
             }

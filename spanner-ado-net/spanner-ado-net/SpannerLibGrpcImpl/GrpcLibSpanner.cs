@@ -115,7 +115,9 @@ public sealed class GrpcLibSpanner : ISpannerLib
             _clients[i] = new V1.SpannerLib.SpannerLibClient(_channels[i]);
         }
     }
-
+    
+    ~GrpcLibSpanner() => Dispose(false);
+    
     public void Dispose()
     {
         Dispose(true);
@@ -130,17 +132,11 @@ public sealed class GrpcLibSpanner : ISpannerLib
         }
         try
         {
-            if (disposing)
+            foreach (var channel in _channels)
             {
-                if (_channels != null)
-                {
-                    foreach (var channel in _channels)
-                    {
-                        channel?.Dispose();
-                    }
-                }
-                _server?.Dispose();
+                channel.Dispose();
             }
+            _server.Dispose();
         }
         finally
         {
@@ -373,20 +369,6 @@ public sealed class GrpcLibSpanner : ISpannerLib
     {
         return TranslateException(() => Client.ResultSetStats(ToProto(rows)));
     }
-
-    public async Task<ResultSetStats?> StatsAsync(Rows rows, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            return await Client.ResultSetStatsAsync(ToProto(rows), cancellationToken: cancellationToken).ConfigureAwait(false);
-        }
-        catch (RpcException exception)
-        {
-            throw SpannerException.ToSpannerException(exception);
-        }
-    }
-
-
 
     public ListValue? Next(Rows rows, int numRows, ISpannerLib.RowEncoding encoding)
     {

@@ -60,11 +60,6 @@ public class StreamingRows : Rows
 
     protected override ResultSetStats? Stats => IsPositionedAtInMemResultSetWithAllData ? CurrentInMemResultSet.Stats : _stats;
 
-    public override Task<ResultSetStats?> GetStatsAsync(CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(Stats);
-    }
-
     public override ResultSetMetadata? Metadata => IsPositionedAtInMemResultSet ? CurrentInMemResultSet.Metadata : _metadata;
 
     internal static StreamingRows Create(GrpcLibSpanner spanner, Connection connection, AsyncServerStreamingCall<RowData> stream, int batchSize)
@@ -214,11 +209,11 @@ public class StreamingRows : Rows
                 }
                 return null;
             }
-            foreach (var row in rowData.Data)
+            for (var i = 1; i < rowData.Data.Count; i++)
             {
-                _bufferedRows.Enqueue(row);
+                _bufferedRows.Enqueue(rowData.Data[i]);
             }
-            return _bufferedRows.Dequeue();
+            return rowData.Data[0];
         }
         catch (RpcException exception)
         {
@@ -266,11 +261,11 @@ public class StreamingRows : Rows
                 }
                 return null;
             }
-            foreach (var row in rowData.Data)
+            for (var i = 1; i < rowData.Data.Count; i++)
             {
-                _bufferedRows.Enqueue(row);
+                _bufferedRows.Enqueue(rowData.Data[i]);
             }
-            return _bufferedRows.Dequeue();
+            return rowData.Data[0];
         }
         catch (RpcException exception)
         {
@@ -355,7 +350,7 @@ public class StreamingRows : Rows
         {
             return result;
         }
-        _stream ??= _spanner.ContinueStreaming(SpannerConnection, Id, _batchSize);
+        _stream ??= _spanner.ContinueStreamingAsync(SpannerConnection, Id, _batchSize, cancellationToken);
         
         // Read data until we reach the next result set.
         await ReadUntilEndAsync(cancellationToken).ConfigureAwait(false);
