@@ -127,7 +127,157 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// </summary>
         public override void Execute(IRelationalConnection connection)
         {
-            Task.Run(() => ExecuteAsync(connection)).WaitWithUnwrappedExceptions();
+            var spannerRelationalConnection = (SpannerRelationalConnection)connection;
+            var spannerConnection = (SpannerRetriableConnection)connection.DbConnection;
+            // There should always be a transaction:
+            // 1. Implicit: A transaction is automatically started by Entity Framework when SaveChanges() is called.
+            // 2. Explicit: The client application has called BeginTransaction() on the database.
+            if (!(connection.CurrentTransaction?.GetDbTransaction() is SpannerRetriableTransaction transaction))
+            {
+                throw new InvalidOperationException("There is no active transaction. Cloud Spanner does not support executing updates without a transaction.");
+            }
+
+            var containsReads = _modificationCommands.Any(c => c.ColumnModifications.Any(cm => cm.IsRead));
+            var useMutations = spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.Always
+                || (!_hasExplicitTransaction
+                    && !containsReads
+                    && spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.ImplicitTransactions);
+            if (useMutations)
+            {
+                ExecuteMutations(spannerConnection, transaction);
+            }
+            else if (containsReads)
+            {
+                ExecuteDml(connection, spannerConnection, transaction);
+            }
+            else
+            {
+                ExecuteBatchDml(spannerConnection, transaction);
+            }
+        }
+
+        private void ExecuteMutations(
+            SpannerRetriableConnection spannerConnection, SpannerRetriableTransaction transaction)
+        {
+            int index = 0;
+            foreach (var modificationCommand in _modificationCommands)
+            {
+                // We assume that each mutation will affect exactly one row. This assumption always holds for INSERT
+                // and UPDATE mutations (unless they return an error). DELETE mutations could affect zero rows if the
+                // row had already been deleted, and more than one row if the deleted row is in a table with one or
+                // more INTERLEAVED tables that are defined with ON DELETE CASCADE.
+                //
+                // This can be changed if a concurrency token check fails.
+                var updateCount = 1L;
+
+                // Concurrency token checks cannot be included in mutations. Instead, we need to do manual select to check
+                // that the concurrency token is still the same as what we expect. This select is executed in the same
+                // transaction as the mutations, so it is guaranteed that the value that we read here will still be valid
+                // when the mutations are committed.
+                var operations = modificationCommand.ColumnModifications;
+                var hasConcurrencyCondition = operations.Any(o => o.IsCondition && (o.Property?.IsConcurrencyToken ?? false));
+                if (hasConcurrencyCondition)
+                {
+                    var conditionOperations = operations.Where(o => o.IsCondition).ToList();
+                    var concurrencySql = ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).GenerateSelectConcurrencyCheckSql(modificationCommand.TableName, conditionOperations);
+                    using var concurrencyCommand = spannerConnection.CreateSelectCommand(concurrencySql);
+                    concurrencyCommand.Transaction = transaction;
+                    foreach (var columnModification in conditionOperations)
+                    {
+                        concurrencyCommand.Parameters.Add(CreateParameter(columnModification, concurrencyCommand, UseValue.Original, false));
+                    }
+                    // Execute the concurrency check query in the read/write transaction and check whether the expected row exists.
+                    using var reader = concurrencyCommand.ExecuteReader();
+                    if (!reader.Read())
+                    {
+                        // Set the update count to 0 to trigger a concurrency exception.
+                        // We do not throw the exception here already, as there might be more concurrency problems,
+                        // and we want to be able to report all in the exception.
+                        updateCount = 0L;
+                    }
+                }
+
+                // Mutation commands must use a specific TIMESTAMP constant for pending commit timestamps instead of the
+                // placeholder string PENDING_COMMIT_TIMESTAMP(). This instructs any pending commit timestamp modifications
+                // to use the mutation constant instead.
+                if (modificationCommand is SpannerPendingCommitTimestampModificationCommand commitTimestampModificationCommand)
+                {
+                    commitTimestampModificationCommand.MarkAsMutationCommand();
+                    transaction.AddSpannerPendingCommitTimestampModificationCommand(commitTimestampModificationCommand);
+                }
+                // Create the mutation command and execute it.
+                using var cmd = CreateSpannerMutationCommand(spannerConnection, transaction, modificationCommand);
+                // Note: The following line does not actually execute any command on the backend, it only buffers
+                // the mutation locally to be sent with the next Commit statement.
+                cmd.ExecuteNonQuery();
+                UpdateCounts.Add(updateCount);
+
+                // Check whether we need to generate a SELECT command to propagate computed values back to the context.
+                // This SELECT command will be executed outside of the current implicit transaction.
+                // The propagation query is skipped if the batch uses an explicit transaction, as it will not be able
+                // to read the new value anyways.
+                if (modificationCommand.ColumnModifications.Any(o => o.IsRead) && !_hasExplicitTransaction)
+                {
+                    var keyOperations = operations.Where(o => o.IsKey).ToList();
+                    var readOperations = operations.Where(o => o.IsRead).ToList();
+                    var sql = ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).GenerateSelectAffectedSql(
+                        modificationCommand.TableName, modificationCommand.Schema, readOperations, keyOperations, index);
+                    _propagateResultsCommands.Add(CreateSelectedAffectedCommand(spannerConnection, modificationCommand, sql));
+                }
+                index++;
+            }
+            // Check that there were no concurrency problems detected.
+            if (RowsAffected != _modificationCommands.Count)
+            {
+                ThrowAggregateUpdateConcurrencyException();
+            }
+        }
+
+        private void ExecuteDml(IRelationalConnection connection, SpannerRetriableConnection spannerConnection, SpannerRetriableTransaction transaction)
+        {
+            var commands = CreateSpannerDmlCommands(spannerConnection, transaction);
+            var index = 0;
+            var updateCounts = new List<long>(commands.Count);
+            foreach (var command in commands)
+            {
+                using (command)
+                {
+                    using var reader = command.ExecuteReader();
+                    var relationalReader = CreateRelationalDataReader(connection, command, reader);
+                    var modificationCommand = _modificationCommands[index];
+                    var rowsAffected = 0L;
+                    while (relationalReader.Read())
+                    {
+                        modificationCommand.PropagateResults(relationalReader);
+                        rowsAffected++;
+                    }
+                    updateCounts.Add(rowsAffected);
+                }
+                index++;
+            }
+            UpdateCounts = updateCounts;
+        }
+
+        /// <summary>
+        /// Executes the command batch using DML. DML is less efficient than mutations, but do allow applications
+        /// to read their own writes within a transaction. DML is therefore used by default for explicit transactions.
+        /// Applications can also configure the Spanner Entity Framework provider to use DML for implicit transactions as well.
+        /// </summary>
+        private void ExecuteBatchDml(SpannerRetriableConnection spannerConnection, SpannerRetriableTransaction transaction)
+        {
+            // Create a Batch DML command that contains all the updates in this batch.
+            // The update statements will include any concurrency token checks that might be needed.
+            var cmd = CreateSpannerBatchDmlCommand(spannerConnection, transaction);
+            UpdateCounts = cmd.Item1.ExecuteNonQuery().ToList();
+            if (RowsAffected != _modificationCommands.Count)
+            {
+                ThrowAggregateUpdateConcurrencyException();
+            }
+            // Add any select commands that were generated by the batch for updates that need to propagate results.
+            if (cmd.Item2.Count > 0)
+            {
+                _propagateResultsCommands.AddRange(cmd.Item2);
+            }
         }
 
         /// <summary>
@@ -194,7 +344,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 {
                     var conditionOperations = operations.Where(o => o.IsCondition).ToList();
                     var concurrencySql = ((SpannerUpdateSqlGenerator)Dependencies.UpdateSqlGenerator).GenerateSelectConcurrencyCheckSql(modificationCommand.TableName, conditionOperations);
-                    var concurrencyCommand = spannerConnection.CreateSelectCommand(concurrencySql);
+                    using var concurrencyCommand = spannerConnection.CreateSelectCommand(concurrencySql);
                     concurrencyCommand.Transaction = transaction;
                     foreach (var columnModification in conditionOperations)
                     {
@@ -220,7 +370,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                     transaction.AddSpannerPendingCommitTimestampModificationCommand(commitTimestampModificationCommand);
                 }
                 // Create the mutation command and execute it.
-                var cmd = CreateSpannerMutationCommand(spannerConnection, transaction, modificationCommand);
+                using var cmd = CreateSpannerMutationCommand(spannerConnection, transaction, modificationCommand);
                 // Note: The following line does not actually execute any command on the backend, it only buffers
                 // the mutation locally to be sent with the next Commit statement.
                 await cmd.ExecuteNonQueryAsync(cancellationToken);
@@ -254,16 +404,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             var updateCounts = new List<long>(commands.Count);
             foreach (var command in commands)
             {
-                var reader = await command.ExecuteReaderAsync(cancellationToken);
-                var relationalReader = CreateRelationalDataReader(connection, command, reader);
-                var modificationCommand = _modificationCommands[index];
-                var rowsAffected = 0L;
-                while (await relationalReader.ReadAsync(cancellationToken))
+                using (command)
                 {
-                    modificationCommand.PropagateResults(relationalReader);
-                    rowsAffected++;
+                    using var reader = await command.ExecuteReaderAsync(cancellationToken);
+                    var relationalReader = CreateRelationalDataReader(connection, command, reader);
+                    var modificationCommand = _modificationCommands[index];
+                    var rowsAffected = 0L;
+                    while (await relationalReader.ReadAsync(cancellationToken))
+                    {
+                        modificationCommand.PropagateResults(relationalReader);
+                        rowsAffected++;
+                    }
+                    updateCounts.Add(rowsAffected);
                 }
-                updateCounts.Add(rowsAffected);
                 index++;
             }
             UpdateCounts = updateCounts;
@@ -314,11 +467,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 
         internal void PropagateResults(IRelationalConnection connection)
         {
-            if (_propagateResultsCommands.Count == 0)
-            {
-                return;
-            }
-            Task.Run(() => PropagateResultsAsync(connection)).WaitWithUnwrappedExceptions();
+            PropagateResultsInternalAsync(connection, async: false, CancellationToken.None).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -332,6 +481,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// </summary>
         internal async Task PropagateResultsAsync(IRelationalConnection connection, CancellationToken cancellationToken = default)
         {
+            await PropagateResultsInternalAsync(connection, async: true, cancellationToken);
+        }
+
+        private async ValueTask PropagateResultsInternalAsync(IRelationalConnection connection, bool async, CancellationToken cancellationToken)
+        {
             if (_propagateResultsCommands.Count == 0)
             {
                 return;
@@ -342,11 +496,23 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 if (modificationCommand.ColumnModifications.Any(m => m.IsRead))
                 {
                     var cmd = _propagateResultsCommands[index];
-                    using var reader = await _propagateResultsCommands[index].ExecuteReaderAsync(cancellationToken);
-                    var relationalReader = CreateRelationalDataReader(connection, cmd, reader);
-                    while (await relationalReader.ReadAsync(cancellationToken))
+                    var reader = async
+                        ? await cmd.ExecuteReaderAsync(cancellationToken)
+                        : cmd.ExecuteReader();
+                    using (reader)
                     {
-                        modificationCommand.PropagateResults(relationalReader);
+                        var relationalReader = CreateRelationalDataReader(connection, cmd, reader);
+                        var hasRow = true;
+                        while (hasRow)
+                        {
+                            hasRow = async
+                                ? await relationalReader.ReadAsync(cancellationToken)
+                                : relationalReader.Read();
+                            if (hasRow)
+                            {
+                                modificationCommand.PropagateResults(relationalReader);
+                            }
+                        }
                     }
                     index++;
                 }

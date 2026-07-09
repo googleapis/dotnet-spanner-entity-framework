@@ -194,5 +194,80 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var retryTransaction = connection.BeginTransaction();
             ((IRetriableStatement)statement).Retry(retryTransaction, 60);
         }
+
+        [Fact]
+        public void SpannerDataReaderWithChecksum_SyncRetry_Succeeds()
+        {
+            string sql = "SELECT * FROM Foo WHERE Id = 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name"]
+                ]
+            ));
+            
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+            
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+            
+            using var reader = command.ExecuteReader();
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, (SpannerDataReader)reader, command);
+            
+            Assert.True(checksumReader.Read());
+            Assert.Equal(1L, checksumReader.GetInt64(0));
+            Assert.Equal("Test Name", checksumReader.GetString(1));
+            Assert.False(checksumReader.Read());
+            
+            using var retryTransaction = connection.BeginTransaction();
+            ((IRetriableStatement)checksumReader).Retry(retryTransaction, 60);
+        }
+
+        [Fact]
+        public void SpannerDataReaderWithChecksum_SyncRetry_FailsOnModifiedResults()
+        {
+            string sql = "SELECT * FROM Foo WHERE Id = 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name"]
+                ]
+            ));
+            
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+            
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+            
+            using var reader = command.ExecuteReader();
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, (SpannerDataReader)reader, command);
+            
+            Assert.True(checksumReader.Read());
+            Assert.False(checksumReader.Read());
+            
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Modified Name"]
+                ]
+            ));
+            
+            using var retryTransaction = connection.BeginTransaction();
+            Assert.Throws<SpannerAbortedDueToConcurrentModificationException>(() =>
+                ((IRetriableStatement)checksumReader).Retry(retryTransaction, 60));
+        }
     }
 }

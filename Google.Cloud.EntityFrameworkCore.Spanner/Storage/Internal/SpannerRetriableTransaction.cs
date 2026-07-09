@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Google.Api.Gax;
+using System.Linq;
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal;
 using Google.Cloud.Spanner.Data;
@@ -149,7 +150,27 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public override IsolationLevel IsolationLevel => SpannerTransaction.IsolationLevel;
 
         protected internal override int ExecuteNonQueryWithRetry(SpannerCommand command)
-            => Task.Run(() => ExecuteNonQueryWithRetryAsync(command, CancellationToken.None)).ResultWithUnwrappedExceptions();
+        {
+            while (true)
+            {
+                command.Transaction = SpannerTransaction;
+                try
+                {
+                    int res = command.ExecuteNonQuery();
+                    _retriableStatements.Add(new RetriableDmlStatement(command, res));
+                    return res;
+                }
+                catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
+                {
+                    Retry(e);
+                }
+                catch (SpannerException e)
+                {
+                    _retriableStatements.Add(new FailedDmlStatement(command, e));
+                    throw;
+                }
+            }
+        }
 
         protected internal override async Task<int> ExecuteNonQueryWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken = default)
         {
@@ -175,7 +196,27 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         }
 
         protected internal override IReadOnlyList<long> ExecuteNonQueryWithRetry(SpannerRetriableBatchCommand command)
-            => Task.Run(() => ExecuteNonQueryWithRetryAsync(command, CancellationToken.None)).ResultWithUnwrappedExceptions();
+        {
+            while (true)
+            {
+                var spannerCommand = command.CreateSpannerBatchCommand();
+                try
+                {
+                    IReadOnlyList<long> res = spannerCommand.ExecuteNonQuery().ToList();
+                    _retriableStatements.Add(new RetriableBatchDmlStatement(command, res));
+                    return res;
+                }
+                catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
+                {
+                    Retry(e);
+                }
+                catch (SpannerException e)
+                {
+                    _retriableStatements.Add(new FailedBatchDmlStatement(command, e));
+                    throw;
+                }
+            }
+        }
 
         internal async Task<IReadOnlyList<long>> ExecuteNonQueryWithRetryAsync(SpannerRetriableBatchCommand command, CancellationToken cancellationToken = default)
         {
@@ -201,7 +242,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         }
 
         protected internal override object ExecuteScalarWithRetry(SpannerCommand command)
-            => Task.Run(() => ExecuteScalarWithRetryAsync(command, CancellationToken.None)).ResultWithUnwrappedExceptions();
+        {
+            using var reader = ExecuteDbDataReaderWithRetryImpl(command);
+            if (reader.Read())
+            {
+                return reader.GetValue(0);
+            }
+
+            return null;
+        }
 
         internal async Task<object> ExecuteScalarWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken)
         {
@@ -216,11 +265,39 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         /// <inheritdoc/>
         protected internal override DbDataReader ExecuteDbDataReaderWithRetry(SpannerCommand command)
-            => Task.Run(() => ExecuteDbDataReaderWithRetryImplAsync(command, CancellationToken.None)).ResultWithUnwrappedExceptions();
+            => ExecuteDbDataReaderWithRetryImpl(command);
 
         /// <inheritdoc/>
         protected internal override async Task<DbDataReader> ExecuteDbDataReaderWithRetryAsync(SpannerCommand command, CancellationToken cancellationToken)
            => await ExecuteDbDataReaderWithRetryImplAsync(command, cancellationToken);
+
+        private SpannerDataReaderWithChecksum ExecuteDbDataReaderWithRetryImpl(SpannerCommand command)
+        {
+            while (true)
+            {
+                command.Transaction = SpannerTransaction;
+                try
+                {
+                    var spannerReader = (SpannerDataReader)command.ExecuteReader();
+                    var checksumReader = new SpannerDataReaderWithChecksum(this, spannerReader, command);
+                    _retriableStatements.Add(checksumReader);
+                    return checksumReader;
+                }
+                catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
+                {
+                    Retry(e);
+                }
+                catch (SpannerException e)
+                {
+                    // We can use a FailedDmlStatement here, as reaching here means that the statement
+                    // failed directly when trying to execute a reader. That indicates that the underlying
+                    // statement was a DML statement with a THEN RETURN clause, and that all we need to
+                    // verify during the retry is that it returns the exact same error when it is executed.
+                    _retriableStatements.Add(new FailedDmlStatement(command, e));
+                    throw;
+                }
+            }
+        }
 
         private async Task<SpannerDataReaderWithChecksum> ExecuteDbDataReaderWithRetryImplAsync(SpannerCommand command, CancellationToken cancellationToken)
         {
@@ -251,9 +328,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         }
 
         internal void Retry(SpannerException abortedException, int timeoutSeconds = MAX_TIMEOUT_SECONDS)
-            => RetryAsync(abortedException, CancellationToken.None, timeoutSeconds).WaitWithUnwrappedExceptions();
+        {
+            RetryInternalAsync(abortedException, async: false, CancellationToken.None, timeoutSeconds).GetAwaiter().GetResult();
+        }
 
         internal async Task RetryAsync(SpannerException abortedException, CancellationToken cancellationToken, int timeoutSeconds = MAX_TIMEOUT_SECONDS)
+        {
+            await RetryInternalAsync(abortedException, async: true, cancellationToken, timeoutSeconds);
+        }
+
+        private async ValueTask RetryInternalAsync(SpannerException abortedException, bool async, CancellationToken cancellationToken, int timeoutSeconds = MAX_TIMEOUT_SECONDS)
         {
             if (!EnableInternalRetries)
             {
@@ -276,20 +360,37 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {
                     throw new SpannerException(ErrorCode.Aborted, "Transaction was aborted because it timed out while retrying");
                 }
-                await _scheduler.Delay(retryDelay, cancellationToken).ConfigureAwait(false);
+
+                if (async)
+                {
+                    await _scheduler.Delay(retryDelay, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    _scheduler.Delay(retryDelay, CancellationToken.None).Wait();
+                }
 
                 // TODO: Preferably the Spanner client library should have some 'reset' option on an existing
                 // transaction instead of having to begin a new transaction. This will potentially use a transaction
                 // on a different session, while the recommended behavior for a retry is to use the same session as
                 // the original attempt.
                 SpannerTransaction.Dispose();
-                SpannerTransaction = await Connection.SpannerConnection.BeginTransactionAsync(cancellationToken);
+                SpannerTransaction = async
+                    ? await Connection.SpannerConnection.BeginTransactionAsync(cancellationToken)
+                    : Connection.SpannerConnection.BeginTransaction();
                 RetryCount++;
                 try
                 {
                     foreach (IRetriableStatement statement in _retriableStatements)
                     {
-                        await statement.RetryAsync(this, cancellationToken, timeoutSeconds);
+                        if (async)
+                        {
+                            await statement.RetryAsync(this, cancellationToken, timeoutSeconds);
+                        }
+                        else
+                        {
+                            statement.Retry(this, timeoutSeconds);
+                        }
                     }
                     break;
                 }
@@ -329,7 +430,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// </summary>
         /// <param name="cancellationToken">A cancellation token used for this task.</param>
         /// <returns>Returns the UTC timestamp when the data was written to the database.</returns>
-        public async Task<DateTime> CommitAndReturnCommitTimestampAsync(CancellationToken cancellationToken = default)
+        public Task<DateTime> CommitAndReturnCommitTimestampAsync(CancellationToken cancellationToken = default)
+        {
+            return CommitAndReturnCommitTimestampInternalAsync(async: true, cancellationToken).AsTask();
+        }
+
+        /// <summary>
+        /// Commits the database transaction synchronously and returns the commit timestamp.
+        /// </summary>
+        /// <returns>Returns the UTC timestamp when the data was written to the database.</returns>
+        public DateTime CommitAndReturnCommitTimestamp()
+        {
+            return CommitAndReturnCommitTimestampInternalAsync(async: false, CancellationToken.None).GetAwaiter().GetResult();
+        }
+
+        private async ValueTask<DateTime> CommitAndReturnCommitTimestampInternalAsync(bool async, CancellationToken cancellationToken)
         {
             var tracer = TracerProviderExtension.GetTracer();
             using var span = tracer.StartActiveSpan(TracerProviderExtension.SPAN_NAME_COMMIT);
@@ -337,7 +452,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             {
                 try
                 {
-                    _commitTimestamp = await SpannerTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    if (async)
+                    {
+                        _commitTimestamp = await SpannerTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        SpannerTransaction.Commit(out var commitTimestamp);
+                        _commitTimestamp = commitTimestamp;
+                    }
                     // Propagate the commit timestamp to all columns that were automatically updated during this transaction.
                     // Note that this transaction could both be a manual transaction started by the application, as well as
                     // an implicit transaction started by Entity Framework.
@@ -368,7 +491,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
                 {
                     span.SetAttribute(TracerProviderExtension.ATTRIBUTE_NAME_RETRYING, e.Message);
-                    await RetryAsync(e, cancellationToken).ConfigureAwait(false);
+                    if (async)
+                    {
+                        await RetryAsync(e, cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        Retry(e);
+                    }
                 }
                 catch (InvalidOperationException e) when (e.Message.Contains("A transaction has not been acquired for this PooledSession because no command execution has been attempted."))
                 {
@@ -387,6 +517,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         }
 
         /// <inheritdoc />
-        public override void Commit() => CommitAsync(CancellationToken.None).WaitWithUnwrappedExceptions();
+        public override void Commit()
+        {
+            CommitAndReturnCommitTimestamp();
+        }
+
+        /// <inheritdoc />
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                foreach (var statement in _retriableStatements)
+                {
+                    statement.Dispose();
+                }
+            }
+            base.Dispose(disposing);
+        }
     }
 }

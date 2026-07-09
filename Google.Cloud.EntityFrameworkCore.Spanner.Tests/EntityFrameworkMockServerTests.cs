@@ -2401,6 +2401,31 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public void CanInsertCommitTimestamp_Sync()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "INSERT INTO `TableWithAllColumnTypes` (`ColCommitTS`, `ColInt64`, `ASC`, `ColBool`, " +
+                "`ColBoolArray`, `ColBytes`, `ColBytesArray`, `ColBytesMax`, `ColBytesMaxArray`, `ColDate`, `ColDateArray`," +
+                " `ColFloat32`, `ColFloat32Array`, `ColFloat64`, `ColFloat64Array`, `ColInt64Array`, `ColJson`, `ColJsonArray`, `ColNumeric`, `ColNumericArray`, `ColString`, " +
+                "`ColStringArray`, `ColStringMax`, `ColStringMaxArray`, `ColTimestamp`, `ColTimestampArray`)" +
+                $"{Environment.NewLine}VALUES (PENDING_COMMIT_TIMESTAMP(), " +
+                $"@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19, @p20, @p21, @p22, @p23, @p24){Environment.NewLine}" +
+                $"THEN RETURN `ColComputed`";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type { Code = V1.TypeCode.String }, "ColComputed", "Test"));
+
+            db.TableWithAllColumnTypes.Add(new TableWithAllColumnTypes { ColInt64 = 1L });
+            db.SaveChanges();
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Contains("PENDING_COMMIT_TIMESTAMP()", request.Sql);
+                }
+            );
+        }
+
+        [Fact]
         public async Task CanUpdateCommitTimestamp()
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
@@ -2413,6 +2438,29 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             db.TableWithAllColumnTypes.Attach(row);
             row.ColBool = true;
             await db.SaveChangesAsync();
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Contains("PENDING_COMMIT_TIMESTAMP()", request.Sql);
+                }
+            );
+        }
+
+        [Fact]
+        public void CanUpdateCommitTimestamp_Sync()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"UPDATE `TableWithAllColumnTypes` SET `ColCommitTS` = PENDING_COMMIT_TIMESTAMP(), `ColBool` = @p0" +
+                $"{Environment.NewLine}WHERE `ColInt64` = @p1{Environment.NewLine}" +
+                $"THEN RETURN `ColComputed`";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type { Code = V1.TypeCode.String }, "ColComputed", "Test"));
+
+            var row = new TableWithAllColumnTypes { ColInt64 = 1L };
+            db.TableWithAllColumnTypes.Attach(row);
+            row.ColBool = true;
+            db.SaveChanges();
 
             Assert.Collection(
                 _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),

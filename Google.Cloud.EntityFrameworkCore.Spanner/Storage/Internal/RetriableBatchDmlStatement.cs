@@ -69,5 +69,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 throw new SpannerAbortedDueToConcurrentModificationException();
             }
         }
+
+        public void Dispose()
+        {
+        }
     }
 }

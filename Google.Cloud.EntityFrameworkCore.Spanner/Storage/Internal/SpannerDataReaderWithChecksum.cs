@@ -91,6 +91,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             if (disposing)
             {
                 _spannerDataReader.Dispose();
+                _spannerCommand.Dispose();
                 if (!_hashDisposed)
                 {
                     // Cache the final checksum before disposing the IncrementalHash, as the transaction
@@ -105,15 +106,25 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         }
 
         /// <inheritdoc />
-        public override bool Read() => Task.Run(() => ReadAsync(CancellationToken.None)).ResultWithUnwrappedExceptions();
+        public override bool Read()
+        {
+            return ReadInternalAsync(async: false, CancellationToken.None).GetAwaiter().GetResult();
+        }
 
-        public override async Task<bool> ReadAsync(CancellationToken cancellationToken)
+        public override Task<bool> ReadAsync(CancellationToken cancellationToken)
+        {
+            return ReadInternalAsync(async: true, cancellationToken).AsTask();
+        }
+
+        private async ValueTask<bool> ReadInternalAsync(bool async, CancellationToken cancellationToken)
         {
             while (true)
             {
                 try
                 {
-                    bool res = await _spannerDataReader.ReadAsync(cancellationToken);
+                    bool res = async
+                        ? await _spannerDataReader.ReadAsync(cancellationToken)
+                        : _spannerDataReader.Read();
                     AppendRowToHash(_incrementalHash, _spannerDataReader, res);
                     _numberOfReadCalls++;
                     return res;
@@ -121,7 +132,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
                 {
                     // Retry the transaction and then retry the ReadAsync call.
-                    await Transaction.RetryAsync(e, cancellationToken);
+                    if (async)
+                    {
+                        await Transaction.RetryAsync(e, cancellationToken);
+                    }
+                    else
+                    {
+                        Transaction.Retry(e);
+                    }
                 }
                 catch (SpannerException e)
                 {
@@ -178,59 +196,81 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         void IRetriableStatement.Retry(SpannerRetriableTransaction transaction, int timeoutSeconds)
         {
-            throw new System.NotImplementedException();
+            RetryInternalAsync(transaction, async: false, CancellationToken.None).GetAwaiter().GetResult();
         }
 
         async Task IRetriableStatement.RetryAsync(SpannerRetriableTransaction transaction, CancellationToken cancellationToken, int timeoutSeconds)
         {
+            await RetryInternalAsync(transaction, async: true, cancellationToken);
+        }
+
+        private async ValueTask<bool> RetryInternalAsync(SpannerRetriableTransaction transaction, bool async, CancellationToken cancellationToken)
+        {
             _spannerCommand.Transaction = transaction.SpannerTransaction;
-            var reader = await _spannerCommand.ExecuteReaderAsync(cancellationToken);
-            int counter = 0;
-            bool read = true;
-            using var retryHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            SpannerException newException = null;
-            while (read && counter < _numberOfReadCalls)
+            var reader = async
+                ? await _spannerCommand.ExecuteReaderAsync(cancellationToken)
+                : (SpannerDataReader)_spannerCommand.ExecuteReader();
+            bool keepReader = false;
+            try
             {
-                try
+                int counter = 0;
+                bool read = true;
+                using var retryHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+                SpannerException newException = null;
+                while (read && counter < _numberOfReadCalls)
                 {
-                    read = await reader.ReadAsync(cancellationToken);
-                    AppendRowToHash(retryHash, reader, read);
-                    counter++;
+                    try
+                    {
+                        read = async
+                            ? await reader.ReadAsync(cancellationToken)
+                            : reader.Read();
+                        AppendRowToHash(retryHash, reader, read);
+                        counter++;
+                    }
+                    catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
+                    {
+                        // Propagate Aborted errors to trigger a new retry.
+                        throw;
+                    }
+                    catch (SpannerException e)
+                    {
+                        newException = e;
+                        counter++;
+                        break;
+                    }
                 }
-                catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
+                var originalChecksum = GetChecksum();
+                var newChecksum = retryHash.GetHashAndReset();
+                if (counter == _numberOfReadCalls
+                    && newChecksum.SequenceEqual(originalChecksum)
+                    && SpannerRetriableTransaction.SpannerExceptionsEqualForRetry(newException, _firstException))
                 {
-                    // Propagate Aborted errors to trigger a new retry.
-                    throw;
-                }
-                catch (SpannerException e)
-                {
-                    newException = e;
-                    counter++;
-                    break;
-                }
-            }
-            var originalChecksum = GetChecksum();
-            var newChecksum = retryHash.GetHashAndReset();
-            if (counter == _numberOfReadCalls
-                && newChecksum.SequenceEqual(originalChecksum)
-                && SpannerRetriableTransaction.SpannerExceptionsEqualForRetry(newException, _firstException))
-            {
-                // Checksum is ok, we only need to replace the delegate result set if it's still open.
-                if (IsClosed)
-                {
-                    reader.Close();
+                    // Checksum is ok, we only need to replace the delegate result set if it's still open.
+                    if (IsClosed)
+                    {
+                        reader.Close();
+                    }
+                    else
+                    {
+                        _spannerDataReader = reader;
+                        keepReader = true;
+                    }
                 }
                 else
                 {
-                    _spannerDataReader = reader;
+                    // The results are not equal, there is an actual concurrent modification, so we cannot
+                    // continue the transaction.
+                    throw new SpannerAbortedDueToConcurrentModificationException();
                 }
             }
-            else
+            finally
             {
-                // The results are not equal, there is an actual concurrent modification, so we cannot
-                // continue the transaction.
-                throw new SpannerAbortedDueToConcurrentModificationException();
+                if (!keepReader)
+                {
+                    reader.Dispose();
+                }
             }
+            return keepReader;
         }
 
         public override bool GetBoolean(int ordinal)
