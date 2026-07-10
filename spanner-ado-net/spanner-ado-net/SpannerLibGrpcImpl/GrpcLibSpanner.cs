@@ -386,8 +386,6 @@ public sealed class GrpcLibSpanner : ISpannerLib
         }
     }
 
-
-
     public ListValue? Next(Rows rows, int numRows, ISpannerLib.RowEncoding encoding)
     {
         var row = TranslateException(() =>Client.Next(new NextRequest
