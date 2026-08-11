@@ -29,7 +29,7 @@
       "extra-files": [
         {
           "type": "xml",
-          "path": "spanner-ado-net/spanner-ado-net/spanner-ado-net.csproj",
+          "path": "spanner-ado-net.csproj",
           "xpath": "//Project/PropertyGroup/Version"
         }
       ]
