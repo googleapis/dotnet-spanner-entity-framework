@@ -38,8 +38,10 @@ ensure_dotnet_10() {
 }
 
 ensure_go() {
-  # Check standard Go install location on Windows first
-  if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win"* ]]; then
+  # Check standard Go install locations first
+  if [ -d "$HOME/go/bin" ]; then
+    export PATH="$HOME/go/bin:$PATH"
+  elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win"* ]] && [ -d "/c/Program Files/Go/bin" ]; then
     export PATH="$PATH:/c/Program Files/Go/bin"
   fi
 
@@ -47,19 +49,18 @@ ensure_go() {
   if ! command -v go > /dev/null 2>&1; then
     if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win"* ]]; then
       GO_VERSION="1.26.0"
-      MSI_FILE="go${GO_VERSION}.windows-amd64.msi"
-      DOWNLOAD_URL="https://go.dev/dl/${MSI_FILE}"
+      ZIP_FILE="go${GO_VERSION}.windows-amd64.zip"
+      DOWNLOAD_URL="https://go.dev/dl/${ZIP_FILE}"
 
-      echo "Downloading Go ${GO_VERSION}..."
-      curl -fL -o "$MSI_FILE" "$DOWNLOAD_URL"
+      echo "Downloading Go ${GO_VERSION} (portable zip)..."
+      curl -fL -o "$ZIP_FILE" "$DOWNLOAD_URL"
 
-      echo "Installing Go silently"
-      MSI_PATH="$(cygpath -w "$PWD/$MSI_FILE")"
-      powershell -NoProfile -ExecutionPolicy Bypass -Command "\$p = Start-Process msiexec.exe -ArgumentList '/i \"$MSI_PATH\" /quiet /norestart' -PassThru -Wait; if (\$p.ExitCode -ne 0) { exit \$p.ExitCode }"
+      echo "Extracting Go to $HOME/go..."
+      tar -xf "$ZIP_FILE" -C "$HOME"
+      rm -f "$ZIP_FILE"
 
-      echo "Cleaning up installer file..."
-      rm "$MSI_FILE"
-      echo "Installation finished."
+      export PATH="$HOME/go/bin:$PATH"
+      echo "Go installation finished."
     else
       echo "Error: Go is not installed. Please install Go (https://go.dev/doc/install) and try again." >&2
       exit 1
