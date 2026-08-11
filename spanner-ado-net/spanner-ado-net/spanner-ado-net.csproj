@@ -9,7 +9,7 @@
     <PackageId>Google.Cloud.Spanner.DataProvider</PackageId>
     <Title>.NET Data Provider for Spanner</Title>
     <Authors>Google</Authors>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <Description>ADO.NET Data Provider.</Description>
     <Copyright>Apache v2.0</Copyright>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -26,8 +26,8 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="README.md" Pack="true" PackagePath="/" />
-    <None Include="..\..\NuGetIcon.png" Pack="true" PackagePath="/" />
+    <None Include="README.md" Pack="true" PackagePath="/"/>
+    <None Include="..\..\NuGetIcon.png" Pack="true" PackagePath="/"/>
   </ItemGroup>
 
   <ItemGroup>
@@ -35,17 +35,17 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Google.Cloud.Spanner.V1" Version="5.12.0" />
-    <PackageReference Include="Grpc.Net.Client" Version="2.83.0" />
+    <PackageReference Include="Google.Cloud.Spanner.V1" Version="5.12.0"/>
+    <PackageReference Include="Grpc.Net.Client" Version="2.83.0"/>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.301" PrivateAssets="All"/>
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="runtimes/any/native/*" Pack="true" PackagePath="runtimes/any/native/" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="runtimes/linux-x64/native/*" Pack="true" PackagePath="runtimes/linux-x64/native/" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="runtimes/linux-arm64/native/*" Pack="true" PackagePath="runtimes/linux-arm64/native/" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="runtimes/osx-arm64/native/*" Pack="true" PackagePath="runtimes/osx-arm64/native/" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="runtimes/win-x64/native/*" Pack="true" PackagePath="runtimes/win-x64/native/" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="runtimes/any/native/*" Pack="true" PackagePath="runtimes/any/native/" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="runtimes/linux-x64/native/*" Pack="true" PackagePath="runtimes/linux-x64/native/" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="runtimes/linux-arm64/native/*" Pack="true" PackagePath="runtimes/linux-arm64/native/" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="runtimes/osx-arm64/native/*" Pack="true" PackagePath="runtimes/osx-arm64/native/" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="runtimes/win-x64/native/*" Pack="true" PackagePath="runtimes/win-x64/native/" CopyToOutputDirectory="PreserveNewest"/>
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.Spanner.DataProvider-1.2.0...Google.Cloud.Spanner.DataProvider-1.2.1) (2026-08-11)
+
+
+### Bug Fixes
+
+* **ado.net:** use PackageIcon instead of deprecated PackageIconUrl ([#807](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/807)) ([b97c5e7](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/b97c5e77715d2b4416aa6dfbc458b633b341985d))
+
 ## [1.2.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.Spanner.DataProvider-1.1.0...Google.Cloud.Spanner.DataProvider-1.2.0) (2026-08-11)
 
 
