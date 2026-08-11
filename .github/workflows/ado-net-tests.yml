@@ -4,7 +4,6 @@ on:
   pull_request:
 permissions:
   contents: read
-  pull-requests: write
 name: ADO.NET Tests
 jobs:
   units:
@@ -60,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       emulator:
-        image: gcr.io/cloud-spanner-emulator/emulator:1.5.55
+        image: gcr.io/cloud-spanner-emulator/emulator:1.5.56
         ports:
           - 9010:9010
           - 9020:9020
