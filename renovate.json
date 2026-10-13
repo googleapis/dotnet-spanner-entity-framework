@@ -6,5 +6,14 @@
   "semanticCommitScope": "",
   "extends": [
     "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "xunit.v3",
+        "xunit.runner.visualstudio"
+      ],
+      "allowedVersions": "<4.0.0"
+    }
   ]
 }
