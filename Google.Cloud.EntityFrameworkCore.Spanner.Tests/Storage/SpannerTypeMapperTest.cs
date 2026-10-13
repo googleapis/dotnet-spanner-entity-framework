@@ -14,6 +14,7 @@
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Tests.TestUtilities;
+using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
@@ -524,6 +525,113 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
             Assert.Equal(size, mapping.Size);
             Assert.Equal(unicode, mapping.IsUnicode);
             Assert.Equal(expectedType ?? typeName, mapping.StoreType);
+        }
+
+        [Fact]
+        public void Default_type_mappings_have_initialized_converters()
+        {
+            Assert.Equal(typeof(SpannerDate), SpannerDateTypeMapping.Default.ClrType);
+            Assert.Equal(typeof(DateOnly), SpannerDateOnlyTypeMapping.Default.ClrType);
+            Assert.Equal(typeof(SpannerDate[]), SpannerDateArrayTypeMapping.Default.ClrType);
+            Assert.Equal(typeof(List<SpannerDate>), SpannerDateListTypeMapping.Default.ClrType);
+            Assert.Equal(typeof(SpannerDate?[]), SpannerNullableDateArrayTypeMapping.Default.ClrType);
+            Assert.Equal(typeof(List<SpannerDate?>), SpannerNullableDateListTypeMapping.Default.ClrType);
+            Assert.Equal(typeof(JsonDocument), SpannerJsonTypeMapping.Default.ClrType);
+            Assert.Equal(typeof(JsonDocument[]), SpannerJsonArrayTypeMapping.Default.ClrType);
+            Assert.Equal(typeof(List<JsonDocument>), SpannerJsonListTypeMapping.Default.ClrType);
+
+            Assert.NotNull(SpannerDateTypeMapping.Default.Converter);
+            Assert.NotNull(SpannerDateOnlyTypeMapping.Default.Converter);
+            Assert.NotNull(SpannerDateArrayTypeMapping.Default.Converter);
+            Assert.NotNull(SpannerDateListTypeMapping.Default.Converter);
+            Assert.NotNull(SpannerNullableDateArrayTypeMapping.Default.Converter);
+            Assert.NotNull(SpannerNullableDateListTypeMapping.Default.Converter);
+            Assert.NotNull(SpannerJsonTypeMapping.Default.Converter);
+            Assert.NotNull(SpannerJsonArrayTypeMapping.Default.Converter);
+            Assert.NotNull(SpannerJsonListTypeMapping.Default.Converter);
+
+            Assert.True(SpannerJsonTypeMapping.JsonOptions.AllowTrailingCommas);
+
+            var dateConverter = SpannerDateTypeMapping.Default.Converter;
+            var testDate = new SpannerDate(2025, 1, 15);
+            var dateTime = (DateTime)dateConverter.ConvertToProvider(testDate)!;
+            Assert.Equal(new DateTime(2025, 1, 15), dateTime);
+            Assert.Equal(testDate, (SpannerDate)dateConverter.ConvertFromProvider(dateTime)!);
+
+            var dateOnlyConverter = SpannerDateOnlyTypeMapping.Default.Converter;
+            var testDateOnly = new DateOnly(2025, 1, 15);
+            var dateOnlyDateTime = (DateTime)dateOnlyConverter.ConvertToProvider(testDateOnly)!;
+            Assert.Equal(new DateTime(2025, 1, 15), dateOnlyDateTime);
+            Assert.Equal(testDateOnly, (DateOnly)dateOnlyConverter.ConvertFromProvider(dateOnlyDateTime)!);
+
+            var jsonConverter = SpannerJsonTypeMapping.Default.Converter;
+            using var jsonDocument = JsonDocument.Parse("{\"key\":\"value\"}");
+            var jsonString = (string)jsonConverter.ConvertToProvider(jsonDocument)!;
+            Assert.Equal("{\"key\":\"value\"}", jsonString);
+            using var parsedDocument = (JsonDocument)jsonConverter.ConvertFromProvider(jsonString)!;
+            Assert.Equal("value", parsedDocument.RootElement.GetProperty("key").GetString());
+
+            var dateArrayConverter = SpannerDateArrayTypeMapping.Default.Converter;
+            var testDateArray = new[] { testDate };
+            var dateArrayProvider = (DateTime[])dateArrayConverter.ConvertToProvider(testDateArray)!;
+            Assert.Equal(new[] { new DateTime(2025, 1, 15) }, dateArrayProvider);
+            var dateArrayRoundTrip = (SpannerDate[])dateArrayConverter.ConvertFromProvider(dateArrayProvider)!;
+            Assert.Equal(testDateArray, dateArrayRoundTrip);
+
+            var dateListConverter = SpannerDateListTypeMapping.Default.Converter;
+            var testDateList = new List<SpannerDate> { testDate };
+            var dateListProvider = (List<DateTime>)dateListConverter.ConvertToProvider(testDateList)!;
+            Assert.Equal(new List<DateTime> { new DateTime(2025, 1, 15) }, dateListProvider);
+            var dateListRoundTrip = (List<SpannerDate>)dateListConverter.ConvertFromProvider(dateListProvider)!;
+            Assert.Equal(testDateList, dateListRoundTrip);
+
+            var nullableDateArrayConverter = SpannerNullableDateArrayTypeMapping.Default.Converter;
+            var testNullableDateArray = new SpannerDate?[] { testDate, null };
+            var nullableDateArrayProvider = (DateTime?[])nullableDateArrayConverter.ConvertToProvider(testNullableDateArray)!;
+            Assert.Equal(new DateTime?[] { new DateTime(2025, 1, 15), null }, nullableDateArrayProvider);
+            var nullableDateArrayRoundTrip = (SpannerDate?[])nullableDateArrayConverter.ConvertFromProvider(nullableDateArrayProvider)!;
+            Assert.Equal(testNullableDateArray, nullableDateArrayRoundTrip);
+
+            var nullableDateListConverter = SpannerNullableDateListTypeMapping.Default.Converter;
+            var testNullableDateList = new List<SpannerDate?> { testDate, null };
+            var nullableDateListProvider = (List<DateTime?>)nullableDateListConverter.ConvertToProvider(testNullableDateList)!;
+            Assert.Equal(new List<DateTime?> { new DateTime(2025, 1, 15), null }, nullableDateListProvider);
+            var nullableDateListRoundTrip = (List<SpannerDate?>)nullableDateListConverter.ConvertFromProvider(nullableDateListProvider)!;
+            Assert.Equal(testNullableDateList, nullableDateListRoundTrip);
+
+            var jsonArrayConverter = SpannerJsonArrayTypeMapping.Default.Converter;
+            using var jsonDocumentForArray = JsonDocument.Parse("{\"key\":\"value\"}");
+            var testJsonArray = new[] { jsonDocumentForArray };
+            var jsonArrayProvider = (string[])jsonArrayConverter.ConvertToProvider(testJsonArray)!;
+            Assert.Equal(new[] { "{\"key\":\"value\"}" }, jsonArrayProvider);
+            var jsonArrayRoundTrip = (JsonDocument[])jsonArrayConverter.ConvertFromProvider(jsonArrayProvider)!;
+            Assert.Single(jsonArrayRoundTrip);
+            Assert.Equal("value", jsonArrayRoundTrip[0].RootElement.GetProperty("key").GetString());
+
+            var jsonListConverter = SpannerJsonListTypeMapping.Default.Converter;
+            using var jsonDocumentForList = JsonDocument.Parse("{\"key\":\"value\"}");
+            var testJsonList = new List<JsonDocument> { jsonDocumentForList };
+            var jsonListProvider = (List<string>)jsonListConverter.ConvertToProvider(testJsonList)!;
+            Assert.Equal(new List<string> { "{\"key\":\"value\"}" }, jsonListProvider);
+            var jsonListRoundTrip = (List<JsonDocument>)jsonListConverter.ConvertFromProvider(jsonListProvider)!;
+            Assert.Single(jsonListRoundTrip);
+            Assert.Equal("value", jsonListRoundTrip[0].RootElement.GetProperty("key").GetString());
+        }
+
+        [Fact]
+        public void Spanner_complex_type_mapping_initializes_array_types()
+        {
+            Assert.NotNull(SpannerComplexTypeMapping.Default);
+            Assert.False(SpannerComplexTypeMapping.Default.IsArrayType);
+
+            var int64ArrayMapping = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(long[]));
+            Assert.True(int64ArrayMapping.IsArrayType);
+
+            var float32ArrayMapping = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Float32), typeof(float[]));
+            Assert.True(float32ArrayMapping.IsArrayType);
+
+            var scalarMapping = new SpannerComplexTypeMapping(SpannerDbType.Int64, typeof(long));
+            Assert.False(scalarMapping.IsArrayType);
         }
 
         private RelationalTypeMapping GetTypeMapping(

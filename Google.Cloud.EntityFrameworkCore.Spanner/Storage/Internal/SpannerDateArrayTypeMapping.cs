@@ -29,10 +29,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     /// </summary>
     public class SpannerDateArrayTypeMapping : RelationalTypeMapping
     {
-        public static SpannerDateArrayTypeMapping Default { get; } = new();
         private static readonly ValueConverter s_converter = new ValueConverter<SpannerDate[], DateTime[]>(
             v => v.Select(sd => sd.ToDateTime()).ToArray(),
             v => v.Select(dt => SpannerDate.FromDateTime(dt)).ToArray());
+
+        public static SpannerDateArrayTypeMapping Default { get; } = new();
 
         public SpannerDateArrayTypeMapping()
             : base(new RelationalTypeMappingParameters(

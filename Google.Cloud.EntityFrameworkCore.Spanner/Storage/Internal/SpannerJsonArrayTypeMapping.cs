@@ -31,15 +31,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     /// </summary>
     public class SpannerJsonArrayTypeMapping : RelationalTypeMapping
     {
-        public static SpannerJsonArrayTypeMapping Default { get; } = new();
-        
         private static readonly ValueConverter s_converter = new ValueConverter<JsonDocument[], string[]>(
             v => v.Select(jd => jd == null ? null : jd.RootElement.ToString()).ToArray(),
             v => v.Select(s => s == null ? null : JsonDocument.Parse(s, SpannerJsonTypeMapping.JsonOptions)).ToArray());
 
+        public static SpannerJsonArrayTypeMapping Default { get; } = new();
+
         public SpannerJsonArrayTypeMapping()
             : base(new RelationalTypeMappingParameters(
-                   new CoreTypeMappingParameters(typeof(List<JsonDocument>), s_converter),
+                   new CoreTypeMappingParameters(typeof(JsonDocument[]), s_converter),
                    "ARRAY<JSON>"))
         { }
 
@@ -60,7 +60,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             base.ConfigureParameter(parameter);
             spannerParameter.SpannerDbType = SpannerDbType.ArrayOf(SpannerDbType.Json);
         }
-        
+
         protected override string GenerateNonNullSqlLiteral(object value)
         {
             if (value is JsonDocument[] values)
