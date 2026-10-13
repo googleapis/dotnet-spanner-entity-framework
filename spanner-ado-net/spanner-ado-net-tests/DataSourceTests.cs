@@ -166,7 +166,7 @@ public class DataSourceTests : AbstractMockServerTests
 
         if (async)
         {
-            Assert.ThrowsAsync<NotImplementedException>(async () => await batch.ExecuteScalarAsync());
+            await Assert.ThrowsAsync<NotImplementedException>(async () => await batch.ExecuteScalarAsync());
         }
         else
         {
@@ -210,7 +210,7 @@ public class DataSourceTests : AbstractMockServerTests
 
         if (async)
         {
-            Assert.ThrowsAsync<NotImplementedException>(async () => await batch.ExecuteReaderAsync());
+            await Assert.ThrowsAsync<NotImplementedException>(async () => await batch.ExecuteReaderAsync());
         }
         else
         {

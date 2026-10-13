@@ -193,7 +193,7 @@ public class CommandTests : AbstractMockServerTests
         await using var cmd = new SpannerCommand(conn);
         cmd.CommandText = sql;
         
-        Assert.ThrowsAsync<SpannerDbException>(async () => await cmd.ExecuteNonQueryAsync());
+        await Assert.ThrowsAsync<SpannerDbException>(async () => await cmd.ExecuteNonQueryAsync());
     }
     
     [Test]
@@ -671,7 +671,7 @@ public class CommandTests : AbstractMockServerTests
         await using var conn = await OpenConnectionAsync();
 
         var ex = async
-            ? Assert.ThrowsAsync<SpannerDbException>(async () => await conn.ExecuteNonQueryAsync(sql))
+            ? await Assert.ThrowsAsync<SpannerDbException>(async () => await conn.ExecuteNonQueryAsync(sql))
             : Assert.Throws<SpannerDbException>(() => conn.ExecuteNonQuery(sql));
         Assert.That(ex!.Status.Code, Is.EqualTo((int) StatusCode.FailedPrecondition));
     }
@@ -684,7 +684,7 @@ public class CommandTests : AbstractMockServerTests
         await using var conn = await OpenConnectionAsync();
 
         var ex = async
-            ? Assert.ThrowsAsync<SpannerDbException>(async () => await conn.ExecuteScalarAsync(sql))
+            ? await Assert.ThrowsAsync<SpannerDbException>(async () => await conn.ExecuteScalarAsync(sql))
             : Assert.Throws<SpannerDbException>(() => conn.ExecuteScalar(sql));
         Assert.That(ex!.Status.Code, Is.EqualTo((int) StatusCode.FailedPrecondition));
     }
@@ -700,7 +700,7 @@ public class CommandTests : AbstractMockServerTests
         cmd.CommandText = sql;
 
         var ex = async
-            ? Assert.ThrowsAsync<SpannerDbException>(async () => await cmd.ExecuteReaderAsync())
+            ? await Assert.ThrowsAsync<SpannerDbException>(async () => await cmd.ExecuteReaderAsync())
             : Assert.Throws<SpannerDbException>(() => cmd.ExecuteReader());
         Assert.That(ex!.Status.Code, Is.EqualTo((int) StatusCode.FailedPrecondition));
     }
@@ -854,7 +854,7 @@ public class CommandTests : AbstractMockServerTests
         using (var cts = new CancellationTokenSource())
         await using (var reader = await cmd.ExecuteReaderAsync(cts.Token))
         {
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
             {
                 var i = 0;
                 while (await reader.ReadAsync(cts.Token))
