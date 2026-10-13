@@ -336,7 +336,7 @@ public class ConnectionTests : AbstractMockServerTests
         connection.ConnectionString = builder.ConnectionString;
         var tokenSource = new CancellationTokenSource(5);
         // TODO: Implement actual async opening of connections
-        Assert.ThrowsAsync<OperationCanceledException>(async () => await connection.OpenAsync(tokenSource.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(async () => await connection.OpenAsync(tokenSource.Token));
         Assert.That(connection.State, Is.EqualTo(ConnectionState.Closed));
     }
     

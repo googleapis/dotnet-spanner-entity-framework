@@ -148,6 +148,39 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task FindSingersUsingIEnumerableOfIds_UsesParameterizedQuery()
+        {
+            var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, `s`.`Picture`{Environment.NewLine}" +
+                      $"FROM `Singers` AS `s`{Environment.NewLine}" +
+                      $"WHERE `s`.`SingerId` IN  UNNEST (@enumerableIds)";
+            AddFindSingerResult(sql);
+
+            var singerIds = new List<long>{1L, 2L, 3L};
+            var enumerableIds = singerIds.AsEnumerable();
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var singers = await db.Singers.Where(singer => enumerableIds.Contains(singer.SingerId)).ToListAsync();
+            Assert.Single(singers);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Single(request.Params.Fields);
+                    var fields = request.Params.Fields;
+                    Assert.Collection(fields["enumerableIds"].ListValue.Values,
+                        v => Assert.Equal("1", v.StringValue),
+                        v => Assert.Equal("2", v.StringValue),
+                        v => Assert.Equal("3", v.StringValue)
+                    );
+                    Assert.Single(request.ParamTypes);
+                    var type = request.ParamTypes["enumerableIds"];
+                    Assert.Equal(V1.TypeCode.Array, type.Code);
+                    Assert.Equal(V1.TypeCode.Int64, type.ArrayElementType.Code);
+                }
+            );
+        }
+
+        [Fact]
         public async Task FindSingersUsingListOfIntegers_UsesParameterizedQuery()
         {
             var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, `s`.`Picture`{Environment.NewLine}" +
@@ -173,6 +206,132 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     );
                     Assert.Single(request.ParamTypes);
                     var type = request.ParamTypes["singerIds"];
+                    Assert.Equal(V1.TypeCode.Array, type.Code);
+                    Assert.Equal(V1.TypeCode.Int64, type.ArrayElementType.Code);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task FindSingersUsingIListOfIds_UsesParameterizedQuery()
+        {
+            var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, `s`.`Picture`{Environment.NewLine}" +
+                      $"FROM `Singers` AS `s`{Environment.NewLine}" +
+                      $"WHERE `s`.`SingerId` IN  UNNEST (@listIds)";
+            AddFindSingerResult(sql);
+
+            IList<long> listIds = new List<long> { 1L, 2L, 3L };
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var singers = await db.Singers.Where(singer => listIds.Contains(singer.SingerId)).ToListAsync();
+            Assert.Single(singers);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Single(request.Params.Fields);
+                    var fields = request.Params.Fields;
+                    Assert.Collection(fields["listIds"].ListValue.Values,
+                        v => Assert.Equal("1", v.StringValue),
+                        v => Assert.Equal("2", v.StringValue),
+                        v => Assert.Equal("3", v.StringValue)
+                    );
+                    Assert.Single(request.ParamTypes);
+                    var type = request.ParamTypes["listIds"];
+                    Assert.Equal(V1.TypeCode.Array, type.Code);
+                    Assert.Equal(V1.TypeCode.Int64, type.ArrayElementType.Code);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task FindSingersUsingIReadOnlyListOfIds_UsesParameterizedQuery()
+        {
+            var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, `s`.`Picture`{Environment.NewLine}" +
+                      $"FROM `Singers` AS `s`{Environment.NewLine}" +
+                      $"WHERE `s`.`SingerId` IN  UNNEST (@readOnlyIds)";
+            AddFindSingerResult(sql);
+
+            IReadOnlyList<long> readOnlyIds = new List<long> { 1L, 2L, 3L };
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var singers = await db.Singers.Where(singer => readOnlyIds.Contains(singer.SingerId)).ToListAsync();
+            Assert.Single(singers);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Single(request.Params.Fields);
+                    var fields = request.Params.Fields;
+                    Assert.Collection(fields["readOnlyIds"].ListValue.Values,
+                        v => Assert.Equal("1", v.StringValue),
+                        v => Assert.Equal("2", v.StringValue),
+                        v => Assert.Equal("3", v.StringValue)
+                    );
+                    Assert.Single(request.ParamTypes);
+                    var type = request.ParamTypes["readOnlyIds"];
+                    Assert.Equal(V1.TypeCode.Array, type.Code);
+                    Assert.Equal(V1.TypeCode.Int64, type.ArrayElementType.Code);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task FindSingersUsingHashSetOfIds_UsesParameterizedQuery()
+        {
+            var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, `s`.`Picture`{Environment.NewLine}" +
+                      $"FROM `Singers` AS `s`{Environment.NewLine}" +
+                      $"WHERE `s`.`SingerId` IN  UNNEST (@hashSetIds)";
+            AddFindSingerResult(sql);
+
+            var hashSetIds = new HashSet<long> { 1L, 2L, 3L };
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var singers = await db.Singers.Where(singer => hashSetIds.Contains(singer.SingerId)).ToListAsync();
+            Assert.Single(singers);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Single(request.Params.Fields);
+                    var fields = request.Params.Fields;
+                    var values = fields["hashSetIds"].ListValue.Values.Select(v => v.StringValue).ToHashSet();
+                    Assert.Equal(new HashSet<string> { "1", "2", "3" }, values);
+                    Assert.Single(request.ParamTypes);
+                    var type = request.ParamTypes["hashSetIds"];
+                    Assert.Equal(V1.TypeCode.Array, type.Code);
+                    Assert.Equal(V1.TypeCode.Int64, type.ArrayElementType.Code);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task FindSingersUsingIEnumerableOfIntegers_UsesParameterizedQuery()
+        {
+            var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, `s`.`Picture`{Environment.NewLine}" +
+                      $"FROM `Singers` AS `s`{Environment.NewLine}" +
+                      $"WHERE CAST(`s`.`SingerId` AS INT64) IN  UNNEST (@enumerableIds)";
+            AddFindSingerResult(sql);
+
+            var singerIds = new List<int> { 8, 9, 10 };
+            var enumerableIds = singerIds.AsEnumerable();
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var singers = await db.Singers.Where(singer => enumerableIds.Contains((int)singer.SingerId)).ToListAsync();
+            Assert.Single(singers);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Single(request.Params.Fields);
+                    var fields = request.Params.Fields;
+                    Assert.Collection(fields["enumerableIds"].ListValue.Values,
+                        v => Assert.Equal("8", v.StringValue),
+                        v => Assert.Equal("9", v.StringValue),
+                        v => Assert.Equal("10", v.StringValue)
+                    );
+                    Assert.Single(request.ParamTypes);
+                    var type = request.ParamTypes["enumerableIds"];
                     Assert.Equal(V1.TypeCode.Array, type.Code);
                     Assert.Equal(V1.TypeCode.Int64, type.ArrayElementType.Code);
                 }

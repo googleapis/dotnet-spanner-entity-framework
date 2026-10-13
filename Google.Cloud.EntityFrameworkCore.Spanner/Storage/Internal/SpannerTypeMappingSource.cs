@@ -22,9 +22,12 @@ using System.Data;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using IEnumerable = System.Collections.IEnumerable;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
+    using Type = System.Type;
+
     /// <summary>
     /// This is internal functionality and not intended for public use.
     /// </summary>
@@ -186,11 +189,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly SpannerJsonArrayTypeMapping s_jsonArray = new SpannerJsonArrayTypeMapping();
         private static readonly SpannerJsonListTypeMapping s_jsonList = new SpannerJsonListTypeMapping();
 
-        private readonly Dictionary<System.Type, RelationalTypeMapping> _clrTypeMappings;
+        private readonly Dictionary<Type, RelationalTypeMapping> _clrTypeMappings;
 
         private readonly Dictionary<string, RelationalTypeMapping> _storeTypeMappings;
 
         private readonly Dictionary<string, RelationalTypeMapping> _arrayTypeMappings;
+
+        private readonly Dictionary<Type, RelationalTypeMapping> _elementClrTypeMappings;
 
         public SpannerTypeMappingSource(
             TypeMappingSourceDependencies dependencies,
@@ -198,7 +203,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             : base(dependencies, relationalDependencies)
         {
             _clrTypeMappings
-                = new Dictionary<System.Type, RelationalTypeMapping>
+                = new Dictionary<Type, RelationalTypeMapping>
                 {
                     {typeof(short), s_short},
                     {typeof(int), s_int},
@@ -306,6 +311,31 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {"ARRAY<NUMERIC>", s_nullableNumericArray},
                 {"ARRAY<JSON>", s_jsonArray}
             };
+
+            _elementClrTypeMappings = new Dictionary<Type, RelationalTypeMapping>
+            {
+                {typeof(int), s_intArray},
+                {typeof(int?), s_nullableIntArray},
+                {typeof(long), s_longArray},
+                {typeof(long?), s_nullableLongArray},
+                {typeof(decimal), s_numericArray},
+                {typeof(decimal?), s_nullableNumericArray},
+                {typeof(SpannerNumeric), s_numericArray},
+                {typeof(SpannerNumeric?), s_nullableNumericArray},
+                {typeof(string), s_stringArray},
+                {typeof(bool), s_boolArray},
+                {typeof(bool?), s_nullableBoolArray},
+                {typeof(float), s_floatArray},
+                {typeof(float?), s_nullableFloatArray},
+                {typeof(double), s_doubleArray},
+                {typeof(double?), s_nullableDoubleArray},
+                {typeof(DateTime), s_timestampArray},
+                {typeof(DateTime?), s_nullableTimestampArray},
+                {typeof(SpannerDate), s_dateArray},
+                {typeof(SpannerDate?), s_nullableDateArray},
+                {typeof(JsonDocument), s_jsonArray},
+                {typeof(byte[]), s_byteArray},
+            };
         }
 
         protected override RelationalTypeMapping FindMapping(in RelationalTypeMappingInfo mappingInfo)
@@ -345,10 +375,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     }
 
                     if (_arrayTypeMappings.TryGetValue(storeTypeName, out var arrayMapping)
-                    || _arrayTypeMappings.TryGetValue(storeTypeNameBase, out arrayMapping))
+                        || _arrayTypeMappings.TryGetValue(storeTypeNameBase, out arrayMapping))
                     {
                         if (arrayMapping.ClrType == clrType
-                            || arrayMapping.Converter?.ProviderClrType == clrType)
+                            || arrayMapping.Converter?.ProviderClrType == clrType
+                            || clrType.IsAssignableFrom(arrayMapping.ClrType))
                         {
                             return arrayMapping;
                         }
@@ -367,12 +398,92 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {
                     return mapping;
                 }
+
+                if (TryGetElementType(clrType, out var elementType)
+                    && _elementClrTypeMappings.TryGetValue(elementType, out mapping))
+                {
+                    return mapping;
+                }
             }
 
             return null;
         }
 
-        private bool TryFindConverterMapping(string storeType, System.Type clrType, out RelationalTypeMapping mapping)
+        /// <summary>
+        /// Attempts to determine the element CLR type for a collection or array type.
+        /// This enables collection interfaces and types (e.g. <see cref="IEnumerable{T}"/>,
+        /// <see cref="IList{T}"/>, <see cref="IReadOnlyList{T}"/>, <see cref="ISet{T}"/>)
+        /// to be resolved to their corresponding Spanner ARRAY type mappings.
+        /// </summary>
+        private static bool TryGetElementType(Type type, out Type elementType)
+        {
+            if (type.IsGenericTypeDefinition || type.ContainsGenericParameters)
+            {
+                elementType = null;
+                return false;
+            }
+
+            // String implements IEnumerable<char> and byte[] implements IEnumerable<byte>,
+            // but in Spanner these map to the scalar types STRING and BYTES rather than arrays.
+            // Spanner byte arrays are represented as byte[][] or List<byte[]>.
+            if (type == typeof(string) || type == typeof(byte[]))
+            {
+                elementType = null;
+                return false;
+            }
+
+            // For one-dimensional array types (e.g. T[]), retrieve the element type directly.
+            // Multi-dimensional rectangular arrays (e.g. T[,]) are not supported as Spanner arrays.
+            if (type.IsArray)
+            {
+                if (type.GetArrayRank() != 1)
+                {
+                    elementType = null;
+                    return false;
+                }
+                elementType = type.GetElementType();
+                return elementType != null;
+            }
+
+            // Non-collection types do not implement IEnumerable. Guard here to avoid
+            // calling type.GetInterfaces(), which allocates a Type[] array on each call.
+            if (!typeof(IEnumerable).IsAssignableFrom(type))
+            {
+                elementType = null;
+                return false;
+            }
+
+            // For the generic IEnumerable<T> interface itself, extract the type argument.
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            {
+                var genericArguments = type.GenericTypeArguments;
+                if (genericArguments.Length > 0)
+                {
+                    elementType = genericArguments[0];
+                    return true;
+                }
+            }
+
+            // For types implementing IEnumerable<T> (e.g. IList<T>, IReadOnlyList<T>,
+            // ICollection<T>, ISet<T>, HashSet<T>), inspect implemented interfaces.
+            foreach (var interfaceType in type.GetInterfaces())
+            {
+                if (interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                {
+                    var genericArguments = interfaceType.GenericTypeArguments;
+                    if (genericArguments.Length > 0)
+                    {
+                        elementType = genericArguments[0];
+                        return true;
+                    }
+                }
+            }
+
+            elementType = null;
+            return false;
+        }
+
+        private bool TryFindConverterMapping(string storeType, Type clrType, out RelationalTypeMapping mapping)
         {
             foreach (var m in _clrTypeMappings.Values)
             {

@@ -272,7 +272,7 @@ public class BatchTests : AbstractMockServerTests
         command.CommandText = "select * from my_table";
         if (executeAsync)
         {
-            Assert.ThrowsAsync<NotImplementedException>(() => batch.ExecuteReaderAsync());
+            await Assert.ThrowsAsync<NotImplementedException>(() => batch.ExecuteReaderAsync());
         }
         else
         {
@@ -293,7 +293,7 @@ public class BatchTests : AbstractMockServerTests
         command.CommandText = "select * from my_table";
         if (executeAsync)
         {
-            Assert.ThrowsAsync<NotImplementedException>(() => batch.ExecuteScalarAsync());
+            await Assert.ThrowsAsync<NotImplementedException>(() => batch.ExecuteScalarAsync());
         }
         else
         {

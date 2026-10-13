@@ -80,6 +80,31 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
+        public async Task CanFilterOnIEnumerableOfIds()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerIds = new List<long> { _fixture.RandomLong(), _fixture.RandomLong(), _fixture.RandomLong() };
+            var index = 0;
+            foreach (var singerId in singerIds)
+            {
+                index++;
+                db.Singers.Add(new Singers { SingerId = singerId, FirstName = "Pete", LastName = $"Peterson{index}" });
+            }
+            await db.SaveChangesAsync();
+
+            singerIds.Add(_fixture.RandomLong());
+            var enumerableIds = singerIds.AsEnumerable();
+            var singers = await db.Singers
+                .Where(s => enumerableIds.Contains(s.SingerId))
+                .OrderBy(s => s.LastName)
+                .ToListAsync();
+            Assert.Collection(singers,
+                singer => Assert.Equal("Peterson1", singer.LastName),
+                singer => Assert.Equal("Peterson2", singer.LastName),
+                singer => Assert.Equal("Peterson3", singer.LastName));
+        }
+
+        [Fact]
         public async Task CanOrderByProperty()
         {
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);

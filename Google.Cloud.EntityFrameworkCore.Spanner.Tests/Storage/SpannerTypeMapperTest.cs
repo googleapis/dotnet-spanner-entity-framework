@@ -24,6 +24,8 @@ using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
 {
+    using Type = System.Type;
+
 #pragma warning disable EF1001 // Internal EF Core API usage.
     public class SpannerTypeMapperTest : RelationalTypeMapperTestBase
     {
@@ -313,6 +315,100 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
         }
 
         [Fact]
+        public void Does_long_enumerable_property_mapping()
+        {
+            Assert.Equal("ARRAY<INT64>", GetTypeMapping(typeof(IEnumerable<long>)).StoreType);
+        }
+
+        [Theory]
+        [InlineData(typeof(IEnumerable<long>), "ARRAY<INT64>")]
+        [InlineData(typeof(IList<long>), "ARRAY<INT64>")]
+        [InlineData(typeof(IReadOnlyList<long>), "ARRAY<INT64>")]
+        [InlineData(typeof(ICollection<long>), "ARRAY<INT64>")]
+        [InlineData(typeof(IReadOnlyCollection<long>), "ARRAY<INT64>")]
+        [InlineData(typeof(ISet<long>), "ARRAY<INT64>")]
+        [InlineData(typeof(IReadOnlySet<long>), "ARRAY<INT64>")]
+        [InlineData(typeof(HashSet<long>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<int>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<string>), "ARRAY<STRING>")]
+        [InlineData(typeof(IEnumerable<bool>), "ARRAY<BOOL>")]
+        [InlineData(typeof(IEnumerable<double>), "ARRAY<FLOAT64>")]
+        [InlineData(typeof(IEnumerable<float>), "ARRAY<FLOAT32>")]
+        [InlineData(typeof(IEnumerable<decimal>), "ARRAY<NUMERIC>")]
+        [InlineData(typeof(IEnumerable<SpannerNumeric>), "ARRAY<NUMERIC>")]
+        [InlineData(typeof(IEnumerable<DateTime>), "ARRAY<TIMESTAMP>")]
+        [InlineData(typeof(IEnumerable<SpannerDate>), "ARRAY<DATE>")]
+        [InlineData(typeof(IEnumerable<JsonDocument>), "ARRAY<JSON>")]
+        [InlineData(typeof(IEnumerable<byte[]>), "ARRAY<BYTES>")]
+        [InlineData(typeof(IEnumerable<long?>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<int?>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<bool?>), "ARRAY<BOOL>")]
+        [InlineData(typeof(IEnumerable<double?>), "ARRAY<FLOAT64>")]
+        [InlineData(typeof(IEnumerable<float?>), "ARRAY<FLOAT32>")]
+        [InlineData(typeof(IEnumerable<decimal?>), "ARRAY<NUMERIC>")]
+        [InlineData(typeof(IEnumerable<SpannerNumeric?>), "ARRAY<NUMERIC>")]
+        [InlineData(typeof(IEnumerable<DateTime?>), "ARRAY<TIMESTAMP>")]
+        [InlineData(typeof(IEnumerable<SpannerDate?>), "ARRAY<DATE>")]
+        [InlineData(typeof(IList<string>), "ARRAY<STRING>")]
+        [InlineData(typeof(IReadOnlyList<DateTime>), "ARRAY<TIMESTAMP>")]
+        [InlineData(typeof(ISet<int>), "ARRAY<INT64>")]
+        [InlineData(typeof(HashSet<double>), "ARRAY<FLOAT64>")]
+        [InlineData(typeof(ICollection<bool>), "ARRAY<BOOL>")]
+        public void Can_map_collection_interfaces_and_types(Type collectionType, string expectedStoreType)
+        {
+            var mapping = CreateTypeMapper().FindMapping(collectionType);
+            Assert.NotNull(mapping);
+            Assert.Equal(expectedStoreType, mapping.StoreType);
+        }
+
+        [Fact]
+        public void Does_not_throw_for_open_generic_types()
+        {
+            var mapper = CreateTypeMapper();
+            Assert.Null(mapper.FindMapping(typeof(IEnumerable<>)));
+            Assert.Null(mapper.FindMapping(typeof(List<>)));
+            Assert.Null(mapper.FindMapping(typeof(IList<>)));
+            Assert.Null(mapper.FindMapping(typeof(IReadOnlyList<>)));
+            Assert.Null(mapper.FindMapping(typeof(ICollection<>)));
+            Assert.Null(mapper.FindMapping(typeof(IReadOnlyCollection<>)));
+            Assert.Null(mapper.FindMapping(typeof(ISet<>)));
+            Assert.Null(mapper.FindMapping(typeof(IReadOnlySet<>)));
+            Assert.Null(mapper.FindMapping(typeof(HashSet<>)));
+        }
+
+        [Fact]
+        public void Does_not_map_unsupported_or_multidimensional_collection_to_spanner_arrays()
+        {
+            var mapper = CreateTypeMapper();
+            Assert.Null(mapper.FindMapping(typeof(int[,])));
+            Assert.Null(mapper.FindMapping(typeof(string[,,])));
+            Assert.Null(mapper.FindMapping(typeof(IEnumerable<byte>)));
+            Assert.Null(mapper.FindMapping(typeof(IEnumerable<Guid>)));
+
+            // In EF Core 10, primitive collections without a native provider array mapping
+            // (such as TimeSpan, which has a scalar converter to string) fall back to EF Core's
+            // built-in JSON collection mapping (SpannerStringTypeMapping with store type STRING).
+            var timeSpanMapping = mapper.FindMapping(typeof(IEnumerable<TimeSpan>));
+            Assert.IsType<SpannerStringTypeMapping>(timeSpanMapping);
+            Assert.Equal("STRING", timeSpanMapping.StoreType);
+        }
+
+        [Fact]
+        public void Can_map_collection_with_store_type_facets()
+        {
+            var mapper = CreateTypeMapper();
+            var enumerableMapping = mapper.FindMapping(typeof(IEnumerable<string>), "ARRAY<STRING(200)>");
+            Assert.NotNull(enumerableMapping);
+            Assert.Equal("ARRAY<STRING(200)>", enumerableMapping.StoreType);
+            Assert.Equal(200, enumerableMapping.Size);
+
+            var listMapping = mapper.FindMapping(typeof(IList<string>), "ARRAY<STRING(100)>");
+            Assert.NotNull(listMapping);
+            Assert.Equal("ARRAY<STRING(100)>", listMapping.StoreType);
+            Assert.Equal(100, listMapping.Size);
+        }
+
+        [Fact]
         public void Does_spanner_date_array_mapping()
         {
             Assert.Equal("ARRAY<DATE>", GetTypeMapping(typeof(SpannerDate[])).StoreType);
@@ -396,7 +492,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
         [InlineData("DATE", typeof(SpannerDate))]
         [InlineData("TIMESTAMP", typeof(DateTime))]
         [InlineData("JSON", typeof(JsonDocument))]
-        public void Can_map_by_type_name(string typeName, System.Type clrType, int? size = null, bool unicode = false)
+        public void Can_map_by_type_name(string typeName, Type clrType, int? size = null, bool unicode = false)
         {
             var mapping = CreateTypeMapper().FindMapping(typeName);
 
@@ -419,7 +515,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
         [InlineData("ARRAY<DATE>", typeof(List<SpannerDate?>))]
         [InlineData("ARRAY<TIMESTAMP>", typeof(List<DateTime?>))]
         [InlineData("ARRAY<JSON>", typeof(List<JsonDocument>))]
-        public void Can_map_by_array_type_name(string typeName, System.Type clrType, int? size = null, bool unicode = false, string expectedType = null)
+        public void Can_map_by_array_type_name(string typeName, Type clrType, int? size = null, bool unicode = false, string expectedType = null)
         {
             var mapping = CreateTypeMapper().FindMapping(typeName);
 
@@ -431,7 +527,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
         }
 
         private RelationalTypeMapping GetTypeMapping(
-           System.Type propertyType,
+           Type propertyType,
            bool? nullable = null,
            int? maxLength = null,
            bool? unicode = null)
