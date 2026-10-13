@@ -837,7 +837,7 @@ public class TransactionTests : AbstractMockServerTests
         await using var transaction = await connection.BeginTransactionAsync();
         await connection.CloseAsync();
 
-        Assert.ThrowsAsync<ObjectDisposedException>(async () => await transaction.RollbackAsync());
+        await Assert.ThrowsAsync<ObjectDisposedException>(async () => await transaction.RollbackAsync());
     }
 
     [Test]
@@ -848,7 +848,7 @@ public class TransactionTests : AbstractMockServerTests
         await using var transaction = await connection.BeginTransactionAsync();
         await connection.CloseAsync();
 
-        Assert.ThrowsAsync<ObjectDisposedException>(async () => await transaction.CommitAsync());
+        await Assert.ThrowsAsync<ObjectDisposedException>(async () => await transaction.CommitAsync());
     }
 
     [Test]
