@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -12,7 +12,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Alpha.Google.Cloud.Spanner.DataProvider" Version="1.0.0-alpha.20251217172149" />
     <PackageReference Include="Google.Cloud.Monitoring.V3" Version="3.16.0" />
     <PackageReference Include="Google.Cloud.Spanner.Data" Version="5.12.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />

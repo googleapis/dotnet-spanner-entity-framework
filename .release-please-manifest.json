@@ -1,4 +1,5 @@
 {
   ".": "4.1.0",
-  "spanner-ado-net/spanner-ado-net": "1.2.1"
+  "spanner-ado-net/spanner-ado-net": "1.2.1",
+  "spanner-ado-net/spanner-ado-net.core": "1.2.1"
 }

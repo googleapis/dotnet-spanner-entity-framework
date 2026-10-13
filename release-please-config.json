@@ -33,6 +33,16 @@
           "xpath": "//Project/PropertyGroup/Version"
         }
       ]
+    },
+    "spanner-ado-net/spanner-ado-net.core": {
+      "component": "Google.Cloud.Spanner.DataProvider.Core",
+      "extra-files": [
+        {
+          "type": "xml",
+          "path": "spanner-ado-net.core.csproj",
+          "xpath": "//Project/PropertyGroup/Version"
+        }
+      ]
     }
   }
 }

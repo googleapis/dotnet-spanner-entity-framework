@@ -1,22 +1,39 @@
-# Spanner ADO.NET Data Provider
+# Google.Cloud.Spanner.DataProvider
 
-ADO.NET Data Provider for Spanner. This library implements the standard ADO.NET interfaces and classes
-and exposes an API that is similar to ADO.NET data providers for other relational database systems.
+`Google.Cloud.Spanner.DataProvider` is the official ADO.NET Data Provider for Google Cloud Spanner backed by the high-performance `spannerlib` core.
 
-## Supported Platforms
+This is the **primary package** for .NET applications connecting to Cloud Spanner via ADO.NET. It includes the complete ADO.NET API as well as the native `spannerlib` runtime binaries for supported platforms.
 
-This driver uses a native library for communication with Spanner. This library supports the following operating
-systems and architectures:
-- linux-x64
-- linux-arm64
-- osx-arm64
-- win-x64
+---
+
+## Supported Operating Systems & Architectures
+
+The package bundles native binaries for:
+- `linux-x64`
+- `linux-arm64`
+- `osx-arm64`
+- `win-x64`
+
+When you publish or deploy your application (`dotnet publish -r <RID>`), the .NET SDK automatically includes only the binary for your target platform.
+
+---
+
+## Installation
+
+```bash
+dotnet add package Google.Cloud.Spanner.DataProvider
+```
+
+---
 
 ## Usage
 
 Create a connection string using a `SpannerConnectionStringBuilder`:
 
 ```csharp
+using Google.Cloud.Spanner.DataProvider;
+using System.Data;
+
 var builder = new SpannerConnectionStringBuilder
 {
     Project = "my-project",
@@ -37,11 +54,12 @@ while (await reader.ReadAsync())
 
 ### Emulator
 
-The driver can also connect to the Spanner Emulator. The easiest way to do this is to set the `AutoConfigEmulator`
-property to true. This instructs the driver to connect to the Emulator on `localhost:9010` and to automatically
-create the Spanner instance and database in the connection string if these do not already exist.
+The driver can also connect to the Spanner Emulator. The easiest way to do this is to set the `AutoConfigEmulator` property to true. This instructs the driver to connect to the Emulator on `localhost:9010` and to automatically create the Spanner instance and database in the connection string if these do not already exist.
 
 ```csharp
+using Google.Cloud.Spanner.DataProvider;
+using System.Data;
+
 var builder = new SpannerConnectionStringBuilder
 {
     Project = "my-project",
@@ -65,5 +83,4 @@ while (await reader.ReadAsync())
 
 ## Examples
 
-See the [spanner-ado-net-samples](../spanner-ado-net-samples/Snippets) project for ready-to-run examples for how to use
-various Spanner features with this driver.
+See the [spanner-ado-net-samples](../spanner-ado-net-samples/Snippets) project for ready-to-run examples for how to use various Spanner features with this driver.

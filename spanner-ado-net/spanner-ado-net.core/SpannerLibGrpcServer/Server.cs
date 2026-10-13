@@ -217,7 +217,11 @@ public class Server : IDisposable
             }
         }
 
-        throw new PlatformNotSupportedException("Could not find gRPC server executable for SpannerLib. Tried: " + string.Join("\n", tried));
+        throw new PlatformNotSupportedException(
+            "Could not find the native gRPC server executable (spannerlib_grpc_server) for SpannerLib.\n" +
+            "If your application references Google.Cloud.Spanner.DataProvider.Core directly or through Entity Framework Core, " +
+            "ensure that the 'Google.Cloud.Spanner.DataProvider' package is installed in your startup project to provide the native runtime binaries for your platform.\n" +
+            "Searched paths:\n" + string.Join("\n", tried));
     }
 
     private static bool TryExists(string? fileName, List<string> tried)

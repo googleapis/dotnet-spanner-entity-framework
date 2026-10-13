@@ -1,6 +1,6 @@
 # Cloud Spanner ADO.NET Data Provider Developer Guide
 
-This developer guide provides an overview of the project structure and testing guidelines for the Cloud Spanner ADO.NET Data Provider (`Google.Cloud.Spanner.Data`).
+This developer guide provides an overview of the project structure and testing guidelines for the Cloud Spanner ADO.NET Data Provider (`Google.Cloud.Spanner.DataProvider`).
 
 The ADO.NET provider is an ADO.NET compliant driver that can be used with Spanner. It implements standard ADO.NET interfaces like `DbConnection`, `DbCommand`, and `DbDataReader`.
 
@@ -8,7 +8,8 @@ The ADO.NET provider is an ADO.NET compliant driver that can be used with Spanne
 
 The `spanner-ado-net` directory is structured as a standalone multi-project solution:
 
-- **[spanner-ado-net/](./spanner-ado-net/)**: The core ADO.NET provider implementation (`Google.Cloud.Spanner.Data.csproj`).
+- **[spanner-ado-net.core/](./spanner-ado-net.core/)**: The core ADO.NET provider library (`Google.Cloud.Spanner.DataProvider.Core.csproj`).
+- **[spanner-ado-net/](./spanner-ado-net/)**: The runtime package with native assets (`Google.Cloud.Spanner.DataProvider.csproj`).
 - **[spanner-ado-net-tests/](./spanner-ado-net-tests/)**: Unit tests for the driver, which also leverage mock server setups.
 - **[spanner-ado-net-specification-tests/](./spanner-ado-net-specification-tests/)**: Direct ADO.NET specification compliance tests.
 - **[spanner-ado-net-samples/](./spanner-ado-net-samples/)**: Snippets and runnable console application samples.

@@ -19,12 +19,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: 'googleapis/go-sql-spanner'
-          path: spanner-ado-net/spanner-ado-net/go-sql-spanner
+          path: spanner-ado-net/spanner-ado-net.core/go-sql-spanner
           persist-credentials: false
 
       - name: Copy SpannerLib code
         run: ./copy-spannerlib-source.sh true
-        working-directory: spanner-ado-net/spanner-ado-net
+        working-directory: spanner-ado-net/spanner-ado-net.core
         shell: bash
 
       - name: Create Pull Request

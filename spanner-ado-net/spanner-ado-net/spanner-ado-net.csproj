@@ -10,7 +10,7 @@
     <Title>.NET Data Provider for Spanner</Title>
     <Authors>Google</Authors>
     <Version>1.2.1</Version>
-    <Description>ADO.NET Data Provider.</Description>
+    <Description>ADO.NET Data Provider with native SpannerLib runtime assets.</Description>
     <Copyright>Apache v2.0</Copyright>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -25,18 +25,17 @@
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
+
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="/"/>
     <None Include="..\..\NuGetIcon.png" Pack="true" PackagePath="/"/>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="ConfigureAwaitChecker.Analyzer" Version="5.0.0.1">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Google.Cloud.Spanner.V1" Version="5.12.0"/>
-    <PackageReference Include="Grpc.Net.Client" Version="2.83.0"/>
+    <ProjectReference Include="..\spanner-ado-net.core\spanner-ado-net.core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.301" PrivateAssets="All"/>
   </ItemGroup>
 

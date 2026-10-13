@@ -100,7 +100,7 @@ build_ado_net() {
     ./build-binaries.sh true
 
     echo Building dotnet project...
-    dotnet build -c Release spanner-ado-net.csproj
+    dotnet build -c Release "$REPO_ROOT/spanner-ado-net/spanner-ado-net/spanner-ado-net.csproj"
   )
 
   echo Testing ADO.NET driver...
@@ -109,6 +109,7 @@ build_ado_net() {
 
   echo Packing...
   mkdir -p "$NUPKG_DIR"
+  dotnet pack --no-build -c Release "$REPO_ROOT/spanner-ado-net/spanner-ado-net.core/spanner-ado-net.core.csproj" -o "$NUPKG_DIR"
   dotnet pack --no-build -c Release "$REPO_ROOT/spanner-ado-net/spanner-ado-net/spanner-ado-net.csproj" -o "$NUPKG_DIR"
 }
 
@@ -119,7 +120,7 @@ case "$PROJECT" in
   Google.Cloud.EntityFrameworkCore.Spanner)
     build_ef_core
     ;;
-  Google.Cloud.Spanner.DataProvider | spanner-ado-net)
+  Google.Cloud.Spanner.DataProvider | Google.Cloud.Spanner.DataProvider.Core | spanner-ado-net)
     build_ado_net
     ;;
   all)
@@ -128,7 +129,7 @@ case "$PROJECT" in
     ;;
   *)
     echo "Error: Unknown project '$PROJECT'" >&2
-    echo "Usage: $0 [Google.Cloud.EntityFrameworkCore.Spanner | Google.Cloud.Spanner.DataProvider | spanner-ado-net | all]" >&2
+    echo "Usage: $0 [Google.Cloud.EntityFrameworkCore.Spanner | Google.Cloud.Spanner.DataProvider | Google.Cloud.Spanner.DataProvider.Core | spanner-ado-net | all]" >&2
     exit 1
     ;;
 esac

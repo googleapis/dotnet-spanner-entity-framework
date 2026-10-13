@@ -30,3 +30,4 @@ applications/liftAndShiftPetshop/Web/
 .cr/
 BenchmarkDotNet.Artifacts
 .DS_Store
+nupkg/
