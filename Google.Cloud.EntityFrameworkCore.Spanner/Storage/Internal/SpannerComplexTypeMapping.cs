@@ -17,18 +17,19 @@ using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
-
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
+    using Type = System.Type;
+
     /// <summary>
     /// Represents a complex spanner type mapping. This class is used for setting up type conversions.
     /// This class can be used to hold a type mapping for any <see cref="SpannerDbType"/>
     /// </summary>
     public class SpannerComplexTypeMapping : RelationalTypeMapping
     {
-        public static SpannerComplexTypeMapping Default { get; } = new(SpannerDbType.Int64, typeof(long));
-        
         private static readonly List<SpannerDbType> s_arrayTypes = CreateArrayTypes();
+
+        public static SpannerComplexTypeMapping Default { get; } = new(SpannerDbType.Int64, typeof(long));
 
         private static List<SpannerDbType> CreateArrayTypes()
         {
@@ -37,6 +38,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 SpannerDbType.ArrayOf(SpannerDbType.Bool),
                 SpannerDbType.ArrayOf(SpannerDbType.Bytes),
                 SpannerDbType.ArrayOf(SpannerDbType.Date),
+                SpannerDbType.ArrayOf(SpannerDbType.Float32),
                 SpannerDbType.ArrayOf(SpannerDbType.Float64),
                 SpannerDbType.ArrayOf(SpannerDbType.Int64),
                 SpannerDbType.ArrayOf(SpannerDbType.Json),
@@ -47,25 +49,23 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         }
 
         private readonly SpannerDbType _complexType;
-        private readonly System.Type _clrType;
+        private readonly Type _clrType;
         internal readonly bool IsArrayType;
 
-        public SpannerComplexTypeMapping(SpannerDbType complexType, System.Type clrType, bool unicode = false, int? size = null)
+        public SpannerComplexTypeMapping(SpannerDbType complexType, Type clrType, bool unicode = false, int? size = null)
             : base(complexType.ToString(), clrType, unicode: unicode, size: size)
         {
             _complexType = complexType;
             _clrType = clrType;
-            // s_arrayTypes is null at design time.
-            IsArrayType = (s_arrayTypes ?? CreateArrayTypes()).Contains(complexType);
+            IsArrayType = s_arrayTypes.Contains(complexType);
         }
 
-        private SpannerComplexTypeMapping(RelationalTypeMappingParameters parameters, SpannerDbType complexType, System.Type clrType)
+        private SpannerComplexTypeMapping(RelationalTypeMappingParameters parameters, SpannerDbType complexType, Type clrType)
             : base(parameters)
         {
             _complexType = complexType;
             _clrType = clrType;
-            // s_arrayTypes is null at design time.
-            IsArrayType = (s_arrayTypes ?? CreateArrayTypes()).Contains(complexType);
+            IsArrayType = s_arrayTypes.Contains(complexType);
         }
 
         protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters)

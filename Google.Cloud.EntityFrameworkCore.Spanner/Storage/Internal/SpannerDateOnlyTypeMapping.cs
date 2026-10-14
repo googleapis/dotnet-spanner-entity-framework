@@ -27,16 +27,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     /// </summary>
     public class SpannerDateOnlyTypeMapping : DateOnlyTypeMapping
     {
-        public new static SpannerDateOnlyTypeMapping Default { get; } = new();
         private static readonly ValueConverter s_converter = new ValueConverter<DateOnly, DateTime>(
             v => v.ToDateTime(TimeOnly.MinValue),
             v => DateOnly.FromDateTime(v));
-        
+
+        public new static SpannerDateOnlyTypeMapping Default { get; } = new();
+
         public SpannerDateOnlyTypeMapping()
             : base(new RelationalTypeMappingParameters(
                 new CoreTypeMappingParameters(
-                    typeof(DateOnly), 
-                    s_converter, 
+                    typeof(DateOnly),
+                    s_converter,
                     jsonValueReaderWriter: JsonDateOnlyReaderWriter.Instance),
                 "DATE", StoreTypePostfix.None, System.Data.DbType.Date))
         { }

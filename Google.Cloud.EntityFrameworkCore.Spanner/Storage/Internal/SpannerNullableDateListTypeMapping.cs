@@ -30,11 +30,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     /// </summary>
     public class SpannerNullableDateListTypeMapping : RelationalTypeMapping
     {
-        public static SpannerNullableDateListTypeMapping Default { get; } = new();
-        
         private static readonly ValueConverter s_converter = new ValueConverter<List<SpannerDate?>, List<DateTime?>>(
             v => v.Select(sd => sd == null ? (DateTime?)null : sd.GetValueOrDefault().ToDateTime()).ToList(),
             v => v.Select(dt => dt == null ? (SpannerDate?)null : SpannerDate.FromDateTime(dt.GetValueOrDefault())).ToList());
+
+        public static SpannerNullableDateListTypeMapping Default { get; } = new();
 
         public SpannerNullableDateListTypeMapping()
             : base(new RelationalTypeMappingParameters(

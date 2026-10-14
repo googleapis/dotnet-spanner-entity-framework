@@ -1,4 +1,4 @@
-﻿// Copyright 2021, Google LLC
+// Copyright 2021, Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,32 +30,32 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     /// </summary>
     public class SpannerJsonTypeMapping : RelationalTypeMapping
     {
-        public static SpannerJsonTypeMapping Default { get; } = new();
-        
         public static readonly JsonDocumentOptions JsonOptions = new()
-            { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip, MaxDepth = 100 };
+        { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip, MaxDepth = 100 };
         private static readonly ValueConverter s_converter = new ValueConverter<JsonDocument, string>(
             v => v.RootElement.ToString(),
             v => JsonDocument.Parse(v, JsonOptions));
-        
+
+        public static SpannerJsonTypeMapping Default { get; } = new();
+
         public SpannerJsonTypeMapping()
             : base(new RelationalTypeMappingParameters(
                 new CoreTypeMappingParameters(typeof(JsonDocument), s_converter),
                 "JSON", StoreTypePostfix.None, System.Data.DbType.Object))
         { }
-        
+
         protected SpannerJsonTypeMapping(RelationalTypeMappingParameters parameters)
             : base(parameters) { }
 
         protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters)
             => new SpannerJsonTypeMapping(parameters);
-        
+
         protected override void ConfigureParameter(DbParameter parameter)
         {
             ((SpannerParameter)parameter).SpannerDbType = SpannerDbType.Json;
             base.ConfigureParameter(parameter);
         }
-        
+
         protected override string GenerateNonNullSqlLiteral(object value)
         {
             if (value is JsonDocument jd)

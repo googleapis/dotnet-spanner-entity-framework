@@ -31,11 +31,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     /// </summary>
     public class SpannerJsonListTypeMapping : RelationalTypeMapping
     {
-        public static SpannerJsonListTypeMapping Default { get; } = new();
-        
         private static readonly ValueConverter s_converter = new ValueConverter<List<JsonDocument>, List<string>>(
             v => v.Select(jd => jd == null ? null : jd.RootElement.ToString()).ToList(),
             v => v.Select(s => s == null ? null : JsonDocument.Parse(s, SpannerJsonTypeMapping.JsonOptions)).ToList());
+
+        public static SpannerJsonListTypeMapping Default { get; } = new();
 
         public SpannerJsonListTypeMapping()
             : base(new RelationalTypeMappingParameters(
@@ -60,7 +60,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             base.ConfigureParameter(parameter);
             spannerParameter.SpannerDbType = SpannerDbType.ArrayOf(SpannerDbType.Json);
         }
-        
+
         protected override string GenerateNonNullSqlLiteral(object value)
         {
             if (value is IEnumerable<JsonDocument> values)
