@@ -33,8 +33,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public static SpannerDateTypeMapping Default { get; } = new();
 
         public SpannerDateTypeMapping()
+            : this(typeof(SpannerDate))
+        { }
+
+        protected SpannerDateTypeMapping(System.Type clrType)
             : base(new RelationalTypeMappingParameters(
-                   new CoreTypeMappingParameters(typeof(SpannerDate), s_converter),
+                   new CoreTypeMappingParameters(clrType,
+                       // use converter only for SpannerDate; DateTime maps directly
+                       clrType == typeof(SpannerDate) ? s_converter : null
+                       ),
                    "DATE", StoreTypePostfix.None, System.Data.DbType.Date))
         { }
 
