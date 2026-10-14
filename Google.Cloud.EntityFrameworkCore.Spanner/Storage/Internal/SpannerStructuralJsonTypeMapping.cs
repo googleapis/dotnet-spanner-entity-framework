@@ -77,17 +77,7 @@ public class SpannerStructuralJsonTypeMapping : JsonTypeMapping
     }
 
     protected override string GenerateNonNullSqlLiteral(object value)
-    {
-        if (value is not string stringValue)
-        {
-            throw new ArgumentException($"{value} is not valid for database type JSON");
-        }
-
-        // For owned entities serialized to JSON, value is a string containing JSON
-        // Escape single quotes for SQL
-        var escaped = stringValue.Replace("'", "\\'");
-        return $"JSON '{escaped}'";
-    }
+        => SpannerJsonTypeMapping.GenerateJsonLiteral(value);
 
     protected override RelationalTypeMapping Clone(RelationalTypeMappingParameters parameters)
         => new SpannerStructuralJsonTypeMapping(parameters);
