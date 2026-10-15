@@ -984,7 +984,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
             var id = _fixture.RandomLong();
             var randomLong = _fixture.RandomLong();
-            var timestamp = new DateTime(2021, 1, 25, 14, 29, 15, 182, DateTimeKind.Utc);
+            var timestamp = new DateTime(2021, 1, 25, 14, 29, 15, 182, DateTimeKind.Utc).AddTicks(4567);
             db.TableWithAllColumnTypes.Add(
                 new TableWithAllColumnTypes { ColInt64 = id, ColTimestamp = timestamp }
             );
@@ -1003,6 +1003,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     t.ColTimestamp.GetValueOrDefault().Minute,
                     t.ColTimestamp.GetValueOrDefault().Second,
                     t.ColTimestamp.GetValueOrDefault().Millisecond,
+                    t.ColTimestamp.GetValueOrDefault().Microsecond,
+                    t.ColTimestamp.GetValueOrDefault().Nanosecond,
                     t.ColTimestamp.GetValueOrDefault().Date,
                 })
                 .FirstOrDefaultAsync();
@@ -1015,6 +1017,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Equal(timestamp.Minute, extracted.Minute);
             Assert.Equal(timestamp.Second, extracted.Second);
             Assert.Equal(timestamp.Millisecond, extracted.Millisecond);
+            Assert.Equal(timestamp.Microsecond, extracted.Microsecond);
+            Assert.Equal(timestamp.Nanosecond, extracted.Nanosecond);
             Assert.Equal(timestamp.Date, extracted.Date);
         }
 
@@ -1046,6 +1050,101 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Equal(date.Day, extracted.Day);
             Assert.Equal(date.DayOfYear, extracted.DayOfYear);
             Assert.Equal(date.DayOfWeek, extracted.DayOfWeek);
+        }
+
+        [Fact]
+        public async Task CanFilterByDateTimeDate()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            var timestamp = new DateTime(2021, 1, 25, 14, 29, 15, DateTimeKind.Utc);
+            var targetDate = new DateTime(2021, 1, 25, 0, 0, 0, DateTimeKind.Utc);
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id, ColTimestamp = timestamp }
+            );
+            await db.SaveChangesAsync();
+
+            var result = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id && t.ColTimestamp.Value.Date == targetDate)
+                .Select(t => t.ColInt64)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(id, result);
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeCurrentMembers()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var id = _fixture.RandomLong();
+            var before = DateTime.UtcNow;
+            db.TableWithAllColumnTypes.Add(
+                new TableWithAllColumnTypes { ColInt64 = id, ColTimestamp = before }
+            );
+            await db.SaveChangesAsync();
+
+            var current = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => new
+                {
+                    UtcNow = DateTime.UtcNow,
+                    Now = DateTime.Now,
+                    Today = DateTime.Today,
+                })
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            var after = DateTime.UtcNow;
+
+            Assert.InRange(current.UtcNow, before.AddSeconds(-5), after.AddSeconds(5));
+            Assert.InRange(current.Now, before.AddSeconds(-5), after.AddSeconds(5));
+            Assert.InRange(current.Today, before.Date, after.Date);
+
+            var found = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id && t.ColTimestamp <= DateTime.UtcNow)
+                .Select(t => t.ColInt64)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(id, found);
+        }
+
+        [Fact]
+        public async Task CanUseDateOnlyProperties()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            var birthDate = new DateOnly(1990, 5, 20);
+            db.Singers.Add(new Singers
+            {
+                SingerId = singerId,
+                FirstName = "David",
+                LastName = "Bowie",
+                BirthDate = birthDate,
+            });
+            await db.SaveChangesAsync();
+
+            var fallback = new DateOnly(2000, 1, 1);
+            var extracted = await db.Singers
+                .Where(s => s.SingerId == singerId)
+                .Select(s => new
+                {
+                    s.BirthDate.GetValueOrDefault().Year,
+                    s.BirthDate.GetValueOrDefault().Month,
+                    s.BirthDate.GetValueOrDefault().Day,
+                    s.BirthDate.GetValueOrDefault().DayOfYear,
+                    s.BirthDate.GetValueOrDefault().DayOfWeek,
+                    FallbackYear = s.BirthDate.GetValueOrDefault(fallback).Year,
+                })
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+
+            Assert.Equal(birthDate.Year, extracted.Year);
+            Assert.Equal(birthDate.Month, extracted.Month);
+            Assert.Equal(birthDate.Day, extracted.Day);
+            Assert.Equal(birthDate.DayOfYear, extracted.DayOfYear);
+            Assert.Equal(birthDate.DayOfWeek, extracted.DayOfWeek);
+            Assert.Equal(1990, extracted.FallbackYear);
+
+            var filtered = await db.Singers
+                .Where(s => s.SingerId == singerId && s.BirthDate.Value.Year == 1990)
+                .Select(s => s.SingerId)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(singerId, filtered);
         }
 
         [Fact]

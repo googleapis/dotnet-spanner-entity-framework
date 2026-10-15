@@ -2235,6 +2235,285 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task CanUseDateTimeDate()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT TIMESTAMP_TRUNC(COALESCE(`t`.`ColTimestamp`, TIMESTAMP '0001-01-01T00:00:00Z'), DAY, '''UTC''') AS `Date`" +
+                $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Timestamp, "Date"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2021-01-25T00:00:00Z" },
+                }
+            ));
+
+            var id = 1L;
+            var extracted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => new
+                {
+                    Date = t.ColTimestamp.GetValueOrDefault().Date,
+                })
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(new DateTime(2021, 1, 25, 0, 0, 0, DateTimeKind.Utc), extracted.Date);
+        }
+
+        [Fact]
+        public async Task CanFilterByDateTimeDate()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var targetDate = new DateTime(2021, 1, 25, 0, 0, 0, DateTimeKind.Utc);
+            var sql = $"SELECT `t`.`ColInt64`" +
+                $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
+                $"{Environment.NewLine}WHERE TIMESTAMP_TRUNC(`t`.`ColTimestamp`, DAY, '''UTC''') = @targetDate{Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "ColInt64"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "1" },
+                }
+            ));
+
+            var result = await db.TableWithAllColumnTypes
+                .Where(t => t.ColTimestamp.Value.Date == targetDate)
+                .Select(t => t.ColInt64)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(1L, result);
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeCurrentMembers()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT CURRENT_TIMESTAMP() AS `UtcNow`, " +
+                $"TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), DAY, '''UTC''') AS `Today`" +
+                $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Timestamp, "UtcNow"),
+                    Tuple.Create(V1.TypeCode.Timestamp, "Today"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2026-10-15T12:00:00Z", "2026-10-15T00:00:00Z" },
+                }
+            ));
+
+            var id = 1L;
+            var result = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => new
+                {
+                    UtcNow = DateTime.UtcNow,
+                    Now = DateTime.Now,
+                    Today = DateTime.Today,
+                })
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(new DateTime(2026, 10, 15, 12, 0, 0, DateTimeKind.Utc), result.UtcNow);
+            Assert.Equal(new DateTime(2026, 10, 15, 12, 0, 0, DateTimeKind.Utc), result.Now);
+            Assert.Equal(new DateTime(2026, 10, 15, 0, 0, 0, DateTimeKind.Utc), result.Today);
+        }
+
+        [Fact]
+        public async Task CanUseDateOnlyProperties()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT EXTRACT(YEAR FROM COALESCE(`s`.`BirthDate`, DATE '0001-01-01')) AS `Year`, " +
+                "EXTRACT(MONTH FROM COALESCE(`s`.`BirthDate`, DATE '0001-01-01')) AS `Month`, " +
+                "EXTRACT(DAY FROM COALESCE(`s`.`BirthDate`, DATE '0001-01-01')) AS `Day`, " +
+                "EXTRACT(DAYOFYEAR FROM COALESCE(`s`.`BirthDate`, DATE '0001-01-01')) AS `DayOfYear`, " +
+                "EXTRACT(DAYOFWEEK FROM COALESCE(`s`.`BirthDate`, DATE '0001-01-01')) - 1 AS `DayOfWeek`" +
+                $"{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                $"WHERE `s`.`SingerId` = @id{Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "Year"),
+                    Tuple.Create(V1.TypeCode.Int64, "Month"),
+                    Tuple.Create(V1.TypeCode.Int64, "Day"),
+                    Tuple.Create(V1.TypeCode.Int64, "DayOfYear"),
+                    Tuple.Create(V1.TypeCode.Int64, "DayOfWeek"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "1990" },
+                    new object[] { "5" },
+                    new object[] { "20" },
+                    new object[] { "140" },
+                    new object[] { "0" },
+                }
+            ));
+
+            var id = 1L;
+            var extracted = await db.Singers
+                .Where(s => s.SingerId == id)
+                .Select(s => new
+                {
+                    s.BirthDate.GetValueOrDefault().Year,
+                    s.BirthDate.GetValueOrDefault().Month,
+                    s.BirthDate.GetValueOrDefault().Day,
+                    s.BirthDate.GetValueOrDefault().DayOfYear,
+                    s.BirthDate.GetValueOrDefault().DayOfWeek,
+                })
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(1990, extracted.Year);
+            Assert.Equal(5, extracted.Month);
+            Assert.Equal(20, extracted.Day);
+            Assert.Equal(140, extracted.DayOfYear);
+            Assert.Equal(DayOfWeek.Sunday, extracted.DayOfWeek);
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeMicrosecondAndNanosecond()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT MOD(EXTRACT(MICROSECOND FROM COALESCE(`t`.`ColTimestamp`, TIMESTAMP '0001-01-01T00:00:00Z') AT TIME ZONE 'UTC'), 1000) AS `Microsecond`, " +
+                $"MOD(EXTRACT(NANOSECOND FROM COALESCE(`t`.`ColTimestamp`, TIMESTAMP '0001-01-01T00:00:00Z') AT TIME ZONE 'UTC'), 1000) AS `Nanosecond`" +
+                $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "Microsecond"),
+                    Tuple.Create(V1.TypeCode.Int64, "Nanosecond"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "456" },
+                    new object[] { "700" },
+                }
+            ));
+
+            var id = 1L;
+            var extracted = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => new
+                {
+                    t.ColTimestamp.GetValueOrDefault().Microsecond,
+                    t.ColTimestamp.GetValueOrDefault().Nanosecond,
+                })
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(456, extracted.Microsecond);
+            Assert.Equal(700, extracted.Nanosecond);
+        }
+
+        [Fact]
+        public async Task CanUseDateTimeNow()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT CURRENT_TIMESTAMP() AS `Now`" +
+                $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
+                $"{Environment.NewLine}WHERE `t`.`ColInt64` = @id{Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Timestamp, "Now"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2026-10-15T12:00:00Z" },
+                }
+            ));
+
+            var id = 1L;
+            var result = await db.TableWithAllColumnTypes
+                .Where(t => t.ColInt64 == id)
+                .Select(t => new
+                {
+                    Now = DateTime.Now,
+                })
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(new DateTime(2026, 10, 15, 12, 0, 0, DateTimeKind.Utc), result.Now);
+        }
+
+        [Fact]
+        public async Task CanFilterByDateTimeCurrentMembers()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT `t`.`ColInt64`" +
+                $"{Environment.NewLine}FROM `TableWithAllColumnTypes` AS `t`" +
+                $"{Environment.NewLine}WHERE `t`.`ColTimestamp` <= CURRENT_TIMESTAMP(){Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "ColInt64"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "1" },
+                }
+            ));
+
+            var result = await db.TableWithAllColumnTypes
+                .Where(t => t.ColTimestamp <= DateTime.UtcNow)
+                .Select(t => t.ColInt64)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(1L, result);
+        }
+
+        [Fact]
+        public async Task CanUseDateOnlyGetValueOrDefaultWithFallback()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT EXTRACT(YEAR FROM COALESCE(`s`.`BirthDate`, @fallback))" +
+                $"{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                $"WHERE `s`.`SingerId` = @id{Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "Year"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "2000" },
+                }
+            ));
+
+            var id = 1L;
+            var fallback = new DateOnly(2000, 1, 1);
+            var year = await db.Singers
+                .Where(s => s.SingerId == id)
+                .Select(s => s.BirthDate.GetValueOrDefault(fallback).Year)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(2000, year);
+        }
+
+        [Fact]
+        public async Task CanFilterByDateOnlyProperties()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = "SELECT `s`.`SingerId`" +
+                $"{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                $"WHERE EXTRACT(YEAR FROM `s`.`BirthDate`) = 1990{Environment.NewLine}LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "SingerId"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "1" },
+                }
+            ));
+
+            var result = await db.Singers
+                .Where(s => s.BirthDate.Value.Year == 1990)
+                .Select(s => s.SingerId)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(1L, result);
+        }
+
+        [Fact]
         public async Task CanUseBoolToString()
         {
             using var db = new MockServerSampleDbContext(ConnectionString);

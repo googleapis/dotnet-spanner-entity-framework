@@ -48,6 +48,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             { typeof(double?).GetRuntimeMethod(nameof(Nullable<double>.GetValueOrDefault), Array.Empty<System.Type>()), 0d },
             { typeof(SpannerNumeric?).GetRuntimeMethod(nameof(Nullable<SpannerNumeric>.GetValueOrDefault), Array.Empty<System.Type>()), SpannerNumeric.Zero },
             { typeof(SpannerDate?).GetRuntimeMethod(nameof(Nullable<SpannerDate>.GetValueOrDefault), Array.Empty<System.Type>()), new SpannerDate(1, 1, 1) },
+            { typeof(DateOnly?).GetRuntimeMethod(nameof(Nullable<DateOnly>.GetValueOrDefault), Array.Empty<System.Type>()), new DateOnly(1, 1, 1) },
             { typeof(DateTime?).GetRuntimeMethod(nameof(Nullable<DateTime>.GetValueOrDefault), Array.Empty<System.Type>()), new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
         };
         private static readonly HashSet<MethodInfo> s_defaultMethodsWithArgument = new HashSet<MethodInfo>
@@ -64,6 +65,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             typeof(double?).GetRuntimeMethod(nameof(Nullable<double>.GetValueOrDefault), new[] { typeof(double) }),
             typeof(SpannerNumeric?).GetRuntimeMethod(nameof(Nullable<SpannerNumeric>.GetValueOrDefault), new[] { typeof(SpannerNumeric) }),
             typeof(SpannerDate?).GetRuntimeMethod(nameof(Nullable<SpannerDate>.GetValueOrDefault), new[] { typeof(SpannerDate) }),
+            typeof(DateOnly?).GetRuntimeMethod(nameof(Nullable<DateOnly>.GetValueOrDefault), new[] { typeof(DateOnly) }),
             typeof(DateTime?).GetRuntimeMethod(nameof(Nullable<DateTime>.GetValueOrDefault), new[] { typeof(DateTime) }),
         };
 

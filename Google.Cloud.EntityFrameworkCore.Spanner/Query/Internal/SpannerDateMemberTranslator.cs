@@ -18,11 +18,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
-
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 {
+    using Type = System.Type;
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
     ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
@@ -52,12 +53,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         public virtual SqlExpression Translate(
             SqlExpression instance,
             MemberInfo member,
-            System.Type returnType,
+            Type returnType,
             IDiagnosticsLogger<DbLoggerCategory.Query> logger)
         {
             var declaringType = member.DeclaringType;
 
-            if (declaringType == typeof(SpannerDate))
+            if (instance != null && (declaringType == typeof(SpannerDate) || declaringType == typeof(DateOnly)))
             {
                 var memberName = member.Name;
 
@@ -67,7 +68,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                         "EXTRACT",
                         new[] { new SpannerDateExtractExpression(_sqlExpressionFactory, instance, datePart) },
                         /* return value is nullable = */true,
-                        /* arguments that propagate nullability = */new []{true}, 
+                        /* arguments that propagate nullability = */new[] { true },
                         returnType);
                     if (datePart == "DAYOFWEEK")
                     {
