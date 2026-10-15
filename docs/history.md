@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.1.1](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-4.1.0...Google.Cloud.EntityFrameworkCore.Spanner-4.1.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* correct DateTime and DateOnly query translations ([#841](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/841)) ([4abd617](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/4abd617e6dd133412ee55edb4c06ae0d42ea9e7a))
+* correct Regex.IsMatch SQL translation to use REGEXP_CONTAINS directly ([#840](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/840)) ([019ab07](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/019ab0723bc8741dc495bf9bfbee1a2a1b3f0114))
+* correct type mappings for decimal collections and Regex ([#839](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/839)) ([08b824d](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/08b824dfd0a7d558fc6aab5a6d1c46ae70c92579))
+* ensure type mapping Default singletons have initialized converters ([#834](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/834)) ([884ad5a](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/884ad5a4da9d81cb5a4444b23cab4adc356575ab))
+* escape string, char, and JSON SQL literals in GoogleSQL ([#838](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/838)) ([e1bf847](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/e1bf8473c4554da8961ef4f3e5cacbef5b676632))
+* map collection interfaces to Spanner array types ([#832](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/832)) ([a9280e1](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/a9280e1515eb34ee3dc99ee90167cd8b1bdee7ea))
+
 ## [4.1.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-4.0.0...Google.Cloud.EntityFrameworkCore.Spanner-4.1.0) (2026-06-30)
 
 
