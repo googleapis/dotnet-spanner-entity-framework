@@ -792,6 +792,130 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
+        public async Task CanUseRegexIsMatch_Substring()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            // "Peterson" is a substring without wildcard prefix or suffix.
+            var pattern = "Peterson";
+            var regex = new Regex(pattern);
+            var singers = await db.Singers
+                .Where(s => regex.IsMatch(s.FullName))
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .ToListAsync();
+            Assert.Collection(singers, s => Assert.Equal("Pete Peterson", s.FullName));
+
+            singers = await db.Singers
+                .Where(s => Regex.IsMatch(s.FullName, pattern))
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .ToListAsync();
+            Assert.Collection(singers, s => Assert.Equal("Pete Peterson", s.FullName));
+        }
+
+        [Fact]
+        public async Task CanUseRegexIsMatch_StartAnchor()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            var singerId3 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Alice", LastName = "Morrison" },
+                new Singers { SingerId = singerId3, FirstName = "Bob", LastName = "Pete" }
+            );
+            await db.SaveChangesAsync();
+
+            // "^Pete" only matches strings that begin with "Pete" ("Pete Peterson", not "Bob Pete" or "Alice Morrison").
+            var pattern = "^Pete";
+            var regex = new Regex(pattern);
+            var singers = await db.Singers
+                .Where(s => regex.IsMatch(s.FullName))
+                .Where(s => new long[] { singerId1, singerId2, singerId3 }.Contains(s.SingerId))
+                .ToListAsync();
+            Assert.Collection(singers, s => Assert.Equal("Pete Peterson", s.FullName));
+
+            singers = await db.Singers
+                .Where(s => Regex.IsMatch(s.FullName, pattern))
+                .Where(s => new long[] { singerId1, singerId2, singerId3 }.Contains(s.SingerId))
+                .ToListAsync();
+            Assert.Collection(singers, s => Assert.Equal("Pete Peterson", s.FullName));
+        }
+
+        [Fact]
+        public async Task CanUseRegexIsMatch_EndAnchor()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            var singerId3 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Alice", LastName = "Morrison" },
+                new Singers { SingerId = singerId3, FirstName = "Alice", LastName = "Morrison Jr" }
+            );
+            await db.SaveChangesAsync();
+
+            // "Morrison$" only matches strings that end with "Morrison" ("Alice Morrison", not "Alice Morrison Jr").
+            var pattern = "Morrison$";
+            var regex = new Regex(pattern);
+            var singers = await db.Singers
+                .Where(s => regex.IsMatch(s.FullName))
+                .Where(s => new long[] { singerId1, singerId2, singerId3 }.Contains(s.SingerId))
+                .ToListAsync();
+            Assert.Collection(singers, s => Assert.Equal("Alice Morrison", s.FullName));
+
+            singers = await db.Singers
+                .Where(s => Regex.IsMatch(s.FullName, pattern))
+                .Where(s => new long[] { singerId1, singerId2, singerId3 }.Contains(s.SingerId))
+                .ToListAsync();
+            Assert.Collection(singers, s => Assert.Equal("Alice Morrison", s.FullName));
+        }
+
+        [Fact]
+        public async Task CanUseRegexIsMatch_Alternation()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Pete", LastName = "Peterson" },
+                new Singers { SingerId = singerId2, FirstName = "Alice", LastName = "Morrison" }
+            );
+            await db.SaveChangesAsync();
+
+            // "Alice|Pete" matches both "Pete Peterson" and "Alice Morrison".
+            var pattern = "Alice|Pete";
+            var regex = new Regex(pattern);
+            var singers = await db.Singers
+                .Where(s => regex.IsMatch(s.FullName))
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .OrderBy(s => s.LastName)
+                .ToListAsync();
+            Assert.Collection(singers,
+                s => Assert.Equal("Alice Morrison", s.FullName),
+                s => Assert.Equal("Pete Peterson", s.FullName)
+            );
+
+            singers = await db.Singers
+                .Where(s => Regex.IsMatch(s.FullName, pattern))
+                .Where(s => new long[] { singerId1, singerId2 }.Contains(s.SingerId))
+                .OrderBy(s => s.LastName)
+                .ToListAsync();
+            Assert.Collection(singers,
+                s => Assert.Equal("Alice Morrison", s.FullName),
+                s => Assert.Equal("Pete Peterson", s.FullName)
+            );
+        }
+
+        [Fact]
         public async Task CanUseRegexReplace()
         {
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);

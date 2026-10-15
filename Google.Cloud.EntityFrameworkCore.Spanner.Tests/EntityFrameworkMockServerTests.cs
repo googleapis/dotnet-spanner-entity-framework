@@ -1492,6 +1492,82 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task CanUseRegexIsMatch_Static()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
+                $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                $"WHERE REGEXP_CONTAINS(`s`.`FullName`, @pattern)";
+            AddFindSingerResult(sql);
+
+            var pattern = "Peterson";
+            var singers = await db.Singers
+                .Where(s => Regex.IsMatch(s.FullName, pattern))
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Morrison", s.LastName));
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal("Peterson", request.Params.Fields["pattern"].StringValue);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanUseRegexIsMatch_Instance()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
+                $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                $"WHERE REGEXP_CONTAINS(`s`.`FullName`, @regex)";
+            AddFindSingerResult(sql);
+
+            var pattern = "Peterson";
+            var regex = new Regex(pattern);
+            var singers = await db.Singers
+                .Where(s => regex.IsMatch(s.FullName))
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Morrison", s.LastName));
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal("Peterson", request.Params.Fields["regex"].StringValue);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanUseRegexIsMatch_AnchoredPatterns()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, " +
+                $"`s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                $"WHERE REGEXP_CONTAINS(`s`.`FullName`, @pattern)";
+            AddFindSingerResult(sql);
+
+            var pattern = "^Pete";
+            var singers = await db.Singers
+                .Where(s => Regex.IsMatch(s.FullName, pattern))
+                .ToListAsync();
+
+            Assert.Collection(singers, s => Assert.Equal("Morrison", s.LastName));
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Equal("^Pete", request.Params.Fields["pattern"].StringValue);
+                }
+            );
+        }
+
+        [Fact]
         public async Task CanUseStringConcat()
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
