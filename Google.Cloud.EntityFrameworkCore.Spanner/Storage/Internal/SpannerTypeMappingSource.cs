@@ -42,8 +42,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             = new SpannerBoolTypeMapping(SpannerDbType.Bool.ToString());
 
         private static readonly SpannerDateTypeMapping s_date = new SpannerDateTypeMapping();
-        
-        private static readonly SpannerDateOnlyTypeMapping s_dateOnly = new ();
+
+        private static readonly SpannerDateOnlyTypeMapping s_dateOnly = new();
 
         private static readonly SpannerTimestampTypeMapping s_datetime = new SpannerTimestampTypeMapping();
 
@@ -68,14 +68,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         private static readonly SpannerComplexTypeMapping s_short
             = new SpannerComplexTypeMapping(SpannerDbType.Int64, typeof(short));
-        
-        private static readonly SpannerDecimalTypeMapping s_decimal = new ();
+
+        private static readonly SpannerDecimalTypeMapping s_decimal = new();
 
         private static readonly SpannerNumericTypeMapping s_numeric = new SpannerNumericTypeMapping();
 
         private static readonly SpannerJsonTypeMapping s_json = new SpannerJsonTypeMapping();
         private static readonly SpannerStructuralJsonTypeMapping s_structuralJson = new SpannerStructuralJsonTypeMapping("json");
-        private static readonly SpannerStringTypeMapping s_jsonAsString = new ("JSON", sqlDbType: SpannerDbType.Json, dbType: DbType.Object);
+        private static readonly SpannerStringTypeMapping s_jsonAsString = new("JSON", sqlDbType: SpannerDbType.Json, dbType: DbType.Object);
 
         private static readonly SpannerGuidTypeMapping s_guid
             = new SpannerGuidTypeMapping("STRING(36)", DbType.String);
@@ -186,6 +186,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly SpannerComplexTypeMapping s_numericList
             = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric), typeof(List<SpannerNumeric>));
 
+        private static readonly SpannerComplexTypeMapping s_nullableDecimalArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric), typeof(decimal?[]));
+        private static readonly SpannerComplexTypeMapping s_decimalArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric), typeof(decimal[]));
+
+        private static readonly SpannerComplexTypeMapping s_nullableDecimalList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric), typeof(List<decimal?>));
+        private static readonly SpannerComplexTypeMapping s_decimalList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Numeric), typeof(List<decimal>));
+
+        private static readonly SpannerRegexTypeMapping s_regex = new();
+
         private static readonly SpannerJsonArrayTypeMapping s_jsonArray = new SpannerJsonArrayTypeMapping();
         private static readonly SpannerJsonListTypeMapping s_jsonList = new SpannerJsonListTypeMapping();
 
@@ -223,19 +235,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(string), s_defaultString},
                     {typeof(char), s_char},
                     {typeof(Guid), s_guid},
-                    {typeof(Regex), s_defaultString },
+                    {typeof(Regex), s_regex},
                     {typeof(byte), s_byte},
                     {typeof(sbyte), s_sbyte},
                     {typeof(ulong), s_ulong},
                     {typeof(ushort), s_ushort},
                     {typeof(byte[]), s_bytes},
 
-                    {typeof(decimal[]), s_numericArray},
-                    {typeof(decimal?[]), s_nullableNumericArray},
+                    {typeof(decimal[]), s_decimalArray},
+                    {typeof(decimal?[]), s_nullableDecimalArray},
                     {typeof(SpannerNumeric[]), s_numericArray},
                     {typeof(SpannerNumeric?[]), s_nullableNumericArray},
-                    {typeof(List<decimal>), s_numericList},
-                    {typeof(List<decimal?>), s_nullableNumericList},
+                    {typeof(List<decimal>), s_decimalList},
+                    {typeof(List<decimal?>), s_nullableDecimalList},
                     {typeof(List<SpannerNumeric>), s_numericList},
                     {typeof(List<SpannerNumeric?>), s_nullableNumericList},
                     {typeof(JsonDocument[]), s_jsonArray},
@@ -318,8 +330,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {typeof(int?), s_nullableIntArray},
                 {typeof(long), s_longArray},
                 {typeof(long?), s_nullableLongArray},
-                {typeof(decimal), s_numericArray},
-                {typeof(decimal?), s_nullableNumericArray},
+                {typeof(decimal), s_decimalArray},
+                {typeof(decimal?), s_nullableDecimalArray},
                 {typeof(SpannerNumeric), s_numericArray},
                 {typeof(SpannerNumeric?), s_nullableNumericArray},
                 {typeof(string), s_stringArray},
@@ -363,7 +375,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {
                     return s_jsonAsString;
                 }
-                
+
                 if (_storeTypeMappings.TryGetValue(storeTypeName, out var mapping)
                     || _storeTypeMappings.TryGetValue(storeTypeNameBase, out mapping))
                 {
