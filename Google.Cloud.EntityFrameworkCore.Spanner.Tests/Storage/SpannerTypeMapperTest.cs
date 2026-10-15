@@ -20,6 +20,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Xunit;
 using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
 
@@ -184,49 +185,261 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
         [Fact]
         public void Does_decimal_array_mapping()
         {
-            Assert.Equal("ARRAY<NUMERIC>", GetTypeMapping(typeof(decimal[])).StoreType);
+            var typeMapping = GetTypeMapping(typeof(decimal[]));
+            Assert.Equal("ARRAY<NUMERIC>", typeMapping.StoreType);
+            Assert.Equal(typeof(decimal[]), typeMapping.ClrType);
         }
 
         [Fact]
         public void Does_nullable_decimal_array_mapping()
         {
-            Assert.Equal("ARRAY<NUMERIC>", GetTypeMapping(typeof(decimal?[])).StoreType);
+            var typeMapping = GetTypeMapping(typeof(decimal?[]));
+            Assert.Equal("ARRAY<NUMERIC>", typeMapping.StoreType);
+            Assert.Equal(typeof(decimal?[]), typeMapping.ClrType);
         }
 
         [Fact]
         public void Does_decimal_list_mapping()
         {
-            Assert.Equal("ARRAY<NUMERIC>", GetTypeMapping(typeof(List<decimal>)).StoreType);
+            var typeMapping = GetTypeMapping(typeof(List<decimal>));
+            Assert.Equal("ARRAY<NUMERIC>", typeMapping.StoreType);
+            Assert.Equal(typeof(List<decimal>), typeMapping.ClrType);
         }
 
         [Fact]
         public void Does_nullable_decimal_list_mapping()
         {
-            Assert.Equal("ARRAY<NUMERIC>", GetTypeMapping(typeof(List<decimal?>)).StoreType);
+            var typeMapping = GetTypeMapping(typeof(List<decimal?>));
+            Assert.Equal("ARRAY<NUMERIC>", typeMapping.StoreType);
+            Assert.Equal(typeof(List<decimal?>), typeMapping.ClrType);
         }
 
         [Fact]
         public void Does_spanner_numeric_array_mapping()
         {
-            Assert.Equal("ARRAY<NUMERIC>", GetTypeMapping(typeof(SpannerNumeric[])).StoreType);
+            var typeMapping = GetTypeMapping(typeof(SpannerNumeric[]));
+            Assert.Equal("ARRAY<NUMERIC>", typeMapping.StoreType);
+            Assert.Equal(typeof(SpannerNumeric[]), typeMapping.ClrType);
         }
 
         [Fact]
         public void Does_nullable_spanner_numeric_array_mapping()
         {
-            Assert.Equal("ARRAY<NUMERIC>", GetTypeMapping(typeof(SpannerNumeric?[])).StoreType);
+            var typeMapping = GetTypeMapping(typeof(SpannerNumeric?[]));
+            Assert.Equal("ARRAY<NUMERIC>", typeMapping.StoreType);
+            Assert.Equal(typeof(SpannerNumeric?[]), typeMapping.ClrType);
         }
 
         [Fact]
         public void Does_spanner_numeric_list_mapping()
         {
-            Assert.Equal("ARRAY<NUMERIC>", GetTypeMapping(typeof(List<SpannerNumeric>)).StoreType);
+            var typeMapping = GetTypeMapping(typeof(List<SpannerNumeric>));
+            Assert.Equal("ARRAY<NUMERIC>", typeMapping.StoreType);
+            Assert.Equal(typeof(List<SpannerNumeric>), typeMapping.ClrType);
         }
 
         [Fact]
         public void Does_nullable_spanner_numeric_list_mapping()
         {
-            Assert.Equal("ARRAY<NUMERIC>", GetTypeMapping(typeof(List<SpannerNumeric?>)).StoreType);
+            var typeMapping = GetTypeMapping(typeof(List<SpannerNumeric?>));
+            Assert.Equal("ARRAY<NUMERIC>", typeMapping.StoreType);
+            Assert.Equal(typeof(List<SpannerNumeric?>), typeMapping.ClrType);
+        }
+
+        [Fact]
+        public void Does_regex_mapping()
+        {
+            var typeMapping = GetTypeMapping(typeof(Regex));
+            Assert.Equal("STRING", typeMapping.StoreType);
+            Assert.Equal(typeof(Regex), typeMapping.ClrType);
+            Assert.NotNull(typeMapping.Converter);
+            Assert.NotNull(typeMapping.Comparer);
+
+            var regex = new Regex(@"^[a-z]+$", RegexOptions.IgnoreCase);
+            var converted = typeMapping.Converter.ConvertToProvider(regex);
+            Assert.Equal(@"^[a-z]+$", converted);
+            var restored = (Regex)typeMapping.Converter.ConvertFromProvider(converted)!;
+            Assert.Equal(@"^[a-z]+$", restored.ToString());
+
+            Assert.True(typeMapping.Comparer.Equals(regex, new Regex(@"^[a-z]+$", RegexOptions.IgnoreCase)));
+            Assert.False(typeMapping.Comparer.Equals(regex, new Regex(@"^[a-z]+$")));
+            Assert.False(typeMapping.Comparer.Equals(regex, null));
+            Assert.False(typeMapping.Comparer.Equals(null, regex));
+            Assert.True(typeMapping.Comparer.Equals(null, null));
+
+            var snapshot = (Regex)typeMapping.Comparer.Snapshot(regex)!;
+            Assert.NotNull(snapshot);
+            Assert.Equal(regex.ToString(), snapshot.ToString());
+            Assert.Equal(regex.Options, snapshot.Options);
+            Assert.Equal(typeMapping.Comparer.GetHashCode(regex), typeMapping.Comparer.GetHashCode(snapshot));
+        }
+
+        [Fact]
+        public void Does_collection_interface_decimal_mapping()
+        {
+            var typeMapper = CreateTypeMapper();
+            var enumerableMapping = typeMapper.FindMapping(typeof(IEnumerable<decimal>));
+            Assert.NotNull(enumerableMapping);
+            Assert.Equal("ARRAY<NUMERIC>", enumerableMapping.StoreType);
+            Assert.Equal(typeof(decimal[]), enumerableMapping.ClrType);
+
+            var hashSetMapping = typeMapper.FindMapping(typeof(HashSet<decimal>));
+            Assert.NotNull(hashSetMapping);
+            Assert.Equal("ARRAY<NUMERIC>", hashSetMapping.StoreType);
+            Assert.Equal(typeof(decimal[]), hashSetMapping.ClrType);
+
+            var nullableHashSetMapping = typeMapper.FindMapping(typeof(HashSet<decimal?>));
+            Assert.NotNull(nullableHashSetMapping);
+            Assert.Equal("ARRAY<NUMERIC>", nullableHashSetMapping.StoreType);
+            Assert.Equal(typeof(decimal?[]), nullableHashSetMapping.ClrType);
+
+            var spannerNumericHashSetMapping = typeMapper.FindMapping(typeof(HashSet<SpannerNumeric>));
+            Assert.NotNull(spannerNumericHashSetMapping);
+            Assert.Equal("ARRAY<NUMERIC>", spannerNumericHashSetMapping.StoreType);
+            Assert.Equal(typeof(SpannerNumeric[]), spannerNumericHashSetMapping.ClrType);
+        }
+
+        [Fact]
+        public void Can_build_model_with_decimals_and_regex()
+        {
+            var builder = CreateModelBuilder();
+            builder.Entity<EntityWithDecimalsAndRegex>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+            });
+            var model = builder.FinalizeModel();
+            var entityType = model.FindEntityType(typeof(EntityWithDecimalsAndRegex));
+            Assert.NotNull(entityType);
+
+            var typeMapper = CreateTypeMapper();
+            var decimalArrayProperty = entityType.FindProperty(nameof(EntityWithDecimalsAndRegex.DecimalArray));
+            Assert.NotNull(decimalArrayProperty);
+            var decimalArrayMapping = typeMapper.GetMapping(decimalArrayProperty);
+            Assert.Equal("ARRAY<NUMERIC>", decimalArrayMapping.StoreType);
+            Assert.Equal(typeof(decimal[]), decimalArrayMapping.ClrType);
+
+            var nullableDecimalArrayProperty = entityType.FindProperty(nameof(EntityWithDecimalsAndRegex.NullableDecimalArray));
+            Assert.NotNull(nullableDecimalArrayProperty);
+            var nullableDecimalArrayMapping = typeMapper.GetMapping(nullableDecimalArrayProperty);
+            Assert.Equal("ARRAY<NUMERIC>", nullableDecimalArrayMapping.StoreType);
+            Assert.Equal(typeof(decimal?[]), nullableDecimalArrayMapping.ClrType);
+
+            var decimalListProperty = entityType.FindProperty(nameof(EntityWithDecimalsAndRegex.DecimalList));
+            Assert.NotNull(decimalListProperty);
+            var decimalListMapping = typeMapper.GetMapping(decimalListProperty);
+            Assert.Equal("ARRAY<NUMERIC>", decimalListMapping.StoreType);
+            Assert.Equal(typeof(List<decimal>), decimalListMapping.ClrType);
+
+            var nullableDecimalListProperty = entityType.FindProperty(nameof(EntityWithDecimalsAndRegex.NullableDecimalList));
+            Assert.NotNull(nullableDecimalListProperty);
+            var nullableDecimalListMapping = typeMapper.GetMapping(nullableDecimalListProperty);
+            Assert.Equal("ARRAY<NUMERIC>", nullableDecimalListMapping.StoreType);
+            Assert.Equal(typeof(List<decimal?>), nullableDecimalListMapping.ClrType);
+
+            var regexProperty = entityType.FindProperty(nameof(EntityWithDecimalsAndRegex.Pattern));
+            Assert.NotNull(regexProperty);
+            var regexMapping = typeMapper.GetMapping(regexProperty);
+            Assert.Equal("STRING", regexMapping.StoreType);
+            Assert.Equal(typeof(Regex), regexMapping.ClrType);
+            Assert.NotNull(regexMapping.Converter);
+            Assert.NotNull(regexMapping.Comparer);
+        }
+
+        private class EntityWithDecimalsAndRegex
+        {
+            public long Id { get; set; }
+            public decimal[] DecimalArray { get; set; }
+            public decimal?[] NullableDecimalArray { get; set; }
+            public List<decimal> DecimalList { get; set; }
+            public List<decimal?> NullableDecimalList { get; set; }
+            public Regex Pattern { get; set; }
+        }
+
+        [Fact]
+        public void SpannerRegexTypeMapping_ConfiguresParameter()
+        {
+            var mapping = SpannerRegexTypeMapping.Default;
+            var command = new SpannerCommand();
+            var regex = new Regex(@"foo\bar'baz");
+            var parameter = mapping.CreateParameter(command, "parameter", regex);
+
+            Assert.IsType<SpannerParameter>(parameter);
+            var spannerParameter = (SpannerParameter)parameter;
+            Assert.Equal(SpannerDbType.String, spannerParameter.SpannerDbType);
+            Assert.Equal(@"foo\bar'baz", spannerParameter.Value);
+        }
+
+        [Fact]
+        public void SpannerRegexTypeMapping_GeneratesSqlLiteral()
+        {
+            var mapping = SpannerRegexTypeMapping.Default;
+            var regex = new Regex("foo\\bar'baz\r\nqux");
+            var literal = mapping.GenerateSqlLiteral(regex);
+            Assert.Equal(@"'foo\\bar\'baz\r\nqux'", literal);
+        }
+
+        [Fact]
+        public void DecimalArrayMapping_ConfiguresParameter()
+        {
+            var typeMapper = CreateTypeMapper();
+            var mapping = typeMapper.FindMapping(typeof(decimal[]));
+            Assert.NotNull(mapping);
+            var command = new SpannerCommand();
+            var values = new decimal[] { 1.2m, 3.4m };
+            var parameter = mapping.CreateParameter(command, "parameter", values);
+
+            Assert.IsType<SpannerParameter>(parameter);
+            var spannerParameter = (SpannerParameter)parameter;
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Numeric), spannerParameter.SpannerDbType);
+            Assert.Equal(values, spannerParameter.Value);
+        }
+
+        [Fact]
+        public void DecimalListMapping_ConfiguresParameter()
+        {
+            var typeMapper = CreateTypeMapper();
+            var mapping = typeMapper.FindMapping(typeof(List<decimal>));
+            Assert.NotNull(mapping);
+            var command = new SpannerCommand();
+            var values = new List<decimal> { 1.2m, 3.4m };
+            var parameter = mapping.CreateParameter(command, "parameter", values);
+
+            Assert.IsType<SpannerParameter>(parameter);
+            var spannerParameter = (SpannerParameter)parameter;
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Numeric), spannerParameter.SpannerDbType);
+            Assert.Equal(values, spannerParameter.Value);
+        }
+
+        [Fact]
+        public void NullableDecimalArrayMapping_ConfiguresParameter()
+        {
+            var typeMapper = CreateTypeMapper();
+            var mapping = typeMapper.FindMapping(typeof(decimal?[]));
+            Assert.NotNull(mapping);
+            var command = new SpannerCommand();
+            var values = new decimal?[] { 1.2m, null };
+            var parameter = mapping.CreateParameter(command, "parameter", values);
+
+            Assert.IsType<SpannerParameter>(parameter);
+            var spannerParameter = (SpannerParameter)parameter;
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Numeric), spannerParameter.SpannerDbType);
+            Assert.Equal(values, spannerParameter.Value);
+        }
+
+        [Fact]
+        public void NullableDecimalListMapping_ConfiguresParameter()
+        {
+            var typeMapper = CreateTypeMapper();
+            var mapping = typeMapper.FindMapping(typeof(List<decimal?>));
+            Assert.NotNull(mapping);
+            var command = new SpannerCommand();
+            var values = new List<decimal?> { 1.2m, null };
+            var parameter = mapping.CreateParameter(command, "parameter", values);
+
+            Assert.IsType<SpannerParameter>(parameter);
+            var spannerParameter = (SpannerParameter)parameter;
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Numeric), spannerParameter.SpannerDbType);
+            Assert.Equal(values, spannerParameter.Value);
         }
 
         [Fact]
@@ -680,6 +893,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
             Assert.Equal(typeof(JsonDocument), SpannerJsonTypeMapping.Default.ClrType);
             Assert.Equal(typeof(JsonDocument[]), SpannerJsonArrayTypeMapping.Default.ClrType);
             Assert.Equal(typeof(List<JsonDocument>), SpannerJsonListTypeMapping.Default.ClrType);
+            Assert.Equal(typeof(Regex), SpannerRegexTypeMapping.Default.ClrType);
 
             Assert.NotNull(SpannerDateTypeMapping.Default.Converter);
             Assert.NotNull(SpannerDateOnlyTypeMapping.Default.Converter);
@@ -690,6 +904,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
             Assert.NotNull(SpannerJsonTypeMapping.Default.Converter);
             Assert.NotNull(SpannerJsonArrayTypeMapping.Default.Converter);
             Assert.NotNull(SpannerJsonListTypeMapping.Default.Converter);
+            Assert.NotNull(SpannerRegexTypeMapping.Default.Converter);
 
             Assert.True(SpannerJsonTypeMapping.JsonOptions.AllowTrailingCommas);
 
@@ -757,6 +972,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
             var jsonListRoundTrip = (List<JsonDocument>)jsonListConverter.ConvertFromProvider(jsonListProvider)!;
             Assert.Single(jsonListRoundTrip);
             Assert.Equal("value", jsonListRoundTrip[0].RootElement.GetProperty("key").GetString());
+
+            var regexConverter = SpannerRegexTypeMapping.Default.Converter;
+            var testRegex = new Regex(@"^[a-z]+$", RegexOptions.IgnoreCase);
+            var regexString = (string)regexConverter.ConvertToProvider(testRegex)!;
+            Assert.Equal(@"^[a-z]+$", regexString);
+            var regexRoundTrip = (Regex)regexConverter.ConvertFromProvider(regexString)!;
+            Assert.Equal(@"^[a-z]+$", regexRoundTrip.ToString());
         }
 
         [Fact]
