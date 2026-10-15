@@ -741,6 +741,147 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
         }
 
         [Fact]
+        public void Generates_correct_string_sql_literals()
+        {
+            var mapping = SpannerStringTypeMapping.Default;
+
+            Assert.Equal("'''Marc'''", mapping.GenerateSqlLiteral("Marc"));
+            Assert.Equal("''''''", mapping.GenerateSqlLiteral(string.Empty));
+            Assert.Equal(@"'''Marc\'s'''", mapping.GenerateSqlLiteral("Marc's"));
+            Assert.Equal(@"'''Marc\'s \'greatest\' hits'''", mapping.GenerateSqlLiteral("Marc's 'greatest' hits"));
+            Assert.Equal(@"'''Marc\''''", mapping.GenerateSqlLiteral("Marc'"));
+            Assert.Equal(@"'''Marc\'\''''", mapping.GenerateSqlLiteral("Marc''"));
+            Assert.Equal(@"'''it\'\'\'s'''", mapping.GenerateSqlLiteral("it'''s"));
+            Assert.Equal(@"'''C:\\Users\\Alice'''", mapping.GenerateSqlLiteral(@"C:\Users\Alice"));
+            Assert.Equal(@"'''test\\'''", mapping.GenerateSqlLiteral(@"test\"));
+            Assert.Equal(@"'''test\\\''''", mapping.GenerateSqlLiteral(@"test\'"));
+            Assert.Equal(@"'''\'\'\' OR 1=1 --'''", mapping.GenerateSqlLiteral("''' OR 1=1 --"));
+            Assert.Equal(@"'''\'\'\''''", mapping.GenerateSqlLiteral("'''"));
+            Assert.Equal(@"'''\\\\'''", mapping.GenerateSqlLiteral(@"\\"));
+            Assert.Equal(@"'''test\\\\\\\''''", mapping.GenerateSqlLiteral(@"test\\\'"));
+            Assert.Equal("'''Line 1\nLine 2'''", mapping.GenerateSqlLiteral("Line 1\nLine 2"));
+            Assert.Equal("'''Line 1\\r\nLine 2'''", mapping.GenerateSqlLiteral("Line 1\r\nLine 2"));
+            Assert.Equal(@"'''test\u0000test'''", mapping.GenerateSqlLiteral("test\0test"));
+            Assert.Equal("NULL", mapping.GenerateSqlLiteral(null));
+        }
+
+        [Fact]
+        public void Generates_correct_char_sql_literals()
+        {
+            var mapping = SpannerCharTypeMapping.Default;
+
+            Assert.Equal("'''a'''", mapping.GenerateSqlLiteral('a'));
+            Assert.Equal(@"'''\''''", mapping.GenerateSqlLiteral('\''));
+            Assert.Equal(@"'''\\'''", mapping.GenerateSqlLiteral('\\'));
+            Assert.Equal(@"'''\u0000'''", mapping.GenerateSqlLiteral('\0'));
+            Assert.Equal(@"'''\r'''", mapping.GenerateSqlLiteral('\r'));
+            Assert.Equal("'''\n'''", mapping.GenerateSqlLiteral('\n'));
+            Assert.Equal("'''\"'''", mapping.GenerateSqlLiteral('"'));
+            Assert.Equal("NULL", mapping.GenerateSqlLiteral(null));
+
+            var typeMapper = CreateTypeMapper();
+            var charMapping = typeMapper.FindMapping(typeof(char));
+            Assert.IsType<SpannerCharTypeMapping>(charMapping);
+            Assert.Equal(@"'''\\'''", charMapping.GenerateSqlLiteral('\\'));
+            Assert.Equal(@"'''\u0000'''", charMapping.GenerateSqlLiteral('\0'));
+
+            var nullableCharMapping = typeMapper.FindMapping(typeof(char?));
+            Assert.IsType<SpannerCharTypeMapping>(nullableCharMapping);
+            Assert.Equal(@"'''a'''", nullableCharMapping.GenerateSqlLiteral((char?)'a'));
+            Assert.Equal("NULL", nullableCharMapping.GenerateSqlLiteral((char?)null));
+        }
+
+        [Fact]
+        public void Generates_correct_json_sql_literals_from_json_document()
+        {
+            var mapping = SpannerJsonTypeMapping.Default;
+
+            using var simpleDocument = JsonDocument.Parse("""{"name":"Alice"}""");
+            Assert.Equal("""JSON '{"name":"Alice"}'""", mapping.GenerateSqlLiteral(simpleDocument));
+
+            using var quoteDocument = JsonDocument.Parse("""{"name":"Marc's"}""");
+            Assert.Equal(@"JSON '{""name"":""Marc\'s""}'", mapping.GenerateSqlLiteral(quoteDocument));
+
+            using var escapedQuoteDocument = JsonDocument.Parse("""{"quote":"He said \"Hi\""}""");
+            Assert.Equal(@"JSON '{""quote"":""He said \\""Hi\\""""}'", mapping.GenerateSqlLiteral(escapedQuoteDocument));
+
+            using var pathDocument = JsonDocument.Parse("""{"path":"C:\\Users"}""");
+            Assert.Equal(@"JSON '{""path"":""C:\\\\Users""}'", mapping.GenerateSqlLiteral(pathDocument));
+
+            using var scalarStringDocument = JsonDocument.Parse("\"Hello\"");
+            Assert.Equal(@"JSON '""Hello""'", mapping.GenerateSqlLiteral(scalarStringDocument));
+            Assert.Equal(@"JSON '""Hello""'", mapping.GenerateSqlLiteral(scalarStringDocument.RootElement));
+
+            Assert.Equal("""JSON '{"name":"Alice"}'""", mapping.GenerateSqlLiteral(simpleDocument.RootElement));
+
+            using var scalarNumberDocument = JsonDocument.Parse("42");
+            Assert.Equal("JSON '42'", mapping.GenerateSqlLiteral(scalarNumberDocument.RootElement));
+            Assert.Equal("NULL", mapping.GenerateSqlLiteral(null));
+        }
+
+        [Fact]
+        public void Generates_correct_json_sql_literals_from_string()
+        {
+            var mapping = SpannerJsonTypeMapping.Default;
+
+            Assert.Equal("""JSON '{"name":"Alice"}'""", mapping.GenerateSqlLiteral("""{"name":"Alice"}"""));
+            Assert.Equal(@"JSON '{""name"":""Marc\'s""}'", mapping.GenerateSqlLiteral("""{"name":"Marc's"}"""));
+            Assert.Equal(@"JSON '{""quote"":""He said \\""Hi\\""""}'", mapping.GenerateSqlLiteral("""{"quote":"He said \"Hi\""}"""));
+            Assert.Equal(@"JSON '{""path"":""C:\\\\Users""}'", mapping.GenerateSqlLiteral("""{"path":"C:\\Users"}"""));
+            Assert.Equal(@"JSON '{\n  ""name"": ""Alice""\n}'", mapping.GenerateSqlLiteral("{\n  \"name\": \"Alice\"\n}"));
+            Assert.Equal(@"JSON '{\r\n  ""name"": ""Alice""\r\n}'", mapping.GenerateSqlLiteral("{\r\n  \"name\": \"Alice\"\r\n}"));
+            Assert.Equal(@"JSON '{\n\t""name"": ""Alice""\n}'", mapping.GenerateSqlLiteral("{\n\t\"name\": \"Alice\"\n}"));
+            Assert.Equal(@"JSON '{""key"":""\'; DROP TABLE Users; --""}'", mapping.GenerateSqlLiteral("""{"key":"'; DROP TABLE Users; --"}"""));
+            Assert.Equal(@"JSON '{""name"":""Alice\\u0000Bob""}'", mapping.GenerateSqlLiteral("{\"name\":\"Alice\0Bob\"}"));
+        }
+
+        [Fact]
+        public void Generates_correct_json_as_string_sql_literals()
+        {
+            var typeMapper = CreateTypeMapper();
+            var mapping = typeMapper.FindMapping(typeof(string), "JSON");
+            Assert.NotNull(mapping);
+            Assert.IsType<SpannerJsonStringTypeMapping>(mapping);
+
+            Assert.Equal("""JSON '{"name":"Alice"}'""", mapping.GenerateSqlLiteral("""{"name":"Alice"}"""));
+            Assert.Equal(@"JSON '{""name"":""Marc\'s""}'", mapping.GenerateSqlLiteral("""{"name":"Marc's"}"""));
+            Assert.Equal(@"JSON '{""path"":""C:\\\\Users""}'", mapping.GenerateSqlLiteral("""{"path":"C:\\Users"}"""));
+
+            var lowercaseMapping = typeMapper.FindMapping(typeof(string), "json");
+            Assert.NotNull(lowercaseMapping);
+            Assert.IsType<SpannerJsonStringTypeMapping>(lowercaseMapping);
+            Assert.Equal("""JSON '{"name":"Alice"}'""", lowercaseMapping.GenerateSqlLiteral("""{"name":"Alice"}"""));
+
+            var defaultMapping = SpannerJsonStringTypeMapping.Default;
+            Assert.Equal("""JSON '{"name":"Alice"}'""", defaultMapping.GenerateSqlLiteral("""{"name":"Alice"}"""));
+
+            var cloned = mapping.Clone(new RelationalTypeMappingInfo(storeTypeName: "JSON"));
+            Assert.IsType<SpannerJsonStringTypeMapping>(cloned);
+            Assert.Equal("""JSON '{"name":"Alice"}'""", cloned.GenerateSqlLiteral("""{"name":"Alice"}"""));
+        }
+
+        [Fact]
+        public void Generates_correct_structural_json_sql_literals()
+        {
+            var mapping = SpannerStructuralJsonTypeMapping.Default;
+
+            Assert.Equal("""JSON '{"name":"Alice"}'""", mapping.GenerateSqlLiteral("""{"name":"Alice"}"""));
+            Assert.Equal(@"JSON '{""title"":""Marc\'s Album""}'", mapping.GenerateSqlLiteral("""{"title":"Marc's Album"}"""));
+            Assert.Equal(@"JSON '{""quote"":""\\""Total Junk\\""""}'", mapping.GenerateSqlLiteral("""{"quote":"\"Total Junk\""}"""));
+            Assert.Equal(@"JSON '{""folder"":""C:\\\\Data""}'", mapping.GenerateSqlLiteral("""{"folder":"C:\\Data"}"""));
+            Assert.Equal(@"JSON '{\n\t""name"": ""Alice""\n}'", mapping.GenerateSqlLiteral("{\n\t\"name\": \"Alice\"\n}"));
+            Assert.Equal(@"JSON '{""key"":""\'; DROP TABLE Users; --""}'", mapping.GenerateSqlLiteral("""{"key":"'; DROP TABLE Users; --"}"""));
+
+            using var jsonDocument = JsonDocument.Parse("""{"name":"Alice"}""");
+            Assert.Equal("""JSON '{"name":"Alice"}'""", mapping.GenerateSqlLiteral(jsonDocument));
+            Assert.Equal("""JSON '{"name":"Alice"}'""", mapping.GenerateSqlLiteral(jsonDocument.RootElement));
+
+            using var scalarElement = JsonDocument.Parse("\"test\"");
+            Assert.Equal(@"JSON '""test""'", mapping.GenerateSqlLiteral(scalarElement.RootElement));
+            Assert.Equal("NULL", mapping.GenerateSqlLiteral(null));
+        }
+
+        [Fact]
         public void Default_type_mappings_have_initialized_converters()
         {
             Assert.Equal(typeof(SpannerDate), SpannerDateTypeMapping.Default.ClrType);

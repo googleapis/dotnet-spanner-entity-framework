@@ -56,17 +56,46 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             base.ConfigureParameter(parameter);
         }
 
-        protected override string GenerateNonNullSqlLiteral(object value)
+        internal static string EscapeJsonLiteral(string literal)
         {
-            if (value is JsonDocument jd)
+            if (string.IsNullOrEmpty(literal))
             {
-                return $"JSON '{jd.RootElement.ToString()}'";
+                return literal ?? string.Empty;
             }
-            if (value is string s)
+
+            return literal
+                .Replace(@"\", @"\\")
+                .Replace("'", @"\'")
+                .Replace("\0", @"\\u0000")
+                .Replace("\r", @"\r")
+                .Replace("\n", @"\n")
+                .Replace("\t", @"\t");
+        }
+
+        // Overridden to bypass base RelationalTypeMapping's Converter.ConvertToProvider call,
+        // which throws InvalidCastException for string or JsonElement values and strips quotes
+        // on scalar string JSON documents via JsonElement.ToString().
+        public override string GenerateSqlLiteral(object value)
+            => value == null ? "NULL" : GenerateNonNullSqlLiteral(value);
+
+        internal static string GenerateJsonLiteral(object value)
+        {
+            if (value is JsonDocument jsonDocument)
             {
-                return $"JSON '{s}'";
+                return $"JSON '{EscapeJsonLiteral(jsonDocument.RootElement.GetRawText())}'";
+            }
+            if (value is JsonElement jsonElement)
+            {
+                return $"JSON '{EscapeJsonLiteral(jsonElement.GetRawText())}'";
+            }
+            if (value is string stringValue)
+            {
+                return $"JSON '{EscapeJsonLiteral(stringValue)}'";
             }
             throw new ArgumentException($"{value} is not valid for database type JSON");
         }
+
+        protected override string GenerateNonNullSqlLiteral(object value)
+            => GenerateJsonLiteral(value);
     }
 }

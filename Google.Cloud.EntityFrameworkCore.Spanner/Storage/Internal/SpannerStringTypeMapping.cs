@@ -1,4 +1,4 @@
-﻿// Copyright 2020, Google Inc. All rights reserved.
+// Copyright 2020, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     public class SpannerStringTypeMapping : StringTypeMapping
     {
         public new static SpannerStringTypeMapping Default { get; } = new("STRING(MAX)");
-        
+
         private readonly SpannerDbType _sqlDbType;
         private readonly int _maxSpecificSize;
 
@@ -78,7 +78,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             }
         }
 
+        internal static string EscapeStringLiteral(string literal)
+            => literal?
+                .Replace(@"\", @"\\")
+                .Replace("'", @"\'")
+                .Replace("\0", @"\u0000")
+                .Replace("\r", @"\r") ?? string.Empty;
+
+        protected override string EscapeSqlLiteral(string literal)
+            => EscapeStringLiteral(literal);
+
         protected override string GenerateNonNullSqlLiteral(object value)
-            => $"'''{value}'''";
+        {
+            var stringValue = value as string ?? value?.ToString() ?? string.Empty;
+            return $"'''{EscapeSqlLiteral(stringValue)}'''";
+        }
     }
 }

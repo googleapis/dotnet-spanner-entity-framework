@@ -20,7 +20,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using IEnumerable = System.Collections.IEnumerable;
 
@@ -50,8 +49,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly StringTypeMapping s_defaultString
             = new SpannerStringTypeMapping(SpannerDbType.String.ToString(), unicode: true, sqlDbType: SpannerDbType.String);
 
-        private static readonly CharTypeMapping s_char
-            = new CharTypeMapping("STRING(1)", DbType.String);
+        private static readonly SpannerCharTypeMapping s_char
+            = SpannerCharTypeMapping.Default;
 
         private static readonly FloatTypeMapping s_float = new SpannerFloatTypeMapping();
 
@@ -75,7 +74,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         private static readonly SpannerJsonTypeMapping s_json = new SpannerJsonTypeMapping();
         private static readonly SpannerStructuralJsonTypeMapping s_structuralJson = new SpannerStructuralJsonTypeMapping("json");
-        private static readonly SpannerStringTypeMapping s_jsonAsString = new("JSON", sqlDbType: SpannerDbType.Json, dbType: DbType.Object);
+        private static readonly SpannerJsonStringTypeMapping s_jsonAsString = SpannerJsonStringTypeMapping.Default;
 
         private static readonly SpannerGuidTypeMapping s_guid
             = new SpannerGuidTypeMapping("STRING(36)", DbType.String);
