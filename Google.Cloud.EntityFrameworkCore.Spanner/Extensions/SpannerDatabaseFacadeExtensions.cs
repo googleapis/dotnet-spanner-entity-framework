@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -81,7 +82,42 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
             }
             throw new InvalidOperationException("Transaction tags can only be used with Spanner databases");
         }
-        
+
+        /// <summary>
+        /// Begins a read/write transaction with the given isolation level and transaction tag on a Cloud Spanner database.
+        /// </summary>
+        /// <param name="databaseFacade">The Spanner database to begin the transaction on</param>
+        /// <param name="isolationLevel">The isolation level to use for the transaction</param>
+        /// <param name="tag">The transaction tag to use for the transaction</param>
+        /// <returns>A read/write transaction using the given isolation level and transaction tag</returns>
+        public static IDbContextTransaction BeginTransaction([NotNull] this DatabaseFacade databaseFacade, IsolationLevel isolationLevel, string tag)
+        {
+            var transactionManager = databaseFacade.GetService<IDbContextTransactionManager>();
+            if (transactionManager is SpannerRelationalConnection spannerRelationalConnection)
+            {
+                return spannerRelationalConnection.BeginTransaction(isolationLevel, tag);
+            }
+            throw new InvalidOperationException("Transaction tags can only be used with Spanner databases");
+        }
+
+        /// <summary>
+        /// Begins a read/write transaction with the given isolation level and transaction tag on a Cloud Spanner database.
+        /// </summary>
+        /// <param name="databaseFacade">The Spanner database to begin the transaction on</param>
+        /// <param name="isolationLevel">The isolation level to use for the transaction</param>
+        /// <param name="tag">The transaction tag to use for the transaction</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken" /> cancellation token to monitor for the asynchronous operation.</param>
+        /// <returns>A read/write transaction using the given isolation level and transaction tag</returns>
+        public static Task<IDbContextTransaction> BeginTransactionAsync([NotNull] this DatabaseFacade databaseFacade, IsolationLevel isolationLevel, string tag, CancellationToken cancellationToken = default)
+        {
+            var transactionManager = databaseFacade.GetService<IDbContextTransactionManager>();
+            if (transactionManager is SpannerRelationalConnection spannerRelationalConnection)
+            {
+                return spannerRelationalConnection.BeginTransactionAsync(isolationLevel, tag, cancellationToken);
+            }
+            throw new InvalidOperationException("Transaction tags can only be used with Spanner databases");
+        }
+
         /// <summary>
         /// Begins a read-only transaction for a Cloud Spanner database.
         /// </summary>
@@ -147,7 +183,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         /// </param>
         public static Task StartMigrateAsync([NotNull] this DatabaseFacade databaseFacade, CancellationToken cancellationToken = default)
             => StartMigrateAsync(databaseFacade, null, cancellationToken);
-        
+
         /// <summary>
         /// Starts the DDL operations that are needed for any pending migrations up until the target migration,
         /// but does not wait for the DDL operations to finish. The returned task is done when the DDL operations
