@@ -1,4 +1,4 @@
-﻿// Copyright 2021, Google Inc. All rights reserved.
+// Copyright 2021, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,14 +44,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             }
             if (disposing)
             {
-                SpannerTransaction.Dispose();
+                SpannerTransaction?.Dispose();
             }
             Disposed = true;
             base.Dispose(disposing);
         }
 
         /// <inheritdoc/>
-        public override IsolationLevel IsolationLevel => SpannerTransaction.IsolationLevel;
+        public override IsolationLevel IsolationLevel => SpannerTransaction?.IsolationLevel ?? IsolationLevel.Unspecified;
 
         /// <summary>
         /// Executes a <see cref="SpannerCommand"/> as an update statement and retries the entire

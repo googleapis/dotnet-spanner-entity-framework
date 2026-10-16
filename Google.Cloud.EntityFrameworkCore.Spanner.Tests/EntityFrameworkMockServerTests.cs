@@ -770,6 +770,163 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.Empty(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>());
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task CanUseTransactionTag_WhenAborted_PreservesTagOnRetry(bool async)
+        {
+            var insertSql = $"INSERT INTO `Singers` (`SingerId`, `BirthDate`, `FirstName`, `LastName`, `Picture`)" +
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4){Environment.NewLine}" +
+                            $"THEN RETURN `FullName`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type { Code = V1.TypeCode.String }, "FullName", "John Doe"));
+            var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
+                                          $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                                          $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var transaction = async
+                ? await db.Database.BeginTransactionAsync("my_tx_tag", TestContext.Current.CancellationToken)
+                : db.Database.BeginTransaction("my_tx_tag");
+            if (async)
+            {
+                await db.Singers.AddAsync(new Singers
+                {
+                    SingerId = 1L,
+                    FirstName = "John",
+                    LastName = "Doe",
+                }, TestContext.Current.CancellationToken);
+                await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                db.Singers.Add(new Singers
+                {
+                    SingerId = 1L,
+                    FirstName = "John",
+                    LastName = "Doe",
+                });
+                db.SaveChanges();
+            }
+
+            var activeTransaction = db.Database.CurrentTransaction?.GetDbTransaction();
+            var retriableTransaction = Assert.IsType<SpannerRetriableTransaction>(activeTransaction);
+            _fixture.SpannerMock.AbortTransaction(retriableTransaction.TransactionId);
+
+            if (async)
+            {
+                Assert.NotNull(await db.Singers.FindAsync(new object[] { 2L }, TestContext.Current.CancellationToken));
+                await transaction.CommitAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                Assert.NotNull(db.Singers.Find(2L));
+                transaction.Commit();
+            }
+
+            Assert.Equal(1, retriableTransaction.RetryCount);
+
+            // All ExecuteSqlRequests executed in both initial and retried transaction must have TransactionTag = my_tx_tag.
+            var executeRequests = _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList();
+            Assert.Equal(4, executeRequests.Count);
+            foreach (var request in executeRequests)
+            {
+                Assert.Equal("my_tx_tag", request.RequestOptions.TransactionTag);
+            }
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<CommitRequest>(),
+                request =>
+                {
+                    Assert.Equal("my_tx_tag", request.RequestOptions.TransactionTag);
+                }
+            );
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task CanBeginTransactionWithIsolationLevelAndTag_WhenAborted_PreservesBothOnRetry(bool async)
+        {
+            var insertSql = $"INSERT INTO `Singers` (`SingerId`, `BirthDate`, `FirstName`, `LastName`, `Picture`)" +
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4){Environment.NewLine}" +
+                            $"THEN RETURN `FullName`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type { Code = V1.TypeCode.String }, "FullName", "John Doe"));
+            var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
+                                          $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                                          $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
+            await using var database = new MockServerSampleDbContext(ConnectionString);
+            const string expectedTag = "isolation_and_tag";
+            await using var transaction = async
+                ? await database.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, expectedTag, TestContext.Current.CancellationToken)
+                : database.Database.BeginTransaction(IsolationLevel.RepeatableRead, expectedTag);
+
+            var activeTransaction = database.Database.CurrentTransaction?.GetDbTransaction();
+            var retriableTransaction = Assert.IsType<SpannerRetriableTransaction>(activeTransaction);
+            Assert.Equal(IsolationLevel.RepeatableRead, retriableTransaction.IsolationLevel);
+            Assert.Equal(expectedTag, retriableTransaction.Tag);
+
+            if (async)
+            {
+                await database.Singers.AddAsync(new Singers
+                {
+                    SingerId = 1L,
+                    FirstName = "John",
+                    LastName = "Doe",
+                }, TestContext.Current.CancellationToken);
+                await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                database.Singers.Add(new Singers
+                {
+                    SingerId = 1L,
+                    FirstName = "John",
+                    LastName = "Doe",
+                });
+                database.SaveChanges();
+            }
+
+            _fixture.SpannerMock.AbortTransaction(retriableTransaction.TransactionId);
+
+            if (async)
+            {
+                Assert.NotNull(await database.Singers.FindAsync(new object[] { 2L }, TestContext.Current.CancellationToken));
+                await transaction.CommitAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                Assert.NotNull(database.Singers.Find(2L));
+                transaction.Commit();
+            }
+
+            Assert.Equal(1, retriableTransaction.RetryCount);
+            Assert.Equal(IsolationLevel.RepeatableRead, retriableTransaction.IsolationLevel);
+            Assert.Equal(expectedTag, retriableTransaction.Tag);
+
+            var executeRequests = _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList();
+            Assert.Equal(4, executeRequests.Count);
+            foreach (var request in executeRequests)
+            {
+                Assert.Equal(expectedTag, request.RequestOptions.TransactionTag);
+            }
+
+            var requestsStartingTransaction = executeRequests
+                .Where(r => r.Transaction?.Begin != null)
+                .ToList();
+            Assert.Equal(2, requestsStartingTransaction.Count);
+            foreach (var request in requestsStartingTransaction)
+            {
+                Assert.Equal(V1.TransactionOptions.Types.IsolationLevel.RepeatableRead, request.Transaction.Begin.IsolationLevel);
+            }
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<CommitRequest>(),
+                request =>
+                {
+                    Assert.Equal(expectedTag, request.RequestOptions.TransactionTag);
+                }
+            );
+        }
+
         [Fact]
         public async Task CanUseReadOnlyTransaction()
         {
