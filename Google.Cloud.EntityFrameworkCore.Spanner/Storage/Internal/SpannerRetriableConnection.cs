@@ -57,6 +57,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         internal SpannerConnection SpannerConnection { get; private set; }
 
+        internal bool IsDisposed => _disposed;
+
         /// <inheritdoc/>
         public override string ConnectionString { get => SpannerConnection.ConnectionString; set => SpannerConnection.ConnectionString = value; }
 
