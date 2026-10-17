@@ -55,7 +55,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         
         public MutationUsage MutationUsage { get; }
 
-        private SpannerConnectionStringBuilder ConnectionStringBuilder { get; }
+        internal SpannerConnectionStringBuilder ConnectionStringBuilder { get; }
+
+        private void CopyRuntimeStateTo(SpannerRelationalConnection target)
+        {
+            target.DdlExecutionStrategy = DdlExecutionStrategy;
+            target.CommandTimeout = CommandTimeout;
+        }
 
         /// <inheritdoc />
         protected override DbConnection CreateDbConnection()
@@ -171,23 +177,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             // Spanner does not have anything like a master database, so we just return a new instance of a
             // RelationalConnection with the same options and dependencies. This ensures that all settings of the
             // underlying connection are carried over to the new RelationalConnection, such as credentials and host.
-            var masterConn = (SpannerRetriableConnection) CreateDbConnection();
-            var optionsBuilder = new DbContextOptionsBuilder();
-            optionsBuilder.UseSpanner(masterConn);
+            var extension = (SpannerOptionsExtension)(Dependencies.ContextOptions.FindExtension<SpannerOptionsExtension>() ?? new SpannerOptionsExtension())
+                .WithConnection(null);
+            extension = extension.WithDdlExecutionStrategy(DdlExecutionStrategy);
+
+            extension = ConnectionStringBuilder != null
+                ? extension.WithConnectionStringBuilder(ConnectionStringBuilder)
+                : (SpannerOptionsExtension)extension.WithConnectionString(ConnectionString);
+
+            var options = ((DbContextOptions)Dependencies.ContextOptions).WithExtension(extension);
 
 #pragma warning disable EF1001
-            var dependencies = new RelationalConnectionDependencies(
-                optionsBuilder.Options,
-                Dependencies.TransactionLogger,
-                Dependencies.ConnectionLogger,
-                Dependencies.ConnectionStringResolver,
-                Dependencies.RelationalTransactionFactory,
-                Dependencies.CurrentContext,
-                Dependencies.RelationalCommandBuilderFactory,
-                Dependencies.ExceptionDetector);
+            var dependencies = Dependencies with { ContextOptions = options };
 #pragma warning restore EF1001
             var masterConnection = new SpannerRelationalConnection(dependencies);
-            masterConnection.DdlExecutionStrategy = DdlExecutionStrategy;
+            CopyRuntimeStateTo(masterConnection);
             return masterConnection;
         }
     }
