@@ -6,6 +6,7 @@
     <IsPackable>false</IsPackable>
 
     <OutputType>Exe</OutputType>
+    <NoWarn>$(NoWarn);xUnit1051;ASPDEPR008</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
