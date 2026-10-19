@@ -22,6 +22,8 @@ using System.Threading.Tasks;
 using System;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using System.Collections.Concurrent;
+using System.Data;
+using System.Linq;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 {
@@ -1335,6 +1337,357 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 var e = Assert.Throws<SpannerException>(() => reader.Read());
                 Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+            }
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task ReadWriteTransaction_AbortedRetry_PreservesIsolationLevel(bool async)
+        {
+            var selectSql = "SELECT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(selectSql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
+            var updateSql = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(updateSql, StatementResult.CreateUpdateCount(1));
+
+            await using var connection = CreateConnection();
+            if (async)
+            {
+                await connection.OpenAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                connection.Open();
+            }
+
+            await using var transaction = async
+                ? await connection.BeginTransactionAsync(IsolationLevel.RepeatableRead, TestContext.Current.CancellationToken)
+                : connection.BeginTransaction(IsolationLevel.RepeatableRead);
+
+            Assert.Equal(IsolationLevel.RepeatableRead, transaction.IsolationLevel);
+
+            var selectCommand = connection.CreateSelectCommand(selectSql);
+            selectCommand.Transaction = transaction;
+            if (async)
+            {
+                await selectCommand.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                selectCommand.ExecuteScalar();
+            }
+
+            // Abort the transaction on the mock server.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+
+            var updateCommand = connection.CreateDmlCommand(updateSql);
+            updateCommand.Transaction = transaction;
+            var updateCount = async
+                ? await updateCommand.ExecuteNonQueryAsync(TestContext.Current.CancellationToken)
+                : updateCommand.ExecuteNonQuery();
+
+            Assert.Equal(1, updateCount);
+            Assert.Equal(1, transaction.RetryCount);
+            Assert.Equal(IsolationLevel.RepeatableRead, transaction.IsolationLevel);
+
+            if (async)
+            {
+                await transaction.CommitAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                transaction.Commit();
+            }
+
+            // Verify that requests starting the transaction (both original and retry) used RepeatableRead.
+            var requestsStartingTransaction = _fixture.SpannerMock.Requests
+                .OfType<V1.ExecuteSqlRequest>()
+                .Where(r => r.Transaction?.Begin != null)
+                .ToList();
+            Assert.Equal(2, requestsStartingTransaction.Count);
+            foreach (var request in requestsStartingTransaction)
+            {
+                Assert.Equal(V1.TransactionOptions.Types.IsolationLevel.RepeatableRead, request.Transaction.Begin.IsolationLevel);
+            }
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task ReadWriteTransaction_AbortedRetry_PreservesTransactionTag(bool async)
+        {
+            var selectSql = "SELECT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(selectSql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
+            var updateSql = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(updateSql, StatementResult.CreateUpdateCount(1));
+
+            await using var connection = CreateConnection();
+            if (async)
+            {
+                await connection.OpenAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                connection.Open();
+            }
+
+            const string expectedTag = "custom_retry_tag";
+            await using var transaction = async
+                ? await connection.BeginTransactionAsync(expectedTag, TestContext.Current.CancellationToken)
+                : connection.BeginTransaction(expectedTag);
+
+            Assert.Equal(expectedTag, transaction.Tag);
+
+            var selectCommand = connection.CreateSelectCommand(selectSql);
+            selectCommand.Transaction = transaction;
+            if (async)
+            {
+                await selectCommand.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                selectCommand.ExecuteScalar();
+            }
+
+            // Abort the transaction on the mock server.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+
+            var updateCommand = connection.CreateDmlCommand(updateSql);
+            updateCommand.Transaction = transaction;
+            var updateCount = async
+                ? await updateCommand.ExecuteNonQueryAsync(TestContext.Current.CancellationToken)
+                : updateCommand.ExecuteNonQuery();
+
+            Assert.Equal(1, updateCount);
+            Assert.Equal(1, transaction.RetryCount);
+            Assert.Equal(expectedTag, transaction.Tag);
+
+            if (async)
+            {
+                await transaction.CommitAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                transaction.Commit();
+            }
+
+            // Verify that ExecuteSql and Commit requests on both initial and retried transactions included the transaction tag.
+            var executeRequests = _fixture.SpannerMock.Requests.OfType<V1.ExecuteSqlRequest>().ToList();
+            Assert.Equal(4, executeRequests.Count);
+            foreach (var request in executeRequests)
+            {
+                Assert.Equal(expectedTag, request.RequestOptions?.TransactionTag);
+            }
+
+            var commitRequest = _fixture.SpannerMock.Requests.OfType<V1.CommitRequest>().Single();
+            Assert.Equal(expectedTag, commitRequest.RequestOptions?.TransactionTag);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task ReadWriteTransaction_SettingTagAfterBegin_AppliesTagToInitialAndRetryAttempts(bool async)
+        {
+            var selectSql = "SELECT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(selectSql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
+            var updateSql = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(updateSql, StatementResult.CreateUpdateCount(1));
+
+            await using var connection = CreateConnection();
+            if (async)
+            {
+                await connection.OpenAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                connection.Open();
+            }
+
+            await using var transaction = async
+                ? await connection.BeginTransactionAsync(TestContext.Current.CancellationToken)
+                : connection.BeginTransaction();
+            const string expectedTag = "tag_set_after_begin";
+            transaction.Tag = expectedTag;
+            Assert.Equal(expectedTag, transaction.Tag);
+            Assert.Equal(expectedTag, transaction.SpannerTransaction.Tag);
+
+            var selectCommand = connection.CreateSelectCommand(selectSql);
+            selectCommand.Transaction = transaction;
+            if (async)
+            {
+                await selectCommand.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                selectCommand.ExecuteScalar();
+            }
+
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+
+            var updateCommand = connection.CreateDmlCommand(updateSql);
+            updateCommand.Transaction = transaction;
+            var updateCount = async
+                ? await updateCommand.ExecuteNonQueryAsync(TestContext.Current.CancellationToken)
+                : updateCommand.ExecuteNonQuery();
+            Assert.Equal(1, updateCount);
+            Assert.Equal(1, transaction.RetryCount);
+            Assert.Equal(expectedTag, transaction.Tag);
+
+            if (async)
+            {
+                await transaction.CommitAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                transaction.Commit();
+            }
+
+            var executeRequests = _fixture.SpannerMock.Requests.OfType<V1.ExecuteSqlRequest>().ToList();
+            Assert.Equal(4, executeRequests.Count);
+            foreach (var request in executeRequests)
+            {
+                Assert.Equal(expectedTag, request.RequestOptions?.TransactionTag);
+            }
+
+            var commitRequest = _fixture.SpannerMock.Requests.OfType<V1.CommitRequest>().Single();
+            Assert.Equal(expectedTag, commitRequest.RequestOptions?.TransactionTag);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task ReadWriteTransaction_MultipleConsecutiveAbortedRetries_PreservesIsolationLevelAndTag(bool async)
+        {
+            var selectSql = "SELECT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(selectSql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
+            var updateSql1 = $"UPDATE Foo SET Bar='bar1' WHERE Id={_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(updateSql1, StatementResult.CreateUpdateCount(1));
+            var updateSql2 = $"UPDATE Foo SET Bar='bar2' WHERE Id={_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(updateSql2, StatementResult.CreateUpdateCount(1));
+
+            await using var connection = CreateConnection();
+            if (async)
+            {
+                await connection.OpenAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                connection.Open();
+            }
+
+            const string expectedTag = "multi_retry_tag";
+            await using var transaction = async
+                ? await connection.BeginTransactionAsync(IsolationLevel.RepeatableRead, expectedTag, TestContext.Current.CancellationToken)
+                : connection.BeginTransaction(IsolationLevel.RepeatableRead, expectedTag);
+
+            var selectCommand = connection.CreateSelectCommand(selectSql);
+            selectCommand.Transaction = transaction;
+            if (async)
+            {
+                await selectCommand.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                selectCommand.ExecuteScalar();
+            }
+
+            // First abort:
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+
+            var updateCommand1 = connection.CreateDmlCommand(updateSql1);
+            updateCommand1.Transaction = transaction;
+            var updateCount1 = async
+                ? await updateCommand1.ExecuteNonQueryAsync(TestContext.Current.CancellationToken)
+                : updateCommand1.ExecuteNonQuery();
+            Assert.Equal(1, updateCount1);
+            Assert.Equal(1, transaction.RetryCount);
+
+            // Second abort on the new retried transaction:
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+
+            var updateCommand2 = connection.CreateDmlCommand(updateSql2);
+            updateCommand2.Transaction = transaction;
+            var updateCount2 = async
+                ? await updateCommand2.ExecuteNonQueryAsync(TestContext.Current.CancellationToken)
+                : updateCommand2.ExecuteNonQuery();
+            Assert.Equal(1, updateCount2);
+            Assert.Equal(2, transaction.RetryCount);
+            Assert.Equal(IsolationLevel.RepeatableRead, transaction.IsolationLevel);
+            Assert.Equal(expectedTag, transaction.Tag);
+
+            if (async)
+            {
+                await transaction.CommitAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                transaction.Commit();
+            }
+
+            // Verify all execute requests had the tag:
+            var executeRequests = _fixture.SpannerMock.Requests.OfType<V1.ExecuteSqlRequest>().ToList();
+            foreach (var request in executeRequests)
+            {
+                Assert.Equal(expectedTag, request.RequestOptions?.TransactionTag);
+            }
+
+            // Verify all starting transactions used RepeatableRead (initial + 2 retries = 3):
+            var requestsStartingTransaction = executeRequests
+                .Where(r => r.Transaction?.Begin != null)
+                .ToList();
+            Assert.Equal(3, requestsStartingTransaction.Count);
+            foreach (var request in requestsStartingTransaction)
+            {
+                Assert.Equal(V1.TransactionOptions.Types.IsolationLevel.RepeatableRead, request.Transaction.Begin.IsolationLevel);
+            }
+
+            var commitRequest = _fixture.SpannerMock.Requests.OfType<V1.CommitRequest>().Single();
+            Assert.Equal(expectedTag, commitRequest.RequestOptions?.TransactionTag);
+        }
+
+        [Fact]
+        public async Task ReadWriteTransaction_ConnectionStringDefaultIsolationLevel_PreservedOnRetry()
+        {
+            var selectSql = "SELECT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(selectSql, StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
+            var updateSql = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(updateSql, StatementResult.CreateUpdateCount(1));
+
+            var connectionString = $"Data Source=projects/p1/instances/i1/databases/d1;Host={_fixture.Host};Port={_fixture.Port}";
+            var connectionStringBuilder = new SpannerConnectionStringBuilder(connectionString, ChannelCredentials.Insecure)
+            {
+                SessionPoolManager = _manager,
+                IsolationLevel = IsolationLevel.RepeatableRead
+            };
+            await using var connection = new SpannerRetriableConnection(new SpannerConnection(connectionStringBuilder));
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+
+            await using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(IsolationLevel.RepeatableRead, transaction.IsolationLevel);
+
+            var selectCommand = connection.CreateSelectCommand(selectSql);
+            selectCommand.Transaction = transaction;
+            await selectCommand.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+
+            var updateCommand = connection.CreateDmlCommand(updateSql);
+            updateCommand.Transaction = transaction;
+            var updateCount = await updateCommand.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(1, updateCount);
+            Assert.Equal(1, transaction.RetryCount);
+            Assert.Equal(IsolationLevel.RepeatableRead, transaction.IsolationLevel);
+
+            await transaction.CommitAsync(TestContext.Current.CancellationToken);
+
+            var requestsStartingTransaction = _fixture.SpannerMock.Requests
+                .OfType<V1.ExecuteSqlRequest>()
+                .Where(r => r.Transaction?.Begin != null)
+                .ToList();
+            Assert.Equal(2, requestsStartingTransaction.Count);
+            foreach (var request in requestsStartingTransaction)
+            {
+                Assert.Equal(V1.TransactionOptions.Types.IsolationLevel.RepeatableRead, request.Transaction.Begin.IsolationLevel);
             }
         }
     }
