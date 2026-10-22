@@ -597,14 +597,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
             Assert.Null(mapper.FindMapping(typeof(int[,])));
             Assert.Null(mapper.FindMapping(typeof(string[,,])));
             Assert.Null(mapper.FindMapping(typeof(IEnumerable<byte>)));
-            Assert.Null(mapper.FindMapping(typeof(IEnumerable<Guid>)));
 
             // In EF Core 10, primitive collections without a native provider array mapping
-            // (such as TimeSpan, which has a scalar converter to string) fall back to EF Core's
+            // (such as TimeSpan and Guid, which have scalar mappings to string) fall back to EF Core's
             // built-in JSON collection mapping (SpannerStringTypeMapping with store type STRING).
             var timeSpanMapping = mapper.FindMapping(typeof(IEnumerable<TimeSpan>));
             Assert.IsType<SpannerStringTypeMapping>(timeSpanMapping);
             Assert.Equal("STRING", timeSpanMapping.StoreType);
+
+            var guidMapping = mapper.FindMapping(typeof(IEnumerable<Guid>));
+            Assert.IsType<SpannerStringTypeMapping>(guidMapping);
+            Assert.Equal("STRING", guidMapping.StoreType);
         }
 
         [Fact]
