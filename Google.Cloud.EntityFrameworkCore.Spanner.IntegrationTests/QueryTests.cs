@@ -105,6 +105,73 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
+        public async Task CanSelectContainsOnNullableColumn()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            var singerId3 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Alice", LastName = "Peterson1" },
+                new Singers { SingerId = singerId2, FirstName = "Bob", LastName = "Peterson2" },
+                new Singers { SingerId = singerId3, FirstName = null, LastName = "Peterson3" }
+            );
+            await db.SaveChangesAsync();
+
+            var names = new List<string> { "Alice", "Charlie" };
+            var results = await db.Singers
+                .Where(singer => singer.SingerId == singerId1 || singer.SingerId == singerId2 || singer.SingerId == singerId3)
+                .OrderBy(singer => singer.LastName)
+                .Select(singer => new { singer.LastName, ContainsName = names.Contains(singer.FirstName) })
+                .ToListAsync();
+
+            Assert.Collection(results,
+                result =>
+                {
+                    Assert.Equal("Peterson1", result.LastName);
+                    Assert.True(result.ContainsName);
+                },
+                result =>
+                {
+                    Assert.Equal("Peterson2", result.LastName);
+                    Assert.False(result.ContainsName);
+                },
+                result =>
+                {
+                    Assert.Equal("Peterson3", result.LastName);
+                    Assert.False(result.ContainsName);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanFilterNotContainsOnNullableColumn()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            var singerId3 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Alice", LastName = "Peterson1" },
+                new Singers { SingerId = singerId2, FirstName = "Bob", LastName = "Peterson2" },
+                new Singers { SingerId = singerId3, FirstName = null, LastName = "Peterson3" }
+            );
+            await db.SaveChangesAsync();
+
+            var names = new List<string> { "Alice" };
+            var singers = await db.Singers
+                .Where(singer => (singer.SingerId == singerId1 || singer.SingerId == singerId2 || singer.SingerId == singerId3)
+                                 && !names.Contains(singer.FirstName))
+                .OrderBy(singer => singer.LastName)
+                .ToListAsync();
+
+            Assert.Collection(singers,
+                singer => Assert.Equal("Peterson2", singer.LastName),
+                singer => Assert.Equal("Peterson3", singer.LastName)
+            );
+        }
+
+        [Fact]
         public async Task CanOrderByProperty()
         {
             using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);

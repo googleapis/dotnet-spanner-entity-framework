@@ -20,14 +20,18 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal;
 
+using Type = System.Type;
+
 internal abstract class SpannerValueExpression : SqlExpression
 {
-    protected SpannerValueExpression([NotNull] System.Type type, [CanBeNull] RelationalTypeMapping typeMapping) : base(type, typeMapping)
+    protected SpannerValueExpression([NotNull] Type type, [CanBeNull] RelationalTypeMapping typeMapping) : base(type, typeMapping)
     {
     }
 
     internal abstract SqlExpression Value { get; }
-    
+
+    internal abstract SpannerValueExpression Update(SqlExpression value);
+
     public override Expression Quote()
     {
         throw new NotImplementedException();
