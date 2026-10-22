@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
 using System.Text.Json.Serialization;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
@@ -36,19 +37,43 @@ public class JsonPropertiesWithSpecialNames
     public string PropertyWithSpace { get; set; }
 
     /// <summary>
-    /// Property with a single quote in the JSON name - requires bracket notation and quote escaping $["it's"]
+    /// Property with a single quote in the JSON name - requires quoted notation and quote escaping $."it's"
     /// </summary>
     [JsonPropertyName("it's")]
     public string PropertyWithSingleQuote { get; set; }
 
     /// <summary>
-    /// Property with double quotes in the JSON name - requires bracket notation and escaping $["say \"hello\""]
+    /// Property with double quotes in the JSON name - requires quoted notation and escaping $."say \"hello\""
     /// </summary>
     [JsonPropertyName("say \"hello\"")]
     public string PropertyWithDoubleQuote { get; set; }
 
     /// <summary>
+    /// Property with a backslash in the JSON name - requires quoted notation and escaping $."back\\slash"
+    /// </summary>
+    [JsonPropertyName("back\\slash")]
+    public string PropertyWithBackslash { get; set; }
+
+    /// <summary>
+    /// Property with backslashes followed by 'n' and 't' to verify that Cloud Spanner's JSONPath engine
+    /// does not treat \n or \t as escape characters inside double-quoted identifiers.
+    /// </summary>
+    [JsonPropertyName("path\\with\\n_and_t")]
+    public string PropertyWithBackslashNAndT { get; set; }
+
+    /// <summary>
     /// Normal property without special characters - uses dot notation $.NormalProperty
     /// </summary>
     public string NormalProperty { get; set; }
+
+    /// <summary>
+    /// Guid property to test that no invalid CAST(... AS STRING(36)) is generated for Guid.
+    /// </summary>
+    public Guid? GuidProperty { get; set; }
+
+    /// <summary>
+    /// Property with non-ASCII characters in the JSON name - requires quoted notation $."prénom"
+    /// </summary>
+    [JsonPropertyName("prénom")]
+    public string PropertyWithNonAscii { get; set; }
 }
