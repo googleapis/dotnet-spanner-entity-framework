@@ -17,6 +17,7 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Tests.TestUtilities;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore.Storage;
+using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -27,6 +28,24 @@ using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
 {
     using Type = System.Type;
+
+    public enum ByteEnum : byte
+    {
+        First = 1,
+        Second = 2
+    }
+
+    public enum LongEnum : long
+    {
+        First = 1,
+        Second = 2
+    }
+
+    public enum UlongEnum : ulong
+    {
+        First = 1,
+        Max = ulong.MaxValue
+    }
 
 #pragma warning disable EF1001 // Internal EF Core API usage.
     public class SpannerTypeMapperTest : RelationalTypeMapperTestBase
@@ -568,6 +587,36 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
         [InlineData(typeof(ISet<int>), "ARRAY<INT64>")]
         [InlineData(typeof(HashSet<double>), "ARRAY<FLOAT64>")]
         [InlineData(typeof(ICollection<bool>), "ARRAY<BOOL>")]
+        [InlineData(typeof(IEnumerable<Guid>), "ARRAY<STRING>")]
+        [InlineData(typeof(IEnumerable<Guid?>), "ARRAY<STRING>")]
+        [InlineData(typeof(IList<Guid>), "ARRAY<STRING>")]
+        [InlineData(typeof(IReadOnlyList<Guid>), "ARRAY<STRING>")]
+        [InlineData(typeof(ISet<Guid>), "ARRAY<STRING>")]
+        [InlineData(typeof(HashSet<Guid>), "ARRAY<STRING>")]
+        [InlineData(typeof(IEnumerable<DateOnly>), "ARRAY<DATE>")]
+        [InlineData(typeof(IEnumerable<DateOnly?>), "ARRAY<DATE>")]
+        [InlineData(typeof(IList<DateOnly>), "ARRAY<DATE>")]
+        [InlineData(typeof(IReadOnlyList<DateOnly>), "ARRAY<DATE>")]
+        [InlineData(typeof(IEnumerable<short>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<short?>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<byte>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<byte?>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<sbyte>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<sbyte?>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<uint>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<uint?>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<ushort>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<ushort?>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<ulong>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<ulong?>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<char>), "ARRAY<STRING>")]
+        [InlineData(typeof(IEnumerable<char?>), "ARRAY<STRING>")]
+        [InlineData(typeof(IEnumerable<PerformanceType>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<PerformanceType?>), "ARRAY<INT64>")]
+        [InlineData(typeof(IList<PerformanceType>), "ARRAY<INT64>")]
+        [InlineData(typeof(ISet<PerformanceType>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<LongEnum>), "ARRAY<INT64>")]
+        [InlineData(typeof(IEnumerable<LongEnum?>), "ARRAY<INT64>")]
         public void Can_map_collection_interfaces_and_types(Type collectionType, string expectedStoreType)
         {
             var mapping = CreateTypeMapper().FindMapping(collectionType);
@@ -596,8 +645,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
             var mapper = CreateTypeMapper();
             Assert.Null(mapper.FindMapping(typeof(int[,])));
             Assert.Null(mapper.FindMapping(typeof(string[,,])));
-            Assert.Null(mapper.FindMapping(typeof(IEnumerable<byte>)));
-            Assert.Null(mapper.FindMapping(typeof(IEnumerable<Guid>)));
+            Assert.Null(mapper.FindMapping(typeof(object[])));
+            Assert.Null(mapper.FindMapping(typeof(IEnumerable<object>)));
 
             // In EF Core 10, primitive collections without a native provider array mapping
             // (such as TimeSpan, which has a scalar converter to string) fall back to EF Core's
@@ -1038,6 +1087,404 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
             Assert.Equal(JsonValueKind.Null, listRoundTrip[1].RootElement.ValueKind);
             Assert.Null(listRoundTrip[2]);
             Assert.Equal("v", listRoundTrip[3].RootElement.GetProperty("k").GetString());
+        }
+
+        [Theory]
+        [InlineData("ARRAY<STRING>", typeof(List<string>), "ARRAY<STRING>")]
+        [InlineData("ARRAY<BYTES>", typeof(List<byte[]>), "ARRAY<BYTES>")]
+        [InlineData("ARRAY<STRING(100)>", typeof(List<string>), "ARRAY<STRING(100)>")]
+        [InlineData("ARRAY<BYTES(100)>", typeof(List<byte[]>), "ARRAY<BYTES(100)>")]
+        [InlineData("ARRAY<STRING(MAX)>", typeof(List<string>), "ARRAY<STRING(MAX)>")]
+        [InlineData("ARRAY<BYTES(MAX)>", typeof(List<byte[]>), "ARRAY<BYTES(MAX)>")]
+        [InlineData("ARRAY<INT64>", typeof(List<long?>), "ARRAY<INT64>")]
+        [InlineData("ARRAY<BOOL>", typeof(List<bool?>), "ARRAY<BOOL>")]
+        [InlineData("ARRAY<FLOAT64>", typeof(List<double?>), "ARRAY<FLOAT64>")]
+        [InlineData("ARRAY<FLOAT32>", typeof(List<float?>), "ARRAY<FLOAT32>")]
+        [InlineData("ARRAY<NUMERIC>", typeof(List<SpannerNumeric?>), "ARRAY<NUMERIC>")]
+        [InlineData("ARRAY<TIMESTAMP>", typeof(List<DateTime?>), "ARRAY<TIMESTAMP>")]
+        [InlineData("ARRAY<DATE>", typeof(List<SpannerDate?>), "ARRAY<DATE>")]
+        [InlineData("ARRAY<JSON>", typeof(List<JsonDocument>), "ARRAY<JSON>")]
+        public void Can_find_mapping_by_array_store_type(string storeTypeName, Type expectedClrType, string expectedStoreType)
+        {
+            var mapper = CreateTypeMapper();
+            var mapping = mapper.FindMapping(storeTypeName);
+            Assert.NotNull(mapping);
+            Assert.Equal(expectedStoreType, mapping.StoreType);
+            Assert.Equal(expectedClrType, mapping.ClrType);
+        }
+
+        [Fact]
+        public void Incompatible_store_type_and_clr_type_returns_null_or_applies_converter()
+        {
+            var mapper = CreateTypeMapper();
+            // When storeTypeName and clrType are incompatible, FindRawMapping returns null so EF Core
+            // base can find and apply a ValueConverter (e.g. NumberToStringConverter for int -> STRING).
+            var convertedMapping = mapper.FindMapping(typeof(int), "STRING(50)");
+            Assert.NotNull(convertedMapping);
+            Assert.Equal(typeof(int), convertedMapping.ClrType);
+            Assert.Equal("STRING(50)", convertedMapping.StoreType);
+            Assert.NotNull(convertedMapping.Converter);
+
+            var jsonCollectionMapping = mapper.FindMapping(typeof(IEnumerable<TimeSpan>), "STRING(100)");
+            Assert.NotNull(jsonCollectionMapping);
+            Assert.Equal(typeof(IEnumerable<TimeSpan>), jsonCollectionMapping.ClrType);
+            Assert.Equal("STRING(100)", jsonCollectionMapping.StoreType);
+
+            // Incompatible types without a registered ValueConverter must return null
+            Assert.Null(mapper.FindMapping(typeof(DateTime), "DATE"));
+            Assert.Null(mapper.FindMapping(typeof(DateOnly), "TIMESTAMP"));
+            Assert.Null(mapper.FindMapping(typeof(bool), "DATE"));
+            Assert.Null(mapper.FindMapping(typeof(Guid), "INT64"));
+            Assert.Null(mapper.FindMapping(typeof(double), "DATE"));
+
+            // Incompatible array/collection CLR types and store types must return null without throwing
+            Assert.Null(mapper.FindMapping(typeof(DateOnly[]), "ARRAY<TIMESTAMP>"));
+            Assert.Null(mapper.FindMapping(typeof(List<DateOnly>), "ARRAY<TIMESTAMP>"));
+            Assert.Null(mapper.FindMapping(typeof(PerformanceType[]), "ARRAY<DATE>"));
+            Assert.Null(mapper.FindMapping(typeof(PerformanceType[]), "ARRAY<STRING>"));
+            Assert.Null(mapper.FindMapping(typeof(string[]), "INT64"));
+            Assert.Null(mapper.FindMapping(typeof(char[]), "DATE"));
+            Assert.Null(mapper.FindMapping(typeof(int[]), "ARRAY<STRING(20)>"));
+            Assert.Null(mapper.FindMapping(typeof(int[]), "STRING(50)"));
+            Assert.Null(mapper.FindMapping(typeof(IEnumerable<TimeSpan>), "INT64"));
+            Assert.Null(mapper.FindMapping(typeof(object), "ARRAY<INT64>"));
+            Assert.Null(mapper.FindMapping(typeof(Array), "ARRAY<INT64>"));
+
+            // Malformed array store type names must return null
+            Assert.Null(mapper.FindMapping("ARRAY<STRING"));
+            Assert.Null(mapper.FindMapping("ARRAY<BYTES"));
+            Assert.Null(mapper.FindMapping("ARRAY<STRING(100)"));
+            Assert.Null(mapper.FindMapping("ARRAY<BYTES(100)"));
+            Assert.Null(mapper.FindMapping(typeof(string[]), "ARRAY<STRING(100)"));
+        }
+
+        [Fact]
+        public void Compatible_store_type_and_clr_type_resolves_correctly()
+        {
+            var mapper = CreateTypeMapper();
+            var intMapping = mapper.FindMapping(typeof(int), "INT64");
+            Assert.NotNull(intMapping);
+            Assert.Equal(typeof(int), intMapping.ClrType);
+            Assert.Equal("INT64", intMapping.StoreType);
+
+            var dateOnlyMapping = mapper.FindMapping(typeof(DateOnly), "DATE");
+            Assert.NotNull(dateOnlyMapping);
+            Assert.Equal(typeof(DateOnly), dateOnlyMapping.ClrType);
+            Assert.Equal("DATE", dateOnlyMapping.StoreType);
+
+            var guidMapping = mapper.FindMapping(typeof(Guid), "STRING(36)");
+            Assert.NotNull(guidMapping);
+            Assert.Equal(typeof(Guid), guidMapping.ClrType);
+            Assert.Equal("STRING(36)", guidMapping.StoreType);
+
+            var guidUnsizedMapping = mapper.FindMapping(typeof(Guid), "STRING");
+            Assert.NotNull(guidUnsizedMapping);
+            Assert.Equal(typeof(Guid), guidUnsizedMapping.ClrType);
+            Assert.Equal("STRING", guidUnsizedMapping.StoreType);
+
+            var dateTimeMapping = mapper.FindMapping(typeof(DateTime), "TIMESTAMP");
+            Assert.NotNull(dateTimeMapping);
+            Assert.Equal(typeof(DateTime), dateTimeMapping.ClrType);
+            Assert.Equal("TIMESTAMP", dateTimeMapping.StoreType);
+
+            var dateOnlyArrayMapping = mapper.FindMapping(typeof(DateOnly[]), "ARRAY<DATE>");
+            Assert.NotNull(dateOnlyArrayMapping);
+            Assert.Equal(typeof(DateOnly[]), dateOnlyArrayMapping.ClrType);
+            Assert.Equal("ARRAY<DATE>", dateOnlyArrayMapping.StoreType);
+
+            var dateOnlyListMapping = mapper.FindMapping(typeof(List<DateOnly>), "ARRAY<DATE>");
+            Assert.NotNull(dateOnlyListMapping);
+            Assert.Equal(typeof(List<DateOnly>), dateOnlyListMapping.ClrType);
+            Assert.Equal("ARRAY<DATE>", dateOnlyListMapping.StoreType);
+
+            var guidArrayMapping = mapper.FindMapping(typeof(Guid[]), "ARRAY<STRING>");
+            Assert.NotNull(guidArrayMapping);
+            Assert.Equal(typeof(Guid[]), guidArrayMapping.ClrType);
+            Assert.Equal("ARRAY<STRING>", guidArrayMapping.StoreType);
+
+            var enumArrayMapping = mapper.FindMapping(typeof(PerformanceType[]), "ARRAY<INT64>");
+            Assert.NotNull(enumArrayMapping);
+            Assert.Equal(typeof(PerformanceType[]), enumArrayMapping.ClrType);
+            Assert.Equal("ARRAY<INT64>", enumArrayMapping.StoreType);
+        }
+
+        [Theory]
+        [InlineData(typeof(string[]), "ARRAY<STRING(20)>", 20)]
+        [InlineData(typeof(List<string>), "ARRAY<STRING(20)>", 20)]
+        [InlineData(typeof(HashSet<string>), "ARRAY<STRING(20)>", 20)]
+        [InlineData(typeof(string[]), "ARRAY<STRING(MAX)>", null)]
+        [InlineData(typeof(Guid[]), "ARRAY<STRING(36)>", 36)]
+        [InlineData(typeof(Guid?[]), "ARRAY<STRING(36)>", 36)]
+        [InlineData(typeof(List<Guid>), "ARRAY<STRING(36)>", 36)]
+        [InlineData(typeof(List<Guid?>), "ARRAY<STRING(36)>", 36)]
+        [InlineData(typeof(List<Guid>), "ARRAY<STRING(MAX)>", null)]
+        [InlineData(typeof(char[]), "ARRAY<STRING(1)>", 1)]
+        [InlineData(typeof(char?[]), "ARRAY<STRING(1)>", 1)]
+        [InlineData(typeof(List<char>), "ARRAY<STRING(1)>", 1)]
+        [InlineData(typeof(List<char?>), "ARRAY<STRING(1)>", 1)]
+        [InlineData(typeof(byte[][]), "ARRAY<BYTES(100)>", 100)]
+        [InlineData(typeof(List<byte[]>), "ARRAY<BYTES(100)>", 100)]
+        [InlineData(typeof(byte[][]), "ARRAY<BYTES(MAX)>", null)]
+        [InlineData(typeof(List<byte[]>), "ARRAY<BYTES(MAX)>", null)]
+        public void Compatible_sized_array_store_type_and_clr_type_resolves_correctly(Type clrType, string storeTypeName, int? expectedSize)
+        {
+            var mapper = CreateTypeMapper();
+            var mapping = mapper.FindMapping(clrType, storeTypeName);
+            Assert.NotNull(mapping);
+            Assert.Equal(storeTypeName, mapping.StoreType);
+            Assert.Equal(expectedSize, mapping.Size);
+
+            var command = new SpannerCommand();
+            var parameter = (SpannerParameter)mapping.CreateParameter(command, "p", null);
+            Assert.Equal(0, parameter.Size);
+        }
+
+        [Theory]
+        [InlineData(typeof(DateOnly[]), "ARRAY<DATE>")]
+        [InlineData(typeof(DateOnly?[]), "ARRAY<DATE>")]
+        [InlineData(typeof(List<DateOnly>), "ARRAY<DATE>")]
+        [InlineData(typeof(List<DateOnly?>), "ARRAY<DATE>")]
+        [InlineData(typeof(Guid[]), "ARRAY<STRING>")]
+        [InlineData(typeof(Guid?[]), "ARRAY<STRING>")]
+        [InlineData(typeof(List<Guid>), "ARRAY<STRING>")]
+        [InlineData(typeof(List<Guid?>), "ARRAY<STRING>")]
+        [InlineData(typeof(short[]), "ARRAY<INT64>")]
+        [InlineData(typeof(short?[]), "ARRAY<INT64>")]
+        [InlineData(typeof(List<short>), "ARRAY<INT64>")]
+        [InlineData(typeof(List<short?>), "ARRAY<INT64>")]
+        [InlineData(typeof(byte?[]), "ARRAY<INT64>")]
+        [InlineData(typeof(List<byte>), "ARRAY<INT64>")]
+        [InlineData(typeof(List<byte?>), "ARRAY<INT64>")]
+        [InlineData(typeof(sbyte[]), "ARRAY<INT64>")]
+        [InlineData(typeof(sbyte?[]), "ARRAY<INT64>")]
+        [InlineData(typeof(List<sbyte>), "ARRAY<INT64>")]
+        [InlineData(typeof(List<sbyte?>), "ARRAY<INT64>")]
+        [InlineData(typeof(uint[]), "ARRAY<INT64>")]
+        [InlineData(typeof(uint?[]), "ARRAY<INT64>")]
+        [InlineData(typeof(List<uint>), "ARRAY<INT64>")]
+        [InlineData(typeof(List<uint?>), "ARRAY<INT64>")]
+        [InlineData(typeof(ushort[]), "ARRAY<INT64>")]
+        [InlineData(typeof(ushort?[]), "ARRAY<INT64>")]
+        [InlineData(typeof(List<ushort>), "ARRAY<INT64>")]
+        [InlineData(typeof(List<ushort?>), "ARRAY<INT64>")]
+        [InlineData(typeof(ulong[]), "ARRAY<INT64>")]
+        [InlineData(typeof(ulong?[]), "ARRAY<INT64>")]
+        [InlineData(typeof(List<ulong>), "ARRAY<INT64>")]
+        [InlineData(typeof(List<ulong?>), "ARRAY<INT64>")]
+        [InlineData(typeof(char[]), "ARRAY<STRING>")]
+        [InlineData(typeof(char?[]), "ARRAY<STRING>")]
+        [InlineData(typeof(List<char>), "ARRAY<STRING>")]
+        [InlineData(typeof(List<char?>), "ARRAY<STRING>")]
+        [InlineData(typeof(PerformanceType[]), "ARRAY<INT64>")]
+        [InlineData(typeof(PerformanceType?[]), "ARRAY<INT64>")]
+        [InlineData(typeof(List<PerformanceType>), "ARRAY<INT64>")]
+        [InlineData(typeof(List<PerformanceType?>), "ARRAY<INT64>")]
+        [InlineData(typeof(ByteEnum[]), "ARRAY<INT64>")]
+        [InlineData(typeof(ByteEnum?[]), "ARRAY<INT64>")]
+        [InlineData(typeof(List<ByteEnum>), "ARRAY<INT64>")]
+        [InlineData(typeof(List<ByteEnum?>), "ARRAY<INT64>")]
+        [InlineData(typeof(LongEnum[]), "ARRAY<INT64>")]
+        [InlineData(typeof(LongEnum?[]), "ARRAY<INT64>")]
+        [InlineData(typeof(List<LongEnum>), "ARRAY<INT64>")]
+        [InlineData(typeof(List<LongEnum?>), "ARRAY<INT64>")]
+        [InlineData(typeof(UlongEnum[]), "ARRAY<INT64>")]
+        [InlineData(typeof(UlongEnum?[]), "ARRAY<INT64>")]
+        [InlineData(typeof(List<UlongEnum>), "ARRAY<INT64>")]
+        [InlineData(typeof(List<UlongEnum?>), "ARRAY<INT64>")]
+        public void Does_array_and_list_property_mapping(Type propertyType, string expectedStoreType)
+        {
+            var mapping = GetTypeMapping(propertyType);
+            Assert.NotNull(mapping);
+            Assert.Equal(expectedStoreType, mapping.StoreType);
+            Assert.Equal(propertyType, mapping.ClrType);
+        }
+
+        [Fact]
+        public void Converter_backed_collection_mappings_configure_parameters()
+        {
+            var mapper = CreateTypeMapper();
+            var command = new SpannerCommand();
+            var testDateOnly = new DateOnly(2025, 3, 20);
+            var expectedDateTime = new DateTime(2025, 3, 20);
+
+            // DateOnly[], DateOnly?[], List<DateOnly>, List<DateOnly?>, HashSet<DateOnly>, HashSet<DateOnly?>
+            var dateOnlyArrayMapping = mapper.FindMapping(typeof(DateOnly[]));
+            Assert.NotNull(dateOnlyArrayMapping);
+            var dateOnlyArrayParameter = (SpannerParameter)dateOnlyArrayMapping.CreateParameter(
+                command, "p1", new[] { testDateOnly });
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Date), dateOnlyArrayParameter.SpannerDbType);
+            Assert.Equal(new[] { expectedDateTime }, dateOnlyArrayParameter.Value);
+            Assert.Equal(
+                new[] { testDateOnly },
+                (DateOnly[])dateOnlyArrayMapping.Converter!.ConvertFromProvider(dateOnlyArrayParameter.Value)!);
+
+            var nullableDateOnlyArrayMapping = mapper.FindMapping(typeof(DateOnly?[]));
+            Assert.NotNull(nullableDateOnlyArrayMapping);
+            var nullableDateOnlyArrayParameter = (SpannerParameter)nullableDateOnlyArrayMapping.CreateParameter(
+                command, "p2", new DateOnly?[] { testDateOnly, null });
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Date), nullableDateOnlyArrayParameter.SpannerDbType);
+            Assert.Equal(new DateTime?[] { expectedDateTime, null }, nullableDateOnlyArrayParameter.Value);
+            Assert.Equal(
+                new DateOnly?[] { testDateOnly, null },
+                (DateOnly?[])nullableDateOnlyArrayMapping.Converter!.ConvertFromProvider(nullableDateOnlyArrayParameter.Value)!);
+
+            var dateOnlyListMapping = mapper.FindMapping(typeof(List<DateOnly>));
+            Assert.NotNull(dateOnlyListMapping);
+            var dateOnlyListParameter = (SpannerParameter)dateOnlyListMapping.CreateParameter(
+                command, "p3", new List<DateOnly> { testDateOnly });
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Date), dateOnlyListParameter.SpannerDbType);
+            Assert.Equal(new List<DateTime> { expectedDateTime }, dateOnlyListParameter.Value);
+            Assert.Equal(
+                new List<DateOnly> { testDateOnly },
+                (List<DateOnly>)dateOnlyListMapping.Converter!.ConvertFromProvider(dateOnlyListParameter.Value)!);
+
+            var nullableDateOnlyListMapping = mapper.FindMapping(typeof(List<DateOnly?>));
+            Assert.NotNull(nullableDateOnlyListMapping);
+            var nullableDateOnlyListParameter = (SpannerParameter)nullableDateOnlyListMapping.CreateParameter(
+                command, "p4", new List<DateOnly?> { testDateOnly, null });
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Date), nullableDateOnlyListParameter.SpannerDbType);
+            Assert.Equal(new List<DateTime?> { expectedDateTime, null }, nullableDateOnlyListParameter.Value);
+            Assert.Equal(
+                new List<DateOnly?> { testDateOnly, null },
+                (List<DateOnly?>)nullableDateOnlyListMapping.Converter!.ConvertFromProvider(nullableDateOnlyListParameter.Value)!);
+
+            var dateOnlySetMapping = mapper.FindMapping(typeof(HashSet<DateOnly>));
+            Assert.NotNull(dateOnlySetMapping);
+            var dateOnlySetParameter = (SpannerParameter)dateOnlySetMapping.CreateParameter(
+                command, "p5", new HashSet<DateOnly> { testDateOnly });
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Date), dateOnlySetParameter.SpannerDbType);
+            Assert.Equal(new[] { expectedDateTime }, dateOnlySetParameter.Value);
+            Assert.Equal(
+                new[] { testDateOnly },
+                (IEnumerable<DateOnly>)dateOnlySetMapping.Converter!.ConvertFromProvider(dateOnlySetParameter.Value)!);
+
+            var nullableDateOnlySetMapping = mapper.FindMapping(typeof(HashSet<DateOnly?>));
+            Assert.NotNull(nullableDateOnlySetMapping);
+            var nullableDateOnlySetParameter = (SpannerParameter)nullableDateOnlySetMapping.CreateParameter(
+                command, "p6", new HashSet<DateOnly?> { testDateOnly, null });
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Date), nullableDateOnlySetParameter.SpannerDbType);
+            Assert.Equal(new DateTime?[] { expectedDateTime, null }, nullableDateOnlySetParameter.Value);
+            Assert.Equal(
+                new DateOnly?[] { testDateOnly, null },
+                (IEnumerable<DateOnly?>)nullableDateOnlySetMapping.Converter!.ConvertFromProvider(nullableDateOnlySetParameter.Value)!);
+
+            // HashSet<SpannerDate> and HashSet<SpannerDate?>
+            var spannerDate = new SpannerDate(2025, 3, 20);
+            var spannerDateSetMapping = mapper.FindMapping(typeof(HashSet<SpannerDate>));
+            Assert.NotNull(spannerDateSetMapping);
+            var spannerDateSetParameter = (SpannerParameter)spannerDateSetMapping.CreateParameter(
+                command, "p7", new HashSet<SpannerDate> { spannerDate });
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Date), spannerDateSetParameter.SpannerDbType);
+            Assert.Equal(new[] { expectedDateTime }, spannerDateSetParameter.Value);
+            Assert.Equal(
+                new[] { spannerDate },
+                (IEnumerable<SpannerDate>)spannerDateSetMapping.Converter!.ConvertFromProvider(spannerDateSetParameter.Value)!);
+
+            var nullableSpannerDateSetMapping = mapper.FindMapping(typeof(HashSet<SpannerDate?>));
+            Assert.NotNull(nullableSpannerDateSetMapping);
+            var nullableSpannerDateSetParameter = (SpannerParameter)nullableSpannerDateSetMapping.CreateParameter(
+                command, "p8", new HashSet<SpannerDate?> { spannerDate, null });
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Date), nullableSpannerDateSetParameter.SpannerDbType);
+            Assert.Equal(new DateTime?[] { expectedDateTime, null }, nullableSpannerDateSetParameter.Value);
+            Assert.Equal(
+                new SpannerDate?[] { spannerDate, null },
+                (IEnumerable<SpannerDate?>)nullableSpannerDateSetMapping.Converter!.ConvertFromProvider(nullableSpannerDateSetParameter.Value)!);
+
+            // HashSet<JsonDocument> (including null element)
+            using var jsonDocument = JsonDocument.Parse("{\"a\":1}");
+            var jsonSetMapping = mapper.FindMapping(typeof(HashSet<JsonDocument>));
+            Assert.NotNull(jsonSetMapping);
+            var jsonSetParameter = (SpannerParameter)jsonSetMapping.CreateParameter(
+                command, "p9", new HashSet<JsonDocument> { jsonDocument, null });
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Json), jsonSetParameter.SpannerDbType);
+            Assert.Equal(new[] { "{\"a\":1}", null }, jsonSetParameter.Value);
+            var convertedDocuments = (JsonDocument[])jsonSetMapping.Converter!.ConvertFromProvider(jsonSetParameter.Value)!;
+            Assert.Equal(2, convertedDocuments.Length);
+            Assert.Equal("{\"a\":1}", convertedDocuments[0].RootElement.GetRawText());
+            Assert.Null(convertedDocuments[1]);
+            convertedDocuments[0].Dispose();
+
+            // Enum array, nullable array, list, nullable list, HashSet, and nullable HashSet
+            var enumArrayMapping = mapper.FindMapping(typeof(PerformanceType[]));
+            Assert.NotNull(enumArrayMapping);
+            var enumArrayParameter = (SpannerParameter)enumArrayMapping.CreateParameter(
+                command, "p10", new[] { PerformanceType.Live, PerformanceType.Playback });
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Int64), enumArrayParameter.SpannerDbType);
+            Assert.Equal(new[] { (long)PerformanceType.Live, (long)PerformanceType.Playback }, enumArrayParameter.Value);
+            Assert.Equal(
+                new[] { PerformanceType.Live, PerformanceType.Playback },
+                (PerformanceType[])enumArrayMapping.Converter!.ConvertFromProvider(enumArrayParameter.Value)!);
+
+            var nullableEnumArrayMapping = mapper.FindMapping(typeof(PerformanceType?[]));
+            Assert.NotNull(nullableEnumArrayMapping);
+            var nullableEnumArrayParameter = (SpannerParameter)nullableEnumArrayMapping.CreateParameter(
+                command, "p11", new PerformanceType?[] { PerformanceType.Live, null });
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Int64), nullableEnumArrayParameter.SpannerDbType);
+            Assert.Equal(new long?[] { (long)PerformanceType.Live, null }, nullableEnumArrayParameter.Value);
+            Assert.Equal(
+                new PerformanceType?[] { PerformanceType.Live, null },
+                (PerformanceType?[])nullableEnumArrayMapping.Converter!.ConvertFromProvider(nullableEnumArrayParameter.Value)!);
+
+            var enumListMapping = mapper.FindMapping(typeof(List<PerformanceType>));
+            Assert.NotNull(enumListMapping);
+            var enumListParameter = (SpannerParameter)enumListMapping.CreateParameter(
+                command, "p12", new List<PerformanceType> { PerformanceType.Live, PerformanceType.Playback });
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Int64), enumListParameter.SpannerDbType);
+            Assert.Equal(new List<long> { (long)PerformanceType.Live, (long)PerformanceType.Playback }, enumListParameter.Value);
+            Assert.Equal(
+                new List<PerformanceType> { PerformanceType.Live, PerformanceType.Playback },
+                (List<PerformanceType>)enumListMapping.Converter!.ConvertFromProvider(enumListParameter.Value)!);
+
+            var nullableEnumListMapping = mapper.FindMapping(typeof(List<PerformanceType?>));
+            Assert.NotNull(nullableEnumListMapping);
+            var nullableEnumListParameter = (SpannerParameter)nullableEnumListMapping.CreateParameter(
+                command, "p13", new List<PerformanceType?> { PerformanceType.Live, null });
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Int64), nullableEnumListParameter.SpannerDbType);
+            Assert.Equal(new List<long?> { (long)PerformanceType.Live, null }, nullableEnumListParameter.Value);
+            Assert.Equal(
+                new List<PerformanceType?> { PerformanceType.Live, null },
+                (List<PerformanceType?>)nullableEnumListMapping.Converter!.ConvertFromProvider(nullableEnumListParameter.Value)!);
+
+            var nonNullableEnumSetMapping = mapper.FindMapping(typeof(HashSet<PerformanceType>));
+            Assert.NotNull(nonNullableEnumSetMapping);
+            var nonNullableEnumSetParameter = (SpannerParameter)nonNullableEnumSetMapping.CreateParameter(
+                command, "p14", new HashSet<PerformanceType> { PerformanceType.Live });
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Int64), nonNullableEnumSetParameter.SpannerDbType);
+            Assert.Equal(new[] { (long)PerformanceType.Live }, nonNullableEnumSetParameter.Value);
+            Assert.Equal(
+                new[] { PerformanceType.Live },
+                (IEnumerable<PerformanceType>)nonNullableEnumSetMapping.Converter!.ConvertFromProvider(nonNullableEnumSetParameter.Value)!);
+
+            var enumSetMapping = mapper.FindMapping(typeof(HashSet<PerformanceType?>));
+            Assert.NotNull(enumSetMapping);
+            var enumSetParameter = (SpannerParameter)enumSetMapping.CreateParameter(
+                command, "p15", new HashSet<PerformanceType?> { PerformanceType.Live, null });
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Int64), enumSetParameter.SpannerDbType);
+            Assert.Equal(new long?[] { (long)PerformanceType.Live, null }, enumSetParameter.Value);
+            Assert.Equal(
+                new PerformanceType?[] { PerformanceType.Live, null },
+                (IEnumerable<PerformanceType?>)enumSetMapping.Converter!.ConvertFromProvider(enumSetParameter.Value)!);
+
+            // UlongEnum with ulong.MaxValue (high bit set) and ByteEnum (narrow underlying type)
+            var ulongEnumArrayMapping = mapper.FindMapping(typeof(UlongEnum[]));
+            Assert.NotNull(ulongEnumArrayMapping);
+            var ulongEnumArrayParameter = (SpannerParameter)ulongEnumArrayMapping.CreateParameter(
+                command, "p16", new[] { UlongEnum.First, UlongEnum.Max });
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Int64), ulongEnumArrayParameter.SpannerDbType);
+            Assert.Equal(new[] { 1L, -1L }, ulongEnumArrayParameter.Value);
+            Assert.Equal(
+                new[] { UlongEnum.First, UlongEnum.Max },
+                (UlongEnum[])ulongEnumArrayMapping.Converter!.ConvertFromProvider(ulongEnumArrayParameter.Value)!);
+
+            var byteEnumArrayMapping = mapper.FindMapping(typeof(ByteEnum[]));
+            Assert.NotNull(byteEnumArrayMapping);
+            var byteEnumArrayParameter = (SpannerParameter)byteEnumArrayMapping.CreateParameter(
+                command, "p17", new[] { ByteEnum.First, ByteEnum.Second });
+            Assert.Equal(SpannerDbType.ArrayOf(SpannerDbType.Int64), byteEnumArrayParameter.SpannerDbType);
+            Assert.Equal(new[] { 1L, 2L }, byteEnumArrayParameter.Value);
+            Assert.Equal(
+                new[] { ByteEnum.First, ByteEnum.Second },
+                (ByteEnum[])byteEnumArrayMapping.Converter!.ConvertFromProvider(byteEnumArrayParameter.Value)!);
         }
 
         private RelationalTypeMapping GetTypeMapping(

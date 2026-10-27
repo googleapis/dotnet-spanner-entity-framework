@@ -17,6 +17,7 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Extensions.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
+using Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Google.Protobuf.WellKnownTypes;
@@ -424,6 +425,252 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     var type = request.ParamTypes["typesAsInts"];
                     Assert.Equal(V1.TypeCode.Array, type.Code);
                     Assert.Equal(V1.TypeCode.Int64, type.ArrayElementType.Code);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task FindPerformancesByEnumListDirectly_UsesParameterizedQuery()
+        {
+            var sql = $"SELECT `p`.`VenueCode`, `p`.`SingerId`, `p`.`StartTime`, `p`.`AlbumId`, `p`.`ConcertStartTime`, `p`.`PerformanceType`, `p`.`Rating`, `p`.`TrackId`{Environment.NewLine}" +
+                      $"FROM `Performances` AS `p`{Environment.NewLine}" +
+                      $"WHERE `p`.`PerformanceType` IN  UNNEST (@types)";
+            var result = StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.String, "VenueCode"),
+                    Tuple.Create(V1.TypeCode.Int64, "SingerId"),
+                    Tuple.Create(V1.TypeCode.Timestamp, "StartTime"),
+                    Tuple.Create(V1.TypeCode.Int64, "AlbumId"),
+                    Tuple.Create(V1.TypeCode.Timestamp, "ConcertStartTime"),
+                    Tuple.Create(V1.TypeCode.Int64, "PerformanceType"),
+                    Tuple.Create(V1.TypeCode.Float64, "Rating"),
+                    Tuple.Create(V1.TypeCode.Int64, "TrackId"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "VC", "1", "2025-02-18T14:00:00Z", "1", "2025-02-18T14:00:00Z", "0", 8.9, "1" },
+                }
+            );
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, result);
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql.Replace("@types", "@typeSet"), result);
+
+            var types = new List<PerformanceType> { PerformanceType.Live, PerformanceType.Playback };
+            var typeSet = new HashSet<PerformanceType> { PerformanceType.Live, PerformanceType.Playback };
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            var performances = await db.Performances
+                .Where(performance => types.Contains(performance.PerformanceType))
+                .ToListAsync(TestContext.Current.CancellationToken);
+            Assert.Single(performances);
+
+            var performancesFromSet = await db.Performances
+                .Where(performance => typeSet.Contains(performance.PerformanceType))
+                .ToListAsync(TestContext.Current.CancellationToken);
+            Assert.Single(performancesFromSet);
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Single(request.Params.Fields);
+                    var fields = request.Params.Fields;
+                    Assert.Equal(2, fields["types"].ListValue.Values.Count);
+                    Assert.Equal("0", fields["types"].ListValue.Values[0].StringValue);
+                    Assert.Equal("1", fields["types"].ListValue.Values[1].StringValue);
+                    Assert.Single(request.ParamTypes);
+                    var requestType = request.ParamTypes["types"];
+                    Assert.Equal(V1.TypeCode.Array, requestType.Code);
+                    Assert.Equal(V1.TypeCode.Int64, requestType.ArrayElementType.Code);
+                },
+                request =>
+                {
+                    Assert.Equal(sql.Replace("@types", "@typeSet"), request.Sql);
+                    Assert.Single(request.Params.Fields);
+                    var values = request.Params.Fields["typeSet"].ListValue.Values.Select(value => value.StringValue).ToList();
+                    Assert.Equal(2, values.Count);
+                    Assert.Contains("0", values);
+                    Assert.Contains("1", values);
+                    Assert.Single(request.ParamTypes);
+                    var requestType = request.ParamTypes["typeSet"];
+                    Assert.Equal(V1.TypeCode.Array, requestType.Code);
+                    Assert.Equal(V1.TypeCode.Int64, requestType.ArrayElementType.Code);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task FindPerformancesByEnumArrayDirectly_UsesParameterizedQuery()
+        {
+            var sql = $"SELECT `p`.`VenueCode`, `p`.`SingerId`, `p`.`StartTime`, `p`.`AlbumId`, `p`.`ConcertStartTime`, `p`.`PerformanceType`, `p`.`Rating`, `p`.`TrackId`{Environment.NewLine}" +
+                      $"FROM `Performances` AS `p`{Environment.NewLine}" +
+                      $"WHERE `p`.`PerformanceType` IN  UNNEST (@types)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.String, "VenueCode"),
+                    Tuple.Create(V1.TypeCode.Int64, "SingerId"),
+                    Tuple.Create(V1.TypeCode.Timestamp, "StartTime"),
+                    Tuple.Create(V1.TypeCode.Int64, "AlbumId"),
+                    Tuple.Create(V1.TypeCode.Timestamp, "ConcertStartTime"),
+                    Tuple.Create(V1.TypeCode.Int64, "PerformanceType"),
+                    Tuple.Create(V1.TypeCode.Float64, "Rating"),
+                    Tuple.Create(V1.TypeCode.Int64, "TrackId"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "VC", "1", "2025-02-18T14:00:00Z", "1", "2025-02-18T14:00:00Z", "0", 8.9, "1" },
+                }
+            ));
+
+            var types = new[] { PerformanceType.Live, PerformanceType.Playback };
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            var performances = await db.Performances
+                .Where(performance => types.Contains(performance.PerformanceType))
+                .ToListAsync(TestContext.Current.CancellationToken);
+            Assert.Single(performances);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Single(request.Params.Fields);
+                    var fields = request.Params.Fields;
+                    Assert.Equal(2, fields["types"].ListValue.Values.Count);
+                    Assert.Equal("0", fields["types"].ListValue.Values[0].StringValue);
+                    Assert.Equal("1", fields["types"].ListValue.Values[1].StringValue);
+                    Assert.Single(request.ParamTypes);
+                    var requestType = request.ParamTypes["types"];
+                    Assert.Equal(V1.TypeCode.Array, requestType.Code);
+                    Assert.Equal(V1.TypeCode.Int64, requestType.ArrayElementType.Code);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task FindSingersByDateOnlyCollection_UsesParameterizedQuery()
+        {
+            var sql = $"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`, `s`.`LastName`, `s`.`Picture`{Environment.NewLine}" +
+                      $"FROM `Singers` AS `s`{Environment.NewLine}" +
+                      $"WHERE `s`.`BirthDate` IS NOT NULL AND `s`.`BirthDate` IN  UNNEST (@dates)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "SingerId"),
+                    Tuple.Create(V1.TypeCode.Date, "BirthDate"),
+                    Tuple.Create(V1.TypeCode.String, "FirstName"),
+                    Tuple.Create(V1.TypeCode.String, "FullName"),
+                    Tuple.Create(V1.TypeCode.String, "LastName"),
+                    Tuple.Create(V1.TypeCode.Bytes, "Picture"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "1", "1990-05-15", "Alice", "Alice Example", "Example", null },
+                }
+            ));
+
+            var dates = new List<DateOnly> { new DateOnly(1980, 1, 1), new DateOnly(1990, 5, 15) };
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            var singers = await db.Singers
+                .Where(singer => singer.BirthDate != null && dates.Contains(singer.BirthDate.Value))
+                .ToListAsync(TestContext.Current.CancellationToken);
+            Assert.Single(singers);
+
+            var dateSet = new HashSet<DateOnly> { new DateOnly(1980, 1, 1), new DateOnly(1990, 5, 15) };
+            var sqlForSet = sql.Replace("@dates", "@dateSet");
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sqlForSet, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "SingerId"),
+                    Tuple.Create(V1.TypeCode.Date, "BirthDate"),
+                    Tuple.Create(V1.TypeCode.String, "FirstName"),
+                    Tuple.Create(V1.TypeCode.String, "FullName"),
+                    Tuple.Create(V1.TypeCode.String, "LastName"),
+                    Tuple.Create(V1.TypeCode.Bytes, "Picture"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "1", "1990-05-15", "Alice", "Alice Example", "Example", null },
+                }
+            ));
+            var singersFromSet = await db.Singers
+                .Where(singer => singer.BirthDate != null && dateSet.Contains(singer.BirthDate.Value))
+                .ToListAsync(TestContext.Current.CancellationToken);
+            Assert.Single(singersFromSet);
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Single(request.Params.Fields);
+                    var fields = request.Params.Fields;
+                    Assert.Equal(2, fields["dates"].ListValue.Values.Count);
+                    Assert.Equal("1980-01-01", fields["dates"].ListValue.Values[0].StringValue);
+                    Assert.Equal("1990-05-15", fields["dates"].ListValue.Values[1].StringValue);
+                    Assert.Single(request.ParamTypes);
+                    var requestType = request.ParamTypes["dates"];
+                    Assert.Equal(V1.TypeCode.Array, requestType.Code);
+                    Assert.Equal(V1.TypeCode.Date, requestType.ArrayElementType.Code);
+                },
+                request =>
+                {
+                    Assert.Equal(sqlForSet, request.Sql);
+                    Assert.Single(request.Params.Fields);
+                    var fields = request.Params.Fields;
+                    var values = fields["dateSet"].ListValue.Values;
+                    Assert.Equal(2, values.Count);
+                    Assert.Contains(values, value => value.StringValue == "1980-01-01");
+                    Assert.Contains(values, value => value.StringValue == "1990-05-15");
+                    Assert.Single(request.ParamTypes);
+                    var requestType = request.ParamTypes["dateSet"];
+                    Assert.Equal(V1.TypeCode.Array, requestType.Code);
+                    Assert.Equal(V1.TypeCode.Date, requestType.ArrayElementType.Code);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task FindTableWithAllColumnTypesByGuidCollection_UsesParameterizedQuery()
+        {
+            var guid1 = Guid.Parse("11111111-1111-1111-1111-111111111111");
+            var guid2 = Guid.Parse("22222222-2222-2222-2222-222222222222");
+            var guids = new List<Guid> { guid1, guid2 };
+
+            var sql = $"SELECT `t`.`ColSequence`{Environment.NewLine}" +
+                      $"FROM `TableWithAllColumnTypes` AS `t`{Environment.NewLine}" +
+                      $"WHERE `t`.`ColGuid` IS NOT NULL AND `t`.`ColGuid` IN  UNNEST (@guids)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.Int64, "ColSequence"),
+                },
+                new List<object[]>
+                {
+                    new object[] { "1" },
+                }
+            ));
+
+            await using var database = new MockMigrationSampleDbContext(ConnectionString);
+            var results = await database.TableWithAllColumnTypes
+                .Where(table => table.ColGuid != null && guids.Contains(table.ColGuid.Value))
+                .Select(table => table.ColSequence)
+                .ToListAsync(TestContext.Current.CancellationToken);
+            Assert.Single(results);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request =>
+                {
+                    Assert.Equal(sql, request.Sql);
+                    Assert.Single(request.Params.Fields);
+                    var fields = request.Params.Fields;
+                    Assert.Equal(2, fields["guids"].ListValue.Values.Count);
+                    Assert.Equal(guid1.ToString(), fields["guids"].ListValue.Values[0].StringValue);
+                    Assert.Equal(guid2.ToString(), fields["guids"].ListValue.Values[1].StringValue);
+                    Assert.Single(request.ParamTypes);
+                    var requestType = request.ParamTypes["guids"];
+                    Assert.Equal(V1.TypeCode.Array, requestType.Code);
+                    Assert.Equal(V1.TypeCode.String, requestType.ArrayElementType.Code);
                 }
             );
         }
@@ -1609,6 +1856,56 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     Assert.Equal(sql, request.Sql);
                 }
             );
+        }
+
+        [Fact]
+        public async Task CanUseStringInterpolation_InProjection_ClientEvaluated()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT `s`.`FirstName`, `s`.`LastName`{Environment.NewLine}" +
+                      $"FROM `Singers` AS `s`{Environment.NewLine}" +
+                      "LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.String, "FirstName"),
+                    Tuple.Create(V1.TypeCode.String, "LastName")
+                },
+                new List<object[]> { new object[] { "Alice", "Morrison" } }));
+
+            var result = await db.Singers
+                .Select(s => $"{s.FirstName} - {s.LastName}")
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("Alice - Morrison", result);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request => Assert.Equal(sql, request.Sql));
+        }
+
+        [Fact]
+        public async Task CanUseStringFormat_InProjection_ClientEvaluated()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT `s`.`FirstName`, `s`.`LastName`{Environment.NewLine}" +
+                      $"FROM `Singers` AS `s`{Environment.NewLine}" +
+                      "LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.String, "FirstName"),
+                    Tuple.Create(V1.TypeCode.String, "LastName")
+                },
+                new List<object[]> { new object[] { "Alice", "Morrison" } }));
+
+            var result = await db.Singers
+                .Select(s => string.Format("{0}: {1}", s.FirstName, s.LastName))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("Alice: Morrison", result);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request => Assert.Equal(sql, request.Sql));
         }
 
         [Fact]

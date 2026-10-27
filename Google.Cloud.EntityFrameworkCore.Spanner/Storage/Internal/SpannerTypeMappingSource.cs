@@ -16,9 +16,14 @@ using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Storage.Json;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using IEnumerable = System.Collections.IEnumerable;
@@ -200,11 +205,113 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private static readonly SpannerJsonArrayTypeMapping s_jsonArray = new SpannerJsonArrayTypeMapping();
         private static readonly SpannerJsonListTypeMapping s_jsonList = new SpannerJsonListTypeMapping();
 
+        private static readonly SpannerComplexTypeMapping s_jsonEnumerable = CreateEnumerableMapping<JsonDocument, string>(
+            SpannerDbType.ArrayOf(SpannerDbType.Json),
+            document => document == null ? null : document.RootElement.GetRawText(),
+            json => json == null ? null : JsonDocument.Parse(json, SpannerJsonTypeMapping.JsonOptions));
+
+        private static readonly SpannerComplexTypeMapping s_dateEnumerable = CreateEnumerableMapping<SpannerDate, DateTime>(
+            SpannerDbType.ArrayOf(SpannerDbType.Date),
+            date => date.ToDateTime(),
+            dateTime => SpannerDate.FromDateTime(dateTime));
+        private static readonly SpannerComplexTypeMapping s_nullableDateEnumerable = CreateEnumerableMapping<SpannerDate?, DateTime?>(
+            SpannerDbType.ArrayOf(SpannerDbType.Date),
+            date => date.HasValue ? date.Value.ToDateTime() : null,
+            dateTime => dateTime.HasValue ? SpannerDate.FromDateTime(dateTime.Value) : null);
+
+        private static readonly Func<DateOnly, DateTime> s_dateOnlyToDateTime = date => date.ToDateTime(TimeOnly.MinValue);
+        private static readonly Func<DateTime, DateOnly> s_dateTimeToDateOnly = dateTime => DateOnly.FromDateTime(dateTime);
+        private static readonly Func<DateOnly?, DateTime?> s_nullableDateOnlyToDateTime = date => date.HasValue ? date.Value.ToDateTime(TimeOnly.MinValue) : null;
+        private static readonly Func<DateTime?, DateOnly?> s_nullableDateTimeToDateOnly = dateTime => dateTime.HasValue ? DateOnly.FromDateTime(dateTime.Value) : null;
+
+        private static readonly SpannerComplexTypeMapping s_dateOnlyArray
+            = CreateArrayMapping(SpannerDbType.ArrayOf(SpannerDbType.Date), s_dateOnlyToDateTime, s_dateTimeToDateOnly);
+        private static readonly SpannerComplexTypeMapping s_nullableDateOnlyArray
+            = CreateArrayMapping(SpannerDbType.ArrayOf(SpannerDbType.Date), s_nullableDateOnlyToDateTime, s_nullableDateTimeToDateOnly);
+        private static readonly SpannerComplexTypeMapping s_dateOnlyList
+            = CreateListMapping(SpannerDbType.ArrayOf(SpannerDbType.Date), s_dateOnlyToDateTime, s_dateTimeToDateOnly);
+        private static readonly SpannerComplexTypeMapping s_nullableDateOnlyList
+            = CreateListMapping(SpannerDbType.ArrayOf(SpannerDbType.Date), s_nullableDateOnlyToDateTime, s_nullableDateTimeToDateOnly);
+        private static readonly SpannerComplexTypeMapping s_dateOnlyEnumerable
+            = CreateEnumerableMapping(SpannerDbType.ArrayOf(SpannerDbType.Date), s_dateOnlyToDateTime, s_dateTimeToDateOnly);
+        private static readonly SpannerComplexTypeMapping s_nullableDateOnlyEnumerable
+            = CreateEnumerableMapping(SpannerDbType.ArrayOf(SpannerDbType.Date), s_nullableDateOnlyToDateTime, s_nullableDateTimeToDateOnly);
+
+        private static readonly SpannerComplexTypeMapping s_guidArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String), typeof(Guid[]), true);
+        private static readonly SpannerComplexTypeMapping s_nullableGuidArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String), typeof(Guid?[]), true);
+        private static readonly SpannerComplexTypeMapping s_guidList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String), typeof(List<Guid>), true);
+        private static readonly SpannerComplexTypeMapping s_nullableGuidList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String), typeof(List<Guid?>), true);
+
+        private static readonly SpannerComplexTypeMapping s_shortArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(short[]));
+        private static readonly SpannerComplexTypeMapping s_nullableShortArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(short?[]));
+        private static readonly SpannerComplexTypeMapping s_shortList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<short>));
+        private static readonly SpannerComplexTypeMapping s_nullableShortList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<short?>));
+
+        private static readonly SpannerComplexTypeMapping s_byteListInt
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<byte>));
+        private static readonly SpannerComplexTypeMapping s_nullableByteListInt
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<byte?>));
+        private static readonly SpannerComplexTypeMapping s_nullableByteArrayInt
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(byte?[]));
+
+        private static readonly SpannerComplexTypeMapping s_sbyteArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(sbyte[]));
+        private static readonly SpannerComplexTypeMapping s_nullableSbyteArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(sbyte?[]));
+        private static readonly SpannerComplexTypeMapping s_sbyteList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<sbyte>));
+        private static readonly SpannerComplexTypeMapping s_nullableSbyteList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<sbyte?>));
+
+        private static readonly SpannerComplexTypeMapping s_uintArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(uint[]));
+        private static readonly SpannerComplexTypeMapping s_nullableUintArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(uint?[]));
+        private static readonly SpannerComplexTypeMapping s_uintList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<uint>));
+        private static readonly SpannerComplexTypeMapping s_nullableUintList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<uint?>));
+
+        private static readonly SpannerComplexTypeMapping s_ushortArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(ushort[]));
+        private static readonly SpannerComplexTypeMapping s_nullableUshortArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(ushort?[]));
+        private static readonly SpannerComplexTypeMapping s_ushortList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<ushort>));
+        private static readonly SpannerComplexTypeMapping s_nullableUshortList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<ushort?>));
+
+        private static readonly SpannerComplexTypeMapping s_ulongArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(ulong[]));
+        private static readonly SpannerComplexTypeMapping s_nullableUlongArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(ulong?[]));
+        private static readonly SpannerComplexTypeMapping s_ulongList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<ulong>));
+        private static readonly SpannerComplexTypeMapping s_nullableUlongList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), typeof(List<ulong?>));
+
+        private static readonly SpannerComplexTypeMapping s_charArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String), typeof(char[]), true);
+        private static readonly SpannerComplexTypeMapping s_nullableCharArray
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String), typeof(char?[]), true);
+        private static readonly SpannerComplexTypeMapping s_charList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String), typeof(List<char>), true);
+        private static readonly SpannerComplexTypeMapping s_nullableCharList
+            = new SpannerComplexTypeMapping(SpannerDbType.ArrayOf(SpannerDbType.String), typeof(List<char?>), true);
+
+        private static readonly ConcurrentDictionary<Type, RelationalTypeMapping> s_enumArrayMappings = new();
+
         private readonly Dictionary<Type, RelationalTypeMapping> _clrTypeMappings;
 
         private readonly Dictionary<string, RelationalTypeMapping> _storeTypeMappings;
-
-        private readonly Dictionary<string, RelationalTypeMapping> _arrayTypeMappings;
 
         private readonly Dictionary<Type, RelationalTypeMapping> _elementClrTypeMappings;
 
@@ -281,6 +388,41 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     {typeof(List<DateTime?>), s_nullableTimestampList},
                     {typeof(DateTime[]), s_timestampArray},
                     {typeof(DateTime?[]), s_nullableTimestampArray},
+                    {typeof(DateOnly[]), s_dateOnlyArray},
+                    {typeof(DateOnly?[]), s_nullableDateOnlyArray},
+                    {typeof(List<DateOnly>), s_dateOnlyList},
+                    {typeof(List<DateOnly?>), s_nullableDateOnlyList},
+                    {typeof(Guid[]), s_guidArray},
+                    {typeof(Guid?[]), s_nullableGuidArray},
+                    {typeof(List<Guid>), s_guidList},
+                    {typeof(List<Guid?>), s_nullableGuidList},
+                    {typeof(short[]), s_shortArray},
+                    {typeof(short?[]), s_nullableShortArray},
+                    {typeof(List<short>), s_shortList},
+                    {typeof(List<short?>), s_nullableShortList},
+                    {typeof(byte?[]), s_nullableByteArrayInt},
+                    {typeof(List<byte>), s_byteListInt},
+                    {typeof(List<byte?>), s_nullableByteListInt},
+                    {typeof(sbyte[]), s_sbyteArray},
+                    {typeof(sbyte?[]), s_nullableSbyteArray},
+                    {typeof(List<sbyte>), s_sbyteList},
+                    {typeof(List<sbyte?>), s_nullableSbyteList},
+                    {typeof(uint[]), s_uintArray},
+                    {typeof(uint?[]), s_nullableUintArray},
+                    {typeof(List<uint>), s_uintList},
+                    {typeof(List<uint?>), s_nullableUintList},
+                    {typeof(ushort[]), s_ushortArray},
+                    {typeof(ushort?[]), s_nullableUshortArray},
+                    {typeof(List<ushort>), s_ushortList},
+                    {typeof(List<ushort?>), s_nullableUshortList},
+                    {typeof(ulong[]), s_ulongArray},
+                    {typeof(ulong?[]), s_nullableUlongArray},
+                    {typeof(List<ulong>), s_ulongList},
+                    {typeof(List<ulong?>), s_nullableUlongList},
+                    {typeof(char[]), s_charArray},
+                    {typeof(char?[]), s_nullableCharArray},
+                    {typeof(List<char>), s_charList},
+                    {typeof(List<char?>), s_nullableCharList},
                     {typeof(byte[][]), s_byteArray},
                     {typeof(List<byte[]>), s_byteList},
                 };
@@ -298,29 +440,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {SpannerDbType.Numeric.ToString(), s_numeric},
                 {SpannerDbType.Json.ToString(), s_json},
                 {"ARRAY<BOOL>", s_nullableBoolList},
-                {"ARRAY<BYTES", s_byteList},
+                {"ARRAY<BYTES>", s_byteList},
                 {"ARRAY<DATE>", s_nullableDateList},
                 {"ARRAY<FLOAT32>", s_nullableFloatList},
                 {"ARRAY<FLOAT64>", s_nullableDoubleList},
                 {"ARRAY<INT64>", s_nullableLongList},
-                {"ARRAY<STRING", s_stringList},
+                {"ARRAY<STRING>", s_stringList},
                 {"ARRAY<TIMESTAMP>", s_nullableTimestampList},
                 {"ARRAY<NUMERIC>", s_nullableNumericList},
                 {"ARRAY<JSON>", s_jsonList}
-            };
-
-            _arrayTypeMappings = new Dictionary<string, RelationalTypeMapping>(StringComparer.OrdinalIgnoreCase)
-            {
-                {"ARRAY<BOOL>", s_nullableBoolArray},
-                {"ARRAY<BYTES", s_byteArray},
-                {"ARRAY<DATE>", s_nullableDateArray},
-                {"ARRAY<FLOAT32>", s_nullableFloatArray},
-                {"ARRAY<FLOAT64>", s_nullableDoubleArray},
-                {"ARRAY<INT64>", s_nullableLongArray},
-                {"ARRAY<STRING", s_stringArray},
-                {"ARRAY<TIMESTAMP>", s_nullableTimestampArray},
-                {"ARRAY<NUMERIC>", s_nullableNumericArray},
-                {"ARRAY<JSON>", s_jsonArray}
             };
 
             _elementClrTypeMappings = new Dictionary<Type, RelationalTypeMapping>
@@ -329,11 +457,27 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {typeof(int?), s_nullableIntArray},
                 {typeof(long), s_longArray},
                 {typeof(long?), s_nullableLongArray},
+                {typeof(short), s_shortArray},
+                {typeof(short?), s_nullableShortArray},
+                {typeof(byte), s_byteListInt},
+                {typeof(byte?), s_nullableByteArrayInt},
+                {typeof(sbyte), s_sbyteArray},
+                {typeof(sbyte?), s_nullableSbyteArray},
+                {typeof(uint), s_uintArray},
+                {typeof(uint?), s_nullableUintArray},
+                {typeof(ushort), s_ushortArray},
+                {typeof(ushort?), s_nullableUshortArray},
+                {typeof(ulong), s_ulongArray},
+                {typeof(ulong?), s_nullableUlongArray},
                 {typeof(decimal), s_decimalArray},
                 {typeof(decimal?), s_nullableDecimalArray},
                 {typeof(SpannerNumeric), s_numericArray},
                 {typeof(SpannerNumeric?), s_nullableNumericArray},
                 {typeof(string), s_stringArray},
+                {typeof(char), s_charArray},
+                {typeof(char?), s_nullableCharArray},
+                {typeof(Guid), s_guidArray},
+                {typeof(Guid?), s_nullableGuidArray},
                 {typeof(bool), s_boolArray},
                 {typeof(bool?), s_nullableBoolArray},
                 {typeof(float), s_floatArray},
@@ -342,16 +486,53 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 {typeof(double?), s_nullableDoubleArray},
                 {typeof(DateTime), s_timestampArray},
                 {typeof(DateTime?), s_nullableTimestampArray},
-                {typeof(SpannerDate), s_dateArray},
-                {typeof(SpannerDate?), s_nullableDateArray},
-                {typeof(JsonDocument), s_jsonArray},
+                {typeof(DateOnly), s_dateOnlyEnumerable},
+                {typeof(DateOnly?), s_nullableDateOnlyEnumerable},
+                {typeof(SpannerDate), s_dateEnumerable},
+                {typeof(SpannerDate?), s_nullableDateEnumerable},
+                {typeof(JsonDocument), s_jsonEnumerable},
                 {typeof(byte[]), s_byteArray},
             };
+        }
+
+        protected override string ParseStoreTypeName(
+            string storeTypeName,
+            ref bool? unicode,
+            ref int? size,
+            ref int? precision,
+            ref int? scale)
+        {
+            var parsedName = base.ParseStoreTypeName(storeTypeName, ref unicode, ref size, ref precision, ref scale);
+            return NormalizeStoreTypeNameBase(storeTypeName, parsedName);
         }
 
         protected override RelationalTypeMapping FindMapping(in RelationalTypeMappingInfo mappingInfo)
             => FindRawMapping(mappingInfo)?.Clone(mappingInfo)
                 ?? base.FindMapping(mappingInfo);
+
+#pragma warning disable EF1001
+        protected override RelationalTypeMapping FindCollectionMapping(
+            RelationalTypeMappingInfo info,
+            Type modelType,
+            Type providerType,
+            CoreTypeMapping elementMapping)
+        {
+            if (info.StoreTypeName == null)
+            {
+                if (modelType != info.ClrType && FindByClrType(modelType) != null)
+                {
+                    return null;
+                }
+            }
+            else if (FindByStoreType(info.StoreTypeName, info.StoreTypeNameBase, typeof(string)) == null
+                     || FindByClrType(modelType) != null)
+            {
+                return null;
+            }
+
+            return base.FindCollectionMapping(info, modelType, providerType, elementMapping);
+        }
+#pragma warning restore EF1001
 
         private RelationalTypeMapping FindRawMapping(RelationalTypeMappingInfo mappingInfo)
         {
@@ -359,45 +540,33 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             var storeTypeName = mappingInfo.StoreTypeName;
             var storeTypeNameBase = mappingInfo.StoreTypeNameBase;
 
-            // Handle JsonTypePlaceholder type for EF Core 8's .ToJson() owned entities.
-            // JsonTypePlaceholder is an internal type in EF Core, so we detect it by name.
-            if (clrType != null && clrType.Name == "JsonTypePlaceholder")
-            {
-                // Return the structural JSON type mapping which uses JSON '...' literal syntax
-                return s_structuralJson;
-            }
-
             if (storeTypeName != null)
             {
-                if (storeTypeName.Equals("JSON", StringComparison.InvariantCultureIgnoreCase) &&
-                    clrType == typeof(string))
-                {
-                    return s_jsonAsString;
-                }
+                return FindByStoreType(storeTypeName, storeTypeNameBase, clrType);
+            }
 
-                if (_storeTypeMappings.TryGetValue(storeTypeName, out var mapping)
-                    || _storeTypeMappings.TryGetValue(storeTypeNameBase, out mapping))
-                {
-                    if (clrType == null
-                        || mapping.ClrType == clrType
-                        || mapping.Converter?.ProviderClrType == clrType)
-                    {
-                        return mapping;
-                    }
+            if (clrType != null)
+            {
+                return FindByClrType(clrType);
+            }
 
-                    if (_arrayTypeMappings.TryGetValue(storeTypeName, out var arrayMapping)
-                        || _arrayTypeMappings.TryGetValue(storeTypeNameBase, out arrayMapping))
-                    {
-                        if (arrayMapping.ClrType == clrType
-                            || arrayMapping.Converter?.ProviderClrType == clrType
-                            || clrType.IsAssignableFrom(arrayMapping.ClrType))
-                        {
-                            return arrayMapping;
-                        }
-                    }
-                }
+            return null;
+        }
 
-                if (TryFindConverterMapping(storeTypeName, clrType, out mapping))
+        private RelationalTypeMapping FindByStoreType(string storeTypeName, string storeTypeNameBase, Type clrType)
+        {
+            var normalizedBase = NormalizeStoreTypeNameBase(storeTypeName, storeTypeNameBase);
+
+            if (storeTypeName.Equals("JSON", StringComparison.OrdinalIgnoreCase) &&
+                clrType == typeof(string))
+            {
+                return s_jsonAsString;
+            }
+
+            if (_storeTypeMappings.TryGetValue(storeTypeName, out var mapping)
+                || (normalizedBase != null && _storeTypeMappings.TryGetValue(normalizedBase, out mapping)))
+            {
+                if (clrType == null || mapping.ClrType == clrType)
                 {
                     return mapping;
                 }
@@ -405,20 +574,164 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
             if (clrType != null)
             {
-                if (_clrTypeMappings.TryGetValue(clrType, out var mapping))
+                var clrMapping = FindByClrType(clrType);
+                if (clrMapping != null && MatchesStoreType(clrMapping, storeTypeName, normalizedBase))
                 {
-                    return mapping;
-                }
-
-                if (TryGetElementType(clrType, out var elementType)
-                    && _elementClrTypeMappings.TryGetValue(elementType, out mapping))
-                {
-                    return mapping;
+                    return clrMapping;
                 }
             }
 
             return null;
         }
+
+        private RelationalTypeMapping FindByClrType(Type clrType)
+        {
+            if (_clrTypeMappings.TryGetValue(clrType, out var mapping))
+            {
+                return mapping;
+            }
+
+            if (TryGetElementType(clrType, out var elementType))
+            {
+                if (_elementClrTypeMappings.TryGetValue(elementType, out mapping))
+                {
+                    return mapping;
+                }
+
+                var unwrappedElementType = Nullable.GetUnderlyingType(elementType) ?? elementType;
+                if (unwrappedElementType.IsEnum)
+                {
+                    return GetEnumArrayMapping(clrType, elementType, unwrappedElementType);
+                }
+            }
+
+            return null;
+        }
+
+        private static string NormalizeStoreTypeNameBase(string storeTypeName, string storeTypeNameBase)
+        {
+            if ((string.Equals(storeTypeNameBase, "ARRAY<STRING", StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(storeTypeNameBase, "ARRAY<BYTES", StringComparison.OrdinalIgnoreCase))
+                && storeTypeName != null
+                && storeTypeName.TrimEnd().EndsWith(")>", StringComparison.Ordinal))
+            {
+                return storeTypeNameBase + ">";
+            }
+
+            return storeTypeNameBase;
+        }
+
+        private static bool MatchesStoreType(RelationalTypeMapping mapping, string storeTypeName, string normalizedBase)
+        {
+            if (string.Equals(mapping.StoreType, storeTypeName, StringComparison.OrdinalIgnoreCase)
+                || (normalizedBase != null && string.Equals(mapping.StoreType, normalizedBase, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            var mappingNormalizedBase = NormalizeStoreTypeNameBase(mapping.StoreType, mapping.StoreTypeNameBase);
+            return mappingNormalizedBase != null
+                && string.Equals(mappingNormalizedBase, normalizedBase, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static SpannerComplexTypeMapping CreateArrayMapping<TModelElement, TProviderElement>(
+            SpannerDbType complexType,
+            Func<TModelElement, TProviderElement> toProvider,
+            Func<TProviderElement, TModelElement> fromProvider)
+            => new(
+                complexType,
+                typeof(TModelElement[]),
+                new ValueConverter<TModelElement[], TProviderElement[]>(
+                    elements => elements.Select(toProvider).ToArray(),
+                    elements => elements.Select(fromProvider).ToArray()));
+
+        private static SpannerComplexTypeMapping CreateListMapping<TModelElement, TProviderElement>(
+            SpannerDbType complexType,
+            Func<TModelElement, TProviderElement> toProvider,
+            Func<TProviderElement, TModelElement> fromProvider)
+            => new(
+                complexType,
+                typeof(List<TModelElement>),
+                new ValueConverter<List<TModelElement>, List<TProviderElement>>(
+                    elements => elements.Select(toProvider).ToList(),
+                    elements => elements.Select(fromProvider).ToList()));
+
+        private static SpannerComplexTypeMapping CreateEnumerableMapping<TModelElement, TProviderElement>(
+            SpannerDbType complexType,
+            Func<TModelElement, TProviderElement> toProvider,
+            Func<TProviderElement, TModelElement> fromProvider)
+            => new(
+                complexType,
+                typeof(IEnumerable<TModelElement>),
+                new ValueConverter<IEnumerable<TModelElement>, TProviderElement[]>(
+                    elements => elements.Select(toProvider).ToArray(),
+                    elements => elements.Select(fromProvider).ToArray()));
+
+        private static RelationalTypeMapping GetEnumArrayMapping(Type collectionType, Type elementType, Type enumType)
+            => s_enumArrayMappings.GetOrAdd(collectionType, _ =>
+            {
+                var isNullable = elementType != enumType;
+                string factoryMethodName;
+                if (collectionType.IsArray)
+                {
+                    factoryMethodName = isNullable ? nameof(CreateNullableEnumArrayMapping) : nameof(CreateEnumArrayMapping);
+                }
+                else if (collectionType.IsGenericType && collectionType.GetGenericTypeDefinition() == typeof(List<>))
+                {
+                    factoryMethodName = isNullable ? nameof(CreateNullableEnumListMapping) : nameof(CreateEnumListMapping);
+                }
+                else if (collectionType.IsGenericType && collectionType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                {
+                    factoryMethodName = isNullable ? nameof(CreateNullableEnumEnumerableMapping) : nameof(CreateEnumEnumerableMapping);
+                }
+                else
+                {
+                    return GetEnumArrayMapping(typeof(IEnumerable<>).MakeGenericType(elementType), elementType, enumType);
+                }
+
+                var method = typeof(SpannerTypeMappingSource)
+                    .GetMethod(factoryMethodName, BindingFlags.NonPublic | BindingFlags.Static)!
+                    .MakeGenericMethod(enumType);
+                return (RelationalTypeMapping)method.Invoke(null, null)!;
+            });
+
+        private static class EnumConverter<TEnum> where TEnum : struct, Enum
+        {
+            internal static readonly Func<TEnum, long> ToLong = CompileToLong();
+            internal static readonly Func<long, TEnum> FromLong = CompileFromLong();
+            internal static readonly Func<TEnum?, long?> NullableToLong = enumValue => enumValue.HasValue ? ToLong(enumValue.Value) : null;
+            internal static readonly Func<long?, TEnum?> NullableFromLong = longValue => longValue.HasValue ? FromLong(longValue.Value) : null;
+
+            private static Func<TEnum, long> CompileToLong()
+            {
+                var parameter = Expression.Parameter(typeof(TEnum), "value");
+                return Expression.Lambda<Func<TEnum, long>>(Expression.Convert(parameter, typeof(long)), parameter).Compile();
+            }
+
+            private static Func<long, TEnum> CompileFromLong()
+            {
+                var parameter = Expression.Parameter(typeof(long), "value");
+                return Expression.Lambda<Func<long, TEnum>>(Expression.Convert(parameter, typeof(TEnum)), parameter).Compile();
+            }
+        }
+
+        private static SpannerComplexTypeMapping CreateEnumArrayMapping<TEnum>() where TEnum : struct, Enum
+            => CreateArrayMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), EnumConverter<TEnum>.ToLong, EnumConverter<TEnum>.FromLong);
+
+        private static SpannerComplexTypeMapping CreateNullableEnumArrayMapping<TEnum>() where TEnum : struct, Enum
+            => CreateArrayMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), EnumConverter<TEnum>.NullableToLong, EnumConverter<TEnum>.NullableFromLong);
+
+        private static SpannerComplexTypeMapping CreateEnumListMapping<TEnum>() where TEnum : struct, Enum
+            => CreateListMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), EnumConverter<TEnum>.ToLong, EnumConverter<TEnum>.FromLong);
+
+        private static SpannerComplexTypeMapping CreateNullableEnumListMapping<TEnum>() where TEnum : struct, Enum
+            => CreateListMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), EnumConverter<TEnum>.NullableToLong, EnumConverter<TEnum>.NullableFromLong);
+
+        private static SpannerComplexTypeMapping CreateEnumEnumerableMapping<TEnum>() where TEnum : struct, Enum
+            => CreateEnumerableMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), EnumConverter<TEnum>.ToLong, EnumConverter<TEnum>.FromLong);
+
+        private static SpannerComplexTypeMapping CreateNullableEnumEnumerableMapping<TEnum>() where TEnum : struct, Enum
+            => CreateEnumerableMapping(SpannerDbType.ArrayOf(SpannerDbType.Int64), EnumConverter<TEnum>.NullableToLong, EnumConverter<TEnum>.NullableFromLong);
 
         /// <summary>
         /// Attempts to determine the element CLR type for a collection or array type.
@@ -491,20 +804,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             }
 
             elementType = null;
-            return false;
-        }
-
-        private bool TryFindConverterMapping(string storeType, Type clrType, out RelationalTypeMapping mapping)
-        {
-            foreach (var m in _clrTypeMappings.Values)
-            {
-                if (m.Converter?.ProviderClrType == clrType && m.StoreType == storeType)
-                {
-                    mapping = m;
-                    return true;
-                }
-            }
-            mapping = null;
             return false;
         }
     }
