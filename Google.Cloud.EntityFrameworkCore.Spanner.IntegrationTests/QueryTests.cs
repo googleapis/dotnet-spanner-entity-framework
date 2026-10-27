@@ -723,21 +723,27 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             formattedName = await db.Singers
                 .Where(s => new long[] { singerId }.Contains(s.SingerId))
-                .Select(s => string.Format("%s", s.FullName))
+                .Select(s => string.Format("{0}", s.FullName))
                 .FirstOrDefaultAsync();
             Assert.Equal("Alice Morrison", formattedName);
 
             formattedName = await db.Singers
                 .Where(s => new long[] { singerId }.Contains(s.SingerId))
-                .Select(s => string.Format("%025d: %s", s.SingerId, s.FullName))
+                .Select(s => string.Format("{0:D25}: {1}", s.SingerId, s.FullName))
                 .FirstOrDefaultAsync();
             Assert.Equal($"{singerId.ToString().PadLeft(25, '0')}: Alice Morrison", formattedName);
 
             formattedName = await db.Singers
                 .Where(s => new long[] { singerId }.Contains(s.SingerId))
-                .Select(s => string.Format("%025d: %s, born on %t", s.SingerId, s.FullName, s.BirthDate))
+                .Select(s => string.Format("{0:D25}: {1}, born on {2:yyyy-MM-dd}", s.SingerId, s.FullName, s.BirthDate))
                 .FirstOrDefaultAsync();
             Assert.Equal($"{singerId.ToString().PadLeft(25, '0')}: Alice Morrison, born on {new SpannerDate(1973, 10, 9)}", formattedName);
+
+            formattedName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => $"{s.SingerId:D25}: {s.FullName}")
+                .FirstOrDefaultAsync();
+            Assert.Equal($"{singerId.ToString().PadLeft(25, '0')}: Alice Morrison", formattedName);
         }
 
         [Fact]

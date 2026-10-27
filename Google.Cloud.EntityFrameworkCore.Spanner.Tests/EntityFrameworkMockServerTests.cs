@@ -1612,6 +1612,56 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task CanUseStringInterpolation_InProjection_ClientEvaluated()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT `s`.`FirstName`, `s`.`LastName`{Environment.NewLine}" +
+                      $"FROM `Singers` AS `s`{Environment.NewLine}" +
+                      "LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.String, "FirstName"),
+                    Tuple.Create(V1.TypeCode.String, "LastName")
+                },
+                new List<object[]> { new object[] { "Alice", "Morrison" } }));
+
+            var result = await db.Singers
+                .Select(s => $"{s.FirstName} - {s.LastName}")
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("Alice - Morrison", result);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request => Assert.Equal(sql, request.Sql));
+        }
+
+        [Fact]
+        public async Task CanUseStringFormat_InProjection_ClientEvaluated()
+        {
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var sql = $"SELECT `s`.`FirstName`, `s`.`LastName`{Environment.NewLine}" +
+                      $"FROM `Singers` AS `s`{Environment.NewLine}" +
+                      "LIMIT 1";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                new List<Tuple<V1.TypeCode, string>>
+                {
+                    Tuple.Create(V1.TypeCode.String, "FirstName"),
+                    Tuple.Create(V1.TypeCode.String, "LastName")
+                },
+                new List<object[]> { new object[] { "Alice", "Morrison" } }));
+
+            var result = await db.Singers
+                .Select(s => string.Format("{0}: {1}", s.FirstName, s.LastName))
+                .FirstOrDefaultAsync();
+
+            Assert.Equal("Alice: Morrison", result);
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request => Assert.Equal(sql, request.Sql));
+        }
+
+        [Fact]
         public async Task CanUseRegexReplace()
         {
             using var db = new MockServerSampleDbContext(ConnectionString);
