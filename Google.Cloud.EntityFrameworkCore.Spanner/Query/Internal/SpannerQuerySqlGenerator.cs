@@ -133,7 +133,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         
         protected override void GenerateIn(InExpression inExpression, bool negated)
         {
-            if (inExpression.GetType() != typeof(SpannerInExpression))
+            if (inExpression is not SpannerInExpression)
             {
                 base.GenerateIn(inExpression, negated);
                 return;

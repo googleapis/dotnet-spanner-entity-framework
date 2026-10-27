@@ -14,9 +14,11 @@
 
 using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
+
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
     using Type = System.Type;
@@ -54,6 +56,25 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         public SpannerComplexTypeMapping(SpannerDbType complexType, Type clrType, bool unicode = false, int? size = null)
             : base(complexType.ToString(), clrType, unicode: unicode, size: size)
+        {
+            _complexType = complexType;
+            _clrType = clrType;
+            IsArrayType = s_arrayTypes.Contains(complexType);
+        }
+
+        public SpannerComplexTypeMapping(
+            SpannerDbType complexType,
+            Type clrType,
+            ValueConverter converter,
+            bool unicode = false,
+            int? size = null)
+            : base(new RelationalTypeMappingParameters(
+                new CoreTypeMappingParameters(clrType, converter),
+                complexType.ToString(),
+                StoreTypePostfix.None,
+                dbType: null,
+                unicode: unicode,
+                size: size))
         {
             _complexType = complexType;
             _clrType = clrType;

@@ -41,16 +41,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         {
         }
 
+        internal override SpannerValueExpression Update(SqlExpression value)
+            => value != _value
+                ? new SpannerTimestampExtractExpression(_sqlExpressionFactory, value, _dateTimePartName)
+                : this;
+
         protected override Expression VisitChildren(ExpressionVisitor visitor)
         {
             visitor.Visit(_fromFragment);
             var newValue = visitor.Visit(_value);
             visitor.Visit(_timezoneFragment);
-            if (newValue != _value && newValue is SqlExpression newSqlValue)
-            {
-                return new SpannerTimestampExtractExpression(_sqlExpressionFactory, newSqlValue, _dateTimePartName);
-            }
-            return this;
+            return newValue is SqlExpression newSqlValue ? Update(newSqlValue) : this;
         }
 
         public override bool Equals(object other)
