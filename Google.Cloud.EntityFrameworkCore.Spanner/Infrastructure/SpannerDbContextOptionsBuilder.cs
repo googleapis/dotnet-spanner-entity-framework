@@ -1,4 +1,4 @@
-﻿// Copyright 2020, Google Inc. All rights reserved.
+// Copyright 2020, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -84,6 +84,25 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure
     public class SpannerDbContextOptionsBuilder
            : RelationalDbContextOptionsBuilder<SpannerDbContextOptionsBuilder, SpannerOptionsExtension>
     {
+        /// <summary>
+        /// The AppContext switch name used to disable wrapping database store exceptions in <see cref="DbUpdateException"/>.
+        /// Setting this switch to <c>true</c> restores the legacy behavior where raw <see cref="Google.Cloud.Spanner.Data.SpannerException"/>
+        /// instances escape <see cref="DbContext.SaveChanges()"/> and <see cref="DbContext.SaveChangesAsync(System.Threading.CancellationToken)"/>.
+        /// </summary>
+        /// <example>
+        /// Enable the switch at application startup (e.g., in <c>Program.cs</c>):
+        /// <code>
+        /// AppContext.SetSwitch(SpannerDbContextOptionsBuilder.DisableDbUpdateExceptionWrappingSwitch, true);
+        /// </code>
+        /// Or configure it in the project file (<c>.csproj</c>):
+        /// <code>
+        /// &lt;ItemGroup&gt;
+        ///   &lt;RuntimeHostConfigurationOption Include="Google.Cloud.EntityFrameworkCore.Spanner.DisableDbUpdateExceptionWrapping" Value="true" /&gt;
+        /// &lt;/ItemGroup&gt;
+        /// </code>
+        /// </example>
+        public const string DisableDbUpdateExceptionWrappingSwitch = "Google.Cloud.EntityFrameworkCore.Spanner.DisableDbUpdateExceptionWrapping";
+
         /// <summary>
         /// Initializes a new instance of the <see cref="SpannerDbContextOptionsBuilder" /> class.
         /// </summary>

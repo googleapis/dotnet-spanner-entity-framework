@@ -478,7 +478,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                 "this is too long string should throw length validation error"
             });
 
-            Assert.Throws<SpannerException>(() => context.SaveChanges());
+            var lengthException = Assert.Throws<DbUpdateException>(() => context.SaveChanges());
+            Assert.IsType<SpannerException>(lengthException.InnerException);
         }
 
         [Fact]
@@ -495,7 +496,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                 }
             });
 
-            Assert.Throws<SpannerException>(() => context.SaveChanges());
+            var requiredFieldException = Assert.Throws<DbUpdateException>(() => context.SaveChanges());
+            Assert.IsType<SpannerException>(requiredFieldException.InnerException);
         }
 
         [Fact]
@@ -553,7 +555,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                 PublishDate = new DateTime(2020, 12, 1)
             };
             context.Articles.Add(article);
-            Assert.Throws<SpannerException>(() => context.SaveChanges());
+            var interleaveException = Assert.Throws<DbUpdateException>(() => context.SaveChanges());
+            Assert.IsType<SpannerException>(interleaveException.InnerException);
         }
 
         [Fact]
