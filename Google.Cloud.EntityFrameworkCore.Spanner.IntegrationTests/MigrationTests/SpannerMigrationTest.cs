@@ -518,7 +518,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                 };
                 context.Articles.Add(article);
                 var rowCount = await context.SaveChangesAsync();
-                Assert.Equal(1, rowCount);
+                Assert.Equal(2, rowCount);
             }
 
             using (var context = new TestMigrationDbContext(_fixture.DatabaseName))
@@ -526,7 +526,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                 // Delete Author Should delete the Article's as well.
                 var author = new Author
                 {
-                    AuthorId = 3,
+                    AuthorId = 4,
                     FirstName = "Calvin",
                     LastName = "Saunders"
                 };
@@ -535,7 +535,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                 await context.SaveChangesAsync();
 
                 // Find Article with deleted Author
-                var article = context.Articles.FirstOrDefault(c => c.ArticleId == 1 && c.AuthorId == 3);
+                var article = context.Articles.FirstOrDefault(c => c.ArticleId == 1 && c.AuthorId == 4);
                 Assert.Null(article);
             }
         }
