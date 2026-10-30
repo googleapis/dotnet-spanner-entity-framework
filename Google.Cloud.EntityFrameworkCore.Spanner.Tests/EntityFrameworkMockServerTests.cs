@@ -33,6 +33,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
@@ -1313,6 +1314,183 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.Equal(1L, await db.SaveChangesAsync());
         }
 
+        [Fact]
+        public void BatchDmlInsertFailsWithDbUpdateExceptionWhenConstraintViolated()
+        {
+            var insertSql = $"INSERT INTO `Venues` (`Code`, `Active`, `Capacity`, `Name`, `Ratings`)" +
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
+                insertSql,
+                StatementResult.CreateException(new RpcException(new Status(StatusCode.AlreadyExists, "Row already exists in table Venues"))));
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            using var transaction = db.Database.BeginTransaction();
+            var venue = new Venues { Code = "V1", Name = "Venue 1" };
+            db.Venues.Add(venue);
+
+            var exception = Assert.Throws<DbUpdateException>(() => db.SaveChanges());
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.AlreadyExists, spannerException.ErrorCode);
+            Assert.Single(exception.Entries);
+            Assert.Same(venue, exception.Entries[0].Entity);
+        }
+
+        [Fact]
+        public async Task BatchDmlInsertFailsWithDbUpdateExceptionWhenConstraintViolatedAsync()
+        {
+            var insertSql = $"INSERT INTO `Venues` (`Code`, `Active`, `Capacity`, `Name`, `Ratings`)" +
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
+                insertSql,
+                StatementResult.CreateException(new RpcException(new Status(StatusCode.AlreadyExists, "Row already exists in table Venues"))));
+
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var transaction = await db.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            var venue = new Venues { Code = "V1", Name = "Venue 1" };
+            db.Venues.Add(venue);
+
+            var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.AlreadyExists, spannerException.ErrorCode);
+            Assert.Single(exception.Entries);
+            Assert.Same(venue, exception.Entries[0].Entity);
+        }
+
+        [Fact]
+        public void BatchDmlInsertMultipleEntitiesFailsWithDbUpdateExceptionContainingAllEntries()
+        {
+            var insertSql1 = $"INSERT INTO `Venues` (`Code`, `Active`, `Capacity`, `Name`, `Ratings`)" +
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
+                insertSql1,
+                StatementResult.CreateException(new RpcException(new Status(StatusCode.AlreadyExists, "Row already exists in table Venues"))));
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            using var transaction = db.Database.BeginTransaction();
+            var venue1 = new Venues { Code = "V1", Name = "Venue 1" };
+            var venue2 = new Venues { Code = "V2", Name = "Venue 2" };
+            db.Venues.AddRange(venue1, venue2);
+
+            var exception = Assert.Throws<DbUpdateException>(() => db.SaveChanges());
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.AlreadyExists, spannerException.ErrorCode);
+            Assert.Equal(2, exception.Entries.Count);
+            Assert.Contains(exception.Entries, entry => ReferenceEquals(entry.Entity, venue1));
+            Assert.Contains(exception.Entries, entry => ReferenceEquals(entry.Entity, venue2));
+        }
+
+        [Fact]
+        public async Task BatchDmlInsertMultipleEntitiesFailsWithDbUpdateExceptionContainingAllEntriesAsync()
+        {
+            var insertSql1 = $"INSERT INTO `Venues` (`Code`, `Active`, `Capacity`, `Name`, `Ratings`)" +
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
+                insertSql1,
+                StatementResult.CreateException(new RpcException(new Status(StatusCode.AlreadyExists, "Row already exists in table Venues"))));
+
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var transaction = await db.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            var venue1 = new Venues { Code = "V1", Name = "Venue 1" };
+            var venue2 = new Venues { Code = "V2", Name = "Venue 2" };
+            await db.Venues.AddRangeAsync(venue1, venue2);
+
+            var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.AlreadyExists, spannerException.ErrorCode);
+            Assert.Equal(2, exception.Entries.Count);
+            Assert.Contains(exception.Entries, entry => ReferenceEquals(entry.Entity, venue1));
+            Assert.Contains(exception.Entries, entry => ReferenceEquals(entry.Entity, venue2));
+        }
+
+        [Fact]
+        public async Task SaveChangesAsync_WithCanceledToken_ThrowsOperationCanceledException()
+        {
+            using var cancellationTokenSource = new CancellationTokenSource();
+            cancellationTokenSource.Cancel();
+
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            var venue = new Venues { Code = "V1", Name = "Venue 1" };
+            db.Venues.Add(venue);
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => db.SaveChangesAsync(cancellationTokenSource.Token));
+        }
+
+        [Fact]
+        public void DmlWithThenReturnFailsWithDbUpdateExceptionWhenConstraintViolated()
+        {
+            var insertSql = $"INSERT INTO `Singers` (`SingerId`, `BirthDate`, `FirstName`, `LastName`, `Picture`)" +
+                $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4){Environment.NewLine}" +
+                $"THEN RETURN `FullName`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
+                insertSql,
+                StatementResult.CreateException(new RpcException(new Status(StatusCode.FailedPrecondition, "Check constraint violated"))));
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var singer = new Singers
+            {
+                SingerId = 1L,
+                FirstName = "Alice",
+                LastName = "Morrison",
+            };
+            db.Singers.Add(singer);
+
+            var exception = Assert.Throws<DbUpdateException>(() => db.SaveChanges());
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.FailedPrecondition, spannerException.ErrorCode);
+            Assert.Single(exception.Entries);
+            Assert.Same(singer, exception.Entries[0].Entity);
+        }
+
+        [Fact]
+        public async Task DmlWithThenReturnFailsWithDbUpdateExceptionWhenConstraintViolatedAsync()
+        {
+            var insertSql = $"INSERT INTO `Singers` (`SingerId`, `BirthDate`, `FirstName`, `LastName`, `Picture`)" +
+                $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4){Environment.NewLine}" +
+                $"THEN RETURN `FullName`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
+                insertSql,
+                StatementResult.CreateException(new RpcException(new Status(StatusCode.FailedPrecondition, "Check constraint violated"))));
+
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            var singer = new Singers
+            {
+                SingerId = 1L,
+                FirstName = "Alice",
+                LastName = "Morrison",
+            };
+            db.Singers.Add(singer);
+
+            var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.FailedPrecondition, spannerException.ErrorCode);
+            Assert.Single(exception.Entries);
+            Assert.Same(singer, exception.Entries[0].Entity);
+        }
+
+        [Fact]
+        public void DmlWithThenReturnMultipleEntitiesFailsWithDbUpdateExceptionContainingAllEntries()
+        {
+            var insertSql = $"INSERT INTO `Singers` (`SingerId`, `BirthDate`, `FirstName`, `LastName`, `Picture`)" +
+                $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4){Environment.NewLine}" +
+                $"THEN RETURN `FullName`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
+                insertSql,
+                StatementResult.CreateException(new RpcException(new Status(StatusCode.FailedPrecondition, "Check constraint violated"))));
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var singer1 = new Singers { SingerId = 1L, FirstName = "Alice", LastName = "Morrison" };
+            var singer2 = new Singers { SingerId = 2L, FirstName = "Bob", LastName = "Dylan" };
+            db.Singers.AddRange(singer1, singer2);
+
+            var exception = Assert.Throws<DbUpdateException>(() => db.SaveChanges());
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.FailedPrecondition, spannerException.ErrorCode);
+            Assert.Equal(2, exception.Entries.Count);
+            Assert.Contains(exception.Entries, entry => ReferenceEquals(entry.Entity, singer1));
+            Assert.Contains(exception.Entries, entry => ReferenceEquals(entry.Entity, singer2));
+        }
+
+
         [Theory]
         [InlineData(true, true)]
         [InlineData(true, false)]
@@ -1358,8 +1536,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 await cmd.ExecuteScalarAsync();
                 // Abort the next statement that is executed on the mock server.
                 _fixture.SpannerMock.AbortNextStatement();
-                var e = await Assert.ThrowsAsync<SpannerException>(() => db.SaveChangesAsync());
-                Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+                var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
+                var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+                Assert.Equal(ErrorCode.Aborted, spannerException.ErrorCode);
             }
             else
             {

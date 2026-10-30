@@ -440,8 +440,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                     await cmd.ExecuteScalarAsync();
                     // Abort the next statement that is executed on the mock server.
                     _fixture.SpannerMock.AbortNextStatement();
-                    var e = await Assert.ThrowsAsync<SpannerException>(() => db.SaveChangesAsync());
-                    Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+                    var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
+                    var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+                    Assert.Equal(ErrorCode.Aborted, spannerException.ErrorCode);
                 }
                 else
                 {

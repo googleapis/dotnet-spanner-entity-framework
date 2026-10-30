@@ -448,6 +448,133 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.Equal(1L, await db.SaveChangesAsync());
         }
 
+
+        [Fact]
+        public void InsertFailsWithDbUpdateExceptionWhenRowAlreadyExists()
+        {
+            _fixture.SpannerMock.AddOrUpdateExecutionTime(
+                nameof(MockSpannerService.Commit),
+                ExecutionTime.CreateException(StatusCode.AlreadyExists, "Row already exists in table Singers"));
+            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+
+            var singer = new Singers { SingerId = 1L, FirstName = "Duplicate", LastName = "Singer" };
+            db.Singers.Add(singer);
+
+            var exception = Assert.Throws<DbUpdateException>(() => db.SaveChanges());
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.AlreadyExists, spannerException.ErrorCode);
+            Assert.Single(exception.Entries);
+            Assert.Same(singer, exception.Entries[0].Entity);
+        }
+
+        [Fact]
+        public async Task InsertFailsWithDbUpdateExceptionWhenRowAlreadyExistsAsync()
+        {
+            _fixture.SpannerMock.AddOrUpdateExecutionTime(
+                nameof(MockSpannerService.Commit),
+                ExecutionTime.CreateException(StatusCode.AlreadyExists, "Row already exists in table Singers"));
+            await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+
+            var singer = new Singers { SingerId = 1L, FirstName = "Duplicate", LastName = "Singer" };
+            db.Singers.Add(singer);
+
+            var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.AlreadyExists, spannerException.ErrorCode);
+            Assert.Single(exception.Entries);
+            Assert.Same(singer, exception.Entries[0].Entity);
+        }
+
+        [Fact]
+        public void InsertMultipleEntitiesFailsWithDbUpdateExceptionContainingAllEntries()
+        {
+            _fixture.SpannerMock.AddOrUpdateExecutionTime(
+                nameof(MockSpannerService.Commit),
+                ExecutionTime.CreateException(StatusCode.AlreadyExists, "Row already exists in table Singers"));
+            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+
+            var singer1 = new Singers { SingerId = 1L, FirstName = "Duplicate", LastName = "Singer1" };
+            var singer2 = new Singers { SingerId = 2L, FirstName = "Duplicate", LastName = "Singer2" };
+            db.Singers.AddRange(singer1, singer2);
+
+            var exception = Assert.Throws<DbUpdateException>(() => db.SaveChanges());
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.AlreadyExists, spannerException.ErrorCode);
+            Assert.Equal(2, exception.Entries.Count);
+            Assert.Contains(exception.Entries, entry => ReferenceEquals(entry.Entity, singer1));
+            Assert.Contains(exception.Entries, entry => ReferenceEquals(entry.Entity, singer2));
+        }
+
+        [Fact]
+        public async Task InsertMultipleEntitiesFailsWithDbUpdateExceptionContainingAllEntriesAsync()
+        {
+            _fixture.SpannerMock.AddOrUpdateExecutionTime(
+                nameof(MockSpannerService.Commit),
+                ExecutionTime.CreateException(StatusCode.AlreadyExists, "Row already exists in table Singers"));
+            await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+
+            var singer1 = new Singers { SingerId = 1L, FirstName = "Duplicate", LastName = "Singer1" };
+            var singer2 = new Singers { SingerId = 2L, FirstName = "Duplicate", LastName = "Singer2" };
+            await db.Singers.AddRangeAsync(singer1, singer2);
+
+            var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.AlreadyExists, spannerException.ErrorCode);
+            Assert.Equal(2, exception.Entries.Count);
+            Assert.Contains(exception.Entries, entry => ReferenceEquals(entry.Entity, singer1));
+            Assert.Contains(exception.Entries, entry => ReferenceEquals(entry.Entity, singer2));
+        }
+
+        [Fact]
+        public void InsertSingerFailsWithDbUpdateExceptionWhenPropagateResultsFails()
+        {
+            var selectFullNameSql = $"{Environment.NewLine}SELECT `FullName`{Environment.NewLine}FROM `Singers`" +
+                $"{Environment.NewLine}WHERE  TRUE  AND `SingerId` = @p0";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
+                selectFullNameSql,
+                StatementResult.CreateException(new RpcException(new Status(StatusCode.FailedPrecondition, "Propagate results failed"))));
+
+            using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            var singer = new Singers
+            {
+                SingerId = 1L,
+                FirstName = "Alice",
+                LastName = "Morrison",
+            };
+            db.Singers.Add(singer);
+
+            var exception = Assert.Throws<DbUpdateException>(() => db.SaveChanges());
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.FailedPrecondition, spannerException.ErrorCode);
+            Assert.Single(exception.Entries);
+            Assert.Same(singer, exception.Entries[0].Entity);
+        }
+
+        [Fact]
+        public async Task InsertSingerFailsWithDbUpdateExceptionWhenPropagateResultsFailsAsync()
+        {
+            var selectFullNameSql = $"{Environment.NewLine}SELECT `FullName`{Environment.NewLine}FROM `Singers`" +
+                $"{Environment.NewLine}WHERE  TRUE  AND `SingerId` = @p0";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
+                selectFullNameSql,
+                StatementResult.CreateException(new RpcException(new Status(StatusCode.FailedPrecondition, "Propagate results failed"))));
+
+            await using var db = new MockServerSampleDbContextUsingMutations(ConnectionString);
+            var singer = new Singers
+            {
+                SingerId = 1L,
+                FirstName = "Alice",
+                LastName = "Morrison",
+            };
+            db.Singers.Add(singer);
+
+            var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.FailedPrecondition, spannerException.ErrorCode);
+            Assert.Single(exception.Entries);
+            Assert.Same(singer, exception.Entries[0].Entity);
+        }
+
         [Theory]
         [InlineData(true, true)]
         [InlineData(true, false)]
