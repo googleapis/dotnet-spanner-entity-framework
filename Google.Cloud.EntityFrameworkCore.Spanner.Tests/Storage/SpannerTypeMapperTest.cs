@@ -1046,6 +1046,49 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
             Assert.False(scalarMapping.IsArrayType);
         }
 
+        [Fact]
+        public void Spanner_json_type_mappings_support_scalar_strings_and_null_elements()
+        {
+            var jsonConverter = SpannerJsonTypeMapping.Default.Converter;
+            using var scalarStringDocument = JsonDocument.Parse("\"hello world\"");
+            var convertedString = (string)jsonConverter.ConvertToProvider(scalarStringDocument)!;
+            Assert.Equal("\"hello world\"", convertedString);
+            using var roundTripString = (JsonDocument)jsonConverter.ConvertFromProvider(convertedString)!;
+            Assert.Equal(JsonValueKind.String, roundTripString.RootElement.ValueKind);
+            Assert.Equal("hello world", roundTripString.RootElement.GetString());
+
+            using var nullDocument = JsonDocument.Parse("null");
+            var convertedNull = (string)jsonConverter.ConvertToProvider(nullDocument)!;
+            Assert.Equal("null", convertedNull);
+            using var roundTripNull = (JsonDocument)jsonConverter.ConvertFromProvider(convertedNull)!;
+            Assert.Equal(JsonValueKind.Null, roundTripNull.RootElement.ValueKind);
+
+            var jsonArrayConverter = SpannerJsonArrayTypeMapping.Default.Converter;
+            using var itemObject = JsonDocument.Parse("{\"k\":\"v\"}");
+            var testArray = new[] { scalarStringDocument, nullDocument, null!, itemObject };
+            var arrayProvider = (string[])jsonArrayConverter.ConvertToProvider(testArray)!;
+            Assert.Equal(new[] { "\"hello world\"", "null", null, "{\"k\":\"v\"}" }, arrayProvider);
+            var arrayRoundTrip = (JsonDocument[])jsonArrayConverter.ConvertFromProvider(arrayProvider)!;
+            Assert.Equal(4, arrayRoundTrip.Length);
+            Assert.Equal(JsonValueKind.String, arrayRoundTrip[0].RootElement.ValueKind);
+            Assert.Equal("hello world", arrayRoundTrip[0].RootElement.GetString());
+            Assert.Equal(JsonValueKind.Null, arrayRoundTrip[1].RootElement.ValueKind);
+            Assert.Null(arrayRoundTrip[2]);
+            Assert.Equal("v", arrayRoundTrip[3].RootElement.GetProperty("k").GetString());
+
+            var jsonListConverter = SpannerJsonListTypeMapping.Default.Converter;
+            var testList = new List<JsonDocument> { scalarStringDocument, nullDocument, null!, itemObject };
+            var listProvider = (List<string>)jsonListConverter.ConvertToProvider(testList)!;
+            Assert.Equal(new List<string> { "\"hello world\"", "null", null!, "{\"k\":\"v\"}" }, listProvider);
+            var listRoundTrip = (List<JsonDocument>)jsonListConverter.ConvertFromProvider(listProvider)!;
+            Assert.Equal(4, listRoundTrip.Count);
+            Assert.Equal(JsonValueKind.String, listRoundTrip[0].RootElement.ValueKind);
+            Assert.Equal("hello world", listRoundTrip[0].RootElement.GetString());
+            Assert.Equal(JsonValueKind.Null, listRoundTrip[1].RootElement.ValueKind);
+            Assert.Null(listRoundTrip[2]);
+            Assert.Equal("v", listRoundTrip[3].RootElement.GetProperty("k").GetString());
+        }
+
         [Theory]
         [InlineData("ARRAY<STRING>", typeof(List<string>), "ARRAY<STRING>")]
         [InlineData("ARRAY<BYTES>", typeof(List<byte[]>), "ARRAY<BYTES>")]
