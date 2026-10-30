@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -58,9 +59,27 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         public static IDbContextTransaction BeginTransaction([NotNull] this DatabaseFacade databaseFacade, string tag)
         {
             var transactionManager = databaseFacade.GetService<IDbContextTransactionManager>();
-            if (transactionManager is SpannerRelationalConnection spannerRelationalConnection)
+            if (transactionManager is ISpannerRelationalConnection spannerRelationalConnection)
             {
                 return spannerRelationalConnection.BeginTransaction(tag);
+            }
+            throw new InvalidOperationException("Transaction tags can only be used with Spanner databases");
+        }
+
+        /// <summary>
+        /// Begins a read/write transaction with the given isolation level and transaction tag on a Cloud Spanner database.
+        /// </summary>
+        /// <param name="databaseFacade">The Spanner database to begin the transaction on</param>
+        /// <param name="isolationLevel">The isolation level to use for the transaction</param>
+        /// <param name="tag">The transaction tag to use for the transaction</param>
+        /// <returns>A read/write transaction using the given isolation level and transaction tag</returns>
+        /// <exception cref="InvalidOperationException">If the database is not a Cloud Spanner database.</exception>
+        public static IDbContextTransaction BeginTransaction([NotNull] this DatabaseFacade databaseFacade, IsolationLevel isolationLevel, string tag)
+        {
+            var transactionManager = databaseFacade.GetService<IDbContextTransactionManager>();
+            if (transactionManager is ISpannerRelationalConnection spannerRelationalConnection)
+            {
+                return spannerRelationalConnection.BeginTransaction(isolationLevel, tag);
             }
             throw new InvalidOperationException("Transaction tags can only be used with Spanner databases");
         }
@@ -75,20 +94,47 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         public static Task<IDbContextTransaction> BeginTransactionAsync([NotNull] this DatabaseFacade databaseFacade, string tag, CancellationToken cancellationToken = default)
         {
             var transactionManager = databaseFacade.GetService<IDbContextTransactionManager>();
-            if (transactionManager is SpannerRelationalConnection spannerRelationalConnection)
+            if (transactionManager is ISpannerRelationalConnection spannerRelationalConnection)
             {
                 return spannerRelationalConnection.BeginTransactionAsync(tag, cancellationToken);
             }
             throw new InvalidOperationException("Transaction tags can only be used with Spanner databases");
         }
-        
+
+        /// <summary>
+        /// Begins a read/write transaction with the given isolation level and transaction tag on a Cloud Spanner database.
+        /// </summary>
+        /// <param name="databaseFacade">The Spanner database to begin the transaction on</param>
+        /// <param name="isolationLevel">The isolation level to use for the transaction</param>
+        /// <param name="tag">The transaction tag to use for the transaction</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken" /> cancellation token to monitor for the asynchronous operation.</param>
+        /// <returns>A read/write transaction using the given isolation level and transaction tag</returns>
+        /// <exception cref="InvalidOperationException">If the database is not a Cloud Spanner database.</exception>
+        public static Task<IDbContextTransaction> BeginTransactionAsync([NotNull] this DatabaseFacade databaseFacade, IsolationLevel isolationLevel, string tag, CancellationToken cancellationToken = default)
+        {
+            var transactionManager = databaseFacade.GetService<IDbContextTransactionManager>();
+            if (transactionManager is ISpannerRelationalConnection spannerRelationalConnection)
+            {
+                return spannerRelationalConnection.BeginTransactionAsync(isolationLevel, tag, cancellationToken);
+            }
+            throw new InvalidOperationException("Transaction tags can only be used with Spanner databases");
+        }
+
         /// <summary>
         /// Begins a read-only transaction for a Cloud Spanner database.
         /// </summary>
         /// <param name="databaseFacade">The Cloud Spanner database to begin the transaction on</param>
         /// <returns>A read-only transaction using <see cref="TimestampBoundMode.Strong"/></returns>
-        public static IDbContextTransaction BeginReadOnlyTransaction([NotNull] this DatabaseFacade databaseFacade) =>
-            BeginReadOnlyTransaction(databaseFacade, TimestampBound.Strong);
+        /// <exception cref="InvalidOperationException">If the database is not a Cloud Spanner database.</exception>
+        public static IDbContextTransaction BeginReadOnlyTransaction([NotNull] this DatabaseFacade databaseFacade)
+        {
+            var transactionManager = databaseFacade.GetService<IDbContextTransactionManager>();
+            if (transactionManager is ISpannerRelationalConnection spannerRelationalConnection)
+            {
+                return spannerRelationalConnection.BeginReadOnlyTransaction();
+            }
+            throw new InvalidOperationException("Read-only transactions can only be started for Spanner databases");
+        }
 
         /// <summary>
         /// Begins a read-only transaction for a Cloud Spanner database using the specified <see cref="TimestampBound"/>
@@ -98,7 +144,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         /// <returns>A read-only transaction using the specified <see cref="TimestampBound"/></returns>
         /// <exception cref="InvalidOperationException">If the database is not a Cloud Spanner database.</exception>
         public static IDbContextTransaction BeginReadOnlyTransaction([NotNull] this DatabaseFacade databaseFacade, [NotNull] TimestampBound timestampBound)
-            => BeginReadOnlyTransactionAsync(databaseFacade, timestampBound).ResultWithUnwrappedExceptions();
+        {
+            var transactionManager = databaseFacade.GetService<IDbContextTransactionManager>();
+            if (transactionManager is ISpannerRelationalConnection spannerRelationalConnection)
+            {
+                return spannerRelationalConnection.BeginReadOnlyTransaction(timestampBound);
+            }
+            throw new InvalidOperationException("Read-only transactions can only be started for Spanner databases");
+        }
 
         /// <summary>
         /// Begins a read-only transaction for a Cloud Spanner database.
@@ -107,8 +160,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         /// <param name="cancellationToken">A <see cref="CancellationToken" /> cancellation token to monitor for the asynchronous operation.</param>
         /// <returns>A read-only transaction using <see cref="TimestampBoundMode.Strong"/></returns>
         /// <exception cref="InvalidOperationException">If the database is not a Cloud Spanner database.</exception>
-        public static Task<IDbContextTransaction> BeginReadOnlyTransactionAsync([NotNull] this DatabaseFacade databaseFacade, CancellationToken cancellationToken = default) =>
-            BeginReadOnlyTransactionAsync(databaseFacade, TimestampBound.Strong, cancellationToken);
+        public static Task<IDbContextTransaction> BeginReadOnlyTransactionAsync([NotNull] this DatabaseFacade databaseFacade, CancellationToken cancellationToken = default)
+        {
+            var transactionManager = databaseFacade.GetService<IDbContextTransactionManager>();
+            if (transactionManager is ISpannerRelationalConnection spannerRelationalConnection)
+            {
+                return spannerRelationalConnection.BeginReadOnlyTransactionAsync(cancellationToken);
+            }
+            throw new InvalidOperationException("Read-only transactions can only be started for Spanner databases");
+        }
 
         /// <summary>
         /// Begins a read-only transaction for a Cloud Spanner database using the specified <see cref="TimestampBound"/>
@@ -121,7 +181,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         public static Task<IDbContextTransaction> BeginReadOnlyTransactionAsync([NotNull] this DatabaseFacade databaseFacade, [NotNull] TimestampBound timestampBound, CancellationToken cancellationToken = default)
         {
             var transactionManager = databaseFacade.GetService<IDbContextTransactionManager>();
-            if (transactionManager is SpannerRelationalConnection spannerRelationalConnection)
+            if (transactionManager is ISpannerRelationalConnection spannerRelationalConnection)
             {
                 return spannerRelationalConnection.BeginReadOnlyTransactionAsync(timestampBound, cancellationToken);
             }
@@ -147,7 +207,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Extensions
         /// </param>
         public static Task StartMigrateAsync([NotNull] this DatabaseFacade databaseFacade, CancellationToken cancellationToken = default)
             => StartMigrateAsync(databaseFacade, null, cancellationToken);
-        
+
         /// <summary>
         /// Starts the DDL operations that are needed for any pending migrations up until the target migration,
         /// but does not wait for the DDL operations to finish. The returned task is done when the DDL operations
