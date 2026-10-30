@@ -840,6 +840,141 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             );
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task Insert_MixedBatch_ReturnsCorrectUpdateCount(bool async)
+        {
+            var insertAlbumSql = $"INSERT INTO `Albums` (`AlbumId`, `Awards`, `ReleaseDate`, `SingerId`, `Title`){Environment.NewLine}" +
+                                 $"VALUES (@p0, @p1, @p2, @p3, @p4)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertAlbumSql, StatementResult.CreateUpdateCount(1L));
+
+            var insertTicketSaleSql = $"INSERT INTO `TicketSales` (`Receipt`, `CustomerName`){Environment.NewLine}" +
+                                      $"VALUES (@p5, @p6){Environment.NewLine}" +
+                                      $"THEN RETURN `Id`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertTicketSaleSql,
+                StatementResult.CreateSingleColumnResultSet(1L, new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 12345L));
+
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            db.Albums.Add(new Albums
+            {
+                AlbumId = 1L,
+                Title = "Album 1",
+                SingerId = 1L,
+            });
+            var ticketSale = db.TicketSales.Add(new TicketSales
+            {
+                CustomerName = "Customer 1",
+                Receipt = new Receipt
+                {
+                    Date = new DateOnly(2025, 9, 1),
+                    Number = "99999",
+                },
+            });
+
+            var updateCount = async ? await db.SaveChangesAsync(TestContext.Current.CancellationToken) : db.SaveChanges();
+
+            Assert.Equal(2L, updateCount);
+            Assert.Equal(12345L, ticketSale.Entity.Id);
+            Assert.Empty(_fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>());
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request => Assert.Equal(insertAlbumSql, request.Sql),
+                request => Assert.Equal(insertTicketSaleSql, request.Sql)
+            );
+            Assert.Single(_fixture.SpannerMock.Requests, request => request is CommitRequest);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task MixedBatch_WithInsertAndDelete_ReturnsCorrectUpdateCount(bool async)
+        {
+            var deleteSingerSql = $"DELETE FROM `Singers`{Environment.NewLine}" +
+                                  $"WHERE `SingerId` = @p0{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(deleteSingerSql, StatementResult.CreateUpdateCount(1L));
+
+            var insertTicketSaleSql = $"INSERT INTO `TicketSales` (`Receipt`, `CustomerName`){Environment.NewLine}" +
+                                      $"VALUES (@p1, @p2){Environment.NewLine}" +
+                                      $"THEN RETURN `Id`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertTicketSaleSql,
+                StatementResult.CreateSingleColumnResultSet(1L, new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 12345L));
+
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            var ticketSale = db.TicketSales.Add(new TicketSales
+            {
+                CustomerName = "Customer 1",
+                Receipt = new Receipt
+                {
+                    Date = new DateOnly(2025, 9, 1),
+                    Number = "99999",
+                },
+            });
+            var singerToDelete = new Singers { SingerId = 1L };
+            db.Attach(singerToDelete);
+            db.Singers.Remove(singerToDelete);
+
+            var updateCount = async ? await db.SaveChangesAsync(TestContext.Current.CancellationToken) : db.SaveChanges();
+
+            Assert.Equal(2L, updateCount);
+            Assert.Equal(12345L, ticketSale.Entity.Id);
+            Assert.Empty(_fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>());
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request => Assert.Equal(deleteSingerSql, request.Sql),
+                request => Assert.Equal(insertTicketSaleSql, request.Sql)
+            );
+            Assert.Single(_fixture.SpannerMock.Requests, request => request is CommitRequest);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task MixedBatch_AbortedTransaction_IsRetried(bool async)
+        {
+            var insertAlbumSql = $"INSERT INTO `Albums` (`AlbumId`, `Awards`, `ReleaseDate`, `SingerId`, `Title`){Environment.NewLine}" +
+                                 $"VALUES (@p0, @p1, @p2, @p3, @p4)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertAlbumSql, StatementResult.CreateUpdateCount(1L));
+
+            var insertTicketSaleSql = $"INSERT INTO `TicketSales` (`Receipt`, `CustomerName`){Environment.NewLine}" +
+                                      $"VALUES (@p5, @p6){Environment.NewLine}" +
+                                      $"THEN RETURN `Id`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertTicketSaleSql,
+                StatementResult.CreateSingleColumnResultSet(1L, new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 12345L));
+
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            db.Albums.Add(new Albums
+            {
+                AlbumId = 1L,
+                Title = "Album 1",
+                SingerId = 1L,
+            });
+            var ticketSale = db.TicketSales.Add(new TicketSales
+            {
+                CustomerName = "Customer 1",
+                Receipt = new Receipt
+                {
+                    Date = new DateOnly(2025, 9, 1),
+                    Number = "99999",
+                },
+            });
+
+            _fixture.SpannerMock.AbortNextStatement();
+            var updateCount = async ? await db.SaveChangesAsync(TestContext.Current.CancellationToken) : db.SaveChanges();
+
+            Assert.Equal(2L, updateCount);
+            Assert.Equal(12345L, ticketSale.Entity.Id);
+            Assert.Empty(_fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>());
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request => Assert.Equal(insertAlbumSql, request.Sql),
+                request => Assert.Equal(insertTicketSaleSql, request.Sql),
+                request => Assert.Equal(insertAlbumSql, request.Sql),
+                request => Assert.Equal(insertTicketSaleSql, request.Sql)
+            );
+            Assert.Single(_fixture.SpannerMock.Requests, request => request is CommitRequest);
+        }
+
         [Fact]
         public async Task UpdateSinger_SelectsFullName()
         {
