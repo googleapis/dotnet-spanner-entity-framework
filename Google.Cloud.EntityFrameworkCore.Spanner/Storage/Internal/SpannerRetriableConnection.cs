@@ -102,7 +102,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <param name="cancellationToken">A <see cref="CancellationToken" /> cancellation token to monitor for the asynchronous operation.</param>
         /// <returns>A new read-only transaction with the specified <see cref="TimestampBound"/></returns>
         public async Task<SpannerReadOnlyTransaction> BeginReadOnlyTransactionAsync(TimestampBound timestampBound, CancellationToken cancellationToken = default) =>
-            new SpannerReadOnlyTransaction(this, await SpannerConnection.BeginReadOnlyTransactionAsync(timestampBound, cancellationToken));
+            new SpannerReadOnlyTransaction(this, await SpannerConnection.BeginReadOnlyTransactionAsync(timestampBound, cancellationToken).ConfigureAwait(false));
 
         /// <summary>
         /// Begins a new read/write transaction on the connection. The transaction will automatically be
@@ -122,7 +122,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <returns>A new read/write transaction with internal retries enabled.</returns>
         /// <exception cref="NotSupportedException"/>
         public new SpannerRetriableTransaction BeginTransaction(IsolationLevel isolationLevel)
-            => BeginTransactionAsync(isolationLevel).ResultWithUnwrappedExceptions();
+            => BeginTransaction(isolationLevel, null);
 
         /// <summary>
         /// Begins a new read/write transaction on the connection with the specified <see cref="IsolationLevel"/>.
@@ -133,12 +133,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// </summary>
         /// <returns>A new read/write transaction with internal retries enabled.</returns>
         /// <exception cref="NotSupportedException"/>
-        public SpannerRetriableTransaction BeginTransaction(IsolationLevel isolationLevel, string tag)
-            => BeginTransactionAsync(isolationLevel, tag).ResultWithUnwrappedExceptions();
+        public SpannerRetriableTransaction BeginTransaction(IsolationLevel isolationLevel, [CanBeNull] string tag)
+        {
+            var dbTransaction = SpannerConnection.BeginTransaction(
+                SpannerTransactionCreationOptions.ReadWrite.WithIsolationLevel(isolationLevel),
+                new SpannerTransactionOptions { Tag = tag });
+            return new SpannerRetriableTransaction(
+                this,
+                dbTransaction,
+                SystemClock.Instance,
+                SystemScheduler.Instance);
+        }
 
         /// <inheritdoc/>
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
-            => BeginTransactionAsync(isolationLevel).ResultWithUnwrappedExceptions();
+            => BeginTransaction(isolationLevel, null);
 
         /// <summary>
         /// Begins a new read/write transaction on the connection. The transaction will automatically be
@@ -161,7 +170,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public new Task<SpannerRetriableTransaction> BeginTransactionAsync(IsolationLevel isolationLevel,
             CancellationToken cancellationToken = default) =>
             BeginTransactionAsync(isolationLevel, null, cancellationToken);
-        
+
         /// <summary>
         /// Begins a new read/write transaction on the connection with the specified <see cref="IsolationLevel"/>
         /// and transaction tag. Cloud Spanner supports <see cref="IsolationLevel.Serializable"/> and
@@ -175,8 +184,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public async Task<SpannerRetriableTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, [CanBeNull] string tag, CancellationToken cancellationToken = default)
         {
             var dbTransaction = await SpannerConnection.BeginTransactionAsync(
-                SpannerTransactionCreationOptions.ReadWrite.WithIsolationLevel(isolationLevel), 
-                new SpannerTransactionOptions{Tag = tag}, cancellationToken);
+                SpannerTransactionCreationOptions.ReadWrite.WithIsolationLevel(isolationLevel),
+                new SpannerTransactionOptions { Tag = tag }, cancellationToken).ConfigureAwait(false);
             return new SpannerRetriableTransaction(
                 this,
                 dbTransaction,
@@ -191,7 +200,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <param name="cancellationToken">A cancellation token used for this task.</param>
         /// <returns>A task whose Result property is an object representing the new transaction.</returns>
         protected async override ValueTask<DbTransaction> BeginDbTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken)
-            => await BeginTransactionAsync(isolationLevel, cancellationToken);
+            => await BeginTransactionAsync(isolationLevel, cancellationToken).ConfigureAwait(false);
 
         /// <summary>
         /// Creates a command that can be used for a query. It will automatically retry if the transaction aborts.
