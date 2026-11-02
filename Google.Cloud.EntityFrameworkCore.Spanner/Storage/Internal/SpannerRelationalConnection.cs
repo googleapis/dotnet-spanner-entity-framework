@@ -1,4 +1,4 @@
-﻿// Copyright 2020, Google Inc. All rights reserved.
+// Copyright 2020, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,9 +19,11 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure.Internal;
 using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Data.Common;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Api.Gax;
@@ -40,7 +42,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public SpannerRelationalConnection(RelationalConnectionDependencies dependencies)
             : base(dependencies)
         {
-            var relationalOptions = (SpannerOptionsExtension) RelationalOptionsExtension.Extract(dependencies.ContextOptions);
+            var relationalOptions = (SpannerOptionsExtension)RelationalOptionsExtension.Extract(dependencies.ContextOptions);
             DdlExecutionStrategy = relationalOptions.DdlExecutionStrategy;
             MutationUsage = relationalOptions.MutationUsage;
             ConnectionStringBuilder = relationalOptions.ConnectionStringBuilder;
@@ -52,7 +54,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// Implements ISpannerRelationalConnection.DdlExecutionStrategy
         /// </summary>
         public DdlExecutionStrategy DdlExecutionStrategy { get; set; }
-        
+
         public MutationUsage MutationUsage { get; }
 
         internal SpannerConnectionStringBuilder ConnectionStringBuilder { get; }
@@ -82,6 +84,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <returns>A read/write transaction that uses the given tag</returns>
         public IDbContextTransaction BeginTransaction(string tag) => BeginTransaction(IsolationLevel.Unspecified, tag);
 
+        /// <inheritdoc />
+        public override IDbContextTransaction BeginTransaction(IsolationLevel isolationLevel)
+            => BeginTransaction(isolationLevel, tag: null);
+
         /// <summary>
         /// Begins a read/write transaction on this connection with the given isolation level and transaction tag.
         /// </summary>
@@ -89,13 +95,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <param name="tag">The transaction tag to use for the transaction</param>
         /// <returns>A read/write transaction that uses the given isolation level and tag</returns>
         public IDbContextTransaction BeginTransaction(IsolationLevel isolationLevel, string tag)
-        {
-            GaxPreconditions.CheckState(CurrentTransaction == null, "This connection already has a transaction");
-            var transaction = Connection.BeginTransaction(isolationLevel, tag);
-            CurrentTransaction = CreateRelationalTransaction(transaction, Guid.NewGuid(), transactionOwned: true);
-            return CurrentTransaction;
-        }
-        
+            => BeginCustomTransaction(isolationLevel, () => Connection.BeginTransaction(isolationLevel, tag));
+
         private IDbContextTransaction CreateRelationalTransaction(DbTransaction transaction, Guid transactionId, bool transactionOwned)
             => CurrentTransaction
                 = Dependencies.RelationalTransactionFactory.Create(
@@ -114,6 +115,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public Task<IDbContextTransaction> BeginTransactionAsync(string tag, CancellationToken cancellationToken = default)
             => BeginTransactionAsync(IsolationLevel.Unspecified, tag, cancellationToken);
 
+        /// <inheritdoc />
+        public override Task<IDbContextTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default)
+            => BeginTransactionAsync(isolationLevel, tag: null, cancellationToken);
+
         /// <summary>
         /// Begins a read/write transaction on this connection with the given isolation level and transaction tag.
         /// </summary>
@@ -121,13 +126,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <param name="tag">The transaction tag to use for the transaction</param>
         /// <param name="cancellationToken">A <see cref="CancellationToken" /> cancellation token to monitor for the asynchronous operation.</param>
         /// <returns>A read/write transaction that uses the given isolation level and tag</returns>
-        public async Task<IDbContextTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, string tag, CancellationToken cancellationToken = default)
-        {
-            GaxPreconditions.CheckState(CurrentTransaction == null, "This connection already has a transaction");
-            var transaction = await Connection.BeginTransactionAsync(isolationLevel, tag,  cancellationToken).ConfigureAwait(false);
-            CurrentTransaction = CreateRelationalTransaction(transaction, Guid.NewGuid(), transactionOwned: true);
-            return CurrentTransaction;
-        }
+        public Task<IDbContextTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, string tag, CancellationToken cancellationToken = default)
+            => BeginCustomTransactionAsync(isolationLevel, token => Connection.BeginTransactionAsync(isolationLevel, tag, token), cancellationToken);
 
         /// <summary>
         /// Begins a read-only transaction on this connection.
@@ -142,17 +142,17 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <returns>A read-only transaction that uses the specified <see cref="TimestampBound"/></returns>
         public IDbContextTransaction BeginReadOnlyTransaction(TimestampBound timestampBound)
         {
-            GaxPreconditions.CheckState(CurrentTransaction == null, "This connection already has a transaction");
-            var transaction = Connection.BeginReadOnlyTransaction(timestampBound);
-            CurrentTransaction = CreateRelationalTransaction(transaction, Guid.NewGuid(), transactionOwned: true);
-            return CurrentTransaction;
+            GaxPreconditions.CheckNotNull(timestampBound, nameof(timestampBound));
+            return BeginCustomTransaction(IsolationLevel.Unspecified, () => Connection.BeginReadOnlyTransaction(timestampBound));
         }
 
         /// <summary>
         /// Begins a read-only transaction on this connection.
         /// </summary>
+        /// <param name="cancellationToken">A <see cref="CancellationToken" /> cancellation token to monitor for the asynchronous operation.</param>
         /// <returns>A read-only transaction that uses <see cref="TimestampBoundMode.Strong"/></returns>
-        public Task<IDbContextTransaction> BeginReadOnlyTransactionAsync() => BeginReadOnlyTransactionAsync(TimestampBound.Strong);
+        public Task<IDbContextTransaction> BeginReadOnlyTransactionAsync(CancellationToken cancellationToken = default)
+            => BeginReadOnlyTransactionAsync(TimestampBound.Strong, cancellationToken);
 
         /// <summary>
         /// Begins a read-only transaction with the specified <see cref="TimestampBound"/> on this connection.
@@ -160,12 +160,113 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// <param name="timestampBound">The read timestamp to use for the transaction</param>
         /// <param name="cancellationToken">A <see cref="CancellationToken" /> cancellation token to monitor for the asynchronous operation.</param>
         /// <returns>A read-only transaction that uses the specified <see cref="TimestampBound"/></returns>
-        public async Task<IDbContextTransaction> BeginReadOnlyTransactionAsync(TimestampBound timestampBound, CancellationToken cancellationToken = default)
+        public Task<IDbContextTransaction> BeginReadOnlyTransactionAsync(TimestampBound timestampBound, CancellationToken cancellationToken = default)
         {
-            GaxPreconditions.CheckState(CurrentTransaction == null, "This connection already has a transaction");
-            var transaction = await Connection.BeginReadOnlyTransactionAsync(timestampBound, cancellationToken).ConfigureAwait(false);
-            CurrentTransaction = CreateRelationalTransaction(transaction, Guid.NewGuid(), transactionOwned: true);
-            return CurrentTransaction;
+            GaxPreconditions.CheckNotNull(timestampBound, nameof(timestampBound));
+            return BeginCustomTransactionAsync(IsolationLevel.Unspecified, token => Connection.BeginReadOnlyTransactionAsync(timestampBound, token), cancellationToken);
+        }
+
+        private IDbContextTransaction BeginCustomTransaction(
+            IsolationLevel isolationLevel,
+            Func<DbTransaction> beginTransactionAction)
+        {
+            EnsureNoTransactions();
+            Open();
+            DbTransaction transaction = null;
+            try
+            {
+                EnsureNoTransactions();
+                var transactionId = Guid.NewGuid();
+                var startTime = DateTimeOffset.UtcNow;
+                var stopwatch = Stopwatch.StartNew();
+                var interceptionResult = Dependencies.TransactionLogger.TransactionStarting(
+                    this, isolationLevel, transactionId, startTime);
+                transaction = interceptionResult.HasResult
+                    ? interceptionResult.Result
+                    : beginTransactionAction();
+                transaction = Dependencies.TransactionLogger.TransactionStarted(
+                    this, transaction, transactionId, startTime, stopwatch.Elapsed);
+                return CreateRelationalTransaction(transaction, transactionId, transactionOwned: true);
+            }
+            catch
+            {
+                try
+                {
+                    transaction?.Dispose();
+                }
+                catch
+                {
+                    // Suppress secondary exception to ensure Close() is reached.
+                }
+                Close();
+                throw;
+            }
+        }
+
+        private async Task<IDbContextTransaction> BeginCustomTransactionAsync<TTransaction>(
+            IsolationLevel isolationLevel,
+            Func<CancellationToken, Task<TTransaction>> beginTransactionActionAsync,
+            CancellationToken cancellationToken)
+            where TTransaction : DbTransaction
+        {
+            EnsureNoTransactions();
+            await OpenAsync(cancellationToken).ConfigureAwait(false);
+            DbTransaction transaction = null;
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                EnsureNoTransactions();
+                var transactionId = Guid.NewGuid();
+                var startTime = DateTimeOffset.UtcNow;
+                var stopwatch = Stopwatch.StartNew();
+                var interceptionResult = await Dependencies.TransactionLogger.TransactionStartingAsync(
+                    this, isolationLevel, transactionId, startTime, cancellationToken).ConfigureAwait(false);
+                if (interceptionResult.HasResult)
+                {
+                    transaction = interceptionResult.Result;
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+                else
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    transaction = await beginTransactionActionAsync(cancellationToken).ConfigureAwait(false);
+                }
+                transaction = await Dependencies.TransactionLogger.TransactionStartedAsync(
+                    this, transaction, transactionId, startTime, stopwatch.Elapsed, cancellationToken).ConfigureAwait(false);
+                return CreateRelationalTransaction(transaction, transactionId, transactionOwned: true);
+            }
+            catch
+            {
+                if (transaction != null)
+                {
+                    try
+                    {
+                        await transaction.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // Suppress secondary exception to ensure CloseAsync() is reached.
+                    }
+                }
+                await CloseAsync().ConfigureAwait(false);
+                throw;
+            }
+        }
+
+        private void EnsureNoTransactions()
+        {
+            if (CurrentTransaction != null)
+            {
+                throw new InvalidOperationException(RelationalStrings.TransactionAlreadyStarted);
+            }
+            if (CurrentAmbientTransaction != null)
+            {
+                throw new InvalidOperationException(RelationalStrings.ConflictingAmbientTransaction);
+            }
+            if (EnlistedTransaction != null)
+            {
+                throw new InvalidOperationException(RelationalStrings.ConflictingEnlistedTransaction);
+            }
         }
 
         /// <summary>
