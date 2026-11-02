@@ -31,7 +31,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         internal FailedBatchDmlStatement(SpannerRetriableBatchCommand command, SpannerException exception)
         {
-            _command = command;
+            _command = command.Clone();
             _exception = exception;
         }
 
@@ -39,18 +39,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
             try
             {
-                await _command.CreateSpannerBatchCommand().ExecuteNonQueryAsync(cancellationToken);
+                _command.Transaction = transaction;
+                var batchCommand = _command.CreateSpannerBatchCommand();
+                batchCommand.CommandTimeout = timeoutSeconds;
+                await batchCommand.ExecuteNonQueryAsync(cancellationToken);
                 // Fallthrough and throw the exception at the end of the method.
             }
-            catch (SpannerBatchNonQueryException e)
+            catch (SpannerBatchNonQueryException e) when (e.ErrorCode != ErrorCode.Aborted)
             {
                 // Check that we got the exact same exception and results this time as the previous time.
                 if (_exception is SpannerBatchNonQueryException batchException
-                    && e.ErrorCode == _exception.ErrorCode
-                    && e.Message.Equals(_exception.Message)
+                    && SpannerRetriableTransaction.SpannerExceptionsEqualForRetry(e, batchException)
                     // A Batch DML statement returns the update counts of the first N statements and the error
                     // that occurred for statement N+1.
-                    && e.SuccessfulCommandResults.SequenceEqual(batchException.SuccessfulCommandResults)
+                    && ((e.SuccessfulCommandResults == null && batchException.SuccessfulCommandResults == null)
+                        || (e.SuccessfulCommandResults != null && batchException.SuccessfulCommandResults != null && e.SuccessfulCommandResults.SequenceEqual(batchException.SuccessfulCommandResults)))
                     )
                 {
                     return;
@@ -78,15 +81,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 batchCommand.ExecuteNonQuery();
                 // Fallthrough and throw the exception at the end of the method.
             }
-            catch (SpannerBatchNonQueryException e)
+            catch (SpannerBatchNonQueryException e) when (e.ErrorCode != ErrorCode.Aborted)
             {
                 // Check that we got the exact same exception and results this time as the previous time.
                 if (_exception is SpannerBatchNonQueryException batchException
-                    && e.ErrorCode == _exception.ErrorCode
-                    && e.Message.Equals(_exception.Message)
+                    && SpannerRetriableTransaction.SpannerExceptionsEqualForRetry(e, batchException)
                     // A Batch DML statement returns the update counts of the first N statements and the error
                     // that occurred for statement N+1.
-                    && e.SuccessfulCommandResults.SequenceEqual(batchException.SuccessfulCommandResults)
+                    && ((e.SuccessfulCommandResults == null && batchException.SuccessfulCommandResults == null)
+                        || (e.SuccessfulCommandResults != null && batchException.SuccessfulCommandResults != null && e.SuccessfulCommandResults.SequenceEqual(batchException.SuccessfulCommandResults)))
                     )
                 {
                     return;
@@ -106,6 +109,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         public void Dispose()
         {
+            _command.Dispose();
         }
     }
 }
