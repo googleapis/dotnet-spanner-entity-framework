@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.1.3](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-4.1.2...Google.Cloud.EntityFrameworkCore.Spanner-4.1.3) (2026-11-03)
+
+
+### Bug Fixes
+
+* custom transaction connection handling ([#862](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/862)) ([646db44](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/646db448a17611c21b87c30dd5d0dbd0f3de5eb0))
+
 ## [4.1.2](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-4.1.1...Google.Cloud.EntityFrameworkCore.Spanner-4.1.2) (2026-10-29)
 
 
