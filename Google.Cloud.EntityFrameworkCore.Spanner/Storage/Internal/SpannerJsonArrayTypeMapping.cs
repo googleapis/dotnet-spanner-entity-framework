@@ -20,6 +20,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
 using System.Text.Json;
+using IEnumerable = System.Collections.IEnumerable;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
@@ -32,15 +33,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     public class SpannerJsonArrayTypeMapping : RelationalTypeMapping
     {
         private static readonly ValueConverter s_converter = new ValueConverter<JsonDocument[], string[]>(
-            v => v.Select(jd => jd == null ? null : jd.RootElement.ToString()).ToArray(),
-            v => v.Select(s => s == null ? null : JsonDocument.Parse(s, SpannerJsonTypeMapping.JsonOptions)).ToArray());
+            documents => documents == null ? null : documents.Select(document => document == null ? null : document.RootElement.GetRawText()).ToArray(),
+            strings => strings == null ? null : strings.Select(json => json == null ? null : JsonDocument.Parse(json, SpannerJsonTypeMapping.JsonOptions)).ToArray());
 
         public static SpannerJsonArrayTypeMapping Default { get; } = new();
 
         public SpannerJsonArrayTypeMapping()
             : base(new RelationalTypeMappingParameters(
                    new CoreTypeMappingParameters(typeof(JsonDocument[]), s_converter),
-                   "ARRAY<JSON>"))
+                   "ARRAY<JSON>", StoreTypePostfix.None, System.Data.DbType.Object))
         { }
 
         protected SpannerJsonArrayTypeMapping(RelationalTypeMappingParameters parameters)
@@ -61,17 +62,25 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             spannerParameter.SpannerDbType = SpannerDbType.ArrayOf(SpannerDbType.Json);
         }
 
-        protected override string GenerateNonNullSqlLiteral(object value)
+        public override string GenerateSqlLiteral(object value)
+            => value == null ? "NULL" : GenerateNonNullSqlLiteral(value);
+
+        internal static string GenerateJsonArrayLiteral(object value)
         {
-            if (value is JsonDocument[] values)
+            if (value is IEnumerable enumerable and not string and not byte[])
             {
-                return values.Select(jd => $"'{jd.RootElement.ToString()}'").ToString();
-            }
-            if (value is string[] stringValues)
-            {
-                return stringValues.Select(s => $"'{s}'").ToString();
+                var elements = new List<string>();
+                foreach (var item in enumerable)
+                {
+                    elements.Add(SpannerJsonTypeMapping.GenerateJsonLiteral(item));
+                }
+
+                return $"ARRAY<JSON>[{string.Join(", ", elements)}]";
             }
             throw new ArgumentException($"{value} is not valid for database type ARRAY<JSON>");
         }
+
+        protected override string GenerateNonNullSqlLiteral(object value)
+            => GenerateJsonArrayLiteral(value);
     }
 }
