@@ -33,7 +33,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public static readonly JsonDocumentOptions JsonOptions = new()
         { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip, MaxDepth = 100 };
         private static readonly ValueConverter s_converter = new ValueConverter<JsonDocument, string>(
-            v => v.RootElement.ToString(),
+            v => v.RootElement.GetRawText(),
             v => JsonDocument.Parse(v, JsonOptions));
 
         public static SpannerJsonTypeMapping Default { get; } = new();
