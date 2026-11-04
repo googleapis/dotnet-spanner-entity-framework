@@ -55,7 +55,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     SingerId = invalidSingerId, // Invalid, does not reference an actual Singer
                     Title = "Some title",
                 });
-                await Assert.ThrowsAsync<SpannerException>(() => db.SaveChangesAsync());
+                var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+                Assert.IsType<SpannerException>(exception.InnerException);
             }
 
             using (var db = new TestSpannerSampleDbContext(_fixture.DatabaseName))
@@ -365,11 +366,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     // transactions will abort.
                     InsertRandomSinger(disableInternalRetries).Wait();
                 }
-                catch (AggregateException e) when (e.InnerException is SpannerException se && se.ErrorCode == ErrorCode.Aborted)
+                catch (AggregateException aggregateException) when (
+                    aggregateException.InnerException is SpannerException { ErrorCode: ErrorCode.Aborted }
+                    || aggregateException.InnerException is DbUpdateException { InnerException: SpannerException { ErrorCode: ErrorCode.Aborted } })
                 {
+                    var spannerException = aggregateException.InnerException is SpannerException directSpannerException
+                        ? directSpannerException
+                        : (SpannerException)aggregateException.InnerException.InnerException;
                     lock (aborted)
                     {
-                        aborted.Add(se);
+                        aborted.Add(spannerException);
                     }
                     // We don't care exactly how many transactions were aborted, only whether
                     // at least one or none was aborted.

@@ -15,6 +15,7 @@
 using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
+using Grpc.Core;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -137,22 +138,34 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 throw new InvalidOperationException("There is no active transaction. Cloud Spanner does not support executing updates without a transaction.");
             }
 
-            var containsReads = _modificationCommands.Any(c => c.ColumnModifications.Any(cm => cm.IsRead));
-            var useMutations = spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.Always
-                || (!_hasExplicitTransaction
-                    && !containsReads
-                    && spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.ImplicitTransactions);
-            if (useMutations)
+            try
             {
-                ExecuteMutations(spannerConnection, transaction);
+                var containsReads = _modificationCommands.Any(c => c.ColumnModifications.Any(cm => cm.IsRead));
+                var useMutations = spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.Always
+                    || (!_hasExplicitTransaction
+                        && !containsReads
+                        && spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.ImplicitTransactions);
+                if (useMutations)
+                {
+                    ExecuteMutations(spannerConnection, transaction);
+                }
+                else if (containsReads)
+                {
+                    ExecuteDml(connection, spannerConnection, transaction);
+                }
+                else
+                {
+                    ExecuteBatchDml(spannerConnection, transaction);
+                }
             }
-            else if (containsReads)
+            catch (Exception exception) when (exception is SpannerException || exception is DbException || exception is RpcException)
             {
-                ExecuteDml(connection, spannerConnection, transaction);
-            }
-            else
-            {
-                ExecuteBatchDml(spannerConnection, transaction);
+                var wrappedException = SpannerBatchExecutor.WrapException(exception, _modificationCommands);
+                if (ReferenceEquals(wrappedException, exception))
+                {
+                    throw;
+                }
+                throw wrappedException;
             }
         }
 
@@ -296,22 +309,34 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 throw new InvalidOperationException("There is no active transaction. Cloud Spanner does not support executing updates without a transaction.");
             }
 
-            var containsReads = _modificationCommands.Any(c => c.ColumnModifications.Any(cm => cm.IsRead));
-            var useMutations = spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.Always
-                || (!_hasExplicitTransaction
-                    && !containsReads
-                    && spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.ImplicitTransactions);
-            if (useMutations)
+            try
             {
-                await ExecuteMutationsAsync(spannerConnection, transaction, cancellationToken);
+                var containsReads = _modificationCommands.Any(c => c.ColumnModifications.Any(cm => cm.IsRead));
+                var useMutations = spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.Always
+                    || (!_hasExplicitTransaction
+                        && !containsReads
+                        && spannerRelationalConnection.MutationUsage == Infrastructure.MutationUsage.ImplicitTransactions);
+                if (useMutations)
+                {
+                    await ExecuteMutationsAsync(spannerConnection, transaction, cancellationToken);
+                }
+                else if (containsReads)
+                {
+                    await ExecuteDmlAsync(connection, spannerConnection, transaction, cancellationToken);
+                }
+                else
+                {
+                    await ExecuteBatchDmlAsync(spannerConnection, transaction, cancellationToken);
+                }
             }
-            else if (containsReads)
+            catch (Exception exception) when (exception is SpannerException || exception is DbException || exception is RpcException)
             {
-                await ExecuteDmlAsync(connection, spannerConnection, transaction, cancellationToken);
-            }
-            else
-            {
-                await ExecuteBatchDmlAsync(spannerConnection, transaction, cancellationToken);
+                var wrappedException = SpannerBatchExecutor.WrapException(exception, _modificationCommands);
+                if (ReferenceEquals(wrappedException, exception))
+                {
+                    throw;
+                }
+                throw wrappedException;
             }
         }
 
@@ -449,20 +474,30 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         /// </summary>
         private void ThrowAggregateUpdateConcurrencyException()
         {
-            var expectedRowsAffected = _modificationCommands.Count;
-            var index = 0;
+            throw CreateAggregateUpdateConcurrencyException(_modificationCommands, UpdateCounts);
+        }
+
+        internal static DbUpdateConcurrencyException CreateAggregateUpdateConcurrencyException(
+            IReadOnlyList<IReadOnlyModificationCommand> modificationCommands,
+            IReadOnlyList<long> updateCounts)
+        {
+            var expectedRowsAffected = modificationCommands.Count;
+            var rowsAffected = updateCounts.Select(c => c == 0L ? 0 : 1).Sum();
             var entries = new List<IUpdateEntry>();
-            foreach (var c in UpdateCounts)
+            for (var index = 0; index < modificationCommands.Count; index++)
             {
-                if (c == 0L)
+                if (index >= updateCounts.Count || updateCounts[index] == 0L)
                 {
-                    entries.AddRange(ModificationCommands[index].Entries);
+                    entries.AddRange(modificationCommands[index].Entries);
                 }
-                index++;
+            }
+            if (entries.Count == 0)
+            {
+                entries.AddRange(modificationCommands.SelectMany(command => command.Entries));
             }
 
-            throw new DbUpdateConcurrencyException(
-                RelationalStrings.UpdateConcurrencyException(expectedRowsAffected, RowsAffected), entries);
+            return new DbUpdateConcurrencyException(
+                RelationalStrings.UpdateConcurrencyException(expectedRowsAffected, rowsAffected), entries);
         }
 
         internal void PropagateResults(IRelationalConnection connection)
