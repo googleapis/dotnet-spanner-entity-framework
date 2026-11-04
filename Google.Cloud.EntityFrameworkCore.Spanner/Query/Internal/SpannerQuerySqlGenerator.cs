@@ -19,6 +19,7 @@ using System;
 using System.Collections;
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 {
@@ -192,7 +193,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 };
             }
         }
-        
+
+        /// <summary>
+        /// Translates a <see cref="JsonScalarExpression"/> representing access to a scalar property
+        /// within a JSON column into Cloud Spanner SQL.
+        /// Cloud Spanner provides the JSON_VALUE(json, path) function to extract scalar values.
+        /// Since JSON_VALUE always returns a STRING, non-string and non-JSON scalar types (such as INT64,
+        /// BOOL, FLOAT64, NUMERIC, TIMESTAMP, DATE) must be wrapped in a CAST(JSON_VALUE(...) AS &lt;STORE_TYPE&gt;).
+        /// String types (including sized strings, char, and Guid) and JSON types do not require a cast.
+        /// </summary>
         protected override Expression VisitJsonScalar(JsonScalarExpression jsonScalarExpression)
         {
             var path = jsonScalarExpression.Path;
@@ -201,94 +210,52 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 Visit(jsonScalarExpression.Json);
                 return jsonScalarExpression;
             }
-            
-            // JSON_VALUE in Spanner always returns STRING.
-            // For non-string types, we need to wrap the result in CAST() to convert to the expected type.
-            // This is similar to how SQL Server handles JSON_VALUE (which returns nvarchar(4000)).
+
             var typeMapping = jsonScalarExpression.TypeMapping;
-            var needsCast = typeMapping != null 
-                && typeMapping.StoreType != "STRING" 
-                && typeMapping.StoreType != "JSON";
-            
+            var needsCast = RequiresCastFromJsonValue(typeMapping);
+
             if (needsCast)
             {
                 Sql.Append("CAST(");
             }
-            
-            // Use JSON_VALUE with JSONPath syntax for Spanner
-            // Example: JSON_VALUE(column, '$.property.nested')
-            
-            // Build JSONPath expression: $.property.nested or $.property[0]
-            var jsonPathBuilder = new System.Text.StringBuilder("$");
-            foreach (var pathSegment in path)
-            {
-                if (pathSegment.PropertyName != null)
-                {
-                    // Use dot notation for properties: $.property
-                    // Escape property names if they contain special characters
-                    var propertyName = pathSegment.PropertyName;
-                    
-                    // If property name has special characters, use double-quoted notation in JSONPath
-                    // Example: $."property.with.dot" instead of $["property.with.dot"]
-                    if (propertyName.Contains(".") || propertyName.Contains("'") || propertyName.Contains("\"") || propertyName.Contains(" "))
-                    {
-                        // Escape for JSONPath quoted notation, accounting for SQL string literal parsing.
-                        // The JSONPath is embedded in a SQL string literal '...', so backslashes are 
-                        // interpreted at the SQL level first, then at the JSONPath level.
-                        // 
-                        // For a property like: say "hello"
-                        // JSONPath needs: $."say \"hello\""
-                        // SQL literal needs: '$."say \\"hello\\""' (double backslash survives SQL parsing as single backslash)
-                        var escapedName = propertyName
-                            .Replace("\\", "\\\\\\\\")  // Backslash -> 4 backslashes (2 for JSONPath escape, doubled for SQL)
-                            .Replace("\"", "\\\\\"")    // Double quote -> 2 backslashes + quote (escaped at both levels)
-                            .Replace("'", "\\'");       // Single quote -> escaped for SQL string literal
-                        jsonPathBuilder.Append($".\"{escapedName}\"");
-                    }
-                    else
-                    {
-                        jsonPathBuilder.Append($".{propertyName}");
-                    }
-                }
-                else if (pathSegment.ArrayIndex != null)
-                {
-                    // For array indices: $[0] or $.property[0]
-                    // Note: ArrayIndex is a SqlExpression, for constant indices this works
-                    // For dynamic indices, this would need more complex handling
-                    jsonPathBuilder.Append("[");
-                    // Try to get constant value if possible
-                    if (pathSegment.ArrayIndex is SqlConstantExpression constantExpr)
-                    {
-                        jsonPathBuilder.Append(constantExpr.Value);
-                    }
-                    else
-                    {
-                        // For non-constant indices, we'd need dynamic evaluation.
-                        // Throw an exception to prevent silently generating a potentially incorrect query.
-                        throw new NotSupportedException("The Cloud Spanner EF Core provider does not support using a non-constant index when querying a JSON array.");
-                    }
-                    jsonPathBuilder.Append("]");
-                }
-            }
-            
-            var jsonPath = jsonPathBuilder.ToString();
-            
-            // Generate: JSON_VALUE(column, '$.path')
-            Sql.Append("JSON_VALUE(");
-            Visit(jsonScalarExpression.Json);
-            Sql.Append(", '");
-            Sql.Append(jsonPath);
-            Sql.Append("')");
-            
-            // Close the CAST if needed
+
+            var jsonPath = SpannerJsonPathHelper.BuildJsonPath(path);
+            GenerateJsonValue(jsonScalarExpression.Json, jsonPath);
+
             if (needsCast)
             {
                 Sql.Append(" AS ");
-                Sql.Append(typeMapping!.StoreType);
+                Sql.Append(typeMapping!.StoreTypeNameBase!.ToUpperInvariant());
                 Sql.Append(")");
             }
-            
+
             return jsonScalarExpression;
+        }
+
+        /// <summary>
+        /// Determines whether a CAST wrapper is needed around JSON_VALUE for the specified type mapping.
+        /// JSON_VALUE always returns a STRING scalar (or NULL). For STRING and JSON store types, no cast
+        /// is required. Sized string mappings (e.g. STRING(36) for Guid, STRING(1) for char, or STRING(50))
+        /// share the base store type "STRING"; casting to a sized string (e.g. CAST(... AS STRING(36))) is
+        /// a syntax error in Cloud Spanner SQL. All other store types (e.g. INT64, BOOL, FLOAT64) must be cast.
+        /// </summary>
+        private static bool RequiresCastFromJsonValue(RelationalTypeMapping typeMapping)
+        {
+            var storeTypeNameBase = typeMapping?.StoreTypeNameBase?.ToUpperInvariant();
+            return storeTypeNameBase is not (null or "STRING" or "JSON");
+        }
+
+        /// <summary>
+        /// Emits the JSON_VALUE(...) SQL expression.
+        /// Emits: JSON_VALUE(json, '$.path')
+        /// </summary>
+        private void GenerateJsonValue(SqlExpression jsonExpression, string jsonPath)
+        {
+            Sql.Append("JSON_VALUE(");
+            Visit(jsonExpression);
+            Sql.Append(", '");
+            Sql.Append(jsonPath);
+            Sql.Append("')");
         }
         
     }

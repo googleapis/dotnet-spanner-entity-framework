@@ -14,8 +14,10 @@
 
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore.Storage.Json;
 using System;
 using System.Data;
+using DataDbType = System.Data.DbType;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 {
@@ -32,7 +34,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public SpannerGuidTypeMapping(
             [NotNull] string storeType,
             DbType? dbType = null)
-            : base(storeType, typeof(Guid), dbType, size: 36)
+            : base(new RelationalTypeMappingParameters(
+                new CoreTypeMappingParameters(
+                    typeof(Guid),
+                    jsonValueReaderWriter: JsonGuidReaderWriter.Instance),
+                storeType,
+                StoreTypePostfix.None,
+                dbType ?? DataDbType.String,
+                size: 36))
         {
         }
 

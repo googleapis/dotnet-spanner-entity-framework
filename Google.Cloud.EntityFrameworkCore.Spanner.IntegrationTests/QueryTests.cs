@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
+using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore;
@@ -2585,6 +2587,347 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Equal("Entity1", entities[0].Name);
         }
 
+        /// <summary>
+        /// Tests that querying a JSON property with a backslash in the name correctly retrieves data.
+        /// This verifies end-to-end that the escaping $["back\\slash"] works against the Spanner engine.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonPropertyWithBackslashInName()
+        {
+            using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var identifier = _fixture.RandomLong();
+
+            database.TestEntityWithSpecialJsonProperties.Add(new TestEntityWithSpecialJsonProperties
+            {
+                Id = identifier,
+                Name = "TestBackslash",
+                JsonData = new JsonPropertiesWithSpecialNames
+                {
+                    PropertyWithBackslash = "backslash-value",
+                    NormalProperty = "normal"
+                }
+            });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var entity = await database.TestEntityWithSpecialJsonProperties
+                .Where(e => e.JsonData.PropertyWithBackslash == "backslash-value" && e.Id == identifier)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+
+            Assert.NotNull(entity);
+            Assert.Equal(identifier, entity.Id);
+            Assert.Equal("backslash-value", entity.JsonData.PropertyWithBackslash);
+        }
+
+        /// <summary>
+        /// Tests that querying a property with backslashes followed by 'n' and 't' within a JSON document
+        /// correctly matches the row and proves that Cloud Spanner's JSONPath engine does not treat \n or \t
+        /// as escape sequences inside double-quoted identifiers.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonPropertyWithBackslashNAndTInName()
+        {
+            using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var identifier = _fixture.RandomLong();
+
+            database.TestEntityWithSpecialJsonProperties.Add(new TestEntityWithSpecialJsonProperties
+            {
+                Id = identifier,
+                Name = "TestBackslashNAndT",
+                JsonData = new JsonPropertiesWithSpecialNames
+                {
+                    PropertyWithBackslashNAndT = "backslash-n-and-t-value",
+                    NormalProperty = "normal"
+                }
+            });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var entity = await database.TestEntityWithSpecialJsonProperties
+                .Where(e => e.JsonData.PropertyWithBackslashNAndT == "backslash-n-and-t-value" && e.Id == identifier)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+
+            Assert.NotNull(entity);
+            Assert.Equal(identifier, entity.Id);
+            Assert.Equal("backslash-n-and-t-value", entity.JsonData.PropertyWithBackslashNAndT);
+        }
+
+        /// <summary>
+        /// Tests that querying a Guid property mapped within a JSON document does not emit
+        /// an invalid CAST(JSON_VALUE(...) AS STRING(36)) expression (which Spanner rejects)
+        /// and correctly returns matching entities.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonGuidPropertyWithoutLengthInCast()
+        {
+            using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var identifier = _fixture.RandomLong();
+            var targetGuid = Guid.NewGuid();
+
+            database.TestEntityWithSpecialJsonProperties.Add(new TestEntityWithSpecialJsonProperties
+            {
+                Id = identifier,
+                Name = "TestGuid",
+                JsonData = new JsonPropertiesWithSpecialNames
+                {
+                    GuidProperty = targetGuid,
+                    NormalProperty = "normal"
+                }
+            });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var entity = await database.TestEntityWithSpecialJsonProperties
+                .Where(e => e.JsonData.GuidProperty == targetGuid && e.Id == identifier)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+
+            Assert.NotNull(entity);
+            Assert.Equal(identifier, entity.Id);
+            Assert.Equal(targetGuid, entity.JsonData.GuidProperty);
+        }
+
+        /// <summary>
+        /// Tests that querying a JSON property with non-ASCII characters in the name uses quoted notation
+        /// ($."prénom") and correctly matches rows in the database engine.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonPropertyWithNonAsciiName()
+        {
+            using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var identifier = _fixture.RandomLong();
+
+            database.TestEntityWithSpecialJsonProperties.Add(new TestEntityWithSpecialJsonProperties
+            {
+                Id = identifier,
+                Name = "TestNonAscii",
+                JsonData = new JsonPropertiesWithSpecialNames
+                {
+                    PropertyWithNonAscii = "prenom-value",
+                    NormalProperty = "normal"
+                }
+            });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var entity = await database.TestEntityWithSpecialJsonProperties
+                .Where(e => e.JsonData.PropertyWithNonAscii == "prenom-value" && e.Id == identifier)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+
+            Assert.NotNull(entity);
+            Assert.Equal(identifier, entity.Id);
+            Assert.Equal("prenom-value", entity.JsonData.PropertyWithNonAscii);
+        }
+
+        /// <summary>
+        /// Tests that querying a JSON array element using a constant index (e.g. descriptions[0])
+        /// translates to bracket index notation and executes correctly in Spanner.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonArrayElementWithConstantIndex()
+        {
+            using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var venueCode = $"V{_fixture.RandomLong() % 1000000:D6}";
+
+            database.Venues.Add(new Venues
+            {
+                Code = venueCode,
+                Name = "Array Constant Venue",
+                Active = true,
+                Capacity = 10000,
+                Descriptions = new List<VenueDescription>
+                {
+                    new VenueDescription { Category = "VIP", Description = "VIP Lounge", Capacity = 100, Active = true },
+                    new VenueDescription { Category = "General", Description = "General Admission", Capacity = 9900, Active = true }
+                }
+            });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var venue = await database.Venues
+                .Where(v => v.Code == venueCode && v.Descriptions[0].Category == "VIP")
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+
+            Assert.NotNull(venue);
+            Assert.Equal(venueCode, venue.Code);
+            Assert.Equal("VIP", venue.Descriptions[0].Category);
+        }
+
+        /// <summary>
+        /// Tests that querying a JSON array element using a parameterized variable index
+        /// throws NotSupportedException because Cloud Spanner requires argument 2 of JSON_VALUE
+        /// to be a string literal or query parameter.
+        /// </summary>
+        [Fact]
+        public async Task QueryingJsonArrayElementWithParameterizedIndex_ThrowsNotSupportedException()
+        {
+            using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var venueCode = $"V{_fixture.RandomLong() % 1000000:D6}";
+
+            database.Venues.Add(new Venues
+            {
+                Code = venueCode,
+                Name = "Array Parameterized Venue",
+                Active = true,
+                Capacity = 8000,
+                Descriptions = new List<VenueDescription>
+                {
+                    new VenueDescription { Category = "Floor", Description = "Floor Seating", Capacity = 3000, Active = true },
+                    new VenueDescription { Category = "Balcony", Description = "Balcony Seating", Capacity = 5000, Active = true }
+                }
+            });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var targetIndex = 1;
+            var exception = await Assert.ThrowsAsync<NotSupportedException>(() => database.Venues
+                .Where(v => v.Code == venueCode && v.Descriptions[targetIndex].Category == "Balcony")
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken));
+
+            Assert.Contains("non-constant index", exception.Message);
+        }
+
+        /// <summary>
+        /// Tests that querying a JsonElement column using GetProperty, GetString, GetInt32,
+        /// GetBoolean, and chained GetProperty translates to valid Cloud Spanner JSON_VALUE/JSON_QUERY
+        /// calls and executes cleanly against the database engine.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonElementMethodsEndToEnd()
+        {
+            var identifier = _fixture.RandomLong();
+            using (var connection = _fixture.GetConnection())
+            {
+                using var insertCommand = connection.CreateDmlCommand(
+                    "INSERT INTO TestEntityWithSpecialJsonProperties (Id, Name, JsonData) " +
+                    "VALUES (@Id, @Name, JSON '{\"title\":\"Developer\",\"level\":10,\"verified\":true,\"details\":{\"department\":\"Engineering\"}}')");
+                insertCommand.Parameters.Add("Id", SpannerDbType.Int64, identifier);
+                insertCommand.Parameters.Add("Name", SpannerDbType.String, "JsonElementTest");
+                await insertCommand.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+            }
+
+            using var database = new TestJsonElementDbContext(_fixture.DatabaseName);
+
+            // Test GetProperty("title").GetString()
+            var stringMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("title").GetString() == "Developer")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, stringMatch);
+
+            // Test GetProperty("level").GetInt32() with numeric comparison
+            var intMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("level").GetInt32() > 5)
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, intMatch);
+
+            // Test GetProperty("verified").GetBoolean()
+            var boolMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("verified").GetBoolean())
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, boolMatch);
+
+            // Test chained GetProperty("details").GetProperty("department").GetString()
+            var nestedMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("details").GetProperty("department").GetString() == "Engineering")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, nestedMatch);
+        }
+
+        /// <summary>
+        /// Tests that querying JsonElement properties with special characters (backslashes, double quotes,
+        /// single quotes, dots) translates to valid Cloud Spanner JSON_VALUE/JSON_QUERY syntax without
+        /// double-escaping and correctly matches rows in the database engine.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonElementMethodsWithSpecialCharacterProperties()
+        {
+            var identifier = _fixture.RandomLong();
+            using (var connection = _fixture.GetConnection())
+            {
+                using var insertCommand = connection.CreateDmlCommand(
+                    "INSERT INTO TestEntityWithSpecialJsonProperties (Id, Name, JsonData) VALUES (@Id, @Name, @JsonData)");
+                insertCommand.Parameters.Add("Id", SpannerDbType.Int64, identifier);
+                insertCommand.Parameters.Add("Name", SpannerDbType.String, "SpecialJsonElement");
+                insertCommand.Parameters.Add("JsonData", SpannerDbType.Json, "{\"back\\\\slash\":\"backslash-match\",\"path\\\\with\\\\n_and_t\":\"backslash-n-and-t-match\",\"say \\\"hello\\\"\":\"hello-match\",\"it's\":\"its-match\",\"property.with.dot\":\"dot-match\",\"prénom\":\"prenom-match\"}");
+                await insertCommand.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+            }
+
+            using var database = new TestJsonElementDbContext(_fixture.DatabaseName);
+
+            // Test GetProperty("back\slash").GetString()
+            var backslashMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("back\\slash").GetString() == "backslash-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, backslashMatch);
+
+            // Test GetProperty("path\with\n_and_t").GetString()
+            var backslashNAndTMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("path\\with\\n_and_t").GetString() == "backslash-n-and-t-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, backslashNAndTMatch);
+
+            // Test GetProperty("say \"hello\"").GetString()
+            var doubleQuoteMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("say \"hello\"").GetString() == "hello-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, doubleQuoteMatch);
+
+            // Test GetProperty("it's").GetString()
+            var singleQuoteMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("it's").GetString() == "its-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, singleQuoteMatch);
+
+            // Test GetProperty("property.with.dot").GetString()
+            var dotMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("property.with.dot").GetString() == "dot-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, dotMatch);
+
+            // Test GetProperty("prénom").GetString()
+            var nonAsciiMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("prénom").GetString() == "prenom-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, nonAsciiMatch);
+        }
+
         #endregion
+    }
+
+    internal class TestEntityWithJsonElement
+    {
+        public long Id { get; set; }
+        public string Name { get; set; }
+        public JsonElement JsonData { get; set; }
+    }
+
+    internal class TestJsonElementDbContext : DbContext
+    {
+        private readonly DatabaseName _databaseName;
+
+        internal TestJsonElementDbContext(DatabaseName databaseName) => _databaseName = databaseName;
+
+        public DbSet<TestEntityWithJsonElement> Entities { get; set; }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured)
+            {
+                optionsBuilder.UseSpanner($"Data Source={_databaseName};emulatordetection=EmulatorOrProduction");
+            }
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<TestEntityWithJsonElement>(entity =>
+            {
+                entity.ToTable("TestEntityWithSpecialJsonProperties");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedNever();
+            });
+        }
     }
 }
