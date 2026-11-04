@@ -46,13 +46,33 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         {
             if (binaryExpression.OperatorType == ExpressionType.Add)
             {
-                if ((binaryExpression.Left.TypeMapping.StoreTypeNameBase == "STRING" || binaryExpression.Left.TypeMapping.StoreTypeNameBase == "BYTES")
-                    && (binaryExpression.Right.TypeMapping.StoreTypeNameBase == "STRING" || binaryExpression.Right.TypeMapping.StoreTypeNameBase == "BYTES"))
+                if ((binaryExpression.Left.TypeMapping?.StoreTypeNameBase == "STRING" || binaryExpression.Left.TypeMapping?.StoreTypeNameBase == "BYTES")
+                    && (binaryExpression.Right.TypeMapping?.StoreTypeNameBase == "STRING" || binaryExpression.Right.TypeMapping?.StoreTypeNameBase == "BYTES"))
                 {
                     return "||";
                 }
             }
             return base.GetOperator(binaryExpression);
+        }
+
+        protected override void GenerateSetOperation(SetOperationBase setOperation)
+        {
+            var operationKeyword = setOperation switch
+            {
+                UnionExpression => "UNION",
+                IntersectExpression when setOperation.IsDistinct => "INTERSECT",
+                ExceptExpression when setOperation.IsDistinct => "EXCEPT",
+                IntersectExpression => throw new NotSupportedException("Cloud Spanner does not support 'INTERSECT ALL'."),
+                ExceptExpression => throw new NotSupportedException("Cloud Spanner does not support 'EXCEPT ALL'."),
+                _ => throw new InvalidOperationException($"Unknown set operation type: '{setOperation.GetType().Name}'.")
+            };
+
+            GenerateSetOperationOperand(setOperation, setOperation.Source1);
+            Sql.AppendLine()
+                .Append(operationKeyword)
+                .Append(setOperation.IsDistinct ? " DISTINCT" : " ALL")
+                .AppendLine();
+            GenerateSetOperationOperand(setOperation, setOperation.Source2);
         }
 
         protected override void GenerateLimitOffset(SelectExpression selectExpression)

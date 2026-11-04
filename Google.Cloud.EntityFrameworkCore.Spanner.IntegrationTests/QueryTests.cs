@@ -2586,5 +2586,283 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         #endregion
+
+        #region Set Operations and Bulk Update/Delete Tests
+
+        [Fact]
+        public async Task Union_ExecutesSuccessfullyOnSpanner()
+        {
+            await using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var firstSingerId = _fixture.RandomLong();
+            var secondSingerId = _fixture.RandomLong();
+            database.Singers.AddRange(
+                new Singers { SingerId = firstSingerId, FirstName = "Alice", LastName = "Singer" },
+                new Singers { SingerId = secondSingerId, FirstName = "Bob", LastName = "Singer" });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var unionQuery = database.Singers
+                .Where(singer => singer.SingerId == firstSingerId)
+                .Select(singer => singer.FirstName)
+                .Union(database.Singers
+                    .Where(singer => singer.SingerId == secondSingerId)
+                    .Select(singer => singer.FirstName));
+
+            var results = await unionQuery.ToListAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(2, results.Count);
+            Assert.Contains("Alice", results);
+            Assert.Contains("Bob", results);
+
+            // Verify DISTINCT behavior on duplicate rows
+            var distinctQuery = database.Singers
+                .Where(singer => singer.SingerId == firstSingerId)
+                .Select(singer => singer.FirstName)
+                .Union(database.Singers
+                    .Where(singer => singer.SingerId == firstSingerId)
+                    .Select(singer => singer.FirstName));
+
+            var distinctResults = await distinctQuery.ToListAsync(TestContext.Current.CancellationToken);
+            var singleResult = Assert.Single(distinctResults);
+            Assert.Equal("Alice", singleResult);
+        }
+
+        [Fact]
+        public async Task Concat_ExecutesSuccessfullyOnSpanner()
+        {
+            await using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            database.Singers.Add(new Singers { SingerId = singerId, FirstName = "Charlie", LastName = "Singer" });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var concatQuery = database.Singers
+                .Where(singer => singer.SingerId == singerId)
+                .Select(singer => singer.FirstName)
+                .Concat(database.Singers
+                    .Where(singer => singer.SingerId == singerId)
+                    .Select(singer => singer.FirstName));
+
+            var results = await concatQuery.ToListAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(2, results.Count);
+            Assert.All(results, name => Assert.Equal("Charlie", name));
+        }
+
+        [Fact]
+        public async Task Intersect_ExecutesSuccessfullyOnSpanner()
+        {
+            await using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var firstSingerId = _fixture.RandomLong();
+            var secondSingerId = _fixture.RandomLong();
+            database.Singers.AddRange(
+                new Singers { SingerId = firstSingerId, FirstName = "David", LastName = "Singer" },
+                new Singers { SingerId = secondSingerId, FirstName = "Emma", LastName = "Singer" });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var intersectQuery = database.Singers
+                .Where(singer => singer.SingerId == firstSingerId || singer.SingerId == secondSingerId)
+                .Select(singer => singer.FirstName)
+                .Intersect(database.Singers
+                    .Where(singer => singer.SingerId == firstSingerId)
+                    .Select(singer => singer.FirstName));
+
+            var results = await intersectQuery.ToListAsync(TestContext.Current.CancellationToken);
+            var matchedName = Assert.Single(results);
+            Assert.Equal("David", matchedName);
+        }
+
+        [Fact]
+        public async Task Except_ExecutesSuccessfullyOnSpanner()
+        {
+            await using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var firstSingerId = _fixture.RandomLong();
+            var secondSingerId = _fixture.RandomLong();
+            database.Singers.AddRange(
+                new Singers { SingerId = firstSingerId, FirstName = "Frank", LastName = "Singer" },
+                new Singers { SingerId = secondSingerId, FirstName = "Grace", LastName = "Singer" });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var exceptQuery = database.Singers
+                .Where(singer => singer.SingerId == firstSingerId || singer.SingerId == secondSingerId)
+                .Select(singer => singer.FirstName)
+                .Except(database.Singers
+                    .Where(singer => singer.SingerId == secondSingerId)
+                    .Select(singer => singer.FirstName));
+
+            var results = await exceptQuery.ToListAsync(TestContext.Current.CancellationToken);
+            var remainingName = Assert.Single(results);
+            Assert.Equal("Frank", remainingName);
+        }
+
+        [Fact]
+        public async Task ExecuteDelete_Conditional_ExecutesSuccessfully_AsyncAndSync()
+        {
+            await using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var firstSingerId = _fixture.RandomLong();
+            var secondSingerId = _fixture.RandomLong();
+            var thirdSingerId = _fixture.RandomLong();
+            database.Singers.AddRange(
+                new Singers { SingerId = firstSingerId, FirstName = "DeleteAsync1", LastName = "Singer" },
+                new Singers { SingerId = secondSingerId, FirstName = "DeleteAsync2", LastName = "Singer" },
+                new Singers { SingerId = thirdSingerId, FirstName = "DeleteSync", LastName = "Singer" });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            // Asynchronous conditional delete
+            var asyncDeletedCount = await database.Singers
+                .Where(singer => singer.SingerId == firstSingerId || singer.SingerId == secondSingerId)
+                .ExecuteDeleteAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(2, asyncDeletedCount);
+
+            var remainingAfterAsync = await database.Singers
+                .Where(singer => singer.SingerId == firstSingerId || singer.SingerId == secondSingerId)
+                .AnyAsync(TestContext.Current.CancellationToken);
+            Assert.False(remainingAfterAsync);
+
+            // Synchronous conditional delete
+            var syncDeletedCount = database.Singers
+                .Where(singer => singer.SingerId == thirdSingerId)
+                .ExecuteDelete();
+            Assert.Equal(1, syncDeletedCount);
+
+            var remainingAfterSync = await database.Singers
+                .Where(singer => singer.SingerId == thirdSingerId)
+                .AnyAsync(TestContext.Current.CancellationToken);
+            Assert.False(remainingAfterSync);
+        }
+
+        [Fact]
+        public async Task ExecuteDelete_Unconditional_ThrowsSpannerException_AsyncAndSync()
+        {
+            await using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+
+            // Cloud Spanner requires a WHERE clause for DELETE operations; missing WHERE clause is rejected by Spanner server
+            var asyncException = await Assert.ThrowsAsync<SpannerException>(() => database.TicketSales.ExecuteDeleteAsync(TestContext.Current.CancellationToken));
+            Assert.Equal(ErrorCode.InvalidArgument, asyncException.ErrorCode);
+            Assert.Contains("DELETE must have a WHERE clause", asyncException.InnerException?.Message);
+
+            var syncException = Assert.Throws<SpannerException>(() => database.TicketSales.ExecuteDelete());
+            Assert.Equal(ErrorCode.InvalidArgument, syncException.ErrorCode);
+            Assert.Contains("DELETE must have a WHERE clause", syncException.InnerException?.Message);
+
+            // Even when an application supplies .Where(ticket => true), EF Core optimizes it away,
+            // so Spanner server still rejects the statement because it lacks a WHERE clause
+            var asyncWhereTrueException = await Assert.ThrowsAsync<SpannerException>(() => database.TicketSales
+                .Where(ticket => true)
+                .ExecuteDeleteAsync(TestContext.Current.CancellationToken));
+            Assert.Equal(ErrorCode.InvalidArgument, asyncWhereTrueException.ErrorCode);
+            Assert.Contains("DELETE must have a WHERE clause", asyncWhereTrueException.InnerException?.Message);
+
+            var syncWhereTrueException = Assert.Throws<SpannerException>(() => database.TicketSales
+                .Where(ticket => true)
+                .ExecuteDelete());
+            Assert.Equal(ErrorCode.InvalidArgument, syncWhereTrueException.ErrorCode);
+            Assert.Contains("DELETE must have a WHERE clause", syncWhereTrueException.InnerException?.Message);
+
+            // Intentional full-table delete can be performed via explicit raw DML
+            await using (var asyncTransaction = await database.Database.BeginTransactionAsync(TestContext.Current.CancellationToken))
+            {
+                var countBefore = await database.TicketSales.CountAsync(TestContext.Current.CancellationToken);
+                var firstId = _fixture.RandomLong();
+                var secondId = _fixture.RandomLong();
+                database.TicketSales.AddRange(
+                    new TicketSales { Id = firstId, CustomerName = "Customer1" },
+                    new TicketSales { Id = secondId, CustomerName = "Customer2" });
+                await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+                var asyncDeletedCount = await database.Database.ExecuteSqlRawAsync("DELETE FROM TicketSales WHERE TRUE", TestContext.Current.CancellationToken);
+                Assert.Equal(countBefore + 2, asyncDeletedCount);
+
+                var countAfterAsync = await database.TicketSales.CountAsync(TestContext.Current.CancellationToken);
+                Assert.Equal(0, countAfterAsync);
+
+                await asyncTransaction.RollbackAsync(TestContext.Current.CancellationToken);
+            }
+        }
+
+        [Fact]
+        public async Task ExecuteUpdate_Conditional_ExecutesSuccessfully_AsyncAndSync()
+        {
+            await using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            database.Singers.Add(new Singers { SingerId = singerId, FirstName = "OriginalName", LastName = "Singer" });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            // Asynchronous conditional update
+            var asyncUpdatedCount = await database.Singers
+                .Where(singer => singer.SingerId == singerId)
+                .ExecuteUpdateAsync(setter => setter.SetProperty(singer => singer.FirstName, "AsyncUpdated"), TestContext.Current.CancellationToken);
+            Assert.Equal(1, asyncUpdatedCount);
+
+            var singerAfterAsync = await database.Singers
+                .AsNoTracking()
+                .SingleAsync(singer => singer.SingerId == singerId, TestContext.Current.CancellationToken);
+            Assert.Equal("AsyncUpdated", singerAfterAsync.FirstName);
+
+            // Synchronous conditional update
+            var syncUpdatedCount = database.Singers
+                .Where(singer => singer.SingerId == singerId)
+                .ExecuteUpdate(setter => setter.SetProperty(singer => singer.FirstName, "SyncUpdated"));
+            Assert.Equal(1, syncUpdatedCount);
+
+            var singerAfterSync = await database.Singers
+                .AsNoTracking()
+                .SingleAsync(singer => singer.SingerId == singerId, TestContext.Current.CancellationToken);
+            Assert.Equal("SyncUpdated", singerAfterSync.FirstName);
+        }
+
+        [Fact]
+        public async Task ExecuteUpdate_Unconditional_ThrowsSpannerException_AsyncAndSync()
+        {
+            await using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+
+            // Cloud Spanner requires a WHERE clause for UPDATE operations; missing WHERE clause is rejected by Spanner server
+            var asyncException = await Assert.ThrowsAsync<SpannerException>(() => database.TicketSales
+                .ExecuteUpdateAsync(setter => setter.SetProperty(ticket => ticket.CustomerName, "Fail"), TestContext.Current.CancellationToken));
+            Assert.Equal(ErrorCode.InvalidArgument, asyncException.ErrorCode);
+            Assert.Contains("UPDATE must have a WHERE clause", asyncException.InnerException?.Message);
+
+            var syncException = Assert.Throws<SpannerException>(() => database.TicketSales
+                .ExecuteUpdate(setter => setter.SetProperty(ticket => ticket.CustomerName, "Fail")));
+            Assert.Equal(ErrorCode.InvalidArgument, syncException.ErrorCode);
+            Assert.Contains("UPDATE must have a WHERE clause", syncException.InnerException?.Message);
+
+            // Even when an application supplies .Where(ticket => true), EF Core optimizes it away,
+            // so Spanner server still rejects the statement because it lacks a WHERE clause
+            var asyncWhereTrueException = await Assert.ThrowsAsync<SpannerException>(() => database.TicketSales
+                .Where(ticket => true)
+                .ExecuteUpdateAsync(setter => setter.SetProperty(ticket => ticket.CustomerName, "Fail"), TestContext.Current.CancellationToken));
+            Assert.Equal(ErrorCode.InvalidArgument, asyncWhereTrueException.ErrorCode);
+            Assert.Contains("UPDATE must have a WHERE clause", asyncWhereTrueException.InnerException?.Message);
+
+            var syncWhereTrueException = Assert.Throws<SpannerException>(() => database.TicketSales
+                .Where(ticket => true)
+                .ExecuteUpdate(setter => setter.SetProperty(ticket => ticket.CustomerName, "Fail")));
+            Assert.Equal(ErrorCode.InvalidArgument, syncWhereTrueException.ErrorCode);
+            Assert.Contains("UPDATE must have a WHERE clause", syncWhereTrueException.InnerException?.Message);
+
+            // Intentional full-table update can be performed via explicit raw DML
+            await using (var asyncTransaction = await database.Database.BeginTransactionAsync(TestContext.Current.CancellationToken))
+            {
+                var countBefore = await database.TicketSales.CountAsync(TestContext.Current.CancellationToken);
+                var firstId = _fixture.RandomLong();
+                var secondId = _fixture.RandomLong();
+                database.TicketSales.AddRange(
+                    new TicketSales { Id = firstId, CustomerName = "InitialCustomer1" },
+                    new TicketSales { Id = secondId, CustomerName = "InitialCustomer2" });
+                await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+                var asyncUpdatedCount = await database.Database.ExecuteSqlRawAsync(
+                    "UPDATE TicketSales SET CustomerName = 'UnconditionalAsync' WHERE TRUE", TestContext.Current.CancellationToken);
+                Assert.Equal(countBefore + 2, asyncUpdatedCount);
+
+                var namesAfterAsync = await database.TicketSales
+                    .Where(ticket => ticket.Id == firstId || ticket.Id == secondId)
+                    .Select(ticket => ticket.CustomerName)
+                    .ToListAsync(TestContext.Current.CancellationToken);
+                Assert.Equal(2, namesAfterAsync.Count);
+                Assert.All(namesAfterAsync, name => Assert.Equal("UnconditionalAsync", name));
+
+                await asyncTransaction.RollbackAsync(TestContext.Current.CancellationToken);
+            }
+        }
+
+        #endregion
     }
 }
