@@ -1,4 +1,4 @@
-﻿// Copyright 2021 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -319,6 +319,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 
         private readonly object _lock = new();
         private readonly ConcurrentDictionary<string, StatementResult> _results = new();
+        private readonly ConcurrentDictionary<string, ConcurrentQueue<StatementResult>> _queuedResults = new();
         private ConcurrentQueue<IMessage> _requests = new();
         private ConcurrentQueue<ServerCallContext> _contexts = new();
         private ConcurrentQueue<Grpc.Core.Metadata> _headers = new ();
@@ -337,6 +338,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 result,
                 (_, _) => result
             );
+        }
+
+        public void QueueStatementResult(string sql, StatementResult result)
+        {
+            var queue = _queuedResults.GetOrAdd(sql.Trim(), _ => new ConcurrentQueue<StatementResult>());
+            queue.Enqueue(result);
+        }
+
+        private bool TryGetStatementResult(string sql, out StatementResult result)
+        {
+            if (_queuedResults.TryGetValue(sql, out var queue) && queue.TryDequeue(out result))
+            {
+                return true;
+            }
+            return _results.TryGetValue(sql, out result);
         }
 
         public void AddOrUpdateExecutionTime(string method, ExecutionTime executionTime)
@@ -375,6 +391,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _headers = new ConcurrentQueue<Grpc.Core.Metadata>();
             _executionTimes.Clear();
             _results.Clear();
+            _queuedResults.Clear();
             _abortedTransactions.Clear();
             _abortNextStatement = false;
         }
@@ -597,7 +614,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 {
                     break;
                 }
-                if (_results.TryGetValue(statement.Sql.Trim(), out StatementResult result))
+                if (TryGetStatementResult(statement.Sql.Trim(), out StatementResult result))
                 {
                     switch (result.Type)
                     {
@@ -657,7 +674,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             {
                 returnTransaction = transaction;
             }
-            if (_results.TryGetValue(request.Sql.Trim(), out StatementResult result))
+            if (TryGetStatementResult(request.Sql.Trim(), out StatementResult result))
             {
                 switch (result.Type)
                 {

@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Api.Gax;
 using Google.Cloud.Spanner.Data;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,7 +26,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     /// This is internal functionality and not intended for public use.
     /// Batch DML command that will automatically retry the underlying transaction if it is aborted by Cloud Spanner.
     /// </summary>
-    public class SpannerRetriableBatchCommand
+    public class SpannerRetriableBatchCommand : IDisposable, ICloneable
     {
         private readonly IList<SpannerCommand> _commands = new List<SpannerCommand>();
 
@@ -38,7 +41,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         public void Add(string sql) => _commands.Add(Connection.SpannerConnection.CreateDmlCommand(sql));
 
-        public void Add(SpannerCommand command) => _commands.Add(command);
+        public void Add(SpannerCommand command) =>
+            _commands.Add(GaxPreconditions.CheckNotNull(command, nameof(command)));
 
         internal SpannerBatchCommand CreateSpannerBatchCommand()
         {
@@ -52,11 +56,38 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             return batch;
         }
 
-        public IReadOnlyList<long> ExecuteNonQuery() => Transaction.ExecuteNonQueryWithRetry(this);
+        public IReadOnlyList<long> ExecuteNonQuery() =>
+            Transaction == null
+                ? CreateSpannerBatchCommand().ExecuteNonQuery().ToList()
+                : Transaction.ExecuteNonQueryWithRetry(this);
 
         public Task<IReadOnlyList<long>> ExecuteNonQueryAsync(CancellationToken cancellationToken = default) =>
             Transaction == null
             ? CreateSpannerBatchCommand().ExecuteNonQueryAsync(cancellationToken)
             : Transaction.ExecuteNonQueryWithRetryAsync(this, cancellationToken);
+
+        object ICloneable.Clone() => Clone();
+
+        public SpannerRetriableBatchCommand Clone()
+        {
+            var clone = new SpannerRetriableBatchCommand(Connection)
+            {
+                Transaction = Transaction
+            };
+            foreach (var command in _commands)
+            {
+                clone.Add((SpannerCommand)command.Clone());
+            }
+            return clone;
+        }
+
+        public void Dispose()
+        {
+            foreach (var command in _commands)
+            {
+                command?.Dispose();
+            }
+            _commands.Clear();
+        }
     }
 }

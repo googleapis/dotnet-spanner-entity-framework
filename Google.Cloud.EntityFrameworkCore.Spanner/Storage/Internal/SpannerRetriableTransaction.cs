@@ -199,6 +199,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
             while (true)
             {
+                command.Transaction = this;
                 var spannerCommand = command.CreateSpannerBatchCommand();
                 try
                 {
@@ -222,6 +223,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
             while (true)
             {
+                command.Transaction = this;
                 var spannerCommand = command.CreateSpannerBatchCommand();
                 try
                 {
