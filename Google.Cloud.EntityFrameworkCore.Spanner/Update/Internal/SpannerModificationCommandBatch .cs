@@ -242,20 +242,32 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             {
                 using (command)
                 {
-                    using var reader = command.ExecuteReader();
-                    var relationalReader = CreateRelationalDataReader(connection, command, reader);
                     var modificationCommand = _modificationCommands[index];
-                    var rowsAffected = 0L;
-                    while (relationalReader.Read())
+                    long rowsAffected;
+                    if (HasReadOperations(modificationCommand))
                     {
-                        modificationCommand.PropagateResults(relationalReader);
-                        rowsAffected++;
+                        using var reader = command.ExecuteReader();
+                        var relationalReader = CreateRelationalDataReader(connection, command, reader);
+                        rowsAffected = 0L;
+                        while (relationalReader.Read())
+                        {
+                            modificationCommand.PropagateResults(relationalReader);
+                            rowsAffected++;
+                        }
+                    }
+                    else
+                    {
+                        rowsAffected = command.ExecuteNonQuery();
                     }
                     updateCounts.Add(rowsAffected);
                 }
                 index++;
             }
             UpdateCounts = updateCounts;
+            if (RowsAffected != _modificationCommands.Count)
+            {
+                ThrowAggregateUpdateConcurrencyException();
+            }
         }
 
         /// <summary>
@@ -396,7 +408,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 ThrowAggregateUpdateConcurrencyException();
             }
         }
-        
+
         private async Task ExecuteDmlAsync(IRelationalConnection connection, SpannerRetriableConnection spannerConnection, SpannerRetriableTransaction transaction, CancellationToken cancellationToken)
         {
             var commands = CreateSpannerDmlCommands(spannerConnection, transaction);
@@ -406,20 +418,32 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             {
                 using (command)
                 {
-                    using var reader = await command.ExecuteReaderAsync(cancellationToken);
-                    var relationalReader = CreateRelationalDataReader(connection, command, reader);
                     var modificationCommand = _modificationCommands[index];
-                    var rowsAffected = 0L;
-                    while (await relationalReader.ReadAsync(cancellationToken))
+                    long rowsAffected;
+                    if (HasReadOperations(modificationCommand))
                     {
-                        modificationCommand.PropagateResults(relationalReader);
-                        rowsAffected++;
+                        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+                        var relationalReader = CreateRelationalDataReader(connection, command, reader);
+                        rowsAffected = 0L;
+                        while (await relationalReader.ReadAsync(cancellationToken))
+                        {
+                            modificationCommand.PropagateResults(relationalReader);
+                            rowsAffected++;
+                        }
+                    }
+                    else
+                    {
+                        rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
                     }
                     updateCounts.Add(rowsAffected);
                 }
                 index++;
             }
             UpdateCounts = updateCounts;
+            if (RowsAffected != _modificationCommands.Count)
+            {
+                ThrowAggregateUpdateConcurrencyException();
+            }
         }
 
         /// <summary>
@@ -525,7 +549,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             relationalReader.Initialize(connection, command, reader, Guid.NewGuid(), Dependencies.Logger);
             return relationalReader;
         }
-        
+
         private List<SpannerRetriableCommand> CreateSpannerDmlCommands(SpannerRetriableConnection connection, SpannerRetriableTransaction transaction)
         {
             var commands = new List<SpannerRetriableCommand>();
@@ -741,6 +765,19 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
         {
             var underlying = Nullable.GetUnderlyingType(type);
             return underlying == null ? type : underlying;
+        }
+
+        private static bool HasReadOperations(IReadOnlyModificationCommand modificationCommand)
+        {
+            var columnModifications = modificationCommand.ColumnModifications;
+            for (var i = 0; i < columnModifications.Count; i++)
+            {
+                if (columnModifications[i].IsRead)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 
