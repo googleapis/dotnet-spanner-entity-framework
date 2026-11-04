@@ -37,6 +37,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private readonly IncrementalHash _incrementalHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         private byte[] _finalChecksum;
         private bool _hashDisposed;
+        private bool _disposed;
         private SpannerException _firstException;
         private readonly SpannerCommand _spannerCommand;
 
@@ -73,7 +74,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         public override void Close()
         {
-            _spannerDataReader.Close();
+            _spannerDataReader?.Close();
             base.Close();
         }
 
@@ -88,21 +89,41 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && !_disposed)
             {
-                _spannerDataReader.Dispose();
-                _spannerCommand.Dispose();
-                if (!_hashDisposed)
-                {
-                    // Cache the final checksum before disposing the IncrementalHash, as the transaction
-                    // retry engine may still need it for consistency checks if the transaction aborts
-                    // after this reader has been closed/disposed by the client.
-                    _finalChecksum = _incrementalHash.GetCurrentHash();
-                    _incrementalHash.Dispose();
-                    _hashDisposed = true;
-                }
+                _spannerDataReader?.Dispose();
+                DisposeHash();
+                _disposed = true;
             }
             base.Dispose(disposing);
+        }
+
+        public override async ValueTask DisposeAsync()
+        {
+            if (!_disposed)
+            {
+                if (_spannerDataReader != null)
+                {
+                    await _spannerDataReader.DisposeAsync().ConfigureAwait(false);
+                }
+                DisposeHash();
+                _disposed = true;
+            }
+            await base.DisposeAsync().ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
+
+        private void DisposeHash()
+        {
+            if (!_hashDisposed)
+            {
+                // Cache the final checksum before disposing the IncrementalHash, as the transaction
+                // retry engine may still need it for consistency checks if the transaction aborts
+                // after this reader has been closed/disposed by the client.
+                _finalChecksum = _incrementalHash.GetCurrentHash();
+                _incrementalHash.Dispose();
+                _hashDisposed = true;
+            }
         }
 
         /// <inheritdoc />
@@ -123,7 +144,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 try
                 {
                     bool res = async
-                        ? await _spannerDataReader.ReadAsync(cancellationToken)
+                        ? await _spannerDataReader.ReadAsync(cancellationToken).ConfigureAwait(false)
                         : _spannerDataReader.Read();
                     AppendRowToHash(_incrementalHash, _spannerDataReader, res);
                     _numberOfReadCalls++;
@@ -134,7 +155,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     // Retry the transaction and then retry the ReadAsync call.
                     if (async)
                     {
-                        await Transaction.RetryAsync(e, cancellationToken);
+                        await Transaction.RetryAsync(e, cancellationToken).ConfigureAwait(false);
                     }
                     else
                     {
@@ -201,14 +222,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         async Task IRetriableStatement.RetryAsync(SpannerRetriableTransaction transaction, CancellationToken cancellationToken, int timeoutSeconds)
         {
-            await RetryInternalAsync(transaction, async: true, cancellationToken);
+            await RetryInternalAsync(transaction, async: true, cancellationToken).ConfigureAwait(false);
         }
 
         private async ValueTask<bool> RetryInternalAsync(SpannerRetriableTransaction transaction, bool async, CancellationToken cancellationToken)
         {
             _spannerCommand.Transaction = transaction.SpannerTransaction;
             var reader = async
-                ? await _spannerCommand.ExecuteReaderAsync(cancellationToken)
+                ? await _spannerCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false)
                 : (SpannerDataReader)_spannerCommand.ExecuteReader();
             bool keepReader = false;
             try
@@ -222,7 +243,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     try
                     {
                         read = async
-                            ? await reader.ReadAsync(cancellationToken)
+                            ? await reader.ReadAsync(cancellationToken).ConfigureAwait(false)
                             : reader.Read();
                         AppendRowToHash(retryHash, reader, read);
                         counter++;
@@ -246,14 +267,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     && SpannerRetriableTransaction.SpannerExceptionsEqualForRetry(newException, _firstException))
                 {
                     // Checksum is ok, we only need to replace the delegate result set if it's still open.
-                    if (IsClosed)
+                    if (!IsClosed)
                     {
-                        reader.Close();
-                    }
-                    else
-                    {
+                        var oldReader = _spannerDataReader;
                         _spannerDataReader = reader;
                         keepReader = true;
+                        await SafeDisposeReaderAsync(oldReader, async).ConfigureAwait(false);
                     }
                 }
                 else
@@ -267,10 +286,33 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             {
                 if (!keepReader)
                 {
-                    reader.Dispose();
+                    await SafeDisposeReaderAsync(reader, async).ConfigureAwait(false);
                 }
             }
             return keepReader;
+        }
+
+        private static async ValueTask SafeDisposeReaderAsync(DbDataReader reader, bool isAsync)
+        {
+            if (reader == null)
+            {
+                return;
+            }
+            try
+            {
+                if (isAsync)
+                {
+                    await reader.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    reader.Dispose();
+                }
+            }
+            catch
+            {
+                // Ignore any errors when disposing the reader to avoid masking active exceptions.
+            }
         }
 
         public override bool GetBoolean(int ordinal)
