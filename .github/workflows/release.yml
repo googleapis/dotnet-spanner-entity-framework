@@ -39,24 +39,31 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f
 
-      - name: Clean up stale releases from staging repo
+      - name: Clean up failed staging attempt for current version (if any)
+        shell: bash
         run: |
-          # clean up stale releases from staging repo
-          packages=$(gcloud artifacts packages list \
+          shopt -s nullglob
+          for nupkg in nupkg/*.nupkg artifacts/*.nupkg **/*.nupkg; do
+            [[ -f "$nupkg" ]] || continue
+            [[ "$nupkg" == *.symbols.nupkg ]] && continue
+            base="$(basename "$nupkg" .nupkg)"
+            ver="$(echo "$base" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$' || true)"
+            [[ -n "$ver" ]] || continue
+            pkg_id="${base%.$ver}"
+            pkg_lower="$(echo "$pkg_id" | tr '[:upper:]' '[:lower:]')"
+            if gcloud artifacts versions describe "${ver}" \
+              --package="${pkg_lower}" \
               --project="oss-exit-gate-prod" \
               --location="us" \
-              --repository="dotnet-spanner-ef--nuget" \
-              --format="value(name)" 2>/dev/null)
-
-          echo "${packages}" | xargs -r -I {} sh -c '
-              package_name=$(basename "{}")
-              echo "Deleting package: $package_name..."
-              gcloud artifacts packages delete "{}" \
-                  --project="oss-exit-gate-prod" \
-                  --location="us" \
-                  --repository="dotnet-spanner-ef--nuget" \
-                  --quiet
-          '
+              --repository="dotnet-spanner-ef--nuget" >/dev/null 2>&1; then
+              gcloud artifacts versions delete "${ver}" \
+                --package="${pkg_lower}" \
+                --project="oss-exit-gate-prod" \
+                --location="us" \
+                --repository="dotnet-spanner-ef--nuget" \
+                --quiet
+            fi
+          done
 
           packages=$(gcloud artifacts packages list \
               --project="oss-exit-gate-prod" \
