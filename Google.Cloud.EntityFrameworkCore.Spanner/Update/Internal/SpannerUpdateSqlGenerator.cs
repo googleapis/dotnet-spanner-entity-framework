@@ -99,7 +99,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             string table,
             IReadOnlyList<IColumnModification> conditionOperations)
         {
-            var concurrencyBuilder = new StringBuilder($"SELECT 1 FROM `{table}` ");
+            var concurrencyBuilder = new StringBuilder("SELECT 1 FROM ");
+            SqlGenerationHelper.DelimitIdentifier(concurrencyBuilder, table);
+            concurrencyBuilder.Append(' ');
             AppendWhereClause(concurrencyBuilder, conditionOperations);
             return concurrencyBuilder.ToString();
         }
