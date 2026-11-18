@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -620,5 +624,54 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.MigrationTes
                 Assert.Empty(authors);
             }
         }
+
+#pragma warning disable EF1001 // Internal EF Core API usage.
+        [Fact]
+        public async Task HistoryRepository_Exists_And_ExistsAsync_OnSpanner()
+        {
+            var cancellationToken = TestContext.Current.CancellationToken;
+            var names = new List<string>
+            {
+                "My'Table",
+                @"My\Table",
+                @"TrailingBackslash\",
+                @"foo\' SELECT 1 --",
+                @"Café'\🎵",
+                "semi;colon",
+                "\u0001abcdef",
+                "t\u0085",
+                "t\u2028",
+                "t\u2029",
+                "bar\\'\n; DROP TABLE x; --",
+            };
+            names.AddRange(Enumerable.Range(0, 0x20).Append(0x7F).Select(code => $"col{(char)code}name"));
+
+            await using (var existingContext = CreateHistoryContext(SpannerHistoryRepository.DefaultMigrationsHistoryTableName, schema: null))
+            {
+                var repository = Assert.IsType<SpannerHistoryRepository>(existingContext.GetService<IHistoryRepository>());
+                Assert.True(repository.Exists());
+                Assert.True(await repository.ExistsAsync(cancellationToken));
+            }
+
+            foreach (var (tableName, schema) in names
+                .Select(name => (name, name))
+                .Append((SpannerHistoryRepository.DefaultMigrationsHistoryTableName, "nonexistent"))
+                .Append(("nonexistent", (string)null)))
+            {
+                await using var missingContext = CreateHistoryContext(tableName, schema);
+                var repository = Assert.IsType<SpannerHistoryRepository>(missingContext.GetService<IHistoryRepository>());
+                Assert.False(repository.Exists());
+                Assert.False(await repository.ExistsAsync(cancellationToken));
+            }
+        }
+
+        private DbContext CreateHistoryContext(string tableName, string schema)
+            => new(
+                new DbContextOptionsBuilder()
+                    .UseSpanner(
+                        $"Data Source={_fixture.DatabaseName};emulatordetection=EmulatorOrProduction",
+                        builder => builder.MigrationsHistoryTable(tableName, schema))
+                    .Options);
+#pragma warning restore EF1001 // Internal EF Core API usage.
     }
 }
