@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.1.2](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-4.1.1...Google.Cloud.EntityFrameworkCore.Spanner-4.1.2) (2026-10-29)
+
+
+### Bug Fixes
+
+* expand array and collection type mappings ([#855](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/855)) ([e2e607c](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/e2e607cbcc3bc14589d1dbc008f759ae05a66f13))
+* null handling for Contains queries ([#851](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/851)) ([140aaf7](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/140aaf772536c3335be85383f828a4cc1e5b1bac))
+* prevent connection leak in CreateMasterConnection ([#848](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/848)) ([0f7c728](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/0f7c7281eb1b5f9ee394ac548d77080ae85af35d))
+* remove string.Format translation to support client-side evaluation ([#857](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/857)) ([aa791fa](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/aa791fa7c6bfa43d4b31e3583b700bfd9df70757))
+
 ## [4.1.1](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-4.1.0...Google.Cloud.EntityFrameworkCore.Spanner-4.1.1) (2026-10-15)
 
 
