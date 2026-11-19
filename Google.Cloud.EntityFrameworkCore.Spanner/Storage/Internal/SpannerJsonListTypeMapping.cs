@@ -32,7 +32,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     public class SpannerJsonListTypeMapping : RelationalTypeMapping
     {
         private static readonly ValueConverter s_converter = new ValueConverter<List<JsonDocument>, List<string>>(
-            v => v.Select(jd => jd == null ? null : jd.RootElement.ToString()).ToList(),
+            v => v.Select(jsonDocument => jsonDocument == null ? null : jsonDocument.RootElement.GetRawText()).ToList(),
             v => v.Select(s => s == null ? null : JsonDocument.Parse(s, SpannerJsonTypeMapping.JsonOptions)).ToList());
 
         public static SpannerJsonListTypeMapping Default { get; } = new();
