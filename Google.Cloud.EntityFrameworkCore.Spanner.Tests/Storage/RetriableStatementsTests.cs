@@ -19,6 +19,7 @@ using V1 = Google.Cloud.Spanner.V1;
 using Grpc.Core;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
@@ -268,6 +269,886 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             using var retryTransaction = connection.BeginTransaction();
             Assert.Throws<SpannerAbortedDueToConcurrentModificationException>(() =>
                 ((IRetriableStatement)checksumReader).Retry(retryTransaction, 60));
+        }
+
+        [Fact]
+        public void SpannerDataReaderWithChecksum_SyncRetry_AfterReaderDisposed_Succeeds()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            using var reader = command.ExecuteReader();
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, (SpannerDataReader)reader, command);
+
+            Assert.True(checksumReader.Read());
+            Assert.Equal(1L, checksumReader.GetInt64(0));
+            Assert.Equal("Test Name", checksumReader.GetString(1));
+            Assert.False(checksumReader.Read());
+
+            // Dispose the reader as EF Core or a user would do when finished reading rows.
+            checksumReader.Dispose();
+            Assert.True(checksumReader.IsClosed);
+
+            // The underlying SpannerCommand must remain alive until transaction disposal, so retry succeeds.
+            using var retryTransaction = connection.BeginTransaction();
+            ((IRetriableStatement)checksumReader).Retry(retryTransaction, 60);
+        }
+
+        [Fact]
+        public async Task SpannerDataReaderWithChecksum_AsyncRetry_AfterReaderDisposed_Succeeds()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            await using var reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, (SpannerDataReader)reader, command);
+
+            Assert.True(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+            Assert.Equal(1L, checksumReader.GetInt64(0));
+            Assert.Equal("Test Name", checksumReader.GetString(1));
+            Assert.False(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+
+            // Dispose the reader.
+            checksumReader.Dispose();
+            Assert.True(checksumReader.IsClosed);
+
+            using var retryTransaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            await ((IRetriableStatement)checksumReader).RetryAsync(retryTransaction, TestContext.Current.CancellationToken, 60);
+        }
+
+        [Fact]
+        public void SpannerDataReaderWithChecksum_DisposalViaIDisposable_HasConsistentSemanticsAndAllowsRetry()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            using var reader = command.ExecuteReader();
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, (SpannerDataReader)reader, command);
+
+            Assert.True(checksumReader.Read());
+
+            // Disposing via IDisposable reference must have identical semantics to DbDataReader.Dispose()
+            // and must not prematurely dispose the underlying command.
+            IDisposable disposableReader = checksumReader;
+            disposableReader.Dispose();
+            Assert.True(checksumReader.IsClosed);
+
+            // The underlying SpannerCommand was not prematurely disposed, so retry succeeds.
+            using var retryTransaction = connection.BeginTransaction();
+            ((IRetriableStatement)checksumReader).Retry(retryTransaction, 60);
+        }
+
+        [Fact]
+        public void SpannerDataReaderWithChecksum_ActiveReaderRetry_DisposesOldReader()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name 1"],
+                    [2L, "Test Name 2"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            var initialReader = (SpannerDataReader)command.ExecuteReader();
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, initialReader, command);
+
+            // Read only 1 row so reader remains active.
+            Assert.True(checksumReader.Read());
+            Assert.Equal(1L, checksumReader.GetInt64(0));
+            Assert.False(checksumReader.IsClosed);
+            Assert.Same(initialReader, checksumReader.SpannerDataReader);
+
+            using var retryTransaction = connection.BeginTransaction();
+            ((IRetriableStatement)checksumReader).Retry(retryTransaction, 60);
+
+            // The old reader should now be disposed/closed to prevent resource leaks.
+            Assert.True(initialReader.IsClosed);
+            Assert.NotSame(initialReader, checksumReader.SpannerDataReader);
+            Assert.False(checksumReader.IsClosed);
+
+            // Reading continues seamlessly on the newly acquired reader.
+            Assert.True(checksumReader.Read());
+            Assert.Equal(2L, checksumReader.GetInt64(0));
+            Assert.False(checksumReader.Read());
+        }
+
+        [Fact]
+        public void SpannerDataReaderWithChecksum_MultipleConsecutiveRetries_Succeeds()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name 1"],
+                    [2L, "Test Name 2"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            var firstReader = (SpannerDataReader)command.ExecuteReader();
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, firstReader, command);
+
+            Assert.True(checksumReader.Read());
+
+            // First retry
+            using var retryTransaction1 = connection.BeginTransaction();
+            ((IRetriableStatement)checksumReader).Retry(retryTransaction1, 60);
+            Assert.True(firstReader.IsClosed);
+            var secondReader = checksumReader.SpannerDataReader;
+            Assert.NotSame(firstReader, secondReader);
+
+            // Second retry
+            using var retryTransaction2 = connection.BeginTransaction();
+            ((IRetriableStatement)checksumReader).Retry(retryTransaction2, 60);
+            Assert.True(secondReader.IsClosed);
+            var thirdReader = checksumReader.SpannerDataReader;
+            Assert.NotSame(secondReader, thirdReader);
+
+            Assert.True(checksumReader.Read());
+            Assert.Equal(2L, checksumReader.GetInt64(0));
+            Assert.False(checksumReader.Read());
+
+            checksumReader.Dispose();
+            Assert.True(thirdReader.IsClosed);
+        }
+
+        [Fact]
+        public void SpannerDataReaderWithChecksum_SyncRetry_AfterReaderDisposed_FailsOnModifiedResults()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            using var reader = command.ExecuteReader();
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, (SpannerDataReader)reader, command);
+
+            Assert.True(checksumReader.Read());
+            Assert.False(checksumReader.Read());
+
+            // Dispose reader: final checksum is cached in _finalChecksum.
+            checksumReader.Dispose();
+            Assert.True(checksumReader.IsClosed);
+
+            // Modify mock result for concurrent modification.
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Modified Name"]
+                ]
+            ));
+
+            using var retryTransaction = connection.BeginTransaction();
+            Assert.Throws<SpannerAbortedDueToConcurrentModificationException>(() =>
+                ((IRetriableStatement)checksumReader).Retry(retryTransaction, 60));
+        }
+
+        [Fact]
+        public async Task SpannerDataReaderWithChecksum_AsyncRetry_AfterReaderDisposed_FailsOnModifiedResults()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            await using var reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, (SpannerDataReader)reader, command);
+
+            Assert.True(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+            Assert.False(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+
+            // Dispose reader: final checksum is cached in _finalChecksum.
+            checksumReader.Dispose();
+            Assert.True(checksumReader.IsClosed);
+
+            // Modify mock result for concurrent modification.
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Modified Name"]
+                ]
+            ));
+
+            using var retryTransaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            await Assert.ThrowsAsync<SpannerAbortedDueToConcurrentModificationException>(async () =>
+                await ((IRetriableStatement)checksumReader).RetryAsync(retryTransaction, TestContext.Current.CancellationToken, 60));
+        }
+
+        [Fact]
+        public void SpannerDataReaderWithChecksum_SyncRetry_AfterReaderDisposed_FailsOnRowCountMismatch()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name 1"],
+                    [2L, "Test Name 2"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            using var reader = command.ExecuteReader();
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, (SpannerDataReader)reader, command);
+
+            Assert.True(checksumReader.Read());
+            Assert.True(checksumReader.Read());
+            Assert.False(checksumReader.Read());
+
+            checksumReader.Dispose();
+            Assert.True(checksumReader.IsClosed);
+
+            // Replay returns fewer rows (only 1 row instead of 2).
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name 1"]
+                ]
+            ));
+
+            using var retryTransaction = connection.BeginTransaction();
+            Assert.Throws<SpannerAbortedDueToConcurrentModificationException>(() =>
+                ((IRetriableStatement)checksumReader).Retry(retryTransaction, 60));
+        }
+
+        [Fact]
+        public void SpannerDataReaderWithChecksum_EmptyResultSet_AfterReaderDisposed_RetrySucceedsAndFailsOnModified()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                []
+            ));
+
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            using var reader = command.ExecuteReader();
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, (SpannerDataReader)reader, command);
+
+            // 0 rows returned
+            Assert.False(checksumReader.Read());
+
+            checksumReader.Dispose();
+            Assert.True(checksumReader.IsClosed);
+
+            // Retry with same 0 rows succeeds.
+            using var retryTransaction1 = connection.BeginTransaction();
+            ((IRetriableStatement)checksumReader).Retry(retryTransaction1, 60);
+
+            // Now mock returns 1 row (phantom row).
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Unexpected Row"]
+                ]
+            ));
+
+            using var retryTransaction2 = connection.BeginTransaction();
+            Assert.Throws<SpannerAbortedDueToConcurrentModificationException>(() =>
+                ((IRetriableStatement)checksumReader).Retry(retryTransaction2, 60));
+        }
+
+        [Fact]
+        public void SpannerDataReaderWithChecksum_StatementDispose_IsIdempotent()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            using var reader = command.ExecuteReader();
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, (SpannerDataReader)reader, command);
+
+            // First disposal
+            checksumReader.Dispose();
+            Assert.True(checksumReader.IsClosed);
+
+            // Second disposal must be idempotent and not throw
+            checksumReader.Dispose();
+            Assert.True(checksumReader.IsClosed);
+        }
+
+        [Fact]
+        public void SpannerDataReaderWithChecksum_RetryPropagatesAbortedError()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            using var reader = command.ExecuteReader();
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, (SpannerDataReader)reader, command);
+
+            Assert.True(checksumReader.Read());
+            Assert.False(checksumReader.Read());
+            checksumReader.Dispose();
+
+            // Set mock to return Aborted error on retry.
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateException(
+                new RpcException(new Status(StatusCode.Aborted, "Transaction was aborted"))));
+
+            using var retryTransaction = connection.BeginTransaction();
+            var exception = Assert.Throws<SpannerException>(() =>
+                ((IRetriableStatement)checksumReader).Retry(retryTransaction, 60));
+            Assert.Equal(ErrorCode.Aborted, exception.ErrorCode);
+        }
+
+        [Fact]
+        public async Task SpannerDataReaderWithChecksum_RetryPropagatesAbortedError_Async()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            await using var reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, (SpannerDataReader)reader, command);
+
+            Assert.True(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+            Assert.False(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+            await checksumReader.DisposeAsync();
+
+            // Set mock to return Aborted error on retry.
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateException(
+                new RpcException(new Status(StatusCode.Aborted, "Transaction was aborted"))));
+
+            using var retryTransaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            var exception = await Assert.ThrowsAsync<SpannerException>(async () =>
+                await ((IRetriableStatement)checksumReader).RetryAsync(retryTransaction, TestContext.Current.CancellationToken, 60));
+            Assert.Equal(ErrorCode.Aborted, exception.ErrorCode);
+        }
+
+        [Fact]
+        public async Task SpannerDataReaderWithChecksum_ActiveReaderRetry_Async_DisposesOldReader()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name 1"],
+                    [2L, "Test Name 2"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            var initialReader = (SpannerDataReader)await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, initialReader, command);
+
+            // Read only 1 row so reader remains active.
+            Assert.True(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+            Assert.Equal(1L, checksumReader.GetInt64(0));
+            Assert.False(checksumReader.IsClosed);
+            Assert.Same(initialReader, checksumReader.SpannerDataReader);
+
+            using var retryTransaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            await ((IRetriableStatement)checksumReader).RetryAsync(retryTransaction, TestContext.Current.CancellationToken, 60);
+
+            // The old reader should now be disposed/closed to prevent resource leaks.
+            Assert.True(initialReader.IsClosed);
+            Assert.NotSame(initialReader, checksumReader.SpannerDataReader);
+            Assert.False(checksumReader.IsClosed);
+
+            // Reading continues seamlessly on the newly acquired reader.
+            Assert.True(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+            Assert.Equal(2L, checksumReader.GetInt64(0));
+            Assert.False(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+        }
+
+        [Fact]
+        public async Task SpannerDataReaderWithChecksum_MultipleConsecutiveRetries_Async_Succeeds()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name 1"],
+                    [2L, "Test Name 2"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            var firstReader = (SpannerDataReader)await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, firstReader, command);
+
+            Assert.True(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+
+            // First retry
+            using var retryTransaction1 = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            await ((IRetriableStatement)checksumReader).RetryAsync(retryTransaction1, TestContext.Current.CancellationToken, 60);
+            Assert.True(firstReader.IsClosed);
+            var secondReader = checksumReader.SpannerDataReader;
+            Assert.NotSame(firstReader, secondReader);
+
+            // Second retry
+            using var retryTransaction2 = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            await ((IRetriableStatement)checksumReader).RetryAsync(retryTransaction2, TestContext.Current.CancellationToken, 60);
+            Assert.True(secondReader.IsClosed);
+            var thirdReader = checksumReader.SpannerDataReader;
+            Assert.NotSame(secondReader, thirdReader);
+
+            Assert.True(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+            Assert.Equal(2L, checksumReader.GetInt64(0));
+            Assert.False(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+
+            await checksumReader.DisposeAsync();
+            Assert.True(thirdReader.IsClosed);
+        }
+
+        [Fact]
+        public void SpannerDataReaderWithChecksum_ActiveReaderRetry_WithZeroReads_Succeeds()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            var initialReader = (SpannerDataReader)command.ExecuteReader();
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, initialReader, command);
+
+            // 0 reads performed before retry occurs
+            using var retryTransaction = connection.BeginTransaction();
+            ((IRetriableStatement)checksumReader).Retry(retryTransaction, 60);
+
+            Assert.True(initialReader.IsClosed);
+            Assert.NotSame(initialReader, checksumReader.SpannerDataReader);
+            Assert.False(checksumReader.IsClosed);
+
+            // Reading functions normally on the new reader
+            Assert.True(checksumReader.Read());
+            Assert.Equal(1L, checksumReader.GetInt64(0));
+            Assert.False(checksumReader.Read());
+        }
+
+        [Fact]
+        public async Task SpannerDataReaderWithChecksum_DisposeAsync_SucceedsAndAllowsRetry()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            var spannerReader = (SpannerDataReader)await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, spannerReader, command);
+
+            Assert.True(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+            Assert.False(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+
+            // Async disposal
+            await checksumReader.DisposeAsync();
+            Assert.True(checksumReader.IsClosed);
+            Assert.True(spannerReader.IsClosed);
+
+            // Replay after async disposal works seamlessly
+            using var retryTransaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            await ((IRetriableStatement)checksumReader).RetryAsync(retryTransaction, TestContext.Current.CancellationToken, 60);
+        }
+
+        [Fact]
+        public async Task SpannerDataReaderWithChecksum_ActiveReaderRetry_WithZeroReads_Async_Succeeds()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            var initialReader = (SpannerDataReader)await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, initialReader, command);
+
+            // 0 reads performed before async retry occurs
+            using var retryTransaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            await ((IRetriableStatement)checksumReader).RetryAsync(retryTransaction, TestContext.Current.CancellationToken, 60);
+
+            Assert.True(initialReader.IsClosed);
+            Assert.NotSame(initialReader, checksumReader.SpannerDataReader);
+            Assert.False(checksumReader.IsClosed);
+
+            // Reading functions normally on the new reader
+            Assert.True(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+            Assert.Equal(1L, checksumReader.GetInt64(0));
+            Assert.False(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+        }
+
+        [Fact]
+        public async Task SpannerDataReaderWithChecksum_AsyncRetry_AfterReaderDisposed_FailsOnRowCountMismatch()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name 1"],
+                    [2L, "Test Name 2"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            await using var reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, (SpannerDataReader)reader, command);
+
+            Assert.True(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+            Assert.True(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+            Assert.False(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+
+            await checksumReader.DisposeAsync();
+            Assert.True(checksumReader.IsClosed);
+
+            // Replay returns fewer rows (only 1 row instead of 2).
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name 1"]
+                ]
+            ));
+
+            using var retryTransaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            await Assert.ThrowsAsync<SpannerAbortedDueToConcurrentModificationException>(async () =>
+                await ((IRetriableStatement)checksumReader).RetryAsync(retryTransaction, TestContext.Current.CancellationToken, 60));
+        }
+
+        [Fact]
+        public void SpannerDataReaderWithChecksum_ActiveReaderRetry_FailsOnRowCountMismatch()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name 1"],
+                    [2L, "Test Name 2"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            var initialReader = (SpannerDataReader)command.ExecuteReader();
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, initialReader, command);
+
+            // Active read: reads row 1 and row 2, reader is still open
+            Assert.True(checksumReader.Read());
+            Assert.True(checksumReader.Read());
+            Assert.False(checksumReader.IsClosed);
+
+            // Before finishing read, replay returns fewer rows
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name 1"]
+                ]
+            ));
+
+            using var retryTransaction = connection.BeginTransaction();
+            Assert.Throws<SpannerAbortedDueToConcurrentModificationException>(() =>
+                ((IRetriableStatement)checksumReader).Retry(retryTransaction, 60));
+        }
+
+        [Fact]
+        public void SpannerDataReaderWithChecksum_SyncRetry_AfterReaderClosed_Succeeds()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            using var reader = command.ExecuteReader();
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, (SpannerDataReader)reader, command);
+
+            Assert.True(checksumReader.Read());
+            Assert.False(checksumReader.Read());
+
+            // Close via Close() instead of Dispose()
+            checksumReader.Close();
+            Assert.True(checksumReader.IsClosed);
+
+            using var retryTransaction = connection.BeginTransaction();
+            ((IRetriableStatement)checksumReader).Retry(retryTransaction, 60);
+        }
+
+        [Fact]
+        public async Task SpannerDataReaderWithChecksum_MixedDisposal_IsIdempotent()
+        {
+            string sql = $"SELECT * FROM Foo WHERE Id = {_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
+                [
+                    Tuple.Create(V1.TypeCode.Int64, "Id"),
+                    Tuple.Create(V1.TypeCode.String, "Name"),
+                ],
+                [
+                    [1L, "Test Name"]
+                ]
+            ));
+
+            using var connection = CreateConnection();
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+
+            var command = connection.SpannerConnection.CreateSelectCommand(sql);
+            command.Transaction = transaction.SpannerTransaction;
+
+            var spannerReader = (SpannerDataReader)await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+            var checksumReader = new SpannerDataReaderWithChecksum(transaction, spannerReader, command);
+
+            Assert.True(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+            Assert.False(await checksumReader.ReadAsync(TestContext.Current.CancellationToken));
+
+            // DisposeAsync followed by synchronous Dispose
+            await checksumReader.DisposeAsync();
+            Assert.True(checksumReader.IsClosed);
+
+            checksumReader.Dispose();
+            Assert.True(checksumReader.IsClosed);
+
+            // Replay still succeeds
+            using var retryTransaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            await ((IRetriableStatement)checksumReader).RetryAsync(retryTransaction, TestContext.Current.CancellationToken, 60);
         }
     }
 }
