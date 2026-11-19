@@ -18,6 +18,7 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.V1;
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -242,11 +243,183 @@ public class DefaultTypeMappingMockServerTests : IClassFixture<SpannerMockServer
 
         Assert.Equal(2, fields["p8"].ListValue.Values.Count);
         Assert.Equal("2025-05-20", fields["p8"].ListValue.Values[0].StringValue);
-        Assert.Equal(Google.Protobuf.WellKnownTypes.NullValue.NullValue, fields["p8"].ListValue.Values[1].NullValue);
+        Assert.Equal(NullValue.NullValue, fields["p8"].ListValue.Values[1].NullValue);
 
         Assert.Equal(2, fields["p9"].ListValue.Values.Count);
         Assert.Equal("2025-05-20", fields["p9"].ListValue.Values[0].StringValue);
-        Assert.Equal(Google.Protobuf.WellKnownTypes.NullValue.NullValue, fields["p9"].ListValue.Values[1].NullValue);
+        Assert.Equal(NullValue.NullValue, fields["p9"].ListValue.Values[1].NullValue);
+    }
+
+    [Fact]
+    public async Task Insert_EntityWithScalarStringAndNullJson_ConvertsParametersCorrectly()
+    {
+        var insertSql1 = $"INSERT INTO `EntitiesWithDefaultTypeMappings` (`Id`, `Date`, `DateArray`, `DateList`, `DateOnly`, `Json`, `JsonArray`, `JsonList`, `NullableDateArray`, `NullableDateList`){Environment.NewLine}" +
+                         $"VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9)";
+        var insertSql2 = $"INSERT INTO `EntitiesWithDefaultTypeMappings` (`Id`, `Date`, `DateArray`, `DateList`, `DateOnly`, `Json`, `JsonArray`, `JsonList`, `NullableDateArray`, `NullableDateList`){Environment.NewLine}" +
+                         $"VALUES (@p10, @p11, @p12, @p13, @p14, @p15, @p16, @p17, @p18, @p19)";
+        _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql1, StatementResult.CreateUpdateCount(1L));
+        _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql2, StatementResult.CreateUpdateCount(1L));
+
+        await using var context = new TestDefaultMappingDbContext(ConnectionString);
+
+        var spannerDate = new SpannerDate(2025, 5, 20);
+        var dateOnly = new DateOnly(2025, 5, 20);
+        using var scalarStringJson = JsonDocument.Parse("\"scalar-string-value\"");
+        using var nullJson = JsonDocument.Parse("null");
+
+        context.Entities.Add(new EntityWithDefaultTypeMappings
+        {
+            Id = 2L,
+            Date = spannerDate,
+            DateOnly = dateOnly,
+            Json = scalarStringJson,
+            JsonArray = new[] { scalarStringJson, nullJson, null },
+            DateArray = new[] { spannerDate },
+            DateList = new List<SpannerDate> { spannerDate },
+            NullableDateArray = new SpannerDate?[] { spannerDate, null },
+            NullableDateList = new List<SpannerDate?> { spannerDate, null },
+            JsonList = new List<JsonDocument> { scalarStringJson, nullJson, null! },
+        });
+
+        context.Entities.Add(new EntityWithDefaultTypeMappings
+        {
+            Id = 3L,
+            Date = spannerDate,
+            DateOnly = dateOnly,
+            Json = nullJson,
+            JsonArray = new[] { nullJson },
+            DateArray = new[] { spannerDate },
+            DateList = new List<SpannerDate> { spannerDate },
+            NullableDateArray = new SpannerDate?[] { spannerDate, null },
+            NullableDateList = new List<SpannerDate?> { spannerDate, null },
+            JsonList = new List<JsonDocument> { nullJson },
+        });
+
+        var count = await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(2, count);
+
+        var batchDmlRequest = _fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>().LastOrDefault();
+        Assert.NotNull(batchDmlRequest);
+        Assert.Equal(2, batchDmlRequest.Statements.Count);
+
+        var firstStatement = batchDmlRequest.Statements[0];
+        var firstFields = firstStatement.Params.Fields;
+        Assert.Equal("2", firstFields["p0"].StringValue);
+        Assert.Equal("\"scalar-string-value\"", firstFields["p5"].StringValue);
+
+        Assert.Equal(3, firstFields["p6"].ListValue.Values.Count);
+        Assert.Equal("\"scalar-string-value\"", firstFields["p6"].ListValue.Values[0].StringValue);
+        Assert.Equal("null", firstFields["p6"].ListValue.Values[1].StringValue);
+        Assert.Equal(NullValue.NullValue, firstFields["p6"].ListValue.Values[2].NullValue);
+
+        Assert.Equal(3, firstFields["p7"].ListValue.Values.Count);
+        Assert.Equal("\"scalar-string-value\"", firstFields["p7"].ListValue.Values[0].StringValue);
+        Assert.Equal("null", firstFields["p7"].ListValue.Values[1].StringValue);
+        Assert.Equal(NullValue.NullValue, firstFields["p7"].ListValue.Values[2].NullValue);
+
+        var secondStatement = batchDmlRequest.Statements[1];
+        var secondFields = secondStatement.Params.Fields;
+        Assert.Equal("3", secondFields["p10"].StringValue);
+        Assert.Equal("null", secondFields["p15"].StringValue);
+
+        Assert.Single(secondFields["p16"].ListValue.Values);
+        Assert.Equal("null", secondFields["p16"].ListValue.Values[0].StringValue);
+
+        Assert.Single(secondFields["p17"].ListValue.Values);
+        Assert.Equal("null", secondFields["p17"].ListValue.Values[0].StringValue);
+    }
+
+    [Fact]
+    public async Task Query_EntityWithScalarStringAndNullJson_MaterializesPropertiesCorrectly()
+    {
+        await using var context = new TestDefaultMappingDbContext(ConnectionString);
+
+        var query = context.Entities.Select(record => new
+        {
+            record.Id,
+            record.Date,
+            record.DateOnly,
+            record.Json,
+            record.JsonArray,
+            record.DateArray,
+            record.DateList,
+            record.NullableDateArray,
+            record.NullableDateList,
+            record.JsonList,
+        });
+        var expectedSql = query.ToQueryString();
+        var dateValue = new DateTime(2025, 5, 20);
+
+        _fixture.SpannerMock.AddOrUpdateStatementResult(expectedSql, StatementResult.CreateResultSet(
+            new List<Tuple<V1.Type, string>>
+            {
+                Tuple.Create(new V1.Type { Code = V1.TypeCode.Int64 }, "Id"),
+                Tuple.Create(new V1.Type { Code = V1.TypeCode.Date }, "Date"),
+                Tuple.Create(new V1.Type { Code = V1.TypeCode.Date }, "DateOnly"),
+                Tuple.Create(new V1.Type { Code = V1.TypeCode.Json }, "Json"),
+                Tuple.Create(new V1.Type { Code = V1.TypeCode.Array, ArrayElementType = new V1.Type { Code = V1.TypeCode.Json } }, "JsonArray"),
+                Tuple.Create(new V1.Type { Code = V1.TypeCode.Array, ArrayElementType = new V1.Type { Code = V1.TypeCode.Date } }, "DateArray"),
+                Tuple.Create(new V1.Type { Code = V1.TypeCode.Array, ArrayElementType = new V1.Type { Code = V1.TypeCode.Date } }, "DateList"),
+                Tuple.Create(new V1.Type { Code = V1.TypeCode.Array, ArrayElementType = new V1.Type { Code = V1.TypeCode.Date } }, "NullableDateArray"),
+                Tuple.Create(new V1.Type { Code = V1.TypeCode.Array, ArrayElementType = new V1.Type { Code = V1.TypeCode.Date } }, "NullableDateList"),
+                Tuple.Create(new V1.Type { Code = V1.TypeCode.Array, ArrayElementType = new V1.Type { Code = V1.TypeCode.Json } }, "JsonList"),
+            },
+            new List<object[]>
+            {
+                new object[]
+                {
+                    1L,
+                    dateValue,
+                    dateValue,
+                    "\"scalar-string-value\"",
+                    new List<string> { "\"scalar-string-value\"", "null", null },
+                    new List<DateTime> { dateValue },
+                    new List<DateTime> { dateValue },
+                    new List<DateTime?> { dateValue, null },
+                    new List<DateTime?> { dateValue, null },
+                    new List<string> { "\"scalar-string-value\"", "null", null },
+                },
+                new object[]
+                {
+                    2L,
+                    dateValue,
+                    dateValue,
+                    "null",
+                    new List<string> { "null" },
+                    new List<DateTime> { dateValue },
+                    new List<DateTime> { dateValue },
+                    new List<DateTime?> { dateValue, null },
+                    new List<DateTime?> { dateValue, null },
+                    new List<string> { "null" },
+                },
+            }));
+
+        var results = await query.ToListAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, results.Count);
+
+        var firstResult = results[0];
+        Assert.Equal(1L, firstResult.Id);
+        Assert.Equal(JsonValueKind.String, firstResult.Json.RootElement.ValueKind);
+        Assert.Equal("scalar-string-value", firstResult.Json.RootElement.GetString());
+        Assert.Equal(3, firstResult.JsonArray.Length);
+        Assert.Equal(JsonValueKind.String, firstResult.JsonArray[0].RootElement.ValueKind);
+        Assert.Equal("scalar-string-value", firstResult.JsonArray[0].RootElement.GetString());
+        Assert.Equal(JsonValueKind.Null, firstResult.JsonArray[1].RootElement.ValueKind);
+        Assert.Null(firstResult.JsonArray[2]);
+        Assert.Equal(3, firstResult.JsonList.Count);
+        Assert.Equal(JsonValueKind.String, firstResult.JsonList[0].RootElement.ValueKind);
+        Assert.Equal("scalar-string-value", firstResult.JsonList[0].RootElement.GetString());
+        Assert.Equal(JsonValueKind.Null, firstResult.JsonList[1].RootElement.ValueKind);
+        Assert.Null(firstResult.JsonList[2]);
+
+        var secondResult = results[1];
+        Assert.Equal(2L, secondResult.Id);
+        Assert.Equal(JsonValueKind.Null, secondResult.Json.RootElement.ValueKind);
+        Assert.Single(secondResult.JsonArray);
+        Assert.Equal(JsonValueKind.Null, secondResult.JsonArray[0].RootElement.ValueKind);
+        Assert.Single(secondResult.JsonList);
+        Assert.Equal(JsonValueKind.Null, secondResult.JsonList[0].RootElement.ValueKind);
     }
 
     [Fact]
