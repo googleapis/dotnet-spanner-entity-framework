@@ -29,6 +29,6 @@ jobs:
     - name: Compile sample model
       working-directory: ./Google.Cloud.EntityFrameworkCore.Spanner.Samples
       run: |
-        dotnet tool install --global dotnet-ef
+        dotnet tool install --global dotnet-ef --version "10.*"
         dotnet tool restore
         ./optimize.sh
