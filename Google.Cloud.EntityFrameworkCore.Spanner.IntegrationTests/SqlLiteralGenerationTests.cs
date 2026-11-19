@@ -16,6 +16,8 @@ using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -368,6 +370,38 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                     .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
 
                 Assert.NotNull(queryResult);
+            }
+        }
+
+        [Fact]
+        public async Task DelimitedIdentifiers_SpecialAndControlCharacters_RoundtripOnSpanner()
+        {
+            var cancellationToken = TestContext.Current.CancellationToken;
+            using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var sqlGenerationHelper = database.GetService<ISqlGenerationHelper>();
+
+            var identifiers = new List<string>
+            {
+                "My`Col",
+                @"My\Col",
+                @"TrailingBackslash\",
+                @"foo\` SELECT 1 --",
+                @"Café`\🎵",
+                "semi;colon",
+            };
+            identifiers.AddRange(Enumerable.Range(0, 0x20).Append(0x7F).Select(code => $"col{(char)code}name"));
+
+            await using var connection = _fixture.GetConnection();
+            await connection.OpenAsync(cancellationToken);
+
+            foreach (var identifier in identifiers)
+            {
+                var delimitedIdentifier = sqlGenerationHelper.DelimitIdentifier(identifier);
+                await using var command = connection.CreateSelectCommand($"SELECT 1 AS {delimitedIdentifier}");
+                await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+                Assert.True(await reader.ReadAsync(cancellationToken), $"Expected a row for delimited identifier {delimitedIdentifier}.");
+                Assert.Equal(identifier, reader.GetName(0));
             }
         }
     }
