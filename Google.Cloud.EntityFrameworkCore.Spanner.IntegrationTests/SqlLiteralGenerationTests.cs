@@ -17,6 +17,7 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -175,6 +176,46 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         [Fact]
+        public async Task Json_array_sql_literals_execute_successfully_on_spanner()
+        {
+            var arrayMapping = SpannerJsonArrayTypeMapping.Default;
+            var listMapping = SpannerJsonListTypeMapping.Default;
+
+            using var document1 = JsonDocument.Parse("""{"name":"Alice","age":30}""");
+            using var document2 = JsonDocument.Parse("""{"name":"Marc's House","city":"O'Fallon"}""");
+            using var document3 = JsonDocument.Parse("""{"path":"C:\\Users\\Alice"}""");
+
+            var arrayLiteral = arrayMapping.GenerateSqlLiteral(new[] { document1, null, document2, document3 });
+            var listLiteral = listMapping.GenerateSqlLiteral(new List<JsonDocument> { document1, null, document2, document3 });
+
+            await using var connection = _fixture.GetConnection();
+
+            await using var arrayLengthCommand = connection.CreateSelectCommand($"SELECT ARRAY_LENGTH({arrayLiteral})");
+            var arrayLength = (long)await arrayLengthCommand.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(4, arrayLength);
+
+            await using var nullElementCommand = connection.CreateSelectCommand($"SELECT {arrayLiteral}[OFFSET(1)] IS NULL");
+            var isNullElement = (bool)await nullElementCommand.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+            Assert.True(isNullElement);
+
+            await using var elementCommand = connection.CreateSelectCommand($"SELECT JSON_VALUE({arrayLiteral}[OFFSET(2)], '$.name')");
+            var elementValue = (string)await elementCommand.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+            Assert.Equal("Marc's House", elementValue);
+
+            await using var pathCommand = connection.CreateSelectCommand($"SELECT JSON_VALUE({arrayLiteral}[OFFSET(3)], '$.path')");
+            var pathValue = (string)await pathCommand.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(@"C:\Users\Alice", pathValue);
+
+            await using var listLengthCommand = connection.CreateSelectCommand($"SELECT ARRAY_LENGTH({listLiteral})");
+            var listLength = (long)await listLengthCommand.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(4, listLength);
+
+            await using var emptyArrayCommand = connection.CreateSelectCommand($"SELECT ARRAY_LENGTH({arrayMapping.GenerateSqlLiteral(Array.Empty<JsonDocument>())})");
+            var emptyArrayLength = (long)await emptyArrayCommand.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(0, emptyArrayLength);
+        }
+
+        [Fact]
         public async Task Can_insert_and_query_row_using_generated_sql_literals()
         {
             var rowIdentifier = _fixture.RandomLong();
@@ -185,7 +226,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             using var jsonDocument = JsonDocument.Parse(rawJson);
             var jsonLiteral = SpannerJsonTypeMapping.Default.GenerateSqlLiteral(jsonDocument);
 
-            var insertSql = $"INSERT INTO TableWithAllColumnTypes (ColInt64, ColString, ColJson) VALUES ({rowIdentifier}, {stringLiteral}, {jsonLiteral})";
+            using var arrayItem1 = JsonDocument.Parse("""{"key":"first"}""");
+            using var arrayItem2 = JsonDocument.Parse("""{"title":"Marc's Album"}""");
+            var jsonArrayLiteral = SpannerJsonListTypeMapping.Default.GenerateSqlLiteral(new List<JsonDocument> { arrayItem1, null, arrayItem2 });
+
+            var insertSql = $"INSERT INTO TableWithAllColumnTypes (ColInt64, ColString, ColJson, ColJsonArray) VALUES ({rowIdentifier}, {stringLiteral}, {jsonLiteral}, {jsonArrayLiteral})";
 
             await using var connection = _fixture.GetConnection();
             await connection.RunWithRetriableTransactionAsync(async (transaction) =>
@@ -205,6 +250,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.NotNull(queryResult.ColJson);
             Assert.Equal(@"C:\Users\Alice", queryResult.ColJson.RootElement.GetProperty("path").GetString());
             Assert.Equal("Marc's 'Special' Record", queryResult.ColJson.RootElement.GetProperty("name").GetString());
+            Assert.NotNull(queryResult.ColJsonArray);
+            Assert.Equal(3, queryResult.ColJsonArray.Count);
+            Assert.Equal("first", queryResult.ColJsonArray[0].RootElement.GetProperty("key").GetString());
+            Assert.Null(queryResult.ColJsonArray[1]);
+            Assert.Equal("Marc's Album", queryResult.ColJsonArray[2].RootElement.GetProperty("title").GetString());
         }
 
         [Fact]
