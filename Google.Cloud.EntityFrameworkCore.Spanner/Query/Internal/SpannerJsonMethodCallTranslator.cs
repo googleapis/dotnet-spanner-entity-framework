@@ -24,6 +24,8 @@ using System.Text.Json;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
 {
+    using Type = System.Type;
+
     /// <summary>
     ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
     ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
@@ -56,6 +58,27 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         private static readonly MethodInfo s_getDoubleMethodInfo
             = typeof(JsonElement).GetRuntimeMethod(nameof(JsonElement.GetDouble), System.Array.Empty<System.Type>());
 
+        private static readonly MethodInfo s_getInt16MethodInfo
+            = typeof(JsonElement).GetRuntimeMethod(nameof(JsonElement.GetInt16), Type.EmptyTypes);
+
+        private static readonly MethodInfo s_getByteMethodInfo
+            = typeof(JsonElement).GetRuntimeMethod(nameof(JsonElement.GetByte), Type.EmptyTypes);
+
+        private static readonly MethodInfo s_getSByteMethodInfo
+            = typeof(JsonElement).GetRuntimeMethod(nameof(JsonElement.GetSByte), Type.EmptyTypes);
+
+        private static readonly MethodInfo s_getSingleMethodInfo
+            = typeof(JsonElement).GetRuntimeMethod(nameof(JsonElement.GetSingle), Type.EmptyTypes);
+
+        private static readonly MethodInfo s_getDecimalMethodInfo
+            = typeof(JsonElement).GetRuntimeMethod(nameof(JsonElement.GetDecimal), Type.EmptyTypes);
+
+        private static readonly MethodInfo s_getDateTimeMethodInfo
+            = typeof(JsonElement).GetRuntimeMethod(nameof(JsonElement.GetDateTime), Type.EmptyTypes);
+
+        private static readonly MethodInfo s_getGuidMethodInfo
+            = typeof(JsonElement).GetRuntimeMethod(nameof(JsonElement.GetGuid), Type.EmptyTypes);
+
         private readonly ISqlExpressionFactory _sqlExpressionFactory;
 
         public SpannerJsonMethodCallTranslator([NotNull] ISqlExpressionFactory sqlExpressionFactory)
@@ -74,50 +97,133 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
                 return null;
             }
 
-            // Handle JsonElement.GetProperty - this accesses a nested JSON property
-            // For example: jsonColumn.GetProperty("propertyName")
-            // Note: This is typically handled by EF Core's JsonScalarExpression generation
-            // and processed by VisitJsonScalar. We return null here to let EF Core's
-            // default translation handle this case.
+            // Handle JsonElement.GetProperty - access a nested JSON property using JSON_QUERY.
+            // Cloud Spanner requires the path argument of JSON_QUERY to be a literal or query parameter,
+            // so only constant property names are translated to a combined JSONPath literal.
             if (s_getPropertyMethodInfo?.Equals(method) == true && arguments.Count == 1)
             {
-                // Return null to indicate we don't handle this - EF Core will use JsonScalarExpression
-                return null;
+                if (arguments[0] is not SqlConstantExpression { Value: string propertyName })
+                {
+                    return null;
+                }
+
+                var propertySegment = SpannerJsonPathHelper.FormatPropertySegmentForConstant(propertyName);
+                var jsonTypeMapping = instance.TypeMapping;
+
+                if (instance is SqlFunctionExpression
+                    {
+                        Name: "JSON_QUERY",
+                        Arguments: [var targetExpression, SqlConstantExpression { Value: string parentPath }]
+                    })
+                {
+                    var combinedPath = parentPath + propertySegment;
+                    return _sqlExpressionFactory.Function(
+                        "JSON_QUERY",
+                        new[] { targetExpression, _sqlExpressionFactory.Constant(combinedPath) },
+                        nullable: true,
+                        argumentsPropagateNullability: new[] { true, true },
+                        typeof(JsonElement),
+                        jsonTypeMapping);
+                }
+
+                var jsonPath = "$" + propertySegment;
+                return _sqlExpressionFactory.Function(
+                    "JSON_QUERY",
+                    new[] { instance, _sqlExpressionFactory.Constant(jsonPath) },
+                    nullable: true,
+                    argumentsPropagateNullability: new[] { true, true },
+                    typeof(JsonElement),
+                    jsonTypeMapping);
             }
 
-            // Handle JsonElement.GetString - extract string value from JSON
+            // Handle JsonElement scalar getter methods
             if (s_getStringMethodInfo?.Equals(method) == true)
             {
-                // Cast the JSON value to STRING type
-                // Spanner will automatically extract the scalar value when casting
-                return _sqlExpressionFactory.Convert(instance, typeof(string));
+                return ExtractJsonValue(instance);
             }
 
-            // Handle JsonElement.GetInt32 - extract int value from JSON
             if (s_getInt32MethodInfo?.Equals(method) == true)
             {
-                return _sqlExpressionFactory.Convert(instance, typeof(int));
+                return _sqlExpressionFactory.Convert(ExtractJsonValue(instance), typeof(int));
             }
 
-            // Handle JsonElement.GetInt64 - extract long value from JSON
             if (s_getInt64MethodInfo?.Equals(method) == true)
             {
-                return _sqlExpressionFactory.Convert(instance, typeof(long));
+                return _sqlExpressionFactory.Convert(ExtractJsonValue(instance), typeof(long));
             }
 
-            // Handle JsonElement.GetBoolean - extract bool value from JSON
+            if (s_getInt16MethodInfo?.Equals(method) == true)
+            {
+                return _sqlExpressionFactory.Convert(ExtractJsonValue(instance), typeof(short));
+            }
+
+            if (s_getByteMethodInfo?.Equals(method) == true)
+            {
+                return _sqlExpressionFactory.Convert(ExtractJsonValue(instance), typeof(byte));
+            }
+
+            if (s_getSByteMethodInfo?.Equals(method) == true)
+            {
+                return _sqlExpressionFactory.Convert(ExtractJsonValue(instance), typeof(sbyte));
+            }
+
             if (s_getBooleanMethodInfo?.Equals(method) == true)
             {
-                return _sqlExpressionFactory.Convert(instance, typeof(bool));
+                return _sqlExpressionFactory.Convert(ExtractJsonValue(instance), typeof(bool));
             }
 
-            // Handle JsonElement.GetDouble - extract double value from JSON
             if (s_getDoubleMethodInfo?.Equals(method) == true)
             {
-                return _sqlExpressionFactory.Convert(instance, typeof(double));
+                return _sqlExpressionFactory.Convert(ExtractJsonValue(instance), typeof(double));
+            }
+
+            if (s_getSingleMethodInfo?.Equals(method) == true)
+            {
+                return _sqlExpressionFactory.Convert(ExtractJsonValue(instance), typeof(float));
+            }
+
+            if (s_getDecimalMethodInfo?.Equals(method) == true)
+            {
+                return _sqlExpressionFactory.Convert(ExtractJsonValue(instance), typeof(decimal));
+            }
+
+            if (s_getDateTimeMethodInfo?.Equals(method) == true)
+            {
+                return _sqlExpressionFactory.Convert(ExtractJsonValue(instance), typeof(DateTime));
+            }
+
+            if (s_getGuidMethodInfo?.Equals(method) == true)
+            {
+                return ExtractJsonValue(instance, typeof(Guid));
             }
 
             return null;
+        }
+
+        private SqlExpression ExtractJsonValue(SqlExpression instance, Type returnType = null)
+        {
+            returnType ??= typeof(string);
+
+            if (instance is SqlFunctionExpression
+                {
+                    Name: "JSON_QUERY",
+                    Arguments: [var targetExpression, var pathExpression]
+                })
+            {
+                return _sqlExpressionFactory.Function(
+                    "JSON_VALUE",
+                    new[] { targetExpression, pathExpression },
+                    nullable: true,
+                    argumentsPropagateNullability: new[] { true, true },
+                    returnType);
+            }
+
+            return _sqlExpressionFactory.Function(
+                "JSON_VALUE",
+                new[] { instance, _sqlExpressionFactory.Constant("$") },
+                nullable: true,
+                argumentsPropagateNullability: new[] { true, true },
+                returnType);
         }
     }
 }

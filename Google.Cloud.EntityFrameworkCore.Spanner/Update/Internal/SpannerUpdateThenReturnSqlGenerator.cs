@@ -1,4 +1,4 @@
-﻿// Copyright 2024, Google Inc. All rights reserved.
+// Copyright 2024, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,16 +27,20 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
             IReadOnlyList<IColumnModification> operations,
             string additionalValues = null)
         {
-            if (operations.Count <= 0 && additionalValues == null)
+            // In base EF Core, additionalValues is passed as "1" for UPDATE or DELETE statements that have no
+            // read operations to support multi-statement batching engines that verify concurrency by reading a row.
+            // Spanner natively returns exact affected row counts via ExecuteNonQuery (RowCountExact) and does not
+            // need or benefit from a fake "THEN RETURN 1" clause, which would unnecessarily convert standard DML
+            // into a streaming query. We therefore omit the THEN RETURN clause whenever there are no columns to read.
+            if (operations.Count <= 0)
                 return;
             AppendJoin(commandStringBuilder.AppendLine().Append("THEN RETURN "), operations, SqlGenerationHelper, ((sb, o, helper) => helper.DelimitIdentifier(sb, o.ColumnName)));
             if (additionalValues == null)
                 return;
-            if (operations.Count > 0)
-                commandStringBuilder.Append(", ");
-            commandStringBuilder.Append("1");
+            commandStringBuilder.Append(", ");
+            commandStringBuilder.Append(additionalValues);
         }
-        
+
         // Copied from StringBuilderExtensions
         private static void AppendJoin<T, TParam>(
             StringBuilder stringBuilder,
@@ -57,6 +61,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 stringBuilder.Length -= separator.Length;
             }
         }
-        
+
     }
 }
