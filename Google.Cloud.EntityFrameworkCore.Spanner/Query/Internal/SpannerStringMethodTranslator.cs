@@ -88,19 +88,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         private static readonly MethodInfo s_padRightWithStringMethodInfo
             = typeof(string).GetRuntimeMethod(nameof(string.PadRight), new[] { typeof(int), typeof(char) });
 
-        private static readonly MethodInfo s_formatOneArgMethodInfo
-            = typeof(string).GetMethod(nameof(string.Format), new[] { typeof(string), typeof(object) });
-
-        private static readonly MethodInfo s_formatTwoArgMethodInfo
-            = typeof(string).GetMethod(nameof(string.Format), new[] { typeof(string), typeof(object), typeof(object) });
-
-        private static readonly MethodInfo s_formatThreeArgMethodInfo
-            = typeof(string).GetMethod(nameof(string.Format), new[] { typeof(string), typeof(object), typeof(object), typeof(object) });
-
-        // TODO(loite): This one is never picked up by EF Core.
-        private static readonly MethodInfo s_formatVarArgMethodInfo
-            = typeof(string).GetMethod(nameof(string.Format), new[] { typeof(string), typeof(object[]) });
-
         private static readonly MethodInfo s_joinMethodInfo
             = typeof(string).GetRuntimeMethod(nameof(string.Join), new[] { typeof(string), typeof(IEnumerable<string>) });
         
@@ -204,10 +191,6 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
             if (s_padRightWithStringMethodInfo.Equals(method))
             {
                 return TranslateTwoArgFunction("RPAD", instance, arguments[0], arguments[1], typeof(string));
-            }
-            if (s_formatOneArgMethodInfo.Equals(method) || s_formatTwoArgMethodInfo.Equals(method) || s_formatThreeArgMethodInfo.Equals(method) || s_formatVarArgMethodInfo.Equals(method))
-            {
-                return TranslateStaticFunction("FORMAT", arguments, typeof(string));
             }
             if (s_joinMethodInfo.Equals(method))
             {

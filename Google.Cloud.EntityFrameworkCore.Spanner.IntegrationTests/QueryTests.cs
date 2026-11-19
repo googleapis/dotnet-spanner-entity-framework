@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage;
+using Google.Cloud.Spanner.Common.V1;
 using Google.Cloud.Spanner.Data;
 using Google.Cloud.Spanner.V1;
 using Microsoft.EntityFrameworkCore;
@@ -102,6 +104,73 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 singer => Assert.Equal("Peterson1", singer.LastName),
                 singer => Assert.Equal("Peterson2", singer.LastName),
                 singer => Assert.Equal("Peterson3", singer.LastName));
+        }
+
+        [Fact]
+        public async Task CanSelectContainsOnNullableColumn()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            var singerId3 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Alice", LastName = "Peterson1" },
+                new Singers { SingerId = singerId2, FirstName = "Bob", LastName = "Peterson2" },
+                new Singers { SingerId = singerId3, FirstName = null, LastName = "Peterson3" }
+            );
+            await db.SaveChangesAsync();
+
+            var names = new List<string> { "Alice", "Charlie" };
+            var results = await db.Singers
+                .Where(singer => singer.SingerId == singerId1 || singer.SingerId == singerId2 || singer.SingerId == singerId3)
+                .OrderBy(singer => singer.LastName)
+                .Select(singer => new { singer.LastName, ContainsName = names.Contains(singer.FirstName) })
+                .ToListAsync();
+
+            Assert.Collection(results,
+                result =>
+                {
+                    Assert.Equal("Peterson1", result.LastName);
+                    Assert.True(result.ContainsName);
+                },
+                result =>
+                {
+                    Assert.Equal("Peterson2", result.LastName);
+                    Assert.False(result.ContainsName);
+                },
+                result =>
+                {
+                    Assert.Equal("Peterson3", result.LastName);
+                    Assert.False(result.ContainsName);
+                }
+            );
+        }
+
+        [Fact]
+        public async Task CanFilterNotContainsOnNullableColumn()
+        {
+            using var db = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId1 = _fixture.RandomLong();
+            var singerId2 = _fixture.RandomLong();
+            var singerId3 = _fixture.RandomLong();
+            db.Singers.AddRange(
+                new Singers { SingerId = singerId1, FirstName = "Alice", LastName = "Peterson1" },
+                new Singers { SingerId = singerId2, FirstName = "Bob", LastName = "Peterson2" },
+                new Singers { SingerId = singerId3, FirstName = null, LastName = "Peterson3" }
+            );
+            await db.SaveChangesAsync();
+
+            var names = new List<string> { "Alice" };
+            var singers = await db.Singers
+                .Where(singer => (singer.SingerId == singerId1 || singer.SingerId == singerId2 || singer.SingerId == singerId3)
+                                 && !names.Contains(singer.FirstName))
+                .OrderBy(singer => singer.LastName)
+                .ToListAsync();
+
+            Assert.Collection(singers,
+                singer => Assert.Equal("Peterson2", singer.LastName),
+                singer => Assert.Equal("Peterson3", singer.LastName)
+            );
         }
 
         [Fact]
@@ -723,21 +792,27 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
 
             formattedName = await db.Singers
                 .Where(s => new long[] { singerId }.Contains(s.SingerId))
-                .Select(s => string.Format("%s", s.FullName))
+                .Select(s => string.Format("{0}", s.FullName))
                 .FirstOrDefaultAsync();
             Assert.Equal("Alice Morrison", formattedName);
 
             formattedName = await db.Singers
                 .Where(s => new long[] { singerId }.Contains(s.SingerId))
-                .Select(s => string.Format("%025d: %s", s.SingerId, s.FullName))
+                .Select(s => string.Format("{0:D25}: {1}", s.SingerId, s.FullName))
                 .FirstOrDefaultAsync();
             Assert.Equal($"{singerId.ToString().PadLeft(25, '0')}: Alice Morrison", formattedName);
 
             formattedName = await db.Singers
                 .Where(s => new long[] { singerId }.Contains(s.SingerId))
-                .Select(s => string.Format("%025d: %s, born on %t", s.SingerId, s.FullName, s.BirthDate))
+                .Select(s => string.Format("{0:D25}: {1}, born on {2:yyyy-MM-dd}", s.SingerId, s.FullName, s.BirthDate))
                 .FirstOrDefaultAsync();
             Assert.Equal($"{singerId.ToString().PadLeft(25, '0')}: Alice Morrison, born on {new SpannerDate(1973, 10, 9)}", formattedName);
+
+            formattedName = await db.Singers
+                .Where(s => new long[] { singerId }.Contains(s.SingerId))
+                .Select(s => $"{s.SingerId:D25}: {s.FullName}")
+                .FirstOrDefaultAsync();
+            Assert.Equal($"{singerId.ToString().PadLeft(25, '0')}: Alice Morrison", formattedName);
         }
 
         [Fact]
@@ -2512,6 +2587,625 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             Assert.Equal("Entity1", entities[0].Name);
         }
 
+        /// <summary>
+        /// Tests that querying a JSON property with a backslash in the name correctly retrieves data.
+        /// This verifies end-to-end that the escaping $["back\\slash"] works against the Spanner engine.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonPropertyWithBackslashInName()
+        {
+            using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var identifier = _fixture.RandomLong();
+
+            database.TestEntityWithSpecialJsonProperties.Add(new TestEntityWithSpecialJsonProperties
+            {
+                Id = identifier,
+                Name = "TestBackslash",
+                JsonData = new JsonPropertiesWithSpecialNames
+                {
+                    PropertyWithBackslash = "backslash-value",
+                    NormalProperty = "normal"
+                }
+            });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var entity = await database.TestEntityWithSpecialJsonProperties
+                .Where(e => e.JsonData.PropertyWithBackslash == "backslash-value" && e.Id == identifier)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+
+            Assert.NotNull(entity);
+            Assert.Equal(identifier, entity.Id);
+            Assert.Equal("backslash-value", entity.JsonData.PropertyWithBackslash);
+        }
+
+        /// <summary>
+        /// Tests that querying a property with backslashes followed by 'n' and 't' within a JSON document
+        /// correctly matches the row and proves that Cloud Spanner's JSONPath engine does not treat \n or \t
+        /// as escape sequences inside double-quoted identifiers.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonPropertyWithBackslashNAndTInName()
+        {
+            using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var identifier = _fixture.RandomLong();
+
+            database.TestEntityWithSpecialJsonProperties.Add(new TestEntityWithSpecialJsonProperties
+            {
+                Id = identifier,
+                Name = "TestBackslashNAndT",
+                JsonData = new JsonPropertiesWithSpecialNames
+                {
+                    PropertyWithBackslashNAndT = "backslash-n-and-t-value",
+                    NormalProperty = "normal"
+                }
+            });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var entity = await database.TestEntityWithSpecialJsonProperties
+                .Where(e => e.JsonData.PropertyWithBackslashNAndT == "backslash-n-and-t-value" && e.Id == identifier)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+
+            Assert.NotNull(entity);
+            Assert.Equal(identifier, entity.Id);
+            Assert.Equal("backslash-n-and-t-value", entity.JsonData.PropertyWithBackslashNAndT);
+        }
+
+        /// <summary>
+        /// Tests that querying a Guid property mapped within a JSON document does not emit
+        /// an invalid CAST(JSON_VALUE(...) AS STRING(36)) expression (which Spanner rejects)
+        /// and correctly returns matching entities.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonGuidPropertyWithoutLengthInCast()
+        {
+            using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var identifier = _fixture.RandomLong();
+            var targetGuid = Guid.NewGuid();
+
+            database.TestEntityWithSpecialJsonProperties.Add(new TestEntityWithSpecialJsonProperties
+            {
+                Id = identifier,
+                Name = "TestGuid",
+                JsonData = new JsonPropertiesWithSpecialNames
+                {
+                    GuidProperty = targetGuid,
+                    NormalProperty = "normal"
+                }
+            });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var entity = await database.TestEntityWithSpecialJsonProperties
+                .Where(e => e.JsonData.GuidProperty == targetGuid && e.Id == identifier)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+
+            Assert.NotNull(entity);
+            Assert.Equal(identifier, entity.Id);
+            Assert.Equal(targetGuid, entity.JsonData.GuidProperty);
+        }
+
+        /// <summary>
+        /// Tests that querying a JSON property with non-ASCII characters in the name uses quoted notation
+        /// ($."prénom") and correctly matches rows in the database engine.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonPropertyWithNonAsciiName()
+        {
+            using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var identifier = _fixture.RandomLong();
+
+            database.TestEntityWithSpecialJsonProperties.Add(new TestEntityWithSpecialJsonProperties
+            {
+                Id = identifier,
+                Name = "TestNonAscii",
+                JsonData = new JsonPropertiesWithSpecialNames
+                {
+                    PropertyWithNonAscii = "prenom-value",
+                    NormalProperty = "normal"
+                }
+            });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var entity = await database.TestEntityWithSpecialJsonProperties
+                .Where(e => e.JsonData.PropertyWithNonAscii == "prenom-value" && e.Id == identifier)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+
+            Assert.NotNull(entity);
+            Assert.Equal(identifier, entity.Id);
+            Assert.Equal("prenom-value", entity.JsonData.PropertyWithNonAscii);
+        }
+
+        /// <summary>
+        /// Tests that querying a JSON array element using a constant index (e.g. descriptions[0])
+        /// translates to bracket index notation and executes correctly in Spanner.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonArrayElementWithConstantIndex()
+        {
+            using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var venueCode = $"V{_fixture.RandomLong() % 1000000:D6}";
+
+            database.Venues.Add(new Venues
+            {
+                Code = venueCode,
+                Name = "Array Constant Venue",
+                Active = true,
+                Capacity = 10000,
+                Descriptions = new List<VenueDescription>
+                {
+                    new VenueDescription { Category = "VIP", Description = "VIP Lounge", Capacity = 100, Active = true },
+                    new VenueDescription { Category = "General", Description = "General Admission", Capacity = 9900, Active = true }
+                }
+            });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var venue = await database.Venues
+                .Where(v => v.Code == venueCode && v.Descriptions[0].Category == "VIP")
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+
+            Assert.NotNull(venue);
+            Assert.Equal(venueCode, venue.Code);
+            Assert.Equal("VIP", venue.Descriptions[0].Category);
+        }
+
+        /// <summary>
+        /// Tests that querying a JSON array element using a parameterized variable index
+        /// throws NotSupportedException because Cloud Spanner requires argument 2 of JSON_VALUE
+        /// to be a string literal or query parameter.
+        /// </summary>
+        [Fact]
+        public async Task QueryingJsonArrayElementWithParameterizedIndex_ThrowsNotSupportedException()
+        {
+            using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var venueCode = $"V{_fixture.RandomLong() % 1000000:D6}";
+
+            database.Venues.Add(new Venues
+            {
+                Code = venueCode,
+                Name = "Array Parameterized Venue",
+                Active = true,
+                Capacity = 8000,
+                Descriptions = new List<VenueDescription>
+                {
+                    new VenueDescription { Category = "Floor", Description = "Floor Seating", Capacity = 3000, Active = true },
+                    new VenueDescription { Category = "Balcony", Description = "Balcony Seating", Capacity = 5000, Active = true }
+                }
+            });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var targetIndex = 1;
+            var exception = await Assert.ThrowsAsync<NotSupportedException>(() => database.Venues
+                .Where(v => v.Code == venueCode && v.Descriptions[targetIndex].Category == "Balcony")
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken));
+
+            Assert.Contains("non-constant index", exception.Message);
+        }
+
+        /// <summary>
+        /// Tests that querying a JsonElement column using GetProperty, GetString, GetInt32,
+        /// GetBoolean, and chained GetProperty translates to valid Cloud Spanner JSON_VALUE/JSON_QUERY
+        /// calls and executes cleanly against the database engine.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonElementMethodsEndToEnd()
+        {
+            var identifier = _fixture.RandomLong();
+            using (var connection = _fixture.GetConnection())
+            {
+                using var insertCommand = connection.CreateDmlCommand(
+                    "INSERT INTO TestEntityWithSpecialJsonProperties (Id, Name, JsonData) " +
+                    "VALUES (@Id, @Name, JSON '{\"title\":\"Developer\",\"level\":10,\"verified\":true,\"details\":{\"department\":\"Engineering\"}}')");
+                insertCommand.Parameters.Add("Id", SpannerDbType.Int64, identifier);
+                insertCommand.Parameters.Add("Name", SpannerDbType.String, "JsonElementTest");
+                await insertCommand.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+            }
+
+            using var database = new TestJsonElementDbContext(_fixture.DatabaseName);
+
+            // Test GetProperty("title").GetString()
+            var stringMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("title").GetString() == "Developer")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, stringMatch);
+
+            // Test GetProperty("level").GetInt32() with numeric comparison
+            var intMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("level").GetInt32() > 5)
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, intMatch);
+
+            // Test GetProperty("verified").GetBoolean()
+            var boolMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("verified").GetBoolean())
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, boolMatch);
+
+            // Test chained GetProperty("details").GetProperty("department").GetString()
+            var nestedMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("details").GetProperty("department").GetString() == "Engineering")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, nestedMatch);
+        }
+
+        /// <summary>
+        /// Tests that querying JsonElement properties with special characters (backslashes, double quotes,
+        /// single quotes, dots) translates to valid Cloud Spanner JSON_VALUE/JSON_QUERY syntax without
+        /// double-escaping and correctly matches rows in the database engine.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonElementMethodsWithSpecialCharacterProperties()
+        {
+            var identifier = _fixture.RandomLong();
+            using (var connection = _fixture.GetConnection())
+            {
+                using var insertCommand = connection.CreateDmlCommand(
+                    "INSERT INTO TestEntityWithSpecialJsonProperties (Id, Name, JsonData) VALUES (@Id, @Name, @JsonData)");
+                insertCommand.Parameters.Add("Id", SpannerDbType.Int64, identifier);
+                insertCommand.Parameters.Add("Name", SpannerDbType.String, "SpecialJsonElement");
+                insertCommand.Parameters.Add("JsonData", SpannerDbType.Json, "{\"back\\\\slash\":\"backslash-match\",\"path\\\\with\\\\n_and_t\":\"backslash-n-and-t-match\",\"say \\\"hello\\\"\":\"hello-match\",\"it's\":\"its-match\",\"property.with.dot\":\"dot-match\",\"prénom\":\"prenom-match\"}");
+                await insertCommand.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+            }
+
+            using var database = new TestJsonElementDbContext(_fixture.DatabaseName);
+
+            // Test GetProperty("back\slash").GetString()
+            var backslashMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("back\\slash").GetString() == "backslash-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, backslashMatch);
+
+            // Test GetProperty("path\with\n_and_t").GetString()
+            var backslashNAndTMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("path\\with\\n_and_t").GetString() == "backslash-n-and-t-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, backslashNAndTMatch);
+
+            // Test GetProperty("say \"hello\"").GetString()
+            var doubleQuoteMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("say \"hello\"").GetString() == "hello-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, doubleQuoteMatch);
+
+            // Test GetProperty("it's").GetString()
+            var singleQuoteMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("it's").GetString() == "its-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, singleQuoteMatch);
+
+            // Test GetProperty("property.with.dot").GetString()
+            var dotMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("property.with.dot").GetString() == "dot-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, dotMatch);
+
+            // Test GetProperty("prénom").GetString()
+            var nonAsciiMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("prénom").GetString() == "prenom-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, nonAsciiMatch);
+        }
+
         #endregion
+
+        #region Set Operations and Bulk Update/Delete Tests
+
+        [Fact]
+        public async Task Union_ExecutesSuccessfullyOnSpanner()
+        {
+            await using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var firstSingerId = _fixture.RandomLong();
+            var secondSingerId = _fixture.RandomLong();
+            database.Singers.AddRange(
+                new Singers { SingerId = firstSingerId, FirstName = "Alice", LastName = "Singer" },
+                new Singers { SingerId = secondSingerId, FirstName = "Bob", LastName = "Singer" });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var unionQuery = database.Singers
+                .Where(singer => singer.SingerId == firstSingerId)
+                .Select(singer => singer.FirstName)
+                .Union(database.Singers
+                    .Where(singer => singer.SingerId == secondSingerId)
+                    .Select(singer => singer.FirstName));
+
+            var results = await unionQuery.ToListAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(2, results.Count);
+            Assert.Contains("Alice", results);
+            Assert.Contains("Bob", results);
+
+            // Verify DISTINCT behavior on duplicate rows
+            var distinctQuery = database.Singers
+                .Where(singer => singer.SingerId == firstSingerId)
+                .Select(singer => singer.FirstName)
+                .Union(database.Singers
+                    .Where(singer => singer.SingerId == firstSingerId)
+                    .Select(singer => singer.FirstName));
+
+            var distinctResults = await distinctQuery.ToListAsync(TestContext.Current.CancellationToken);
+            var singleResult = Assert.Single(distinctResults);
+            Assert.Equal("Alice", singleResult);
+        }
+
+        [Fact]
+        public async Task Concat_ExecutesSuccessfullyOnSpanner()
+        {
+            await using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            database.Singers.Add(new Singers { SingerId = singerId, FirstName = "Charlie", LastName = "Singer" });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var concatQuery = database.Singers
+                .Where(singer => singer.SingerId == singerId)
+                .Select(singer => singer.FirstName)
+                .Concat(database.Singers
+                    .Where(singer => singer.SingerId == singerId)
+                    .Select(singer => singer.FirstName));
+
+            var results = await concatQuery.ToListAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(2, results.Count);
+            Assert.All(results, name => Assert.Equal("Charlie", name));
+        }
+
+        [Fact]
+        public async Task Intersect_ExecutesSuccessfullyOnSpanner()
+        {
+            await using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var firstSingerId = _fixture.RandomLong();
+            var secondSingerId = _fixture.RandomLong();
+            database.Singers.AddRange(
+                new Singers { SingerId = firstSingerId, FirstName = "David", LastName = "Singer" },
+                new Singers { SingerId = secondSingerId, FirstName = "Emma", LastName = "Singer" });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var intersectQuery = database.Singers
+                .Where(singer => singer.SingerId == firstSingerId || singer.SingerId == secondSingerId)
+                .Select(singer => singer.FirstName)
+                .Intersect(database.Singers
+                    .Where(singer => singer.SingerId == firstSingerId)
+                    .Select(singer => singer.FirstName));
+
+            var results = await intersectQuery.ToListAsync(TestContext.Current.CancellationToken);
+            var matchedName = Assert.Single(results);
+            Assert.Equal("David", matchedName);
+        }
+
+        [Fact]
+        public async Task Except_ExecutesSuccessfullyOnSpanner()
+        {
+            await using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var firstSingerId = _fixture.RandomLong();
+            var secondSingerId = _fixture.RandomLong();
+            database.Singers.AddRange(
+                new Singers { SingerId = firstSingerId, FirstName = "Frank", LastName = "Singer" },
+                new Singers { SingerId = secondSingerId, FirstName = "Grace", LastName = "Singer" });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var exceptQuery = database.Singers
+                .Where(singer => singer.SingerId == firstSingerId || singer.SingerId == secondSingerId)
+                .Select(singer => singer.FirstName)
+                .Except(database.Singers
+                    .Where(singer => singer.SingerId == secondSingerId)
+                    .Select(singer => singer.FirstName));
+
+            var results = await exceptQuery.ToListAsync(TestContext.Current.CancellationToken);
+            var remainingName = Assert.Single(results);
+            Assert.Equal("Frank", remainingName);
+        }
+
+        [Fact]
+        public async Task ExecuteDelete_Conditional_ExecutesSuccessfully_AsyncAndSync()
+        {
+            await using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var firstSingerId = _fixture.RandomLong();
+            var secondSingerId = _fixture.RandomLong();
+            var thirdSingerId = _fixture.RandomLong();
+            database.Singers.AddRange(
+                new Singers { SingerId = firstSingerId, FirstName = "DeleteAsync1", LastName = "Singer" },
+                new Singers { SingerId = secondSingerId, FirstName = "DeleteAsync2", LastName = "Singer" },
+                new Singers { SingerId = thirdSingerId, FirstName = "DeleteSync", LastName = "Singer" });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            // Asynchronous conditional delete
+            var asyncDeletedCount = await database.Singers
+                .Where(singer => singer.SingerId == firstSingerId || singer.SingerId == secondSingerId)
+                .ExecuteDeleteAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(2, asyncDeletedCount);
+
+            var remainingAfterAsync = await database.Singers
+                .Where(singer => singer.SingerId == firstSingerId || singer.SingerId == secondSingerId)
+                .AnyAsync(TestContext.Current.CancellationToken);
+            Assert.False(remainingAfterAsync);
+
+            // Synchronous conditional delete
+            var syncDeletedCount = database.Singers
+                .Where(singer => singer.SingerId == thirdSingerId)
+                .ExecuteDelete();
+            Assert.Equal(1, syncDeletedCount);
+
+            var remainingAfterSync = await database.Singers
+                .Where(singer => singer.SingerId == thirdSingerId)
+                .AnyAsync(TestContext.Current.CancellationToken);
+            Assert.False(remainingAfterSync);
+        }
+
+        [Fact]
+        public async Task ExecuteDelete_Unconditional_ThrowsSpannerException_AsyncAndSync()
+        {
+            await using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+
+            // Cloud Spanner requires a WHERE clause for DELETE operations; missing WHERE clause is rejected by Spanner server
+            var asyncException = await Assert.ThrowsAsync<SpannerException>(() => database.TicketSales.ExecuteDeleteAsync(TestContext.Current.CancellationToken));
+            Assert.Equal(ErrorCode.InvalidArgument, asyncException.ErrorCode);
+            Assert.Contains("DELETE must have a WHERE clause", asyncException.InnerException?.Message);
+
+            var syncException = Assert.Throws<SpannerException>(() => database.TicketSales.ExecuteDelete());
+            Assert.Equal(ErrorCode.InvalidArgument, syncException.ErrorCode);
+            Assert.Contains("DELETE must have a WHERE clause", syncException.InnerException?.Message);
+
+            // Even when an application supplies .Where(ticket => true), EF Core optimizes it away,
+            // so Spanner server still rejects the statement because it lacks a WHERE clause
+            var asyncWhereTrueException = await Assert.ThrowsAsync<SpannerException>(() => database.TicketSales
+                .Where(ticket => true)
+                .ExecuteDeleteAsync(TestContext.Current.CancellationToken));
+            Assert.Equal(ErrorCode.InvalidArgument, asyncWhereTrueException.ErrorCode);
+            Assert.Contains("DELETE must have a WHERE clause", asyncWhereTrueException.InnerException?.Message);
+
+            var syncWhereTrueException = Assert.Throws<SpannerException>(() => database.TicketSales
+                .Where(ticket => true)
+                .ExecuteDelete());
+            Assert.Equal(ErrorCode.InvalidArgument, syncWhereTrueException.ErrorCode);
+            Assert.Contains("DELETE must have a WHERE clause", syncWhereTrueException.InnerException?.Message);
+
+            // Intentional full-table delete can be performed via explicit raw DML
+            await using (var asyncTransaction = await database.Database.BeginTransactionAsync(TestContext.Current.CancellationToken))
+            {
+                var countBefore = await database.TicketSales.CountAsync(TestContext.Current.CancellationToken);
+                var firstId = _fixture.RandomLong();
+                var secondId = _fixture.RandomLong();
+                database.TicketSales.AddRange(
+                    new TicketSales { Id = firstId, CustomerName = "Customer1" },
+                    new TicketSales { Id = secondId, CustomerName = "Customer2" });
+                await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+                var asyncDeletedCount = await database.Database.ExecuteSqlRawAsync("DELETE FROM TicketSales WHERE TRUE", TestContext.Current.CancellationToken);
+                Assert.Equal(countBefore + 2, asyncDeletedCount);
+
+                var countAfterAsync = await database.TicketSales.CountAsync(TestContext.Current.CancellationToken);
+                Assert.Equal(0, countAfterAsync);
+
+                await asyncTransaction.RollbackAsync(TestContext.Current.CancellationToken);
+            }
+        }
+
+        [Fact]
+        public async Task ExecuteUpdate_Conditional_ExecutesSuccessfully_AsyncAndSync()
+        {
+            await using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var singerId = _fixture.RandomLong();
+            database.Singers.Add(new Singers { SingerId = singerId, FirstName = "OriginalName", LastName = "Singer" });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            // Asynchronous conditional update
+            var asyncUpdatedCount = await database.Singers
+                .Where(singer => singer.SingerId == singerId)
+                .ExecuteUpdateAsync(setter => setter.SetProperty(singer => singer.FirstName, "AsyncUpdated"), TestContext.Current.CancellationToken);
+            Assert.Equal(1, asyncUpdatedCount);
+
+            var singerAfterAsync = await database.Singers
+                .AsNoTracking()
+                .SingleAsync(singer => singer.SingerId == singerId, TestContext.Current.CancellationToken);
+            Assert.Equal("AsyncUpdated", singerAfterAsync.FirstName);
+
+            // Synchronous conditional update
+            var syncUpdatedCount = database.Singers
+                .Where(singer => singer.SingerId == singerId)
+                .ExecuteUpdate(setter => setter.SetProperty(singer => singer.FirstName, "SyncUpdated"));
+            Assert.Equal(1, syncUpdatedCount);
+
+            var singerAfterSync = await database.Singers
+                .AsNoTracking()
+                .SingleAsync(singer => singer.SingerId == singerId, TestContext.Current.CancellationToken);
+            Assert.Equal("SyncUpdated", singerAfterSync.FirstName);
+        }
+
+        [Fact]
+        public async Task ExecuteUpdate_Unconditional_ThrowsSpannerException_AsyncAndSync()
+        {
+            await using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+
+            // Cloud Spanner requires a WHERE clause for UPDATE operations; missing WHERE clause is rejected by Spanner server
+            var asyncException = await Assert.ThrowsAsync<SpannerException>(() => database.TicketSales
+                .ExecuteUpdateAsync(setter => setter.SetProperty(ticket => ticket.CustomerName, "Fail"), TestContext.Current.CancellationToken));
+            Assert.Equal(ErrorCode.InvalidArgument, asyncException.ErrorCode);
+            Assert.Contains("UPDATE must have a WHERE clause", asyncException.InnerException?.Message);
+
+            var syncException = Assert.Throws<SpannerException>(() => database.TicketSales
+                .ExecuteUpdate(setter => setter.SetProperty(ticket => ticket.CustomerName, "Fail")));
+            Assert.Equal(ErrorCode.InvalidArgument, syncException.ErrorCode);
+            Assert.Contains("UPDATE must have a WHERE clause", syncException.InnerException?.Message);
+
+            // Even when an application supplies .Where(ticket => true), EF Core optimizes it away,
+            // so Spanner server still rejects the statement because it lacks a WHERE clause
+            var asyncWhereTrueException = await Assert.ThrowsAsync<SpannerException>(() => database.TicketSales
+                .Where(ticket => true)
+                .ExecuteUpdateAsync(setter => setter.SetProperty(ticket => ticket.CustomerName, "Fail"), TestContext.Current.CancellationToken));
+            Assert.Equal(ErrorCode.InvalidArgument, asyncWhereTrueException.ErrorCode);
+            Assert.Contains("UPDATE must have a WHERE clause", asyncWhereTrueException.InnerException?.Message);
+
+            var syncWhereTrueException = Assert.Throws<SpannerException>(() => database.TicketSales
+                .Where(ticket => true)
+                .ExecuteUpdate(setter => setter.SetProperty(ticket => ticket.CustomerName, "Fail")));
+            Assert.Equal(ErrorCode.InvalidArgument, syncWhereTrueException.ErrorCode);
+            Assert.Contains("UPDATE must have a WHERE clause", syncWhereTrueException.InnerException?.Message);
+
+            // Intentional full-table update can be performed via explicit raw DML
+            await using (var asyncTransaction = await database.Database.BeginTransactionAsync(TestContext.Current.CancellationToken))
+            {
+                var countBefore = await database.TicketSales.CountAsync(TestContext.Current.CancellationToken);
+                var firstId = _fixture.RandomLong();
+                var secondId = _fixture.RandomLong();
+                database.TicketSales.AddRange(
+                    new TicketSales { Id = firstId, CustomerName = "InitialCustomer1" },
+                    new TicketSales { Id = secondId, CustomerName = "InitialCustomer2" });
+                await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+                var asyncUpdatedCount = await database.Database.ExecuteSqlRawAsync(
+                    "UPDATE TicketSales SET CustomerName = 'UnconditionalAsync' WHERE TRUE", TestContext.Current.CancellationToken);
+                Assert.Equal(countBefore + 2, asyncUpdatedCount);
+
+                var namesAfterAsync = await database.TicketSales
+                    .Where(ticket => ticket.Id == firstId || ticket.Id == secondId)
+                    .Select(ticket => ticket.CustomerName)
+                    .ToListAsync(TestContext.Current.CancellationToken);
+                Assert.Equal(2, namesAfterAsync.Count);
+                Assert.All(namesAfterAsync, name => Assert.Equal("UnconditionalAsync", name));
+
+                await asyncTransaction.RollbackAsync(TestContext.Current.CancellationToken);
+            }
+        }
+
+        #endregion
+    }
+
+    internal class TestEntityWithJsonElement
+    {
+        public long Id { get; set; }
+        public string Name { get; set; }
+        public JsonElement JsonData { get; set; }
+    }
+
+    internal class TestJsonElementDbContext : DbContext
+    {
+        private readonly DatabaseName _databaseName;
+
+        internal TestJsonElementDbContext(DatabaseName databaseName) => _databaseName = databaseName;
+
+        public DbSet<TestEntityWithJsonElement> Entities { get; set; }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured)
+            {
+                optionsBuilder.UseSpanner($"Data Source={_databaseName};emulatordetection=EmulatorOrProduction");
+            }
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<TestEntityWithJsonElement>(entity =>
+            {
+                entity.ToTable("TestEntityWithSpecialJsonProperties");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedNever();
+            });
+        }
     }
 }
