@@ -22,6 +22,7 @@ using System.Threading.Tasks;
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.Spanner.V1;
 using Xunit;
+using TypeCode = Google.Cloud.Spanner.V1.TypeCode;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
 {
@@ -123,8 +124,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
             var formattedVersion = $"{version.Major}.{version.Minor}.{version.Build}";
             _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSelect1ResultSet());
             _fixture.SpannerMock.AddOrUpdateStatementResult(
-                "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema = ''     AND table_name = 'EFMigrationsHistory')",
-                StatementResult.CreateSelectTrueResultSet());
+                "SELECT 1 FROM information_schema.tables WHERE table_schema = @tableSchema AND table_name = @tableName LIMIT 1",
+                StatementResult.CreateSelect1ResultSet());
             _fixture.SpannerMock.AddOrUpdateStatementResult($"SELECT `MigrationId`, `ProductVersion`{Environment.NewLine}" +
                                                             $"FROM `EFMigrationsHistory`{Environment.NewLine}" +
                                                             $"ORDER BY `MigrationId`",
@@ -144,6 +145,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.MigrationTests
             await using var db = new MockMigrationSampleDbContext(ConnectionString);
             // This starts an asynchronous database migration, but does not wait for the DDL operation to finish.
             await db.Database.StartMigrateAsync();
+
+            var existsRequest = Assert.Single(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request => request.Sql == "SELECT 1 FROM information_schema.tables WHERE table_schema = @tableSchema AND table_name = @tableName LIMIT 1");
+            Assert.Equal(TypeCode.String, existsRequest.ParamTypes["tableSchema"].Code);
+            Assert.Equal(string.Empty, existsRequest.Params.Fields["tableSchema"].StringValue);
+            Assert.Equal(TypeCode.String, existsRequest.ParamTypes["tableName"].Code);
+            Assert.Equal("EFMigrationsHistory", existsRequest.Params.Fields["tableName"].StringValue);
             
             Assert.Collection(_fixture.DatabaseAdminMock.Requests,
                 // Each migration will be executed as a separate DDL batch.

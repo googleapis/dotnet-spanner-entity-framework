@@ -84,6 +84,22 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             return Task.FromResult(AcquireDatabaseLock());
         }
 
+        private const string ExistsParameterizedSql =
+            "SELECT 1 " +
+            "FROM information_schema.tables " +
+            "WHERE table_schema = @tableSchema " +
+            "AND table_name = @tableName " +
+            "LIMIT 1";
+
+        private SpannerCommand CreateExistsCommand(SpannerConnection connection)
+            => connection.CreateSelectCommand(
+                ExistsParameterizedSql,
+                new SpannerParameterCollection
+                {
+                    { "tableSchema", SpannerDbType.String, TableSchema ?? string.Empty },
+                    { "tableName", SpannerDbType.String, TableName },
+                });
+
         public override bool Exists()
         {
             if (!Dependencies.DatabaseCreator.Exists())
@@ -96,12 +112,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             // as Spanner does not allow queries on INFORMATION_SCHEMA in a transaction.
             if (connection is SpannerRetriableConnection spannerConnection)
             {
-                using var command = spannerConnection.SpannerConnection.CreateSelectCommand(ExistsSql);
+                using var command = CreateExistsCommand(spannerConnection.SpannerConnection);
                 using var reader = command.ExecuteReader();
-                if (reader.Read())
-                {
-                    return reader.GetBoolean(0);
-                }
+                return reader.Read();
             }
             return false;
         }
@@ -118,12 +131,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
             // as Spanner does not allow queries on INFORMATION_SCHEMA in a transaction.
             if (connection is SpannerRetriableConnection spannerConnection)
             {
-                await using var command = spannerConnection.SpannerConnection.CreateSelectCommand(ExistsSql);
+                await using var command = CreateExistsCommand(spannerConnection.SpannerConnection);
                 await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-                if (await reader.ReadAsync(cancellationToken))
-                {
-                    return reader.GetBoolean(0);
-                }
+                return await reader.ReadAsync(cancellationToken);
             }
             return false;
         }
@@ -132,15 +142,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Internal
         ///     This is internal functionality and not intended for public use.
         /// </summary>
         protected override string ExistsSql =>
-            $"SELECT EXISTS(SELECT 1 " +
-            $"FROM information_schema.tables " +
-            $"WHERE table_schema = '{TableSchema}' " +
-            $"    AND table_name = '{TableName}')";
+            throw new NotSupportedException("Cloud Spanner uses parameterized queries in Exists() and ExistsAsync() instead of ExistsSql.");
 
         /// <summary>
         ///     This is internal functionality and not intended for public use.
         /// </summary>
-        protected override bool InterpretExistsResult(object value) => value != null && (bool)value;
+        protected override bool InterpretExistsResult(object value) =>
+            throw new NotSupportedException("Cloud Spanner uses parameterized queries in Exists() and ExistsAsync() instead of ExistsSql.");
 
         /// <summary>
         ///     This is internal functionality and not intended for public use.
