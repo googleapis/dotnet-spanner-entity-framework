@@ -76,4 +76,28 @@ public class JsonPropertiesWithSpecialNames
     /// </summary>
     [JsonPropertyName("prénom")]
     public string PropertyWithNonAscii { get; set; }
+
+    /// <summary>
+    /// Property with an actual newline character in the JSON name.
+    /// </summary>
+    [JsonPropertyName("line\nbreak")]
+    public string PropertyWithNewline { get; set; }
+
+    /// <summary>
+    /// Property with an actual carriage return character in the JSON name.
+    /// </summary>
+    [JsonPropertyName("carriage\rreturn")]
+    public string PropertyWithCarriageReturn { get; set; }
+
+    /// <summary>
+    /// Property with an actual tab character in the JSON name.
+    /// </summary>
+    [JsonPropertyName("tab\tchar")]
+    public string PropertyWithTab { get; set; }
+
+    /// <summary>
+    /// Property with a NUL control character in the JSON name.
+    /// </summary>
+    [JsonPropertyName("null\0char")]
+    public string PropertyWithNullChar { get; set; }
 }

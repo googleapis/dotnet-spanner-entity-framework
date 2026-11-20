@@ -62,6 +62,40 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             return false;
         }
 
+        internal static bool TryAppendEscapedControlCharacter(StringBuilder builder, char character)
+        {
+            switch (character)
+            {
+                case '\a':
+                    builder.Append(@"\a");
+                    return true;
+                case '\b':
+                    builder.Append(@"\b");
+                    return true;
+                case '\f':
+                    builder.Append(@"\f");
+                    return true;
+                case '\n':
+                    builder.Append(@"\n");
+                    return true;
+                case '\r':
+                    builder.Append(@"\r");
+                    return true;
+                case '\t':
+                    builder.Append(@"\t");
+                    return true;
+                case '\v':
+                    builder.Append(@"\v");
+                    return true;
+                case < ' ':
+                case '\x7f':
+                    builder.Append($@"\x{(int)character:x2}");
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         /// <inheritdoc />
         public override void EscapeIdentifier(StringBuilder builder, string identifier)
         {
@@ -84,33 +118,11 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     case '`':
                         builder.Append(@"\`");
                         break;
-                    case '\a':
-                        builder.Append(@"\a");
-                        break;
-                    case '\b':
-                        builder.Append(@"\b");
-                        break;
-                    case '\f':
-                        builder.Append(@"\f");
-                        break;
-                    case '\n':
-                        builder.Append(@"\n");
-                        break;
-                    case '\r':
-                        builder.Append(@"\r");
-                        break;
-                    case '\t':
-                        builder.Append(@"\t");
-                        break;
-                    case '\v':
-                        builder.Append(@"\v");
-                        break;
-                    case < ' ':
-                    case '\x7f':
-                        builder.Append($@"\x{(int)character:x2}");
-                        break;
                     default:
-                        builder.Append(character);
+                        if (!TryAppendEscapedControlCharacter(builder, character))
+                        {
+                            builder.Append(character);
+                        }
                         break;
                 }
             }
