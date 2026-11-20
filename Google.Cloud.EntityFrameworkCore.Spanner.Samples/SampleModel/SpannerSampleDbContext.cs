@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System;
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.Metadata;
@@ -65,9 +66,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples.SampleModel
         public virtual DbSet<Invoice> Invoices { get; set; }
         public virtual DbSet<InvoiceLine> InvoiceLines { get; set; }
 
+        public void Log(string message)
+        {
+            Console.WriteLine(message);
+        }
+
         protected override void OnConfiguring(DbContextOptionsBuilder options)
             // Configure Entity Framework to use a Cloud Spanner database.
-            => options.UseSpanner(_connectionString);
+            => options.LogTo(Log).UseSpanner(_connectionString).UseMutations(MutationUsage.Never);
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
