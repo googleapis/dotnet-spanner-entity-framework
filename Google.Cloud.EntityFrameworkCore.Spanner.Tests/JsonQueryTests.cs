@@ -16,9 +16,11 @@ using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions.Internal;
 using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
 using Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests.Model;
+using Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal;
 using Google.Cloud.Spanner.V1;
 using Grpc.Core;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -504,6 +506,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             /// </summary>
             [JsonPropertyName("prénom")]
             public string PropertyWithNonAscii { get; set; }
+
+            /// <summary>
+            /// Maps to JSON property name containing a newline character: "line\nbreak"
+            /// </summary>
+            [JsonPropertyName("line\nbreak")]
+            public string PropertyWithNewline { get; set; }
+
+            /// <summary>
+            /// Maps to JSON property name containing a null character: "null\0char"
+            /// </summary>
+            [JsonPropertyName("null\0char")]
+            public string PropertyWithNullChar { get; set; }
+
+            /// <summary>
+            /// Maps to JSON property name ending with an odd number of backslashes: "trailing\\"
+            /// </summary>
+            [JsonPropertyName("trailing\\")]
+            public string PropertyWithTrailingBackslash { get; set; }
         }
         
         /// <summary>
@@ -916,6 +936,158 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.Contains("JSON_VALUE(`e`.`Payload`, '$.Initial')", sql);
             Assert.DoesNotContain("CAST(JSON_VALUE(`e`.`Payload`, '$.Initial')", sql);
         }
+
+        [Fact]
+        public void VisitJsonScalar_PropertyNameWithNewline_EscapesWithSingleBackslash()
+        {
+            using var database = new SpecialPropertyNamesDbContext(ConnectionString);
+
+            var sql = database.TestEntities
+                .Where(entity => entity.JsonData.PropertyWithNewline == "test")
+                .ToQueryString();
+
+            Assert.Contains("JSON_VALUE(`t`.`JsonData`, '$.\"line\\nbreak\"')", sql);
+        }
+
+        [Fact]
+        public void VisitJsonScalar_PropertyNameWithNullChar_EscapesAsHex()
+        {
+            using var database = new SpecialPropertyNamesDbContext(ConnectionString);
+
+            var sql = database.TestEntities
+                .Where(entity => entity.JsonData.PropertyWithNullChar == "test")
+                .ToQueryString();
+
+            Assert.Contains("JSON_VALUE(`t`.`JsonData`, '$.\"null\\x00char\"')", sql);
+        }
+
+#pragma warning disable EF1001 // Internal EF Core API usage.
+        [Fact]
+        public void BuildJsonPath_AllAsciiControlCharacters_EscapesCorrectly()
+        {
+            foreach (var code in Enumerable.Range(0, 0x20).Append(0x7F))
+            {
+                var character = (char)code;
+                var expectedEscape = character switch
+                {
+                    '\a' => @"\a",
+                    '\b' => @"\b",
+                    '\f' => @"\f",
+                    '\n' => @"\n",
+                    '\r' => @"\r",
+                    '\t' => @"\t",
+                    '\v' => @"\v",
+                    _ => $@"\x{code:x2}",
+                };
+
+                var pathSegments = new[] { new PathSegment($"prop{character}name") };
+                var actualPath = SpannerJsonPathHelper.BuildJsonPath(pathSegments);
+                Assert.Equal($@"$.{"\""}prop{expectedEscape}name{"\""}", actualPath);
+            }
+        }
+
+        [Theory]
+        [InlineData("", "$.\"\"")]
+        [InlineData("a\\'b", "$.\"a\\\\\\'b\"")]
+        [InlineData("a\\nb", "$.\"a\\\\nb\"")]
+        [InlineData("a\nb", "$.\"a\\nb\"")]
+        [InlineData("a\rb", "$.\"a\\rb\"")]
+        [InlineData("a\tb", "$.\"a\\tb\"")]
+        [InlineData("a\0b", "$.\"a\\x00b\"")]
+        [InlineData("a\\\\", "$.\"a\\\\\\\\\"")]
+        [InlineData("a\\\\\"b", "$.\"a\\\\\\\\\\\\\"b\"")]
+        [InlineData("foo' OR '1'='1", "$.\"foo\\' OR \\'1\\'=\\'1\"")]
+        [InlineData("foo\\') = 'x", "$.\"foo\\\\\\') = \\'x\"")]
+        public void BuildJsonPath_SpecialAndControlCharacters_EscapesCorrectly(string propertyName, string expectedPath)
+        {
+            var pathSegments = new[] { new PathSegment(propertyName) };
+            var actualPath = SpannerJsonPathHelper.BuildJsonPath(pathSegments);
+            Assert.Equal(expectedPath, actualPath);
+        }
+
+        [Fact]
+        public void VisitJsonScalar_TrailingBackslash_ThrowsNotSupportedException()
+        {
+            using var database = new SpecialPropertyNamesDbContext(ConnectionString);
+
+            Assert.Throws<NotSupportedException>(() => database.TestEntities
+                .Where(entity => entity.JsonData.PropertyWithTrailingBackslash == "test")
+                .ToQueryString());
+        }
+
+        [Theory]
+        [InlineData("NormalProperty", ".NormalProperty")]
+        [InlineData("", ".\"\"")]
+        [InlineData("a\\\\", ".\"a\\\\\"")]
+        [InlineData("a\\\\\"b", ".\"a\\\\\\\"b\"")]
+        [InlineData("foo' OR '1'='1", ".\"foo' OR '1'='1\"")]
+        public void FormatPropertySegmentForConstant_ValidPropertyNames_FormatsCorrectly(string propertyName, string expectedSegment)
+        {
+            Assert.Equal(expectedSegment, SpannerJsonPathHelper.FormatPropertySegmentForConstant(propertyName));
+        }
+
+        [Fact]
+        public void FormatPropertySegmentForConstant_NullPropertyName_ThrowsArgumentNullException()
+        {
+            Assert.Throws<ArgumentNullException>(() => SpannerJsonPathHelper.FormatPropertySegmentForConstant(null));
+        }
+
+        [Theory]
+        [InlineData("trailing\\")]
+        [InlineData("trailing\\\\\\")]
+        [InlineData("a\\\"b")]
+        [InlineData("a\\\\\\\"b")]
+        public void BuildJsonPath_UnrepresentableBackslashSequence_ThrowsNotSupportedException(string propertyName)
+        {
+            var pathSegments = new[] { new PathSegment(propertyName), new PathSegment("child") };
+            Assert.Throws<NotSupportedException>(() => SpannerJsonPathHelper.BuildJsonPath(pathSegments));
+        }
+
+        [Theory]
+        [InlineData("trailing\\")]
+        [InlineData("trailing\\\\\\")]
+        [InlineData("a\\\"b")]
+        [InlineData("a\\\\\\\"b")]
+        public void FormatPropertySegmentForConstant_UnrepresentableBackslashSequence_ThrowsNotSupportedException(string propertyName)
+        {
+            Assert.Throws<NotSupportedException>(() => SpannerJsonPathHelper.FormatPropertySegmentForConstant(propertyName));
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_TrailingBackslash_ThrowsNotSupportedException()
+        {
+            using var database = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            Assert.Throws<NotSupportedException>(() => database.Entities
+                .Where(entity => entity.RawElement.GetProperty("trailing\\").GetProperty("child").GetString() == "test")
+                .Select(entity => entity.Id)
+                .ToQueryString());
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_BackslashBeforeDoubleQuote_ThrowsNotSupportedException()
+        {
+            using var database = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            Assert.Throws<NotSupportedException>(() => database.Entities
+                .Where(entity => entity.RawElement.GetProperty("a\\\"b").GetProperty("child").GetString() == "test")
+                .Select(entity => entity.Id)
+                .ToQueryString());
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_ControlCharactersAndTripleQuotes_GeneratesExpectedSql()
+        {
+            using var database = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            var sql = database.Entities
+                .Where(entity => entity.RawElement.GetProperty("line\nbreak\t\r\0'''").GetString() == "test")
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("JSON_VALUE(`e`.`RawElement`, '''$.\"line\nbreak\t\\r\\u0000\\'\\'\\'\"''')", sql);
+        }
+#pragma warning restore EF1001 // Internal EF Core API usage.
 
         #endregion
 

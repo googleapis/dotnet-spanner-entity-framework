@@ -2651,6 +2651,47 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
         }
 
         /// <summary>
+        /// Tests that querying JSON properties whose names contain actual control characters
+        /// (\n, \r, \t, \0) executes cleanly and matches the expected rows on Spanner.
+        /// </summary>
+        [Fact]
+        public async Task CanQueryJsonPropertyWithControlCharactersInName()
+        {
+            using var database = new TestSpannerSampleDbContext(_fixture.DatabaseName);
+            var identifier = _fixture.RandomLong();
+
+            database.TestEntityWithSpecialJsonProperties.Add(new TestEntityWithSpecialJsonProperties
+            {
+                Id = identifier,
+                Name = "TestControlChars",
+                JsonData = new JsonPropertiesWithSpecialNames
+                {
+                    PropertyWithNewline = "newline-value",
+                    PropertyWithCarriageReturn = "cr-value",
+                    PropertyWithTab = "tab-value",
+                    PropertyWithNullChar = "null-value",
+                    NormalProperty = "normal"
+                }
+            });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+            var entity = await database.TestEntityWithSpecialJsonProperties
+                .Where(entity => entity.JsonData.PropertyWithNewline == "newline-value"
+                         && entity.JsonData.PropertyWithCarriageReturn == "cr-value"
+                         && entity.JsonData.PropertyWithTab == "tab-value"
+                         && entity.JsonData.PropertyWithNullChar == "null-value"
+                         && entity.Id == identifier)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+
+            Assert.NotNull(entity);
+            Assert.Equal(identifier, entity.Id);
+            Assert.Equal("newline-value", entity.JsonData.PropertyWithNewline);
+            Assert.Equal("cr-value", entity.JsonData.PropertyWithCarriageReturn);
+            Assert.Equal("tab-value", entity.JsonData.PropertyWithTab);
+            Assert.Equal("null-value", entity.JsonData.PropertyWithNullChar);
+        }
+
+        /// <summary>
         /// Tests that querying a Guid property mapped within a JSON document does not emit
         /// an invalid CAST(JSON_VALUE(...) AS STRING(36)) expression (which Spanner rejects)
         /// and correctly returns matching entities.
@@ -2841,11 +2882,27 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
             var identifier = _fixture.RandomLong();
             using (var connection = _fixture.GetConnection())
             {
+                var jsonPayload = JsonSerializer.Serialize(new Dictionary<string, string>
+                {
+                    ["back\\slash"] = "backslash-match",
+                    ["path\\with\\n_and_t"] = "backslash-n-and-t-match",
+                    ["say \"hello\""] = "hello-match",
+                    ["it's"] = "its-match",
+                    ["property.with.dot"] = "dot-match",
+                    ["prénom"] = "prenom-match",
+                    ["line\nbreak"] = "newline-match",
+                    ["tab\tchar"] = "tab-match",
+                    ["cr\rchar"] = "cr-match",
+                    ["null\0char"] = "null-match",
+                    ["triple'''quote"] = "triple-quote-match",
+                    ["a\\\\"] = "double-backslash-match",
+                    ["a\\\\\"b"] = "even-backslash-quote-match",
+                });
                 using var insertCommand = connection.CreateDmlCommand(
                     "INSERT INTO TestEntityWithSpecialJsonProperties (Id, Name, JsonData) VALUES (@Id, @Name, @JsonData)");
                 insertCommand.Parameters.Add("Id", SpannerDbType.Int64, identifier);
                 insertCommand.Parameters.Add("Name", SpannerDbType.String, "SpecialJsonElement");
-                insertCommand.Parameters.Add("JsonData", SpannerDbType.Json, "{\"back\\\\slash\":\"backslash-match\",\"path\\\\with\\\\n_and_t\":\"backslash-n-and-t-match\",\"say \\\"hello\\\"\":\"hello-match\",\"it's\":\"its-match\",\"property.with.dot\":\"dot-match\",\"prénom\":\"prenom-match\"}");
+                insertCommand.Parameters.Add("JsonData", SpannerDbType.Json, jsonPayload);
                 await insertCommand.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
             }
 
@@ -2892,6 +2949,55 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.IntegrationTests
                 .Select(entity => entity.Id)
                 .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
             Assert.Equal(identifier, nonAsciiMatch);
+
+            // Test GetProperty("line\nbreak").GetString()
+            var newlineMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("line\nbreak").GetString() == "newline-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, newlineMatch);
+
+            // Test GetProperty("tab\tchar").GetString()
+            var tabMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("tab\tchar").GetString() == "tab-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, tabMatch);
+
+            // Test GetProperty("cr\rchar").GetString()
+            var carriageReturnMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("cr\rchar").GetString() == "cr-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, carriageReturnMatch);
+
+            // Test GetProperty("null\0char").GetString()
+            var nullCharMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("null\0char").GetString() == "null-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, nullCharMatch);
+
+            // Test GetProperty("triple'''quote").GetString()
+            var tripleQuoteMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("triple'''quote").GetString() == "triple-quote-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, tripleQuoteMatch);
+
+            // Test GetProperty("a\\").GetString() (even trailing backslashes)
+            var evenTrailingBackslashMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("a\\\\").GetString() == "double-backslash-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, evenTrailingBackslashMatch);
+
+            // Test GetProperty("a\\\"b").GetString() (even backslashes before double quote)
+            var evenBackslashBeforeQuoteMatch = await database.Entities
+                .Where(entity => entity.Id == identifier && entity.JsonData.GetProperty("a\\\\\"b").GetString() == "even-backslash-quote-match")
+                .Select(entity => entity.Id)
+                .FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(identifier, evenBackslashBeforeQuoteMatch);
         }
 
         #endregion

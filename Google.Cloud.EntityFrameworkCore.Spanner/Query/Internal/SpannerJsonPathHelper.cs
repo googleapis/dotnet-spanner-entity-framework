@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using System;
@@ -86,11 +87,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         /// </summary>
         internal static string FormatPropertySegmentForConstant(string propertyName)
         {
+            ArgumentNullException.ThrowIfNull(propertyName);
+
             if (!NeedsQuotedNotation(propertyName))
             {
                 return $".{propertyName}";
             }
 
+            ValidateQuotedPropertyName(propertyName);
             var escapedName = propertyName.Replace("\"", "\\\"");
             return $".\"{escapedName}\"";
         }
@@ -104,12 +108,50 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         {
             if (NeedsQuotedNotation(propertyName))
             {
-                var escapedName = EscapeForRawSqlLiteral(propertyName);
-                jsonPathBuilder.Append($".\"{escapedName}\"");
+                ValidateQuotedPropertyName(propertyName);
+                jsonPathBuilder.Append(".\"");
+                AppendEscapedForRawSqlLiteral(jsonPathBuilder, propertyName);
+                jsonPathBuilder.Append('"');
             }
             else
             {
-                jsonPathBuilder.Append($".{propertyName}");
+                jsonPathBuilder.Append('.').Append(propertyName);
+            }
+        }
+
+        /// <summary>
+        /// Rejects property names that cannot be represented in Cloud Spanner's double-quoted JSONPath
+        /// syntax ($."..."). In Spanner JSONPath, \" escapes a quote, while \\ is kept as two backslashes.
+        /// Because of that, two patterns break the closing quote of the segment:
+        /// - Ending with an odd number of backslashes (e.g. foo\ -> $."foo\" leaves the closing quote escaped).
+        /// - A double quote preceded by an odd number of backslashes (e.g. a\"b -> escaping " produces $."a\\"b",
+        ///   where the even backslash count causes " to close the segment early).
+        /// </summary>
+        private static void ValidateQuotedPropertyName(string propertyName)
+        {
+            ArgumentNullException.ThrowIfNull(propertyName);
+            var consecutiveBackslashes = 0;
+            foreach (var character in propertyName)
+            {
+                if (character == '\\')
+                {
+                    consecutiveBackslashes++;
+                }
+                else
+                {
+                    if (character == '"' && (consecutiveBackslashes & 1) == 1)
+                    {
+                        throw new NotSupportedException(
+                            "Cloud Spanner JSONPath does not support JSON property names containing an odd number of backslashes immediately before a double quote.");
+                    }
+                    consecutiveBackslashes = 0;
+                }
+            }
+
+            if ((consecutiveBackslashes & 1) == 1)
+            {
+                throw new NotSupportedException(
+                    "Cloud Spanner JSONPath does not support JSON property names ending with an odd number of backslashes.");
             }
         }
 
@@ -133,27 +175,36 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Query.Internal
         }
 
         /// <summary>
-        /// Escapes special characters in a property name for use in a double-quoted JSONPath segment embedded
-        /// within a raw Cloud Spanner SQL string literal.
-        /// In GoogleSQL single-quoted string literals, backslashes must be doubled (\\) so they survive SQL lexical
-        /// parsing as a single backslash in the JSONPath string seen by Spanner's JSON engine.
-        /// Double quotes are escaped with \\\" so they are parsed as an escaped quote in JSONPath.
-        /// Single quotes are escaped with \' so they do not terminate the enclosing SQL literal.
+        /// Appends a property name escaped for a double-quoted JSONPath segment ($."...") inside a
+        /// single-quoted SQL literal ('...'). Escaping accounts for two parsing passes (SQL first, then JSONPath):
+        /// - \  -> \\  (SQL unescapes to \, which JSONPath receives literally)
+        /// - "  -> \\" (SQL unescapes to \", which JSONPath treats as an escaped ")
+        /// - '  -> \'  (escaped for the outer SQL single-quoted literal)
+        /// - Control characters -> \a, \b, \f, \n, \r, \t, \v, or \xHH (SQL unescapes back to the exact char)
         /// </summary>
-        private static string EscapeForRawSqlLiteral(string propertyName)
+        private static void AppendEscapedForRawSqlLiteral(StringBuilder builder, string propertyName)
         {
-            if (string.IsNullOrEmpty(propertyName))
+            foreach (var character in propertyName)
             {
-                return propertyName ?? string.Empty;
+                switch (character)
+                {
+                    case '\\':
+                        builder.Append(@"\\");
+                        break;
+                    case '"':
+                        builder.Append("\\\\\"");
+                        break;
+                    case '\'':
+                        builder.Append(@"\'");
+                        break;
+                    default:
+                        if (!SpannerSqlGenerationHelper.TryAppendEscapedControlCharacter(builder, character))
+                        {
+                            builder.Append(character);
+                        }
+                        break;
+                }
             }
-
-            return propertyName
-                .Replace("\\", "\\\\")      // Backslash -> 2 backslashes for SQL string literal
-                .Replace("\"", "\\\\\"")    // Double quote -> 2 backslashes + quote (escaped at both levels)
-                .Replace("'", "\\'")        // Single quote -> escaped for SQL string literal
-                .Replace("\r", "\\\\r")
-                .Replace("\n", "\\\\n")
-                .Replace("\t", "\\\\t");
         }
     }
 }
