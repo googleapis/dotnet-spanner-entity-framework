@@ -31,8 +31,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         internal RetriableBatchDmlStatement(SpannerRetriableBatchCommand command, IReadOnlyList<long> updateCounts)
         {
-            // TODO: Do we need to make this a clone?
-            _command = command;
+            _command = command.Clone();
             _updateCounts = updateCounts;
         }
 
@@ -41,7 +40,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             try
             {
                 _command.Transaction = transaction;
-                if (!_updateCounts.SequenceEqual(await _command.CreateSpannerBatchCommand().ExecuteNonQueryAsync(cancellationToken)))
+                var batchCommand = _command.CreateSpannerBatchCommand();
+                batchCommand.CommandTimeout = timeoutSeconds;
+                if (!_updateCounts.SequenceEqual(await batchCommand.ExecuteNonQueryAsync(cancellationToken)))
                 {
                     throw new SpannerAbortedDueToConcurrentModificationException();
                 }
@@ -72,6 +73,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         public void Dispose()
         {
+            _command.Dispose();
         }
     }
 }

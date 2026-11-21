@@ -22,6 +22,7 @@ using System.Threading.Tasks;
 using System;
 using Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal;
 using System.Collections.Concurrent;
+using System.Linq;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
 {
@@ -384,6 +385,125 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         [Fact]
+        public async Task ReadWriteTransaction_AbortedBatchDml_MultipleConsecutiveRetries_Succeeds()
+        {
+            _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
+            string sql1 = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
+            string sql2 = $"UPDATE Foo SET Bar='baz' WHERE Id IN ({_fixture.RandomLong()},{_fixture.RandomLong()})";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql1, StatementResult.CreateUpdateCount(1));
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql2, StatementResult.CreateUpdateCount(2));
+            using var connection = CreateConnection();
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            transaction.EnableInternalRetries = true;
+            transaction.MaxInternalRetryCount = 3;
+
+            var selectCommand = connection.CreateSelectCommand("SELECT 1");
+            selectCommand.Transaction = transaction;
+            selectCommand.ExecuteScalar();
+
+            var batchCommand = connection.CreateBatchDmlCommand();
+            batchCommand.Transaction = transaction;
+            batchCommand.Add(sql1);
+            batchCommand.Add(sql2);
+
+            // Abort the transaction during initial batch execution.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+            var updateCounts = await batchCommand.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(new List<long> { 1, 2 }, updateCounts);
+            Assert.Equal(1, transaction.RetryCount);
+
+            // Abort the transaction again before commit to test consecutive retry replay.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+            await transaction.CommitAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(2, transaction.RetryCount);
+        }
+
+        [Fact]
+        public async Task ReadWriteTransaction_AbortedBatchDml_TimeoutDuringRetry_FailsRetry()
+        {
+            string sql1 = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
+            string sql2 = $"UPDATE Foo SET Bar='baz' WHERE Id IN ({_fixture.RandomLong()},{_fixture.RandomLong()})";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql1, StatementResult.CreateUpdateCount(1));
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql2, StatementResult.CreateUpdateCount(2));
+            using var connection = CreateConnection();
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+
+            var batchCommand = connection.CreateBatchDmlCommand();
+            batchCommand.Transaction = transaction;
+            batchCommand.Add(sql1);
+            batchCommand.Add(sql2);
+            var updateCounts = await batchCommand.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(new List<long> { 1, 2 }, updateCounts);
+
+            // Abort the transaction and simulate a timeout when replaying the batch DML.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql1, StatementResult.CreateException(
+                new RpcException(new Status(StatusCode.DeadlineExceeded, "Deadline exceeded"))));
+
+            await Assert.ThrowsAsync<SpannerAbortedDueToConcurrentModificationException>(() => transaction.CommitAsync(TestContext.Current.CancellationToken));
+        }
+
+        [Fact]
+        public async Task ReadWriteTransaction_ExecuteNonQueryWithRetryAsync_WithoutPreSettingTransaction_ExecutesInTransactionAndCanRetry()
+        {
+            _fixture.SpannerMock.Reset();
+            _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
+            string sql1 = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
+            string sql2 = $"UPDATE Foo SET Bar='baz' WHERE Id={_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql1, StatementResult.CreateUpdateCount(1));
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql2, StatementResult.CreateUpdateCount(2));
+
+            using var connection = CreateConnection();
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+
+            // Execute an initial query to start the transaction and obtain the initial TransactionId.
+            var selectCommand = connection.CreateSelectCommand("SELECT 1");
+            selectCommand.Transaction = transaction;
+            selectCommand.ExecuteScalar();
+            var initialTransactionId = transaction.TransactionId;
+
+            // Create batch command WITHOUT setting its Transaction property.
+            var batchCommand = connection.CreateBatchDmlCommand();
+            Assert.Null(batchCommand.Transaction);
+            batchCommand.Add(sql1);
+            batchCommand.Add(sql2);
+
+            // Execute using transaction.ExecuteNonQueryWithRetryAsync.
+            var updateCounts = await transaction.ExecuteNonQueryWithRetryAsync(batchCommand, TestContext.Current.CancellationToken);
+            Assert.Equal(new List<long> { 1, 2 }, updateCounts);
+            Assert.Same(transaction, batchCommand.Transaction);
+
+            // Verify that the ExecuteBatchDmlRequest sent to the mock server actually used the active transaction.
+            var initialBatchRequest = Assert.Single(_fixture.SpannerMock.Requests.OfType<V1.ExecuteBatchDmlRequest>());
+            Assert.Equal(V1.TransactionSelector.SelectorOneofCase.Id, initialBatchRequest.Transaction.SelectorCase);
+
+            // Now abort the transaction on the mock server.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+
+            // Commit should replay all recorded statements in a new transaction.
+            await transaction.CommitAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(1, transaction.RetryCount);
+            Assert.NotEqual(initialTransactionId, transaction.TransactionId);
+
+            // Verify that a second ExecuteBatchDmlRequest was executed during retry with the new transaction.
+            var batchRequests = _fixture.SpannerMock.Requests.OfType<V1.ExecuteBatchDmlRequest>().ToList();
+            Assert.Equal(2, batchRequests.Count);
+            Assert.Equal(V1.TransactionSelector.SelectorOneofCase.Id, batchRequests[1].Transaction.SelectorCase);
+            Assert.NotEqual(batchRequests[0].Transaction.Id, batchRequests[1].Transaction.Id);
+
+            // Verify the commit requests on the mock server:
+            // 1. The first commit request attempted to commit the initial transaction (which aborted).
+            // 2. The second commit request committed the retry transaction with the replayed batch DML.
+            var commitRequests = _fixture.SpannerMock.Requests.OfType<V1.CommitRequest>().ToList();
+            Assert.Equal(2, commitRequests.Count);
+            Assert.Equal(batchRequests[0].Transaction.Id, commitRequests[0].TransactionId);
+            Assert.Equal(batchRequests[1].Transaction.Id, commitRequests[1].TransactionId);
+        }
+
+        [Fact]
         public async Task ReadWriteTransaction_ModifiedBatchDmlUpdateCount_FailsRetry()
         {
             string sql1 = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
@@ -500,6 +620,42 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 var se = await Assert.ThrowsAsync<SpannerException>(() => transaction.CommitAsync());
                 Assert.Equal(ErrorCode.Aborted, se.ErrorCode);
             }
+        }
+
+        [Fact]
+        public async Task ReadWriteTransaction_BatchDmlWithExceptionHalfway_AbortedDuringRetry_RetriesAgainAndSucceeds()
+        {
+            string sql1 = $"UPDATE Foo SET Bar='valid' WHERE Id={_fixture.RandomLong()}";
+            string sql2 = $"UPDATE Foo SET Bar='invalid' WHERE Id={_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql1, StatementResult.CreateUpdateCount(1));
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql2, StatementResult.CreateException(
+                new RpcException(new Status(StatusCode.InvalidArgument, "Invalid statement"))));
+
+            using var connection = CreateConnection();
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            transaction.EnableInternalRetries = true;
+            transaction.MaxInternalRetryCount = 3;
+
+            var batchCommand = connection.CreateBatchDmlCommand();
+            batchCommand.Transaction = transaction;
+            batchCommand.Add(sql1);
+            batchCommand.Add(sql2);
+
+            var caughtException = await Assert.ThrowsAsync<SpannerBatchNonQueryException>(() => batchCommand.ExecuteNonQueryAsync(TestContext.Current.CancellationToken));
+            Assert.Contains("Invalid statement", caughtException.Message);
+            Assert.Equal(new List<long> { 1 }, caughtException.SuccessfulCommandResults);
+
+            // Abort the transaction and queue an Aborted status for sql2 during retry replay.
+            // SpannerRetriableTransaction should ignore this aborted error from the failed batch statement replay,
+            // back off, and retry a second time. On the second retry, sql2 returns the original InvalidArgument exception,
+            // allowing the transaction to commit successfully.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+            _fixture.SpannerMock.QueueStatementResult(sql2, StatementResult.CreateException(
+                new RpcException(new Status(StatusCode.Aborted, "Transaction was aborted during statement replay"))));
+
+            await transaction.CommitAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(2, transaction.RetryCount);
         }
 
         [Fact]
@@ -1186,6 +1342,161 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 var e = Assert.Throws<SpannerException>(() => cmd.ExecuteNonQuery());
                 Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
             }
+        }
+
+        [Fact]
+        public void ReadWriteTransaction_Sync_BatchDmlWithExceptionHalfway_AbortedDuringRetry_RetriesAgainAndSucceeds()
+        {
+            string sql1 = $"UPDATE Foo SET Bar='valid' WHERE Id={_fixture.RandomLong()}";
+            string sql2 = $"UPDATE Foo SET Bar='invalid' WHERE Id={_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql1, StatementResult.CreateUpdateCount(1));
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql2, StatementResult.CreateException(
+                new RpcException(new Status(StatusCode.InvalidArgument, "Invalid statement"))));
+
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+            transaction.EnableInternalRetries = true;
+            transaction.MaxInternalRetryCount = 3;
+
+            var batchCommand = connection.CreateBatchDmlCommand();
+            batchCommand.Transaction = transaction;
+            batchCommand.Add(sql1);
+            batchCommand.Add(sql2);
+
+            var caughtException = Assert.Throws<SpannerBatchNonQueryException>(() => batchCommand.ExecuteNonQuery());
+            Assert.Contains("Invalid statement", caughtException.Message);
+            Assert.Equal(new List<long> { 1 }, caughtException.SuccessfulCommandResults);
+
+            // Abort the transaction and queue an Aborted status for sql2 during retry replay.
+            // SpannerRetriableTransaction should ignore this aborted error from the failed batch statement replay,
+            // back off, and retry a second time. On the second retry, sql2 returns the original InvalidArgument exception,
+            // allowing the transaction to commit successfully.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+            _fixture.SpannerMock.QueueStatementResult(sql2, StatementResult.CreateException(
+                new RpcException(new Status(StatusCode.Aborted, "Transaction was aborted during statement replay"))));
+
+            transaction.Commit();
+            Assert.Equal(2, transaction.RetryCount);
+        }
+
+        [Fact]
+        public void ReadWriteTransaction_Sync_AbortedBatchDml_MultipleConsecutiveRetries_Succeeds()
+        {
+            _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
+            string sql1 = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
+            string sql2 = $"UPDATE Foo SET Bar='baz' WHERE Id IN ({_fixture.RandomLong()},{_fixture.RandomLong()})";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql1, StatementResult.CreateUpdateCount(1));
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql2, StatementResult.CreateUpdateCount(2));
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+            transaction.EnableInternalRetries = true;
+            transaction.MaxInternalRetryCount = 3;
+
+            var selectCommand = connection.CreateSelectCommand("SELECT 1");
+            selectCommand.Transaction = transaction;
+            selectCommand.ExecuteScalar();
+
+            var batchCommand = connection.CreateBatchDmlCommand();
+            batchCommand.Transaction = transaction;
+            batchCommand.Add(sql1);
+            batchCommand.Add(sql2);
+
+            // Abort the transaction during initial batch execution.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+            var updateCounts = batchCommand.ExecuteNonQuery();
+            Assert.Equal(new List<long> { 1, 2 }, updateCounts);
+            Assert.Equal(1, transaction.RetryCount);
+
+            // Abort the transaction again before commit to test consecutive retry replay.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+            transaction.Commit();
+            Assert.Equal(2, transaction.RetryCount);
+        }
+
+        [Fact]
+        public void ReadWriteTransaction_Sync_AbortedBatchDml_TimeoutDuringRetry_FailsRetry()
+        {
+            string sql1 = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
+            string sql2 = $"UPDATE Foo SET Bar='baz' WHERE Id IN ({_fixture.RandomLong()},{_fixture.RandomLong()})";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql1, StatementResult.CreateUpdateCount(1));
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql2, StatementResult.CreateUpdateCount(2));
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            var batchCommand = connection.CreateBatchDmlCommand();
+            batchCommand.Transaction = transaction;
+            batchCommand.Add(sql1);
+            batchCommand.Add(sql2);
+            var updateCounts = batchCommand.ExecuteNonQuery();
+            Assert.Equal(new List<long> { 1, 2 }, updateCounts);
+
+            // Abort the transaction and simulate a timeout when replaying the batch DML.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql1, StatementResult.CreateException(
+                new RpcException(new Status(StatusCode.DeadlineExceeded, "Deadline exceeded"))));
+
+            Assert.Throws<SpannerAbortedDueToConcurrentModificationException>(() => transaction.Commit());
+        }
+
+        [Fact]
+        public void ReadWriteTransaction_Sync_ExecuteNonQueryWithRetry_WithoutPreSettingTransaction_ExecutesInTransactionAndCanRetry()
+        {
+            _fixture.SpannerMock.Reset();
+            _fixture.SpannerMock.AddOrUpdateStatementResult("SELECT 1", StatementResult.CreateSingleColumnResultSet(new V1.Type { Code = V1.TypeCode.Int64 }, "c", 1));
+            string sql1 = $"UPDATE Foo SET Bar='bar' WHERE Id={_fixture.RandomLong()}";
+            string sql2 = $"UPDATE Foo SET Bar='baz' WHERE Id={_fixture.RandomLong()}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql1, StatementResult.CreateUpdateCount(1));
+            _fixture.SpannerMock.AddOrUpdateStatementResult(sql2, StatementResult.CreateUpdateCount(2));
+
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            // Execute an initial query to start the transaction and obtain the initial TransactionId.
+            var selectCommand = connection.CreateSelectCommand("SELECT 1");
+            selectCommand.Transaction = transaction;
+            selectCommand.ExecuteScalar();
+            var initialTransactionId = transaction.TransactionId;
+
+            // Create batch command WITHOUT setting its Transaction property.
+            var batchCommand = connection.CreateBatchDmlCommand();
+            Assert.Null(batchCommand.Transaction);
+            batchCommand.Add(sql1);
+            batchCommand.Add(sql2);
+
+            // Execute using transaction.ExecuteNonQueryWithRetry.
+            var updateCounts = transaction.ExecuteNonQueryWithRetry(batchCommand);
+            Assert.Equal(new List<long> { 1, 2 }, updateCounts);
+            Assert.Same(transaction, batchCommand.Transaction);
+
+            // Verify that the ExecuteBatchDmlRequest sent to the mock server actually used the active transaction.
+            var initialBatchRequest = Assert.Single(_fixture.SpannerMock.Requests.OfType<V1.ExecuteBatchDmlRequest>());
+            Assert.Equal(V1.TransactionSelector.SelectorOneofCase.Id, initialBatchRequest.Transaction.SelectorCase);
+
+            // Now abort the transaction on the mock server.
+            _fixture.SpannerMock.AbortTransaction(transaction.TransactionId);
+
+            // Commit should replay all recorded statements in a new transaction.
+            transaction.Commit();
+            Assert.Equal(1, transaction.RetryCount);
+            Assert.NotEqual(initialTransactionId, transaction.TransactionId);
+
+            // Verify that a second ExecuteBatchDmlRequest was executed during retry with the new transaction.
+            var batchRequests = _fixture.SpannerMock.Requests.OfType<V1.ExecuteBatchDmlRequest>().ToList();
+            Assert.Equal(2, batchRequests.Count);
+            Assert.Equal(V1.TransactionSelector.SelectorOneofCase.Id, batchRequests[1].Transaction.SelectorCase);
+            Assert.NotEqual(batchRequests[0].Transaction.Id, batchRequests[1].Transaction.Id);
+
+            // Verify the commit requests on the mock server:
+            // 1. The first commit request attempted to commit the initial transaction (which aborted).
+            // 2. The second commit request committed the retry transaction with the replayed batch DML.
+            var commitRequests = _fixture.SpannerMock.Requests.OfType<V1.CommitRequest>().ToList();
+            Assert.Equal(2, commitRequests.Count);
+            Assert.Equal(batchRequests[0].Transaction.Id, commitRequests[0].TransactionId);
+            Assert.Equal(batchRequests[1].Transaction.Id, commitRequests[1].TransactionId);
         }
 
         [Fact]
