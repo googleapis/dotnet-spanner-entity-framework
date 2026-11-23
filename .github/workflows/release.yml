@@ -86,6 +86,8 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
+          ef_pkgs=()
+          dp_pkgs=()
           for nupkg in nupkg/*.nupkg; do
             [[ "$nupkg" == *.symbols.nupkg ]] && continue
             base="$(basename "$nupkg" .nupkg)"
@@ -100,6 +102,7 @@ jobs:
                 --package="${pkg_lower}" \
                 --version="${ver}" \
                 --source="${nupkg}"
+              ef_pkgs+=("${pkg_lower}=${ver}")
             elif [[ "$pkg_lower" == "google.cloud.spanner.dataprovider" ]]; then
               gcloud artifacts generic upload \
                 --project=oss-exit-gate-prod \
@@ -108,10 +111,40 @@ jobs:
                 --package="${pkg_lower}" \
                 --version="${ver}" \
                 --source="${nupkg}"
+              dp_pkgs+=("${pkg_lower}=${ver}")
             fi
           done
-          echo '{"publish_all": true}' > manifest.json
-          gcloud storage cp manifest.json \
+          python3 - "manifest-ef.json" "${ef_pkgs[@]}" <<'PY'
+          import json, sys
+          entries = [tuple(x.split("=", 1)) for x in sys.argv[2:] if "=" in x]
+          if not entries:
+            raise SystemExit(f"ERROR: No staged NuGet packages found for {sys.argv[1]}")
+          manifest = {
+              "publish_all": False,
+              "publishing_groups": [{
+                  "packages": [{"name": pkg, "version": ver} for pkg, ver in sorted(set(entries))]
+              }],
+          }
+          with open(sys.argv[1], "w", encoding="utf-8") as fh:
+            json.dump(manifest, fh, indent=2)
+            fh.write("\n")
+          PY
+          python3 - "manifest-dp.json" "${dp_pkgs[@]}" <<'PY'
+          import json, sys
+          entries = [tuple(x.split("=", 1)) for x in sys.argv[2:] if "=" in x]
+          if not entries:
+            raise SystemExit(f"ERROR: No staged NuGet packages found for {sys.argv[1]}")
+          manifest = {
+              "publish_all": False,
+              "publishing_groups": [{
+                  "packages": [{"name": pkg, "version": ver} for pkg, ver in sorted(set(entries))]
+              }],
+          }
+          with open(sys.argv[1], "w", encoding="utf-8") as fh:
+            json.dump(manifest, fh, indent=2)
+            fh.write("\n")
+          PY
+          gcloud storage cp manifest-ef.json \
             "gs://oss-exit-gate-prod-projects-bucket/dotnet-spanner-ef/nuget/manifests/manifest-${RUN_ID}-${RUN_ATTEMPT}.json"
-          gcloud storage cp manifest.json \
+          gcloud storage cp manifest-dp.json \
             "gs://oss-exit-gate-prod-projects-bucket/spanner-dataprovider/nuget/manifests/manifest-${RUN_ID}-${RUN_ATTEMPT}.json"
