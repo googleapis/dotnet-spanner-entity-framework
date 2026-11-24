@@ -527,13 +527,15 @@ public class ConnectionTests : AbstractMockServerTests
         Assert.That(connection.Database, Is.EqualTo("projects/p1/instances/i1/databases/d1"));
         Assert.That(connection.ConnectionString, Is.EqualTo(originalConnectionString));
 
-        using var malformedDataSourceConnection = new SpannerConnection("Data Source=not_a_resource_name");
-        Assert.That(() => malformedDataSourceConnection.ChangeDatabase("d2"), Throws.InvalidOperationException);
-        Assert.That(malformedDataSourceConnection.DataSource, Is.EqualTo("not_a_resource_name"));
+        Assert.Throws<ArgumentException>(() => _ = new SpannerConnection("Data Source=not_a_resource_name"));
 
-        using var mixedMalformedDataSourceConnection = new SpannerConnection("Data Source=not_a_resource_name;Project=p1;Instance=i1;Database=d1");
-        Assert.That(() => mixedMalformedDataSourceConnection.ChangeDatabase("d2"), Throws.InvalidOperationException);
-        Assert.That(mixedMalformedDataSourceConnection.Database, Is.EqualTo("not_a_resource_name"));
+        using var omniDataSourceConnection = new SpannerConnection("Data Source=databases/d1");
+        Assert.That(() => omniDataSourceConnection.ChangeDatabase("d2"), Throws.InvalidOperationException);
+        Assert.That(omniDataSourceConnection.DataSource, Is.EqualTo("databases/d1"));
+
+        using var mixedOmniDataSourceConnection = new SpannerConnection("Data Source=databases/d1;Project=p1;Instance=i1;Database=d1");
+        Assert.That(() => mixedOmniDataSourceConnection.ChangeDatabase("d2"), Throws.InvalidOperationException);
+        Assert.That(mixedOmniDataSourceConnection.Database, Is.EqualTo("databases/d1"));
 
         using var uninitializedConnection = new SpannerConnection();
         Assert.That(() => uninitializedConnection.ChangeDatabase("postgresql://evil.example/projects/p1/instances/i1/databases/d2?sslmode=disable"), Throws.ArgumentException);
