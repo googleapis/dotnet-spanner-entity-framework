@@ -22,7 +22,11 @@ using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
+using Google.Cloud.Spanner.Common.V1;
 
 namespace Google.Cloud.Spanner.DataProvider;
 
@@ -244,28 +248,17 @@ public class SpannerConnectionStringBuilder : DbConnectionStringBuilder
 	[AllowNull]
 	public override object this[string key]
 	{
-		get
-		{
-			var option = SpannerConnectionStringOption.TryGetOptionForKey(key);
-			return option == null ? base[key] : option.GetObject(this);
-		}
+		get => SpannerConnectionStringOption.GetOptionForKey(key).GetObject(this);
 		set
 		{
-			var option = SpannerConnectionStringOption.TryGetOptionForKey(key);
-			if (option == null)
+			var option = SpannerConnectionStringOption.GetOptionForKey(key);
+			if (value is null)
 			{
-				base[key] = value;
+				base[option.Key] = null;
 			}
 			else
 			{
-				if (value is null)
-				{
-					base[option.Key] = null;
-				}
-				else
-				{
-					option.SetObject(this, value);
-				}
+				option.SetObject(this, value);
 			}
 		}
 	}
@@ -296,6 +289,15 @@ public class SpannerConnectionStringBuilder : DbConnectionStringBuilder
 				throw new ArgumentException("The connection string must either contain a Data Source or a Project, Instance, and Database name");
 			}
 		}
+		foreach (var key in Keys.Cast<string>())
+		{
+			var option = SpannerConnectionStringOption.GetOptionForKey(key);
+			option.Validate(this);
+		}
+		if (Host != "" && Port != 443 && SpannerConnectionStringValidation.HostIncludesPort(Host))
+		{
+			throw new ArgumentException("Port cannot be specified in both 'Host' and 'Port' connection string options.");
+		}
 	}
 
 	internal string SpannerLibConnectionString
@@ -306,10 +308,17 @@ public class SpannerConnectionStringBuilder : DbConnectionStringBuilder
 			var builder = new StringBuilder();
 			if (Host != "")
 			{
-				builder.Append(Host);
+				if (SpannerConnectionStringValidation.TryParseHost(Host, out _, out var isBareIpv6) && isBareIpv6)
+				{
+					builder.Append('[').Append(Host).Append(']');
+				}
+				else
+				{
+					builder.Append(Host);
+				}
 				if (Port != 443)
 				{
-					builder.Append(":");
+					builder.Append(':');
 					builder.Append(Port);
 				}
 				builder.Append('/');
@@ -330,21 +339,22 @@ public class SpannerConnectionStringBuilder : DbConnectionStringBuilder
 			}
 			foreach (var key in Keys.Cast<string>())
 			{
-				if (SpannerConnectionStringOption.SOptions.ContainsKey(key))
+				var option = SpannerConnectionStringOption.GetOptionForKey(key);
+				if (option.SpannerLibKey != "")
 				{
-					var option = SpannerConnectionStringOption.SOptions[key];
-					if (option.SpannerLibKey != "")
-					{
-						builder.Append(';').Append(option.SpannerLibKey).Append('=').Append(this[key]);
-					}
-					else if (key == "Options")
-					{
-						builder.Append(';').Append(this[key]);
-					}
+					var value = this[key]?.ToString() ?? string.Empty;
+					builder.Append(';').Append(option.SpannerLibKey).Append('=').Append(value);
 				}
-				else
+				else if (key == "Options")
 				{
-					builder.Append(';').Append(key).Append('=').Append(this[key]);
+					var optionsValue = Options;
+					if (!string.IsNullOrEmpty(optionsValue))
+					{
+						foreach (var segment in SpannerConnectionStringValidation.ParseOptionsSegments(optionsValue))
+						{
+							builder.Append(';').Append(segment);
+						}
+					}
 				}
 			}
 			return builder.ToString();
@@ -395,6 +405,9 @@ internal abstract class SpannerConnectionStringOption
 
 	public abstract object GetObject(SpannerConnectionStringBuilder builder);
 	public abstract void SetObject(SpannerConnectionStringBuilder builder, object value);
+	public virtual void Validate(SpannerConnectionStringBuilder builder)
+	{
+	}
 
 	protected SpannerConnectionStringOption(IReadOnlyList<string> keys) : this(keys, keys[0])
 	{
@@ -415,6 +428,22 @@ internal abstract class SpannerConnectionStringOption
 		OptionNames.Add(option._keys[0]);
 	}
 
+	private static void AddSpannerLibOption(
+		Dictionary<string, SpannerConnectionStringOption> options,
+		string spannerLibKey,
+		bool allowEquals = false)
+	{
+		var compactKey = spannerLibKey.Replace("_", string.Empty, StringComparison.Ordinal);
+		IReadOnlyList<string> keys = compactKey == spannerLibKey
+			? [spannerLibKey]
+			: [spannerLibKey, compactKey];
+		AddOption(options, new SpannerConnectionStringReferenceOption<string>(
+			keys: keys,
+			spannerLibKey: spannerLibKey,
+			defaultValue: "",
+			validate: value => SpannerConnectionStringValidation.ValidateOptionValue(spannerLibKey, value, allowEquals)));
+	}
+
 	static SpannerConnectionStringOption()
 	{
 		var options = new Dictionary<string, SpannerConnectionStringOption>(StringComparer.OrdinalIgnoreCase);
@@ -423,12 +452,14 @@ internal abstract class SpannerConnectionStringOption
 		AddOption(options, DataSource = new(
 			keys: ["Data Source", "DataSource"],
 			spannerLibKey: "",
-			defaultValue: ""));
+			defaultValue: "",
+			validate: SpannerConnectionStringValidation.ValidateDataSource));
 		
 		AddOption(options, Host = new(
 			keys: ["Host", "Server"],
 			spannerLibKey: "",
-			defaultValue: ""));
+			defaultValue: "",
+			validate: SpannerConnectionStringValidation.ValidateHost));
 
 		AddOption(options, Port = new(
 			keys: ["Port"],
@@ -438,17 +469,20 @@ internal abstract class SpannerConnectionStringOption
 		AddOption(options, Project = new(
 			keys: ["Project"],
 			spannerLibKey: "",
-			defaultValue: ""));
+			defaultValue: "",
+			validate: SpannerConnectionStringValidation.ValidateProject));
 
 		AddOption(options, Instance = new(
 			keys: ["Instance"],
 			spannerLibKey: "",
-			defaultValue: ""));
+			defaultValue: "",
+			validate: SpannerConnectionStringValidation.ValidateInstance));
 
 		AddOption(options, Database = new(
 			keys: ["Database", "Initial Catalog"],
 			spannerLibKey: "",
-			defaultValue: ""));
+			defaultValue: "",
+			validate: SpannerConnectionStringValidation.ValidateDatabase));
 
 		// Timeout Options
 		AddOption(options, ConnectionTimeout = new(
@@ -485,13 +519,74 @@ internal abstract class SpannerConnectionStringOption
 		AddOption(options, SearchPath = new(
 			keys: ["SearchPath", "search_path"],
 			spannerLibKey: "search_path",
-			defaultValue: ""));
+			defaultValue: "",
+			validate: value => SpannerConnectionStringValidation.ValidateOptionValue("SearchPath", value)));
 		
 		// Other options
 		AddOption(options, Options = new(
 			keys: ["Options"],
 			spannerLibKey: "",
-			defaultValue: ""));
+			defaultValue: "",
+			validate: SpannerConnectionStringValidation.ValidateOptions));
+
+		// Supported SpannerLib connection properties
+		AddSpannerLibOption(options, "connection_state_type");
+		AddSpannerLibOption(options, "dialect");
+		AddSpannerLibOption(options, "isolation_level");
+		AddSpannerLibOption(options, "read_lock_mode");
+		AddSpannerLibOption(options, "begin_transaction_option");
+		AddSpannerLibOption(options, "autocommit_dml_mode");
+		AddSpannerLibOption(options, "retry_aborts_internally");
+		AddSpannerLibOption(options, "read_only_staleness");
+		AddSpannerLibOption(options, "default_sequence_kind");
+		AddSpannerLibOption(options, "auto_partition_mode");
+		AddSpannerLibOption(options, "data_boost_enabled");
+		AddSpannerLibOption(options, "max_partitions");
+		AddSpannerLibOption(options, "max_partitioned_parallelism");
+		AddSpannerLibOption(options, "auto_batch_dml");
+		AddSpannerLibOption(options, "auto_batch_dml_update_count");
+		AddSpannerLibOption(options, "auto_batch_dml_update_count_verification");
+		AddSpannerLibOption(options, "rpc_priority");
+		AddSpannerLibOption(options, "optimizer_version");
+		AddSpannerLibOption(options, "optimizer_statistics_package");
+		AddSpannerLibOption(options, "decode_to_native_arrays");
+		AddSpannerLibOption(options, "decode_numeric_to_string");
+		AddSpannerLibOption(options, "send_typed_strings");
+		AddSpannerLibOption(options, "ddl_execution_mode");
+		AddSpannerLibOption(options, "ddl_async_wait_timeout");
+		AddSpannerLibOption(options, "transaction_read_only");
+		AddSpannerLibOption(options, "transaction_deferrable");
+		AddSpannerLibOption(options, "exclude_txn_from_change_streams");
+		AddSpannerLibOption(options, "transaction_tag");
+		AddSpannerLibOption(options, "max_commit_delay");
+		AddSpannerLibOption(options, "directed_read");
+		AddSpannerLibOption(options, "commit_priority");
+		AddSpannerLibOption(options, "return_commit_stats");
+		AddSpannerLibOption(options, "transaction_batch_read_only");
+		AddSpannerLibOption(options, "statement_tag");
+		AddSpannerLibOption(options, "endpoint");
+		AddSpannerLibOption(options, "authority");
+		AddSpannerLibOption(options, "credentials");
+		AddSpannerLibOption(options, "credentials_json", allowEquals: true);
+		AddSpannerLibOption(options, "disable_native_metrics");
+		AddSpannerLibOption(options, "min_sessions");
+		AddSpannerLibOption(options, "max_sessions");
+		AddSpannerLibOption(options, "num_channels");
+		AddSpannerLibOption(options, "database_role");
+		AddSpannerLibOption(options, "disable_route_to_leader");
+		AddSpannerLibOption(options, "enable_end_to_end_tracing");
+		AddSpannerLibOption(options, "statement_cache_size");
+		AddSpannerLibOption(options, "disable_statement_cache");
+		AddSpannerLibOption(options, "type");
+		AddSpannerLibOption(options, "is_experimental_host");
+		AddSpannerLibOption(options, "ca_cert_file");
+		AddSpannerLibOption(options, "client_cert_file");
+		AddSpannerLibOption(options, "client_cert_key");
+		AddSpannerLibOption(options, "application_name");
+		AddSpannerLibOption(options, "client_min_messages");
+		AddSpannerLibOption(options, "client_encoding");
+		AddSpannerLibOption(options, "timezone");
+		AddSpannerLibOption(options, "default_transaction_isolation");
 
 		SOptions = options.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 	}
@@ -499,6 +594,213 @@ internal abstract class SpannerConnectionStringOption
 	internal static readonly FrozenDictionary<string, SpannerConnectionStringOption> SOptions;
 
 	private readonly IReadOnlyList<string> _keys;
+}
+
+internal static partial class SpannerConnectionStringValidation
+{
+	[GeneratedRegex(@"\A([a-z0-9.:-]+|DEFAULT_PROJECT_ID)\z", RegexOptions.CultureInvariant)]
+	internal static partial Regex ValidProjectIdRegex();
+
+	[GeneratedRegex(@"\A[a-z0-9-]+\z", RegexOptions.CultureInvariant)]
+	internal static partial Regex ValidInstanceIdRegex();
+
+	[GeneratedRegex(@"\A[a-z0-9_-]+\z", RegexOptions.CultureInvariant)]
+	internal static partial Regex ValidDatabaseIdRegex();
+
+	internal static bool IsValidDatabaseResourceName(DatabaseName databaseName) =>
+		ValidProjectIdRegex().IsMatch(databaseName.ProjectId)
+		&& ValidInstanceIdRegex().IsMatch(databaseName.InstanceId)
+		&& ValidDatabaseIdRegex().IsMatch(databaseName.DatabaseId);
+
+	public static void ValidateDataSource(string? value)
+	{
+		if (string.IsNullOrEmpty(value))
+		{
+			return;
+		}
+		if (DatabaseName.TryParse(value, allowUnparsed: false, out var databaseName))
+		{
+			if (!IsValidDatabaseResourceName(databaseName))
+			{
+				throw new ArgumentException("Invalid value for 'Data Source' connection string option.");
+			}
+			return;
+		}
+		if (!OmniDataSourceRegex().IsMatch(value))
+		{
+			throw new ArgumentException("Invalid value for 'Data Source' connection string option.");
+		}
+	}
+
+	public static void ValidateProject(string? value) =>
+		ValidateRegexOption("Project", value, ValidProjectIdRegex());
+
+	public static void ValidateInstance(string? value) =>
+		ValidateRegexOption("Instance", value, ValidInstanceIdRegex());
+
+	public static void ValidateDatabase(string? value) =>
+		ValidateRegexOption("Database", value, ValidDatabaseIdRegex());
+
+	private static void ValidateRegexOption(string optionName, string? value, Regex regex)
+	{
+		if (string.IsNullOrEmpty(value))
+		{
+			return;
+		}
+		if (!regex.IsMatch(value))
+		{
+			throw new ArgumentException($"Invalid value for '{optionName}' connection string option.");
+		}
+	}
+
+	public static void ValidateHost(string? value)
+	{
+		if (string.IsNullOrEmpty(value))
+		{
+			return;
+		}
+		if (!TryParseHost(value, out _, out _))
+		{
+			throw new ArgumentException("Invalid value for 'Host' connection string option.");
+		}
+	}
+
+	public static bool HostIncludesPort(string value) =>
+		TryParseHost(value, out var hasPort, out _) && hasPort;
+
+	public static bool TryParseHost(string value, out bool hasPort, out bool isBareIpv6)
+	{
+		hasPort = false;
+		isBareIpv6 = false;
+		if (HasDisallowedControlOrWhitespace(value))
+		{
+			return false;
+		}
+		if (value.StartsWith('['))
+		{
+			var match = BracketedIpv6Regex().Match(value);
+			if (!match.Success
+				|| !IPAddress.TryParse(match.Groups["address"].Value, out var address)
+				|| address.AddressFamily != AddressFamily.InterNetworkV6
+				|| address.ScopeId != 0
+				|| !ValidateOptionalPort(match.Groups["port"]))
+			{
+				return false;
+			}
+			hasPort = match.Groups["port"].Success;
+			return true;
+		}
+		if (!value.Contains('%')
+			&& IPAddress.TryParse(value, out var bareIpAddress)
+			&& bareIpAddress.AddressFamily == AddressFamily.InterNetworkV6
+			&& bareIpAddress.ScopeId == 0)
+		{
+			isBareIpv6 = true;
+			return true;
+		}
+		var hostMatch = HostnameWithOptionalPortRegex().Match(value);
+		if (!hostMatch.Success || !ValidateOptionalPort(hostMatch.Groups["port"]))
+		{
+			return false;
+		}
+		hasPort = hostMatch.Groups["port"].Success;
+		return true;
+	}
+
+	public static void ValidateOptionValue(string optionName, string? value, bool allowEquals = false)
+	{
+		if (string.IsNullOrEmpty(value))
+		{
+			return;
+		}
+		foreach (var character in value)
+		{
+			if (char.IsControl(character))
+			{
+				throw new ArgumentException($"Invalid control character in '{optionName}' connection string option.");
+			}
+			if (character == ';')
+			{
+				throw new ArgumentException($"Invalid character ';' in '{optionName}' connection string option.");
+			}
+			if (character == '?' || (!allowEquals && character == '='))
+			{
+				throw new ArgumentException($"Invalid character '{character}' in '{optionName}' connection string option.");
+			}
+		}
+	}
+
+	public static void ValidateOptions(string? value)
+	{
+		_ = ParseOptionsSegments(value);
+	}
+
+	public static List<string> ParseOptionsSegments(string? value)
+	{
+		var segments = new List<string>();
+		if (string.IsNullOrEmpty(value))
+		{
+			return segments;
+		}
+		foreach (var character in value)
+		{
+			if (char.IsControl(character))
+			{
+				throw new ArgumentException("Invalid control character in 'Options' connection string option.");
+			}
+		}
+		foreach (var segment in value.Split(';'))
+		{
+			if (segment.Length == 0)
+			{
+				continue;
+			}
+			var equalsIndex = segment.IndexOf('=');
+			if (equalsIndex <= 0)
+			{
+				throw new ArgumentException("Invalid format in 'Options' connection string option. Expected 'key=value' pairs separated by ';'.");
+			}
+			var optionKey = segment[..equalsIndex];
+			var optionValue = segment[(equalsIndex + 1)..];
+			if (!OptionKeyRegex().IsMatch(optionKey))
+			{
+				throw new ArgumentException($"Invalid option key '{optionKey}' in 'Options' connection string option.");
+			}
+			var allowEquals = string.Equals(optionKey, "credentials_json", StringComparison.OrdinalIgnoreCase)
+				|| string.Equals(optionKey, "credentialsjson", StringComparison.OrdinalIgnoreCase);
+			ValidateOptionValue(optionKey, optionValue, allowEquals);
+			segments.Add(segment);
+		}
+		return segments;
+	}
+
+	private static bool HasDisallowedControlOrWhitespace(string value)
+	{
+		foreach (var character in value)
+		{
+			if (char.IsControl(character) || char.IsWhiteSpace(character))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static bool ValidateOptionalPort(Group portGroup) =>
+		!portGroup.Success
+		|| (int.TryParse(portGroup.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var port) && port is >= 1 and <= 65535);
+
+	[GeneratedRegex(@"\A(?:instances/[a-z0-9-]+/)?databases/[a-z0-9_-]+\z", RegexOptions.CultureInvariant)]
+	private static partial Regex OmniDataSourceRegex();
+
+	[GeneratedRegex(@"\A\[(?<address>[0-9A-Fa-f:.]+)\](?::(?<port>\d{1,5}))?\z", RegexOptions.CultureInvariant)]
+	private static partial Regex BracketedIpv6Regex();
+
+	[GeneratedRegex(@"\A(?<host>[A-Za-z0-9_](?:[A-Za-z0-9._-]*[A-Za-z0-9_])?)(?::(?<port>\d{1,5}))?\z", RegexOptions.CultureInvariant)]
+	private static partial Regex HostnameWithOptionalPortRegex();
+
+	[GeneratedRegex(@"\A[A-Za-z0-9_]+\z", RegexOptions.CultureInvariant)]
+	private static partial Regex OptionKeyRegex();
 }
 
 internal sealed class SpannerConnectionStringValueOption<T> : SpannerConnectionStringOption
@@ -573,11 +875,17 @@ internal sealed class SpannerConnectionStringValueOption<T> : SpannerConnectionS
 internal sealed class SpannerConnectionStringReferenceOption<T> : SpannerConnectionStringOption
 	where T : class
 {
-	public SpannerConnectionStringReferenceOption(IReadOnlyList<string> keys, string spannerLibKey, T defaultValue, Func<T?, T>? coerce = null)
+	public SpannerConnectionStringReferenceOption(
+		IReadOnlyList<string> keys,
+		string spannerLibKey,
+		T defaultValue,
+		Func<T?, T>? coerce = null,
+		Action<T?>? validate = null)
 		: base(keys, spannerLibKey)
 	{
 		DefaultValue = defaultValue;
 		_coerce = coerce;
+		_validate = validate;
 	}
 
 	public T DefaultValue { get; }
@@ -585,15 +893,38 @@ internal sealed class SpannerConnectionStringReferenceOption<T> : SpannerConnect
 	public T GetValue(SpannerConnectionStringBuilder builder) =>
 		builder.TryGetValue(Key, out var objectValue) ? ChangeType(objectValue) : DefaultValue;
 
-	public void SetValue(SpannerConnectionStringBuilder builder, T? value) =>
-		builder.DoSetValue(Key, _coerce is null ? value : _coerce(value));
+	public void SetValue(SpannerConnectionStringBuilder builder, T? value)
+	{
+		var coercedValue = _coerce is null ? value : _coerce(value);
+		_validate?.Invoke(coercedValue);
+		builder.DoSetValue(Key, coercedValue);
+	}
 
 	public override object GetObject(SpannerConnectionStringBuilder builder) => GetValue(builder);
 
 	public override void SetObject(SpannerConnectionStringBuilder builder, object value) => SetValue(builder, ChangeType(value));
 
-	private static T ChangeType(object objectValue) =>
-		(T) Convert.ChangeType(objectValue, typeof(T), CultureInfo.InvariantCulture);
+	public override void Validate(SpannerConnectionStringBuilder builder)
+	{
+		if (builder.TryGetValue(Key, out var objectValue))
+		{
+			_validate?.Invoke(ChangeType(objectValue));
+		}
+	}
+
+	private T ChangeType(object objectValue)
+	{
+		try
+		{
+			return (T) Convert.ChangeType(objectValue, typeof(T), CultureInfo.InvariantCulture);
+		}
+		catch (Exception ex)
+		{
+			var exceptionMessage = string.Create(CultureInfo.InvariantCulture, $"Invalid value '{objectValue}' for '{Key}' connection string option.");
+			throw new ArgumentException(exceptionMessage, ex);
+		}
+	}
 
 	private readonly Func<T?, T>? _coerce;
+	private readonly Action<T?>? _validate;
 }

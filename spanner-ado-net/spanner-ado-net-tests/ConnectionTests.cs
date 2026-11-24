@@ -594,4 +594,35 @@ public class ConnectionTests : AbstractMockServerTests
 
         Assert.That(testObj.CloseLibObjectCalled, Is.True);
     }
+
+    [Test]
+    public async Task Open_WithValidatedProjectInstanceDatabaseAndOptions_Succeeds()
+    {
+        var connectionStringBuilder = new SpannerConnectionStringBuilder
+        {
+            Host = $"{Fixture.Host}:{Fixture.Port}",
+            Project = "p1",
+            Instance = "i1",
+            Database = "d1",
+            UsePlainText = true,
+            Options = "isolation_level=serializable",
+        };
+
+        await using var connection = new SpannerConnection(connectionStringBuilder.ConnectionString);
+        await connection.OpenAsync();
+        Assert.That(await connection.ExecuteScalarAsync("SELECT 1"), Is.EqualTo(1));
+
+        var executeRequests = Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList();
+        Assert.That(executeRequests, Has.Count.EqualTo(1));
+        Assert.That(executeRequests[0].Session, Does.StartWith("projects/p1/instances/i1/databases/d1/sessions/"));
+    }
+
+    [Test]
+    public void Constructor_WithInjectedConnectionStringValues_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentException>(() => _ = new SpannerConnection("Data Source=\"projects/p1/instances/i1/databases/d1;usePlainText=true\""));
+        Assert.Throws<ArgumentException>(() => _ = new SpannerConnection("Host=\"evil.com/projects/p1/instances/i1/databases/d1;usePlainText=true;x=\";Data Source=projects/p1/instances/i1/databases/d1"));
+        Assert.Throws<ArgumentException>(() => _ = new SpannerConnection("Data Source=projects/p1/instances/i1/databases/d1;UnknownOption=\"val;usePlainText=true\""));
+        Assert.Throws<ArgumentException>(() => _ = SpannerDataSource.Create("Data Source=\"projects/p1/instances/i1/databases/d1;usePlainText=true\""));
+    }
 }
