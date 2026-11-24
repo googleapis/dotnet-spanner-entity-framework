@@ -1,0 +1,150 @@
+name: Release NuGet Packages via OSS Exit Gate
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - 'Google.Cloud.*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: true
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@baa11fbfe1d6520db94683bd5c7a3818018e4309 # v5.1.0
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build and pack NuGet packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet pack -c Release -o nupkg
+
+      - name: Authenticate to Google Cloud (OSS Exit Gate)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: 'projects/305452601764/locations/global/workloadIdentityPools/builders/providers/github'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+
+      - name: Clean up previous staging attempt for built versions (if any)
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for nupkg in nupkg/*.nupkg; do
+            [[ "$nupkg" == *.symbols.nupkg ]] && continue
+            base="$(basename "$nupkg" .nupkg)"
+            ver="$(echo "$base" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$' || true)"
+            [[ -n "$ver" ]] || continue
+            pkg_id="${base%.$ver}"
+            pkg_lower="$(echo "$pkg_id" | tr '[:upper:]' '[:lower:]')"
+            if [[ "$pkg_lower" == "google.cloud.entityframeworkcore.spanner" ]]; then
+              target_repo="dotnet-spanner-ef--nuget"
+            elif [[ "$pkg_lower" == "google.cloud.spanner.dataprovider" ]]; then
+              target_repo="spanner-dataprovider--nuget"
+            else
+              continue
+            fi
+            if gcloud artifacts versions describe "${ver}" \
+              --package="${pkg_lower}" \
+              --project="oss-exit-gate-prod" \
+              --location="us" \
+              --repository="${target_repo}" >/dev/null 2>&1; then
+              gcloud artifacts versions delete "${ver}" \
+                --package="${pkg_lower}" \
+                --project="oss-exit-gate-prod" \
+                --location="us" \
+                --repository="${target_repo}" \
+                --quiet
+            fi
+          done
+
+      - name: Stage NuGet packages to OSS Exit Gate and upload manifests
+        shell: bash
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          ef_pkgs=()
+          dp_pkgs=()
+          for nupkg in nupkg/*.nupkg; do
+            [[ "$nupkg" == *.symbols.nupkg ]] && continue
+            base="$(basename "$nupkg" .nupkg)"
+            ver="$(echo "$base" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$')"
+            pkg_id="${base%.$ver}"
+            pkg_lower="$(echo "$pkg_id" | tr '[:upper:]' '[:lower:]')"
+            if [[ "$pkg_lower" == "google.cloud.entityframeworkcore.spanner" ]]; then
+              gcloud artifacts generic upload \
+                --project=oss-exit-gate-prod \
+                --location=us \
+                --repository="dotnet-spanner-ef--nuget" \
+                --package="${pkg_lower}" \
+                --version="${ver}" \
+                --source="${nupkg}"
+              ef_pkgs+=("${pkg_lower}=${ver}")
+            elif [[ "$pkg_lower" == "google.cloud.spanner.dataprovider" ]]; then
+              gcloud artifacts generic upload \
+                --project=oss-exit-gate-prod \
+                --location=us \
+                --repository="spanner-dataprovider--nuget" \
+                --package="${pkg_lower}" \
+                --version="${ver}" \
+                --source="${nupkg}"
+              dp_pkgs+=("${pkg_lower}=${ver}")
+            fi
+          done
+          python3 - "manifest-ef.json" "${ef_pkgs[@]}" <<'PY'
+          import json, sys
+          entries = [tuple(x.split("=", 1)) for x in sys.argv[2:] if "=" in x]
+          if not entries:
+            raise SystemExit(f"ERROR: No staged NuGet packages found for {sys.argv[1]}")
+          manifest = {
+              "publish_all": False,
+              "publishing_groups": [{
+                  "packages": [{"name": pkg, "version": ver} for pkg, ver in sorted(set(entries))]
+              }],
+          }
+          with open(sys.argv[1], "w", encoding="utf-8") as fh:
+            json.dump(manifest, fh, indent=2)
+            fh.write("\n")
+          PY
+          python3 - "manifest-dp.json" "${dp_pkgs[@]}" <<'PY'
+          import json, sys
+          entries = [tuple(x.split("=", 1)) for x in sys.argv[2:] if "=" in x]
+          if not entries:
+            raise SystemExit(f"ERROR: No staged NuGet packages found for {sys.argv[1]}")
+          manifest = {
+              "publish_all": False,
+              "publishing_groups": [{
+                  "packages": [{"name": pkg, "version": ver} for pkg, ver in sorted(set(entries))]
+              }],
+          }
+          with open(sys.argv[1], "w", encoding="utf-8") as fh:
+            json.dump(manifest, fh, indent=2)
+            fh.write("\n")
+          PY
+          gcloud storage cp manifest-ef.json \
+            "gs://oss-exit-gate-prod-projects-bucket/dotnet-spanner-ef/nuget/manifests/manifest-${RUN_ID}-${RUN_ATTEMPT}.json"
+          gcloud storage cp manifest-dp.json \
+            "gs://oss-exit-gate-prod-projects-bucket/spanner-dataprovider/nuget/manifests/manifest-${RUN_ID}-${RUN_ATTEMPT}.json"
