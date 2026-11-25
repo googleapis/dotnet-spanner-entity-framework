@@ -17,7 +17,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Api.Gax;
@@ -30,17 +29,8 @@ using static Google.Cloud.Spanner.DataProvider.SpannerDbException;
 
 namespace Google.Cloud.Spanner.DataProvider;
 
-public partial class SpannerConnection : DbConnection
+public class SpannerConnection : DbConnection
 {
-    [GeneratedRegex(@"\A([a-z0-9.:-]+|DEFAULT_PROJECT_ID)\z", RegexOptions.CultureInvariant)]
-    private static partial Regex ValidProjectIdRegex();
-
-    [GeneratedRegex(@"\A[a-z0-9-]+\z", RegexOptions.CultureInvariant)]
-    private static partial Regex ValidInstanceIdRegex();
-
-    [GeneratedRegex(@"\A[a-z0-9_-]+\z", RegexOptions.CultureInvariant)]
-    private static partial Regex ValidDatabaseIdRegex();
-
     private string _connectionString = string.Empty;
     private string? _spannerLibConnectionString;
     
@@ -327,22 +317,17 @@ public partial class SpannerConnection : DbConnection
     
     internal bool HasTransaction => _transaction != null;
 
-    private static bool IsValidDatabaseResourceName(DatabaseName databaseName) =>
-        ValidProjectIdRegex().IsMatch(databaseName.ProjectId)
-        && ValidInstanceIdRegex().IsMatch(databaseName.InstanceId)
-        && ValidDatabaseIdRegex().IsMatch(databaseName.DatabaseId);
-
     private static (DatabaseName? ResourceName, string? DatabaseId) ValidateAndParseDatabaseName(string databaseName)
     {
         if (DatabaseName.TryParse(databaseName, allowUnparsed: false, out var parsedDatabaseName))
         {
-            if (!IsValidDatabaseResourceName(parsedDatabaseName))
+            if (!SpannerConnectionStringValidation.IsValidDatabaseResourceName(parsedDatabaseName))
             {
                 throw new ArgumentException($"Invalid database name: {databaseName}", nameof(databaseName));
             }
             return (parsedDatabaseName, null);
         }
-        if (!ValidDatabaseIdRegex().IsMatch(databaseName))
+        if (!SpannerConnectionStringValidation.ValidDatabaseIdRegex().IsMatch(databaseName))
         {
             throw new ArgumentException($"Invalid database name: {databaseName}", nameof(databaseName));
         }

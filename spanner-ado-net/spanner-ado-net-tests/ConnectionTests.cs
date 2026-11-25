@@ -527,13 +527,15 @@ public class ConnectionTests : AbstractMockServerTests
         Assert.That(connection.Database, Is.EqualTo("projects/p1/instances/i1/databases/d1"));
         Assert.That(connection.ConnectionString, Is.EqualTo(originalConnectionString));
 
-        using var malformedDataSourceConnection = new SpannerConnection("Data Source=not_a_resource_name");
-        Assert.That(() => malformedDataSourceConnection.ChangeDatabase("d2"), Throws.InvalidOperationException);
-        Assert.That(malformedDataSourceConnection.DataSource, Is.EqualTo("not_a_resource_name"));
+        Assert.Throws<ArgumentException>(() => _ = new SpannerConnection("Data Source=not_a_resource_name"));
 
-        using var mixedMalformedDataSourceConnection = new SpannerConnection("Data Source=not_a_resource_name;Project=p1;Instance=i1;Database=d1");
-        Assert.That(() => mixedMalformedDataSourceConnection.ChangeDatabase("d2"), Throws.InvalidOperationException);
-        Assert.That(mixedMalformedDataSourceConnection.Database, Is.EqualTo("not_a_resource_name"));
+        using var omniDataSourceConnection = new SpannerConnection("Data Source=databases/d1");
+        Assert.That(() => omniDataSourceConnection.ChangeDatabase("d2"), Throws.InvalidOperationException);
+        Assert.That(omniDataSourceConnection.DataSource, Is.EqualTo("databases/d1"));
+
+        using var mixedOmniDataSourceConnection = new SpannerConnection("Data Source=databases/d1;Project=p1;Instance=i1;Database=d1");
+        Assert.That(() => mixedOmniDataSourceConnection.ChangeDatabase("d2"), Throws.InvalidOperationException);
+        Assert.That(mixedOmniDataSourceConnection.Database, Is.EqualTo("databases/d1"));
 
         using var uninitializedConnection = new SpannerConnection();
         Assert.That(() => uninitializedConnection.ChangeDatabase("postgresql://evil.example/projects/p1/instances/i1/databases/d2?sslmode=disable"), Throws.ArgumentException);
@@ -715,5 +717,36 @@ public class ConnectionTests : AbstractMockServerTests
         testObj.CallDispose(disposing: true);
 
         Assert.That(testObj.CloseLibObjectCalled, Is.True);
+    }
+
+    [Test]
+    public async Task Open_WithValidatedProjectInstanceDatabaseAndOptions_Succeeds()
+    {
+        var connectionStringBuilder = new SpannerConnectionStringBuilder
+        {
+            Host = $"{Fixture.Host}:{Fixture.Port}",
+            Project = "p1",
+            Instance = "i1",
+            Database = "d1",
+            UsePlainText = true,
+            Options = "isolation_level=serializable",
+        };
+
+        await using var connection = new SpannerConnection(connectionStringBuilder.ConnectionString);
+        await connection.OpenAsync();
+        Assert.That(await connection.ExecuteScalarAsync("SELECT 1"), Is.EqualTo(1));
+
+        var executeRequests = Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList();
+        Assert.That(executeRequests, Has.Count.EqualTo(1));
+        Assert.That(executeRequests[0].Session, Does.StartWith("projects/p1/instances/i1/databases/d1/sessions/"));
+    }
+
+    [Test]
+    public void Constructor_WithInjectedConnectionStringValues_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentException>(() => _ = new SpannerConnection("Data Source=\"projects/p1/instances/i1/databases/d1;usePlainText=true\""));
+        Assert.Throws<ArgumentException>(() => _ = new SpannerConnection("Host=\"evil.com/projects/p1/instances/i1/databases/d1;usePlainText=true;x=\";Data Source=projects/p1/instances/i1/databases/d1"));
+        Assert.Throws<ArgumentException>(() => _ = new SpannerConnection("Data Source=projects/p1/instances/i1/databases/d1;UnknownOption=\"val;usePlainText=true\""));
+        Assert.Throws<ArgumentException>(() => _ = SpannerDataSource.Create("Data Source=\"projects/p1/instances/i1/databases/d1;usePlainText=true\""));
     }
 }
