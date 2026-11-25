@@ -1,5 +1,28 @@
 # Changelog
 
+## [5.0.0](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-4.1.2...Google.Cloud.EntityFrameworkCore.Spanner-5.0.0) (2026-11-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* 
+
+### Bug Fixes
+
+* correct JSON array and list SQL literal generation in GoogleSQL ([#847](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/847)) ([033299e](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/033299e305cb401227e492bc4f378c5f31ba1084))
+* correct update count and concurrency checks in mixed DML batches ([#859](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/859)) ([75da259](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/75da259ee7d569683dfbb18f78a87756f3dc0186))
+* custom transaction connection handling ([#862](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/862)) ([646db44](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/646db448a17611c21b87c30dd5d0dbd0f3de5eb0))
+* escape backslashes and control characters in SQL identifiers ([#878](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/878)) ([50b6ef4](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/50b6ef4edbea50a842d5497994412a1763d241dd))
+* parameterize migrations history table checks ([#880](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/880)) ([3023e6c](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/3023e6c5082317a44c7539db29d596e0f47497be))
+* preserve isolation level and transaction tag on aborted transaction retry ([#845](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/845)) ([b84d1ad](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/b84d1adb2cfa5b694cbdf81a5f2e784c9ab047ef))
+* **query:** support set operations and bulk delete and update operations ([#856](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/856)) ([f483093](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/f4830939b638a6eb04dbcc91c2ff77a38f075da4))
+* reader resource leak and command disposal during query retries ([#863](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/863)) ([d9a86c2](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/d9a86c216f042ab081408c2d4cb18749d513a6af))
+* rebind wrapped command when reassigning connection or transaction ([#883](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/883)) ([ee0fe2d](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/ee0fe2dd62c8e90fced0e9cbd7045ac2c9c90028))
+* support special characters in JSON property names ([#850](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/850)) ([83c96c3](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/83c96c34d9c1821fcdbe36ba07e62ac1fe752569))
+* use GetRawText() in JSON type mappings to preserve scalar strings and nulls ([#844](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/844)) ([4a9999f](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/4a9999f922c3a368908c8edc05dcd99ab5f6684e))
+* validate SequenceKind in identity column DDL generation ([#881](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/881)) ([c05741e](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/c05741e2b6d53383fa6519e6293fe7d880835747))
+* wrap database store exceptions in DbUpdateException ([#860](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/860)) ([ed3a9a3](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/ed3a9a3ed26aea5aa29f39d875ad94d5c4f18491))
+
 ## [4.1.2](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.EntityFrameworkCore.Spanner-4.1.1...Google.Cloud.EntityFrameworkCore.Spanner-4.1.2) (2026-10-29)
 
 
