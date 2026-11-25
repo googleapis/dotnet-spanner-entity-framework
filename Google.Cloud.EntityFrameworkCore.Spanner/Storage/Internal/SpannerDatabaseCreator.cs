@@ -1,4 +1,4 @@
-﻿// Copyright 2020, Google Inc. All rights reserved.
+// Copyright 2020, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-using Google.Api.Gax;
 using Google.Cloud.EntityFrameworkCore.Spanner.Migrations.Operations;
 using Google.Cloud.Spanner.Data;
 using Microsoft.EntityFrameworkCore;
@@ -95,7 +94,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                                 null,
                                 Dependencies.CurrentContext.Context,
                                 Dependencies.CommandLogger),
-                            cancellationToken: ct), cancellationToken);
+                            cancellationToken: ct).ConfigureAwait(false), cancellationToken);
 
         private IRelationalCommand CreateHasTablesCommand()
             => _rawSqlCommandBuilder
@@ -115,22 +114,33 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             });
 
         /// <inheritdoc />
-        public override bool Exists() => Task.Run(() => ExistsAsync()).ResultWithUnwrappedExceptions();
+        public override bool Exists()
+            => ExistsInternalAsync(async: false, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <inheritdoc />
-        public override async Task<bool> ExistsAsync(CancellationToken cancellationToken = default)
+        public override Task<bool> ExistsAsync(CancellationToken cancellationToken = default)
+            => ExistsInternalAsync(async: true, cancellationToken).AsTask();
+
+        private async ValueTask<bool> ExistsInternalAsync(bool async, CancellationToken cancellationToken)
         {
             try
             {
-                using var cmd = _connection.DbConnection.CreateCommand();
-                cmd.CommandText = "SELECT 1";
-                await cmd.ExecuteScalarAsync(cancellationToken);
+                using var command = _connection.DbConnection.CreateCommand();
+                command.CommandText = "SELECT 1";
+                if (async)
+                {
+                    await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    command.ExecuteScalar();
+                }
+                return true;
             }
-            catch (SpannerException e) when (e.ErrorCode == ErrorCode.NotFound)
+            catch (SpannerException exception) when (exception.ErrorCode == ErrorCode.NotFound)
             {
                 return false;
             }
-            return true;
         }
 
         /// <inheritdoc />

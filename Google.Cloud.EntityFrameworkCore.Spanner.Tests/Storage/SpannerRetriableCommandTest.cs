@@ -52,7 +52,7 @@ public class SpannerRetriableCommandTest : IClassFixture<SpannerMockServerFixtur
             StatementResult.CreateUpdateCount(1));
     }
 
-    private SpannerRetriableConnection CreateConnection(string databaseName)
+    private SpannerRetriableConnection CreateConnection(string databaseName = "d1")
     {
         var connectionString = $"Data Source=projects/p1/instances/i1/databases/{databaseName};Host={_fixture.Host};Port={_fixture.Port}";
         var builder = new SpannerConnectionStringBuilder(connectionString, ChannelCredentials.Insecure);
@@ -67,6 +67,216 @@ public class SpannerRetriableCommandTest : IClassFixture<SpannerMockServerFixtur
 
     private IReadOnlyList<UpdateDatabaseDdlRequest> GetDdlRequests() =>
         _fixture.DatabaseAdminMock.Requests.OfType<UpdateDatabaseDdlRequest>().ToList();
+
+    [Fact]
+    public async Task ExecuteNonQuery_SyncAndAsync_ParityWithoutTransaction()
+    {
+        using var connection = CreateConnection();
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+
+        using var syncCommand = connection.CreateDmlCommand(UpdateSql);
+        var syncResult = syncCommand.ExecuteNonQuery();
+        Assert.Equal(1, syncResult);
+
+        using var asyncCommand = connection.CreateDmlCommand(UpdateSql);
+        var asyncResult = await asyncCommand.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(1, asyncResult);
+    }
+
+    [Fact]
+    public async Task ExecuteDbDataReader_SyncAndAsync_ParityWithTimestampBound()
+    {
+        using var connection = CreateConnection();
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+
+        using var syncCommand = connection.CreateSelectCommand(SelectSql);
+        syncCommand.TimestampBound = TimestampBound.Strong;
+        using var syncReader = syncCommand.ExecuteReader();
+        Assert.True(syncReader.Read());
+        Assert.Equal(1L, syncReader.GetInt64(0));
+
+        using var asyncCommand = connection.CreateSelectCommand(SelectSql);
+        asyncCommand.TimestampBound = TimestampBound.Strong;
+        using var asyncReader = await asyncCommand.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+        Assert.True(await asyncReader.ReadAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(1L, asyncReader.GetInt64(0));
+    }
+
+    [Fact]
+    public void ExecuteScalar_ReusedCommandWithTimestampBoundReset_UpdatesEphemeralTransactionCreationOptions()
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+
+        using var command = connection.CreateSelectCommand(SelectSql);
+        var initialResult = command.ExecuteScalar();
+        Assert.Equal(1L, initialResult);
+        Assert.Null(command.SpannerCommand.EphemeralTransactionCreationOptions);
+
+        command.TimestampBound = TimestampBound.Strong;
+        var boundResult = command.ExecuteScalar();
+        Assert.Equal(1L, boundResult);
+        Assert.NotNull(command.SpannerCommand.EphemeralTransactionCreationOptions);
+
+        command.TimestampBound = null;
+        var resetResult = command.ExecuteScalar();
+        Assert.Equal(1L, resetResult);
+        Assert.Null(command.SpannerCommand.EphemeralTransactionCreationOptions);
+    }
+
+    [Fact]
+    public void ExecuteDbDataReader_ReusedCommandWithTimestampBoundReset_UpdatesEphemeralTransactionCreationOptions()
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+
+        using var command = connection.CreateSelectCommand(SelectSql);
+        using (var initialReader = command.ExecuteReader())
+        {
+            Assert.True(initialReader.Read());
+            Assert.Equal(1L, initialReader.GetInt64(0));
+        }
+        Assert.Null(command.SpannerCommand.EphemeralTransactionCreationOptions);
+
+        command.TimestampBound = TimestampBound.Strong;
+        using (var boundReader = command.ExecuteReader())
+        {
+            Assert.True(boundReader.Read());
+            Assert.Equal(1L, boundReader.GetInt64(0));
+        }
+        Assert.NotNull(command.SpannerCommand.EphemeralTransactionCreationOptions);
+
+        command.TimestampBound = null;
+        using (var resetReader = command.ExecuteReader())
+        {
+            Assert.True(resetReader.Read());
+            Assert.Equal(1L, resetReader.GetInt64(0));
+        }
+        Assert.Null(command.SpannerCommand.EphemeralTransactionCreationOptions);
+    }
+
+    [Fact]
+    public async Task ExecuteDbDataReaderAsync_ReusedCommandWithTimestampBoundReset_UpdatesEphemeralTransactionCreationOptions()
+    {
+        using var connection = CreateConnection();
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+
+        using var command = connection.CreateSelectCommand(SelectSql);
+        using (var initialReader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken))
+        {
+            Assert.True(await initialReader.ReadAsync(TestContext.Current.CancellationToken));
+            Assert.Equal(1L, initialReader.GetInt64(0));
+        }
+        Assert.Null(command.SpannerCommand.EphemeralTransactionCreationOptions);
+
+        command.TimestampBound = TimestampBound.Strong;
+        using (var boundReader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken))
+        {
+            Assert.True(await boundReader.ReadAsync(TestContext.Current.CancellationToken));
+            Assert.Equal(1L, boundReader.GetInt64(0));
+        }
+        Assert.NotNull(command.SpannerCommand.EphemeralTransactionCreationOptions);
+
+        command.TimestampBound = null;
+        using (var resetReader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken))
+        {
+            Assert.True(await resetReader.ReadAsync(TestContext.Current.CancellationToken));
+            Assert.Equal(1L, resetReader.GetInt64(0));
+        }
+        Assert.Null(command.SpannerCommand.EphemeralTransactionCreationOptions);
+    }
+
+    [Fact]
+    public void ExecuteNonQuery_CommandCanBeReusedAfterExecution()
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+
+        using var command = connection.CreateDmlCommand(UpdateSql);
+        var affectedRows = command.ExecuteNonQuery();
+        Assert.Equal(1, affectedRows);
+        Assert.Null(command.Transaction);
+
+        // Reusing the command should not throw InvalidOperationException from a disposed transaction
+        command.CommandText = SelectSql;
+        using var reader = command.ExecuteReader();
+        Assert.True(reader.Read());
+    }
+
+    [Fact]
+    public async Task ExecuteNonQueryAsync_CommandCanBeReusedAfterExecution()
+    {
+        using var connection = CreateConnection();
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+
+        using var command = connection.CreateDmlCommand(UpdateSql);
+        var affectedRows = await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(1, affectedRows);
+        Assert.Null(command.Transaction);
+
+        // Reusing the command after async execution should not throw ObjectDisposedException from a disposed transaction
+        command.CommandText = SelectSql;
+        using var reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+        Assert.True(await reader.ReadAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ExecuteScalarAsync_ReusedCommandWithTimestampBoundReset_UpdatesEphemeralTransactionCreationOptions()
+    {
+        using var connection = CreateConnection();
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+
+        using var command = connection.CreateSelectCommand(SelectSql);
+        var initialResult = await command.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(1L, initialResult);
+        Assert.Null(command.SpannerCommand.EphemeralTransactionCreationOptions);
+
+        command.TimestampBound = TimestampBound.Strong;
+        var boundResult = await command.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(1L, boundResult);
+        Assert.NotNull(command.SpannerCommand.EphemeralTransactionCreationOptions);
+
+        command.TimestampBound = null;
+        var resetResult = await command.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(1L, resetResult);
+        Assert.Null(command.SpannerCommand.EphemeralTransactionCreationOptions);
+    }
+
+    [Fact]
+    public void ExecuteNonQuery_StandaloneDml_RetriesOnAbortedAndResetsTransaction()
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+
+        using var command = connection.CreateDmlCommand(UpdateSql);
+        _fixture.SpannerMock.AbortNextStatement();
+
+        var affectedRows = command.ExecuteNonQuery();
+        Assert.Equal(1, affectedRows);
+        Assert.Null(command.Transaction);
+
+        command.CommandText = SelectSql;
+        using var reader = command.ExecuteReader();
+        Assert.True(reader.Read());
+    }
+
+    [Fact]
+    public async Task ExecuteNonQueryAsync_StandaloneDml_RetriesOnAbortedAndResetsTransaction()
+    {
+        using var connection = CreateConnection();
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+
+        using var command = connection.CreateDmlCommand(UpdateSql);
+        _fixture.SpannerMock.AbortNextStatement();
+
+        var affectedRows = await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(1, affectedRows);
+        Assert.Null(command.Transaction);
+
+        command.CommandText = SelectSql;
+        using var reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+        Assert.True(await reader.ReadAsync(TestContext.Current.CancellationToken));
+    }
 
     [Fact]
     public async Task DbConnectionSetter_ReassignedToDifferentConnection_RoutesQueriesToNewConnection()

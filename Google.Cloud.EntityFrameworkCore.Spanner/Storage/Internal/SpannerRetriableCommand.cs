@@ -40,12 +40,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             _spannerCommand.Transaction = null;
         }
 
+        internal SpannerCommand SpannerCommand => _spannerCommand;
+
         public override string CommandText { get => _spannerCommand.CommandText; set => _spannerCommand.CommandText = value; }
         public override int CommandTimeout { get => _spannerCommand.CommandTimeout; set => _spannerCommand.CommandTimeout = value; }
         public override CommandType CommandType { get => _spannerCommand.CommandType; set => _spannerCommand.CommandType = value; }
         public override bool DesignTimeVisible { get => _spannerCommand.DesignTimeVisible; set => _spannerCommand.DesignTimeVisible = value; }
         public override UpdateRowSource UpdatedRowSource { get => _spannerCommand.UpdatedRowSource; set => _spannerCommand.UpdatedRowSource = value; }
-        public string Tag {get => _spannerCommand.Tag; set => _spannerCommand.Tag = value; }
+        public string Tag { get => _spannerCommand.Tag; set => _spannerCommand.Tag = value; }
         protected override DbConnection DbConnection
         {
             get => _connection;
@@ -65,7 +67,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 _spannerCommand.Transaction = _transaction?.SpannerTransaction;
             }
         }
-        
+
         public TimestampBound TimestampBound { get; set; }
 
         protected override DbParameterCollection DbParameterCollection => _spannerCommand.Parameters;
@@ -86,7 +88,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
             CheckCommandStateForExecution();
             return _transaction == null
-                ? ExecuteNonQueryWithRetryAsync().ResultWithUnwrappedExceptions()
+                ? ExecuteNonQueryWithRetry()
                 : _transaction.ExecuteNonQueryWithRetry(_spannerCommand);
         }
 
@@ -97,7 +99,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 ? ExecuteNonQueryWithRetryAsync(cancellationToken)
                 : _transaction.ExecuteNonQueryWithRetryAsync(_spannerCommand, cancellationToken);
         }
-        
+
         /// <summary>
         /// Starts a DDL operation without waiting for the long-running operation to finish.
         /// </summary>
@@ -107,6 +109,30 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
             CheckCommandStateForExecution();
             return _spannerCommand.StartDdlAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// Wraps a DML command in a Spanner retriable transaction to retry Aborted errors.
+        /// </summary>
+        private int ExecuteNonQueryWithRetry()
+        {
+            var builder = SpannerCommandTextBuilder.FromCommandText(_spannerCommand.CommandText);
+            if (builder.SpannerCommandType == SpannerCommandType.Ddl)
+            {
+                return _spannerCommand.ExecuteNonQuery();
+            }
+            return _connection.SpannerConnection.RunWithRetriableTransaction(transaction =>
+            {
+                try
+                {
+                    _spannerCommand.Transaction = transaction;
+                    return _spannerCommand.ExecuteNonQuery();
+                }
+                finally
+                {
+                    _spannerCommand.Transaction = null;
+                }
+            });
         }
 
         /// <summary>
@@ -136,10 +162,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         public override object ExecuteScalar()
         {
             CheckCommandStateForExecution();
-            // Queries without an explicit transaction don't need retry protection as the ephemeral transaction used by the client library is a read-only transaction.
-            return _transaction == null
-                ? _spannerCommand.ExecuteScalar()
-                : _transaction.ExecuteScalarWithRetry(_spannerCommand);
+            if (_transaction != null)
+            {
+                return _transaction.ExecuteScalarWithRetry(_spannerCommand);
+            }
+            // These don't need retry protection as the ephemeral transaction used by the client library is a read-only transaction.
+            _spannerCommand.EphemeralTransactionCreationOptions = TimestampBound == null
+                ? null
+                : SpannerTransactionCreationOptions.ForTimestampBoundReadOnly(TimestampBound).WithIsSingleUse(true);
+            return _spannerCommand.ExecuteScalar();
         }
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
@@ -150,12 +181,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                 return _transaction.ExecuteDbDataReaderWithRetry(_spannerCommand);
             }
             // These don't need retry protection as the ephemeral transaction used by the client library is a read-only transaction.
-            if (TimestampBound != null)
-            {
-                return _spannerCommand.ExecuteReaderAsync(TimestampBound)
-                    .ResultWithUnwrappedExceptions();
-            }
-            return _spannerCommand.ExecuteReader();
+            _spannerCommand.EphemeralTransactionCreationOptions = TimestampBound == null
+                ? null
+                : SpannerTransactionCreationOptions.ForTimestampBoundReadOnly(TimestampBound).WithIsSingleUse(true);
+            return _spannerCommand.ExecuteReader(behavior);
         }
 
         protected override async Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
@@ -163,16 +192,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             CheckCommandStateForExecution();
             if (_transaction != null)
             {
-                return await _transaction.ExecuteDbDataReaderWithRetryAsync(_spannerCommand, cancellationToken);
+                return await _transaction.ExecuteDbDataReaderWithRetryAsync(_spannerCommand, cancellationToken).ConfigureAwait(false);
             }
 
             // These don't need retry protection as the ephemeral transaction used by the client library is a read-only transaction.
-            if (TimestampBound != null)
-            {
-                _spannerCommand.EphemeralTransactionCreationOptions = SpannerTransactionCreationOptions.ForTimestampBoundReadOnly(TimestampBound).WithIsSingleUse(true);
-            }
-            return await _spannerCommand.ExecuteReaderAsync(cancellationToken);
-
+            _spannerCommand.EphemeralTransactionCreationOptions = TimestampBound == null
+                ? null
+                : SpannerTransactionCreationOptions.ForTimestampBoundReadOnly(TimestampBound).WithIsSingleUse(true);
+            return await _spannerCommand.ExecuteReaderAsync(behavior, cancellationToken).ConfigureAwait(false);
         }
 
         public override void Prepare() => _spannerCommand.Prepare();
