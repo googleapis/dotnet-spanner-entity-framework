@@ -209,11 +209,25 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
                 Thread.Sleep(totalWaitTime);
             }
+            if (_exception != null && _exceptionStreamIndex < 0)
+            {
+                throw _exception;
+            }
         }
 
         public static ExecutionTime FromMillis(int minimumExecutionTime, int randomExecutionTime)
         {
             return new ExecutionTime(minimumExecutionTime, randomExecutionTime, null, -1, null);
+        }
+
+        public static ExecutionTime FromException(Exception exception)
+        {
+            return new ExecutionTime(0, 0, exception, -1, null);
+        }
+
+        public static ExecutionTime CreateException(StatusCode code, string message)
+        {
+            return FromException(new RpcException(new Grpc.Core.Status(code, message)));
         }
 
         internal static ExecutionTime StreamException(Exception exception, int streamIndex, BlockingCollection<int> streamWritePermissions)
@@ -414,6 +428,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             _requests.Enqueue(request);
             _contexts.Enqueue(context);
             _headers.Enqueue(context.RequestHeaders);
+            _executionTimes.TryGetValue(nameof(Commit), out ExecutionTime executionTime);
+            executionTime?.SimulateExecutionTime();
             TryFindSession(request.SessionAsSessionName);
             if (request.TransactionCase == CommitRequest.TransactionOneofCase.TransactionId)
             {

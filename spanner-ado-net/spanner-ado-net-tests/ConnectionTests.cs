@@ -437,6 +437,128 @@ public class ConnectionTests : AbstractMockServerTests
     }
 
     [Test]
+    public async Task ChangeDatabase_WithSharedConnectionStringBuilder_DoesNotAffectBuilderOrOtherConnections()
+    {
+        var builder = new SpannerConnectionStringBuilder(ConnectionString);
+        await using var firstConnection = new SpannerConnection(builder);
+        await using var secondConnection = new SpannerConnection(builder);
+
+        await firstConnection.OpenAsync();
+        firstConnection.ChangeDatabase("tenant_b");
+
+        Assert.That(firstConnection.Database, Is.EqualTo("projects/p1/instances/i1/databases/tenant_b"));
+        Assert.That(firstConnection.ConnectionString, Does.Contain("projects/p1/instances/i1/databases/tenant_b"));
+        Assert.That(builder.DataSource, Is.EqualTo("projects/p1/instances/i1/databases/d1"));
+        Assert.That(secondConnection.Database, Is.EqualTo("projects/p1/instances/i1/databases/d1"));
+        Assert.That(secondConnection.ConnectionString, Does.Contain("projects/p1/instances/i1/databases/d1"));
+
+        builder.DataSource = "projects/p1/instances/i1/databases/mutated_external";
+        Assert.That(firstConnection.Database, Is.EqualTo("projects/p1/instances/i1/databases/tenant_b"));
+        Assert.That(secondConnection.Database, Is.EqualTo("projects/p1/instances/i1/databases/d1"));
+
+        await secondConnection.OpenAsync();
+        Assert.That(await firstConnection.ExecuteScalarAsync("SELECT 1"), Is.EqualTo(1));
+        Assert.That(await secondConnection.ExecuteScalarAsync("SELECT 1"), Is.EqualTo(1));
+
+        var executeRequests = Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList();
+        Assert.That(executeRequests, Has.Count.EqualTo(2));
+        Assert.That(executeRequests[0].Session, Does.StartWith("projects/p1/instances/i1/databases/tenant_b/sessions/"));
+        Assert.That(executeRequests[1].Session, Does.StartWith("projects/p1/instances/i1/databases/d1/sessions/"));
+    }
+
+    [Test]
+    public async Task ChangeDatabase_WithProjectInstanceDatabase_UpdatesDatabaseAndConnectionString()
+    {
+        var builder = new SpannerConnectionStringBuilder
+        {
+            Host = Fixture.Host,
+            Port = (uint)Fixture.Port,
+            UsePlainText = true,
+            Project = "p1",
+            Instance = "i1",
+            Database = "d1"
+        };
+        await using var connection = new SpannerConnection(builder);
+        await connection.OpenAsync();
+        Assert.That(connection.Database, Is.EqualTo("projects/p1/instances/i1/databases/d1"));
+
+        connection.ChangeDatabase("d2");
+        Assert.That(connection.Database, Is.EqualTo("projects/p1/instances/i1/databases/d2"));
+        Assert.That(connection.ConnectionString, Does.Contain("Database=d2"));
+        Assert.That(builder.Database, Is.EqualTo("d1"));
+
+        Assert.That(await connection.ExecuteScalarAsync("SELECT 1"), Is.EqualTo(1));
+        var executeRequests = Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList();
+        Assert.That(executeRequests, Has.Count.EqualTo(1));
+        Assert.That(executeRequests[0].Session, Does.StartWith("projects/p1/instances/i1/databases/d2/sessions/"));
+
+        connection.ChangeDatabase("projects/p2/instances/i2/databases/d3");
+        Assert.That(connection.Database, Is.EqualTo("projects/p2/instances/i2/databases/d3"));
+        Assert.That(connection.ConnectionString, Does.Contain("projects/p2/instances/i2/databases/d3"));
+        Assert.That(connection.ConnectionString, Does.Not.Contain("Project="));
+        Assert.That(connection.ConnectionString, Does.Not.Contain("Instance="));
+        Assert.That(connection.ConnectionString, Does.Not.Contain("Database="));
+
+        Assert.That(await connection.ExecuteScalarAsync("SELECT 1"), Is.EqualTo(1));
+        executeRequests = Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList();
+        Assert.That(executeRequests, Has.Count.EqualTo(2));
+        Assert.That(executeRequests[1].Session, Does.StartWith("projects/p2/instances/i2/databases/d3/sessions/"));
+    }
+
+    [Test]
+    public void ChangeDatabase_WithInvalidDatabaseName_ThrowsAndPreservesOriginalState()
+    {
+        using var connection = new SpannerConnection(ConnectionString);
+        var originalConnectionString = connection.ConnectionString;
+
+        Assert.That(() => connection.ChangeDatabase("d2;UsePlainText=false"), Throws.ArgumentException);
+        Assert.That(() => connection.ChangeDatabase("d2?usePlainText=false"), Throws.ArgumentException);
+        Assert.That(() => connection.ChangeDatabase("d2\n"), Throws.ArgumentException);
+        Assert.That(() => connection.ChangeDatabase("D2"), Throws.ArgumentException);
+        Assert.That(() => connection.ChangeDatabase("projects/p1/instances/i1/databases/d2?type=OMNI"), Throws.ArgumentException);
+        Assert.That(() => connection.ChangeDatabase("projects/p1/instances/i1/databases/d2;Host=evil.example"), Throws.ArgumentException);
+        Assert.That(() => connection.ChangeDatabase("projects/p1/instances/i1/databases/d2\n"), Throws.ArgumentException);
+        Assert.That(() => connection.ChangeDatabase("projects/p1;Host=evil/instances/i1/databases/d2"), Throws.ArgumentException);
+        Assert.That(() => connection.ChangeDatabase("projects/p1/instances/i1?usePlainText=false/databases/d2"), Throws.ArgumentException);
+        Assert.That(() => connection.ChangeDatabase("projects/P1/instances/i1/databases/d2"), Throws.ArgumentException);
+        Assert.That(() => connection.ChangeDatabase("projects/p1/instances/I1/databases/d2"), Throws.ArgumentException);
+        Assert.That(() => connection.ChangeDatabase("d2/extra"), Throws.ArgumentException);
+        Assert.That(() => connection.ChangeDatabase("d2=foo"), Throws.ArgumentException);
+        Assert.That(connection.Database, Is.EqualTo("projects/p1/instances/i1/databases/d1"));
+        Assert.That(connection.ConnectionString, Is.EqualTo(originalConnectionString));
+
+        using var malformedDataSourceConnection = new SpannerConnection("Data Source=not_a_resource_name");
+        Assert.That(() => malformedDataSourceConnection.ChangeDatabase("d2"), Throws.InvalidOperationException);
+        Assert.That(malformedDataSourceConnection.DataSource, Is.EqualTo("not_a_resource_name"));
+
+        using var mixedMalformedDataSourceConnection = new SpannerConnection("Data Source=not_a_resource_name;Project=p1;Instance=i1;Database=d1");
+        Assert.That(() => mixedMalformedDataSourceConnection.ChangeDatabase("d2"), Throws.InvalidOperationException);
+        Assert.That(mixedMalformedDataSourceConnection.Database, Is.EqualTo("not_a_resource_name"));
+
+        using var uninitializedConnection = new SpannerConnection();
+        Assert.That(() => uninitializedConnection.ChangeDatabase("postgresql://evil.example/projects/p1/instances/i1/databases/d2?sslmode=disable"), Throws.ArgumentException);
+        Assert.That(() => uninitializedConnection.ChangeDatabase("evil.example:9010/projects/p1/instances/i1/databases/d2"), Throws.ArgumentException);
+        Assert.That(() => uninitializedConnection.ChangeDatabase("d2"), Throws.InvalidOperationException);
+        Assert.That(uninitializedConnection.ConnectionString, Is.EqualTo(string.Empty));
+    }
+
+    [Test]
+    public void ChangeDatabase_OnUninitializedConnectionWithFullResourceName_SetsDataSource()
+    {
+        using var connection = new SpannerConnection();
+        connection.ChangeDatabase("projects/p1/instances/i1/databases/d2");
+        Assert.That(connection.Database, Is.EqualTo("projects/p1/instances/i1/databases/d2"));
+        Assert.That(connection.DataSource, Is.EqualTo("projects/p1/instances/i1/databases/d2"));
+        Assert.That(connection.ConnectionString, Is.EqualTo("Data Source=projects/p1/instances/i1/databases/d2"));
+
+        connection.ChangeDatabase("projects/DEFAULT_PROJECT_ID/instances/i1/databases/d3");
+        Assert.That(connection.Database, Is.EqualTo("projects/DEFAULT_PROJECT_ID/instances/i1/databases/d3"));
+
+        connection.ChangeDatabase("projects/example.com:my-project/instances/i1/databases/d4");
+        Assert.That(connection.Database, Is.EqualTo("projects/example.com:my-project/instances/i1/databases/d4"));
+    }
+
+    [Test]
     [Ignore("Must add search_path connection property in shared library first")]
     public async Task SearchPath()
     {

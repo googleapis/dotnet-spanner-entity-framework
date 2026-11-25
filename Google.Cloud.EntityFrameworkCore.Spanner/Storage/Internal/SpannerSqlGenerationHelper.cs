@@ -50,20 +50,84 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             builder.Append(GenerateParameterName(name));
         }
 
+        private static bool NeedsEscaping(string identifier)
+        {
+            foreach (var character in identifier)
+            {
+                if (character < ' ' || character == '\x7f' || character == '\\' || character == '`')
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         /// <inheritdoc />
         public override void EscapeIdentifier(StringBuilder builder, string identifier)
         {
+            GaxPreconditions.CheckNotNull(builder, nameof(builder));
             GaxPreconditions.CheckNotNullOrEmpty(identifier, nameof(identifier));
-            var initialLength = builder.Length;
-            builder.Append(identifier);
-            builder.Replace("`", "\\`", initialLength, identifier.Length);
+
+            if (!NeedsEscaping(identifier))
+            {
+                builder.Append(identifier);
+                return;
+            }
+
+            foreach (var character in identifier)
+            {
+                switch (character)
+                {
+                    case '\\':
+                        builder.Append(@"\\");
+                        break;
+                    case '`':
+                        builder.Append(@"\`");
+                        break;
+                    case '\a':
+                        builder.Append(@"\a");
+                        break;
+                    case '\b':
+                        builder.Append(@"\b");
+                        break;
+                    case '\f':
+                        builder.Append(@"\f");
+                        break;
+                    case '\n':
+                        builder.Append(@"\n");
+                        break;
+                    case '\r':
+                        builder.Append(@"\r");
+                        break;
+                    case '\t':
+                        builder.Append(@"\t");
+                        break;
+                    case '\v':
+                        builder.Append(@"\v");
+                        break;
+                    case < ' ':
+                    case '\x7f':
+                        builder.Append($@"\x{(int)character:x2}");
+                        break;
+                    default:
+                        builder.Append(character);
+                        break;
+                }
+            }
         }
 
         /// <inheritdoc />
         public override string EscapeIdentifier(string identifier)
         {
             GaxPreconditions.CheckNotNullOrEmpty(identifier, nameof(identifier));
-            return identifier.Replace("`", "\\`");
+            if (!NeedsEscaping(identifier))
+            {
+                return identifier;
+            }
+
+            var builder = new StringBuilder(identifier.Length + 4);
+            EscapeIdentifier(builder, identifier);
+            return builder.ToString();
         }
 
         // Note we remove the schema because spanner does not support schema based names.
@@ -77,11 +141,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         /// <inheritdoc />
         public override string DelimitIdentifier(string identifier)
-            => $"`{EscapeIdentifier(GaxPreconditions.CheckNotNullOrEmpty(identifier, nameof(identifier)))}`";
+            => $"`{EscapeIdentifier(identifier)}`";
 
         /// <inheritdoc />
         public override void DelimitIdentifier(StringBuilder builder, string identifier)
         {
+            GaxPreconditions.CheckNotNull(builder, nameof(builder));
             GaxPreconditions.CheckNotNullOrEmpty(identifier, nameof(identifier));
             builder.Append('`');
             EscapeIdentifier(builder, identifier);

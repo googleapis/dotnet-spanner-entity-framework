@@ -415,6 +415,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Migrations
             }
             if (value.SequenceKind != null && value.GenerationStrategy is GenerationStrategy.GeneratedByDefault or GenerationStrategy.GeneratedAlways)
             {
+                SpannerIdentityOptionsData.ValidateSequenceKind(value.SequenceKind);
                 builder.Append(" (").Append(value.SequenceKind).Append(")");
             }
         }

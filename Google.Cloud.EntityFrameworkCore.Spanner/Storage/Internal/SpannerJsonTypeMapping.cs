@@ -80,6 +80,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         internal static string GenerateJsonLiteral(object value)
         {
+            if (value is null)
+            {
+                return "NULL";
+            }
             if (value is JsonDocument jsonDocument)
             {
                 return $"JSON '{EscapeJsonLiteral(jsonDocument.RootElement.GetRawText())}'";

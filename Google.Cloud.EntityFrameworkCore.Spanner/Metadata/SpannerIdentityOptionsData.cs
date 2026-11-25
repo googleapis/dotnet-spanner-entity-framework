@@ -23,9 +23,57 @@ public class SpannerIdentityOptionsData : IEquatable<SpannerIdentityOptionsData>
 {
     public static readonly SpannerIdentityOptionsData Default = new ();
 
+    private string _sequenceKind = "BIT_REVERSED_POSITIVE";
+
     public virtual GenerationStrategy GenerationStrategy { get; set; } = GenerationStrategy.GeneratedByDefault;
 
-    [CanBeNull] public virtual string SequenceKind { get; set; } = "BIT_REVERSED_POSITIVE";
+    [CanBeNull]
+    public virtual string SequenceKind
+    {
+        get => _sequenceKind;
+        set
+        {
+            if (value is not null)
+            {
+                ValidateSequenceKind(value);
+            }
+            _sequenceKind = value;
+        }
+    }
+
+    internal static void ValidateSequenceKind(string sequenceKind)
+    {
+        if (!IsValidSequenceKind(sequenceKind))
+        {
+            throw new ArgumentException(
+                $"Invalid sequence kind '{sequenceKind}'. SequenceKind must be a valid unquoted Cloud Spanner identifier containing only ASCII letters, digits, and underscores, and cannot start with a digit.",
+                nameof(sequenceKind));
+        }
+    }
+
+    private static bool IsValidSequenceKind(string sequenceKind)
+    {
+        if (string.IsNullOrEmpty(sequenceKind))
+        {
+            return false;
+        }
+
+        if (!char.IsAsciiLetter(sequenceKind[0]) && sequenceKind[0] != '_')
+        {
+            return false;
+        }
+
+        for (var index = 1; index < sequenceKind.Length; index++)
+        {
+            var character = sequenceKind[index];
+            if (!char.IsAsciiLetterOrDigit(character) && character != '_')
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     public virtual string Serialize()
     {
