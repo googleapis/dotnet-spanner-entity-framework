@@ -1,4 +1,4 @@
-﻿// Copyright 2025 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -419,9 +419,19 @@ public partial class SpannerConnection : DbConnection
             return;
         }
 
-        InternalState = ConnectionState.Closed;
-        _libConnection?.Close();
+        var libConnection = _libConnection;
+        var pool = Pool;
         _libConnection = null;
+        Pool = null;
+        try
+        {
+            libConnection?.Close();
+        }
+        finally
+        {
+            pool?.Release();
+            InternalState = ConnectionState.Closed;
+        }
     }
         
     protected override void Dispose(bool disposing)
@@ -446,17 +456,39 @@ public partial class SpannerConnection : DbConnection
             throw new InvalidOperationException("Connection string is empty");
         }
 
+        SpannerPool? pool = null;
+        Connection? libConnection = null;
         try
         {
             InternalState = ConnectionState.Connecting;
             _spannerLibConnectionString ??= _connectionStringBuilder.SpannerLibConnectionString;
-            Pool = SpannerPool.GetOrCreate(_spannerLibConnectionString);
-            _libConnection = Pool.CreateConnection();
+            pool = SpannerPool.Acquire(_spannerLibConnectionString);
+            libConnection = pool.CreateConnection();
+            _libConnection = libConnection;
+            libConnection = null;
+            Pool = pool;
+            pool = null;
             InternalState = ConnectionState.Open;
         }
         catch (Exception)
         {
-            InternalState = ConnectionState.Closed;
+            var connectionToClose = _libConnection ?? libConnection;
+            var poolToRelease = Pool ?? pool;
+            _libConnection = null;
+            Pool = null;
+            try
+            {
+                connectionToClose?.Close();
+            }
+            catch (Exception)
+            {
+                // Best-effort cleanup if Open fails after creating the underlying connection.
+            }
+            poolToRelease?.Release();
+            if (_state != ConnectionState.Closed)
+            {
+                InternalState = ConnectionState.Closed;
+            }
             throw;
         }
     }
