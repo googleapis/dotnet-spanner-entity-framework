@@ -98,15 +98,30 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
 
         private static async Task RunSampleAsync(Func<string, Task> sampleMethod)
         {
-            var emulatorRunner = new EmulatorRunner();
+            bool.TryParse(Environment.GetEnvironmentVariable("USE_EXISTING_EMULATOR") ?? "false", out var useExistingEmulator);
+            var emulatorRunner = useExistingEmulator ? null : new EmulatorRunner();
             try
             {
-                Console.WriteLine("");
-                Console.WriteLine("Starting emulator...");
-                var portBinding = await emulatorRunner.StartEmulator();
-                Console.WriteLine($"Emulator started on port {portBinding.HostPort}");
-                Console.WriteLine("");
-                Environment.SetEnvironmentVariable("SPANNER_EMULATOR_HOST", $"localhost:{portBinding.HostPort}");
+                if (useExistingEmulator)
+                {
+                    var host = Environment.GetEnvironmentVariable("SPANNER_EMULATOR_HOST");
+                    if (host == null)
+                    {
+                        host = "localhost:9010";
+                        Environment.SetEnvironmentVariable("SPANNER_EMULATOR_HOST", host);
+                    }
+                    Console.WriteLine("");
+                    Console.WriteLine($"Using existing emulator on {host}...");
+                }
+                else
+                {
+                    Console.WriteLine("");
+                    Console.WriteLine("Starting emulator...");
+                    var portBinding = await emulatorRunner.StartEmulator();
+                    Console.WriteLine($"Emulator started on port {portBinding.HostPort}");
+                    Console.WriteLine("");
+                    Environment.SetEnvironmentVariable("SPANNER_EMULATOR_HOST", $"localhost:{portBinding.HostPort}");
+                }
 
                 var projectId = "sample-project";
                 var instanceId = "sample-instance";
@@ -117,6 +132,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
                 {
                     EmulatorDetection = EmulatorDetection.EmulatorOnly,
                 };
+                if (useExistingEmulator)
+                {
+                    await MaybeDeleteInstanceOnEmulatorAsync(databaseName.ProjectId, databaseName.InstanceId);
+                }
                 await MaybeCreateInstanceOnEmulatorAsync(databaseName.ProjectId, databaseName.InstanceId);
                 await MaybeCreateDatabaseOnEmulatorAsync(databaseName);
 
@@ -129,10 +148,13 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
             }
             finally
             {
-                Console.WriteLine("");
-                Console.WriteLine("Stopping emulator...");
-                emulatorRunner.StopEmulator().WaitWithUnwrappedExceptions();
-                Console.WriteLine("");
+                if (!useExistingEmulator)
+                {
+                    Console.WriteLine("");
+                    Console.WriteLine("Stopping emulator...");
+                    emulatorRunner.StopEmulator().WaitWithUnwrappedExceptions();
+                    Console.WriteLine("");
+                }
             }
         }
 
@@ -161,6 +183,29 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Samples
                 Console.Error.WriteLine($"Could not load sample {sampleName}. Please check that the sample name is a valid sample name.\r\nException: {e.Message}");
                 PrintValidSampleNames();
                 return null;
+            }
+        }
+
+        private static async Task MaybeDeleteInstanceOnEmulatorAsync(string projectId, string instanceId)
+        {
+            // Try to delete the instance on the emulator and ignore any NotFound error.
+            var adminClientBuilder = new InstanceAdminClientBuilder
+            {
+                EmulatorDetection = EmulatorDetection.EmulatorOnly
+            };
+            var instanceAdminClient = await adminClientBuilder.BuildAsync();
+
+            var instanceName = InstanceName.FromProjectInstance(projectId, instanceId);
+            try
+            {
+                await instanceAdminClient.DeleteInstanceAsync(new DeleteInstanceRequest
+                {
+                    InstanceName = InstanceName.FromProjectInstance(projectId, instanceId),
+                });
+            }
+            catch (RpcException e) when (e.StatusCode == StatusCode.NotFound)
+            {
+                // Ignore
             }
         }
 
