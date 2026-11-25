@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.Spanner.DataProvider-1.2.1...Google.Cloud.Spanner.DataProvider-1.2.2) (2026-11-25)
+
+
+### Bug Fixes
+
+* **ADO.NET:** isolate connection builders and validate ChangeDatabase ([#885](https://github.com/googleapis/dotnet-spanner-entity-framework/issues/885)) ([82f5b9f](https://github.com/googleapis/dotnet-spanner-entity-framework/commit/82f5b9f120caec03a4f3143cf145d956dfb24fc9))
+
 ## [1.2.1](https://github.com/googleapis/dotnet-spanner-entity-framework/compare/Google.Cloud.Spanner.DataProvider-1.2.0...Google.Cloud.Spanner.DataProvider-1.2.1) (2026-08-11)
 
 
