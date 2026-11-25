@@ -114,40 +114,65 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         /// <summary>
         /// Begins a new read/write transaction on the connection with the specified <see cref="IsolationLevel"/>.
-        /// Cloud Spanner only supports <see cref="IsolationLevel.Serializable"/>. Trying to set a different
-        /// isolation level will cause an <see cref="NotSupportedException"/>.
+        /// Cloud Spanner supports <see cref="IsolationLevel.Serializable"/> and
+        /// <see cref="IsolationLevel.RepeatableRead"/>. Trying to set a different
+        /// isolation level will cause a <see cref="NotSupportedException"/>.
         /// The transaction will automatically be retried if one of the statements on the transaction
         /// is aborted by Cloud Spanner.
         /// </summary>
         /// <returns>A new read/write transaction with internal retries enabled.</returns>
         /// <exception cref="NotSupportedException"/>
         public new SpannerRetriableTransaction BeginTransaction(IsolationLevel isolationLevel)
-            => BeginTransaction(isolationLevel, null);
+            => BeginTransaction(isolationLevel, tag: null);
 
         /// <summary>
-        /// Begins a new read/write transaction on the connection with the specified <see cref="IsolationLevel"/>.
-        /// Cloud Spanner only supports <see cref="IsolationLevel.Serializable"/>. Trying to set a different
-        /// isolation level will cause an <see cref="NotSupportedException"/>.
+        /// Begins a new read/write transaction on the connection with the specified transaction tag.
+        /// The transaction will automatically be retried if one of the statements on the transaction
+        /// is aborted by Cloud Spanner.
+        /// </summary>
+        /// <returns>A new read/write transaction with internal retries enabled.</returns>
+        public SpannerRetriableTransaction BeginTransaction([CanBeNull] string tag)
+            => BeginTransaction(IsolationLevel.Unspecified, tag);
+
+        /// <summary>
+        /// Begins a new read/write transaction on the connection with the specified <see cref="IsolationLevel"/>
+        /// and transaction tag. Cloud Spanner supports <see cref="IsolationLevel.Serializable"/> and
+        /// <see cref="IsolationLevel.RepeatableRead"/>. Trying to set a different isolation level will cause a
+        /// <see cref="NotSupportedException"/>.
         /// The transaction will automatically be retried if one of the statements on the transaction
         /// is aborted by Cloud Spanner.
         /// </summary>
         /// <returns>A new read/write transaction with internal retries enabled.</returns>
         /// <exception cref="NotSupportedException"/>
         public SpannerRetriableTransaction BeginTransaction(IsolationLevel isolationLevel, [CanBeNull] string tag)
-        {
-            var dbTransaction = SpannerConnection.BeginTransaction(
+            => BeginTransaction(
                 SpannerTransactionCreationOptions.ReadWrite.WithIsolationLevel(isolationLevel),
                 new SpannerTransactionOptions { Tag = tag });
+
+        /// <summary>
+        /// Begins a new read/write transaction on the connection with the specified <see cref="SpannerTransactionCreationOptions"/>
+        /// and <see cref="SpannerTransactionOptions"/>.
+        /// The transaction will automatically be retried if one of the statements on the transaction
+        /// is aborted by Cloud Spanner.
+        /// </summary>
+        /// <returns>A new read/write transaction with internal retries enabled.</returns>
+        public SpannerRetriableTransaction BeginTransaction(
+            SpannerTransactionCreationOptions creationOptions,
+            SpannerTransactionOptions transactionOptions)
+        {
+            var dbTransaction = SpannerConnection.BeginTransaction(creationOptions, transactionOptions);
             return new SpannerRetriableTransaction(
                 this,
                 dbTransaction,
+                creationOptions,
+                transactionOptions,
                 SystemClock.Instance,
                 SystemScheduler.Instance);
         }
 
         /// <inheritdoc/>
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
-            => BeginTransaction(isolationLevel, null);
+            => BeginTransaction(isolationLevel);
 
         /// <summary>
         /// Begins a new read/write transaction on the connection. The transaction will automatically be
@@ -172,6 +197,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             BeginTransactionAsync(isolationLevel, null, cancellationToken);
 
         /// <summary>
+        /// Begins a new read/write transaction on the connection with the specified transaction tag.
+        /// The transaction will automatically be retried if one of the statements on the transaction
+        /// is aborted by Cloud Spanner.
+        /// </summary>
+        /// <returns>A new read/write transaction with internal retries enabled.</returns>
+        public Task<SpannerRetriableTransaction> BeginTransactionAsync([CanBeNull] string tag, CancellationToken cancellationToken = default)
+            => BeginTransactionAsync(IsolationLevel.Unspecified, tag, cancellationToken);
+
+        /// <summary>
         /// Begins a new read/write transaction on the connection with the specified <see cref="IsolationLevel"/>
         /// and transaction tag. Cloud Spanner supports <see cref="IsolationLevel.Serializable"/> and
         /// <see cref="IsolationLevel.RepeatableRead"/>. Trying to set a different isolation level will cause a
@@ -181,14 +215,33 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         /// </summary>
         /// <returns>A new read/write transaction with internal retries enabled.</returns>
         /// <exception cref="NotSupportedException"/>
-        public async Task<SpannerRetriableTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, [CanBeNull] string tag, CancellationToken cancellationToken = default)
+        public Task<SpannerRetriableTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, [CanBeNull] string tag, CancellationToken cancellationToken = default)
+            => BeginTransactionAsync(
+                SpannerTransactionCreationOptions.ReadWrite.WithIsolationLevel(isolationLevel),
+                new SpannerTransactionOptions { Tag = tag },
+                cancellationToken);
+
+        /// <summary>
+        /// Begins a new read/write transaction on the connection with the specified <see cref="SpannerTransactionCreationOptions"/>
+        /// and <see cref="SpannerTransactionOptions"/>.
+        /// The transaction will automatically be retried if one of the statements on the transaction
+        /// is aborted by Cloud Spanner.
+        /// </summary>
+        /// <returns>A new read/write transaction with internal retries enabled.</returns>
+        public async Task<SpannerRetriableTransaction> BeginTransactionAsync(
+            SpannerTransactionCreationOptions creationOptions,
+            SpannerTransactionOptions transactionOptions,
+            CancellationToken cancellationToken = default)
         {
             var dbTransaction = await SpannerConnection.BeginTransactionAsync(
-                SpannerTransactionCreationOptions.ReadWrite.WithIsolationLevel(isolationLevel),
-                new SpannerTransactionOptions { Tag = tag }, cancellationToken).ConfigureAwait(false);
+                creationOptions,
+                transactionOptions,
+                cancellationToken).ConfigureAwait(false);
             return new SpannerRetriableTransaction(
                 this,
                 dbTransaction,
+                creationOptions,
+                transactionOptions,
                 SystemClock.Instance,
                 SystemScheduler.Instance);
         }

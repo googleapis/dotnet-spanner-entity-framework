@@ -33,6 +33,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using SpannerDate = Google.Cloud.EntityFrameworkCore.Spanner.Storage.SpannerDate;
@@ -840,6 +841,141 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             );
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task Insert_MixedBatch_ReturnsCorrectUpdateCount(bool async)
+        {
+            var insertAlbumSql = $"INSERT INTO `Albums` (`AlbumId`, `Awards`, `ReleaseDate`, `SingerId`, `Title`){Environment.NewLine}" +
+                                 $"VALUES (@p0, @p1, @p2, @p3, @p4)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertAlbumSql, StatementResult.CreateUpdateCount(1L));
+
+            var insertTicketSaleSql = $"INSERT INTO `TicketSales` (`Receipt`, `CustomerName`){Environment.NewLine}" +
+                                      $"VALUES (@p5, @p6){Environment.NewLine}" +
+                                      $"THEN RETURN `Id`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertTicketSaleSql,
+                StatementResult.CreateSingleColumnResultSet(1L, new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 12345L));
+
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            db.Albums.Add(new Albums
+            {
+                AlbumId = 1L,
+                Title = "Album 1",
+                SingerId = 1L,
+            });
+            var ticketSale = db.TicketSales.Add(new TicketSales
+            {
+                CustomerName = "Customer 1",
+                Receipt = new Receipt
+                {
+                    Date = new DateOnly(2025, 9, 1),
+                    Number = "99999",
+                },
+            });
+
+            var updateCount = async ? await db.SaveChangesAsync(TestContext.Current.CancellationToken) : db.SaveChanges();
+
+            Assert.Equal(2L, updateCount);
+            Assert.Equal(12345L, ticketSale.Entity.Id);
+            Assert.Empty(_fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>());
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request => Assert.Equal(insertAlbumSql, request.Sql),
+                request => Assert.Equal(insertTicketSaleSql, request.Sql)
+            );
+            Assert.Single(_fixture.SpannerMock.Requests, request => request is CommitRequest);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task MixedBatch_WithInsertAndDelete_ReturnsCorrectUpdateCount(bool async)
+        {
+            var deleteSingerSql = $"DELETE FROM `Singers`{Environment.NewLine}" +
+                                  $"WHERE `SingerId` = @p0{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(deleteSingerSql, StatementResult.CreateUpdateCount(1L));
+
+            var insertTicketSaleSql = $"INSERT INTO `TicketSales` (`Receipt`, `CustomerName`){Environment.NewLine}" +
+                                      $"VALUES (@p1, @p2){Environment.NewLine}" +
+                                      $"THEN RETURN `Id`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertTicketSaleSql,
+                StatementResult.CreateSingleColumnResultSet(1L, new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 12345L));
+
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            var ticketSale = db.TicketSales.Add(new TicketSales
+            {
+                CustomerName = "Customer 1",
+                Receipt = new Receipt
+                {
+                    Date = new DateOnly(2025, 9, 1),
+                    Number = "99999",
+                },
+            });
+            var singerToDelete = new Singers { SingerId = 1L };
+            db.Attach(singerToDelete);
+            db.Singers.Remove(singerToDelete);
+
+            var updateCount = async ? await db.SaveChangesAsync(TestContext.Current.CancellationToken) : db.SaveChanges();
+
+            Assert.Equal(2L, updateCount);
+            Assert.Equal(12345L, ticketSale.Entity.Id);
+            Assert.Empty(_fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>());
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request => Assert.Equal(deleteSingerSql, request.Sql),
+                request => Assert.Equal(insertTicketSaleSql, request.Sql)
+            );
+            Assert.Single(_fixture.SpannerMock.Requests, request => request is CommitRequest);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task MixedBatch_AbortedTransaction_IsRetried(bool async)
+        {
+            var insertAlbumSql = $"INSERT INTO `Albums` (`AlbumId`, `Awards`, `ReleaseDate`, `SingerId`, `Title`){Environment.NewLine}" +
+                                 $"VALUES (@p0, @p1, @p2, @p3, @p4)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertAlbumSql, StatementResult.CreateUpdateCount(1L));
+
+            var insertTicketSaleSql = $"INSERT INTO `TicketSales` (`Receipt`, `CustomerName`){Environment.NewLine}" +
+                                      $"VALUES (@p5, @p6){Environment.NewLine}" +
+                                      $"THEN RETURN `Id`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertTicketSaleSql,
+                StatementResult.CreateSingleColumnResultSet(1L, new V1.Type { Code = V1.TypeCode.Int64 }, "Id", 12345L));
+
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            db.Albums.Add(new Albums
+            {
+                AlbumId = 1L,
+                Title = "Album 1",
+                SingerId = 1L,
+            });
+            var ticketSale = db.TicketSales.Add(new TicketSales
+            {
+                CustomerName = "Customer 1",
+                Receipt = new Receipt
+                {
+                    Date = new DateOnly(2025, 9, 1),
+                    Number = "99999",
+                },
+            });
+
+            _fixture.SpannerMock.AbortNextStatement();
+            var updateCount = async ? await db.SaveChangesAsync(TestContext.Current.CancellationToken) : db.SaveChanges();
+
+            Assert.Equal(2L, updateCount);
+            Assert.Equal(12345L, ticketSale.Entity.Id);
+            Assert.Empty(_fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>());
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>(),
+                request => Assert.Equal(insertAlbumSql, request.Sql),
+                request => Assert.Equal(insertTicketSaleSql, request.Sql),
+                request => Assert.Equal(insertAlbumSql, request.Sql),
+                request => Assert.Equal(insertTicketSaleSql, request.Sql)
+            );
+            Assert.Single(_fixture.SpannerMock.Requests, request => request is CommitRequest);
+        }
+
         [Fact]
         public async Task UpdateSinger_SelectsFullName()
         {
@@ -1015,6 +1151,163 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 }
             );
             Assert.Empty(_fixture.SpannerMock.Requests.OfType<BeginTransactionRequest>());
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task CanUseTransactionTag_WhenAborted_PreservesTagOnRetry(bool async)
+        {
+            var insertSql = $"INSERT INTO `Singers` (`SingerId`, `BirthDate`, `FirstName`, `LastName`, `Picture`)" +
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4){Environment.NewLine}" +
+                            $"THEN RETURN `FullName`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type { Code = V1.TypeCode.String }, "FullName", "John Doe"));
+            var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
+                                          $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                                          $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var transaction = async
+                ? await db.Database.BeginTransactionAsync("my_tx_tag", TestContext.Current.CancellationToken)
+                : db.Database.BeginTransaction("my_tx_tag");
+            if (async)
+            {
+                await db.Singers.AddAsync(new Singers
+                {
+                    SingerId = 1L,
+                    FirstName = "John",
+                    LastName = "Doe",
+                }, TestContext.Current.CancellationToken);
+                await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                db.Singers.Add(new Singers
+                {
+                    SingerId = 1L,
+                    FirstName = "John",
+                    LastName = "Doe",
+                });
+                db.SaveChanges();
+            }
+
+            var activeTransaction = db.Database.CurrentTransaction?.GetDbTransaction();
+            var retriableTransaction = Assert.IsType<SpannerRetriableTransaction>(activeTransaction);
+            _fixture.SpannerMock.AbortTransaction(retriableTransaction.TransactionId);
+
+            if (async)
+            {
+                Assert.NotNull(await db.Singers.FindAsync(new object[] { 2L }, TestContext.Current.CancellationToken));
+                await transaction.CommitAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                Assert.NotNull(db.Singers.Find(2L));
+                transaction.Commit();
+            }
+
+            Assert.Equal(1, retriableTransaction.RetryCount);
+
+            // All ExecuteSqlRequests executed in both initial and retried transaction must have TransactionTag = my_tx_tag.
+            var executeRequests = _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList();
+            Assert.Equal(4, executeRequests.Count);
+            foreach (var request in executeRequests)
+            {
+                Assert.Equal("my_tx_tag", request.RequestOptions.TransactionTag);
+            }
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<CommitRequest>(),
+                request =>
+                {
+                    Assert.Equal("my_tx_tag", request.RequestOptions.TransactionTag);
+                }
+            );
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task CanBeginTransactionWithIsolationLevelAndTag_WhenAborted_PreservesBothOnRetry(bool async)
+        {
+            var insertSql = $"INSERT INTO `Singers` (`SingerId`, `BirthDate`, `FirstName`, `LastName`, `Picture`)" +
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4){Environment.NewLine}" +
+                            $"THEN RETURN `FullName`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(insertSql, StatementResult.CreateSingleColumnResultSet(1L, new V1.Type { Code = V1.TypeCode.String }, "FullName", "John Doe"));
+            var sql = AddFindSingerResult($"SELECT `s`.`SingerId`, `s`.`BirthDate`, `s`.`FirstName`, `s`.`FullName`," +
+                                          $" `s`.`LastName`, `s`.`Picture`{Environment.NewLine}FROM `Singers` AS `s`{Environment.NewLine}" +
+                                          $"WHERE `s`.`SingerId` = @p{Environment.NewLine}LIMIT 1");
+            await using var database = new MockServerSampleDbContext(ConnectionString);
+            const string expectedTag = "isolation_and_tag";
+            await using var transaction = async
+                ? await database.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, expectedTag, TestContext.Current.CancellationToken)
+                : database.Database.BeginTransaction(IsolationLevel.RepeatableRead, expectedTag);
+
+            var activeTransaction = database.Database.CurrentTransaction?.GetDbTransaction();
+            var retriableTransaction = Assert.IsType<SpannerRetriableTransaction>(activeTransaction);
+            Assert.Equal(IsolationLevel.RepeatableRead, retriableTransaction.IsolationLevel);
+            Assert.Equal(expectedTag, retriableTransaction.Tag);
+
+            if (async)
+            {
+                await database.Singers.AddAsync(new Singers
+                {
+                    SingerId = 1L,
+                    FirstName = "John",
+                    LastName = "Doe",
+                }, TestContext.Current.CancellationToken);
+                await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                database.Singers.Add(new Singers
+                {
+                    SingerId = 1L,
+                    FirstName = "John",
+                    LastName = "Doe",
+                });
+                database.SaveChanges();
+            }
+
+            _fixture.SpannerMock.AbortTransaction(retriableTransaction.TransactionId);
+
+            if (async)
+            {
+                Assert.NotNull(await database.Singers.FindAsync(new object[] { 2L }, TestContext.Current.CancellationToken));
+                await transaction.CommitAsync(TestContext.Current.CancellationToken);
+            }
+            else
+            {
+                Assert.NotNull(database.Singers.Find(2L));
+                transaction.Commit();
+            }
+
+            Assert.Equal(1, retriableTransaction.RetryCount);
+            Assert.Equal(IsolationLevel.RepeatableRead, retriableTransaction.IsolationLevel);
+            Assert.Equal(expectedTag, retriableTransaction.Tag);
+
+            var executeRequests = _fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList();
+            Assert.Equal(4, executeRequests.Count);
+            foreach (var request in executeRequests)
+            {
+                Assert.Equal(expectedTag, request.RequestOptions.TransactionTag);
+            }
+
+            var requestsStartingTransaction = executeRequests
+                .Where(r => r.Transaction?.Begin != null)
+                .ToList();
+            Assert.Equal(2, requestsStartingTransaction.Count);
+            foreach (var request in requestsStartingTransaction)
+            {
+                Assert.Equal(V1.TransactionOptions.Types.IsolationLevel.RepeatableRead, request.Transaction.Begin.IsolationLevel);
+            }
+
+            Assert.Collection(
+                _fixture.SpannerMock.Requests.OfType<CommitRequest>(),
+                request =>
+                {
+                    Assert.Equal(expectedTag, request.RequestOptions.TransactionTag);
+                }
+            );
         }
 
         [Fact]
@@ -1313,6 +1606,183 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             Assert.Equal(1L, await db.SaveChangesAsync());
         }
 
+        [Fact]
+        public void BatchDmlInsertFailsWithDbUpdateExceptionWhenConstraintViolated()
+        {
+            var insertSql = $"INSERT INTO `Venues` (`Code`, `Active`, `Capacity`, `Name`, `Ratings`)" +
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
+                insertSql,
+                StatementResult.CreateException(new RpcException(new Status(StatusCode.AlreadyExists, "Row already exists in table Venues"))));
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            using var transaction = db.Database.BeginTransaction();
+            var venue = new Venues { Code = "V1", Name = "Venue 1" };
+            db.Venues.Add(venue);
+
+            var exception = Assert.Throws<DbUpdateException>(() => db.SaveChanges());
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.AlreadyExists, spannerException.ErrorCode);
+            Assert.Single(exception.Entries);
+            Assert.Same(venue, exception.Entries[0].Entity);
+        }
+
+        [Fact]
+        public async Task BatchDmlInsertFailsWithDbUpdateExceptionWhenConstraintViolatedAsync()
+        {
+            var insertSql = $"INSERT INTO `Venues` (`Code`, `Active`, `Capacity`, `Name`, `Ratings`)" +
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
+                insertSql,
+                StatementResult.CreateException(new RpcException(new Status(StatusCode.AlreadyExists, "Row already exists in table Venues"))));
+
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var transaction = await db.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            var venue = new Venues { Code = "V1", Name = "Venue 1" };
+            db.Venues.Add(venue);
+
+            var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.AlreadyExists, spannerException.ErrorCode);
+            Assert.Single(exception.Entries);
+            Assert.Same(venue, exception.Entries[0].Entity);
+        }
+
+        [Fact]
+        public void BatchDmlInsertMultipleEntitiesFailsWithDbUpdateExceptionContainingAllEntries()
+        {
+            var insertSql1 = $"INSERT INTO `Venues` (`Code`, `Active`, `Capacity`, `Name`, `Ratings`)" +
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
+                insertSql1,
+                StatementResult.CreateException(new RpcException(new Status(StatusCode.AlreadyExists, "Row already exists in table Venues"))));
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            using var transaction = db.Database.BeginTransaction();
+            var venue1 = new Venues { Code = "V1", Name = "Venue 1" };
+            var venue2 = new Venues { Code = "V2", Name = "Venue 2" };
+            db.Venues.AddRange(venue1, venue2);
+
+            var exception = Assert.Throws<DbUpdateException>(() => db.SaveChanges());
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.AlreadyExists, spannerException.ErrorCode);
+            Assert.Equal(2, exception.Entries.Count);
+            Assert.Contains(exception.Entries, entry => ReferenceEquals(entry.Entity, venue1));
+            Assert.Contains(exception.Entries, entry => ReferenceEquals(entry.Entity, venue2));
+        }
+
+        [Fact]
+        public async Task BatchDmlInsertMultipleEntitiesFailsWithDbUpdateExceptionContainingAllEntriesAsync()
+        {
+            var insertSql1 = $"INSERT INTO `Venues` (`Code`, `Active`, `Capacity`, `Name`, `Ratings`)" +
+                            $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4)";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
+                insertSql1,
+                StatementResult.CreateException(new RpcException(new Status(StatusCode.AlreadyExists, "Row already exists in table Venues"))));
+
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            await using var transaction = await db.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            var venue1 = new Venues { Code = "V1", Name = "Venue 1" };
+            var venue2 = new Venues { Code = "V2", Name = "Venue 2" };
+            await db.Venues.AddRangeAsync(venue1, venue2);
+
+            var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.AlreadyExists, spannerException.ErrorCode);
+            Assert.Equal(2, exception.Entries.Count);
+            Assert.Contains(exception.Entries, entry => ReferenceEquals(entry.Entity, venue1));
+            Assert.Contains(exception.Entries, entry => ReferenceEquals(entry.Entity, venue2));
+        }
+
+        [Fact]
+        public async Task SaveChangesAsync_WithCanceledToken_ThrowsOperationCanceledException()
+        {
+            using var cancellationTokenSource = new CancellationTokenSource();
+            cancellationTokenSource.Cancel();
+
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            var venue = new Venues { Code = "V1", Name = "Venue 1" };
+            db.Venues.Add(venue);
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => db.SaveChangesAsync(cancellationTokenSource.Token));
+        }
+
+        [Fact]
+        public void DmlWithThenReturnFailsWithDbUpdateExceptionWhenConstraintViolated()
+        {
+            var insertSql = $"INSERT INTO `Singers` (`SingerId`, `BirthDate`, `FirstName`, `LastName`, `Picture`)" +
+                $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4){Environment.NewLine}" +
+                $"THEN RETURN `FullName`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
+                insertSql,
+                StatementResult.CreateException(new RpcException(new Status(StatusCode.FailedPrecondition, "Check constraint violated"))));
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var singer = new Singers
+            {
+                SingerId = 1L,
+                FirstName = "Alice",
+                LastName = "Morrison",
+            };
+            db.Singers.Add(singer);
+
+            var exception = Assert.Throws<DbUpdateException>(() => db.SaveChanges());
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.FailedPrecondition, spannerException.ErrorCode);
+            Assert.Single(exception.Entries);
+            Assert.Same(singer, exception.Entries[0].Entity);
+        }
+
+        [Fact]
+        public async Task DmlWithThenReturnFailsWithDbUpdateExceptionWhenConstraintViolatedAsync()
+        {
+            var insertSql = $"INSERT INTO `Singers` (`SingerId`, `BirthDate`, `FirstName`, `LastName`, `Picture`)" +
+                $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4){Environment.NewLine}" +
+                $"THEN RETURN `FullName`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
+                insertSql,
+                StatementResult.CreateException(new RpcException(new Status(StatusCode.FailedPrecondition, "Check constraint violated"))));
+
+            await using var db = new MockServerSampleDbContext(ConnectionString);
+            var singer = new Singers
+            {
+                SingerId = 1L,
+                FirstName = "Alice",
+                LastName = "Morrison",
+            };
+            db.Singers.Add(singer);
+
+            var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.FailedPrecondition, spannerException.ErrorCode);
+            Assert.Single(exception.Entries);
+            Assert.Same(singer, exception.Entries[0].Entity);
+        }
+
+        [Fact]
+        public void DmlWithThenReturnMultipleEntitiesFailsWithDbUpdateExceptionContainingAllEntries()
+        {
+            var insertSql = $"INSERT INTO `Singers` (`SingerId`, `BirthDate`, `FirstName`, `LastName`, `Picture`)" +
+                $"{Environment.NewLine}VALUES (@p0, @p1, @p2, @p3, @p4){Environment.NewLine}" +
+                $"THEN RETURN `FullName`{Environment.NewLine}";
+            _fixture.SpannerMock.AddOrUpdateStatementResult(
+                insertSql,
+                StatementResult.CreateException(new RpcException(new Status(StatusCode.FailedPrecondition, "Check constraint violated"))));
+
+            using var db = new MockServerSampleDbContext(ConnectionString);
+            var singer1 = new Singers { SingerId = 1L, FirstName = "Alice", LastName = "Morrison" };
+            var singer2 = new Singers { SingerId = 2L, FirstName = "Bob", LastName = "Dylan" };
+            db.Singers.AddRange(singer1, singer2);
+
+            var exception = Assert.Throws<DbUpdateException>(() => db.SaveChanges());
+            var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+            Assert.Equal(ErrorCode.FailedPrecondition, spannerException.ErrorCode);
+            Assert.Equal(2, exception.Entries.Count);
+            Assert.Contains(exception.Entries, entry => ReferenceEquals(entry.Entity, singer1));
+            Assert.Contains(exception.Entries, entry => ReferenceEquals(entry.Entity, singer2));
+        }
+
+
         [Theory]
         [InlineData(true, true)]
         [InlineData(true, false)]
@@ -1358,8 +1828,9 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 await cmd.ExecuteScalarAsync();
                 // Abort the next statement that is executed on the mock server.
                 _fixture.SpannerMock.AbortNextStatement();
-                var e = await Assert.ThrowsAsync<SpannerException>(() => db.SaveChangesAsync());
-                Assert.Equal(ErrorCode.Aborted, e.ErrorCode);
+                var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
+                var spannerException = Assert.IsType<SpannerException>(exception.InnerException);
+                Assert.Equal(ErrorCode.Aborted, spannerException.ErrorCode);
             }
             else
             {

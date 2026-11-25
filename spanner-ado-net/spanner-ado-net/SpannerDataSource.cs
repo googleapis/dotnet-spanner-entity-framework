@@ -24,26 +24,30 @@ namespace Google.Cloud.Spanner.DataProvider;
 public class SpannerDataSource : DbDataSource
 {
     private readonly SpannerConnectionStringBuilder _connectionStringBuilder;
+    private readonly string _connectionString;
+    private readonly string _spannerLibConnectionString;
         
     [AllowNull]
-    public sealed override string ConnectionString => _connectionStringBuilder.ConnectionString;
+    public sealed override string ConnectionString => _connectionString;
 
     public static SpannerDataSource Create(string connectionString)
     {
         GaxPreconditions.CheckNotNull(connectionString, nameof(connectionString));
-        return Create(new SpannerConnectionStringBuilder(connectionString));
+        return new SpannerDataSource(new SpannerConnectionStringBuilder(connectionString));
     }
 
     public static SpannerDataSource Create(SpannerConnectionStringBuilder connectionStringBuilder)
     {
-        return new SpannerDataSource(connectionStringBuilder);
+        GaxPreconditions.CheckNotNull(connectionStringBuilder, nameof(connectionStringBuilder));
+        return new SpannerDataSource(connectionStringBuilder.Clone());
     }
 
     private SpannerDataSource(SpannerConnectionStringBuilder connectionStringBuilder)
     {
-        GaxPreconditions.CheckNotNull(connectionStringBuilder, nameof(connectionStringBuilder));
         connectionStringBuilder.CheckValid();
         _connectionStringBuilder = connectionStringBuilder;
+        _connectionString = connectionStringBuilder.ConnectionString;
+        _spannerLibConnectionString = connectionStringBuilder.SpannerLibConnectionString;
     }
     
     public new SpannerConnection CreateConnection() => (base.CreateConnection() as SpannerConnection)!;
@@ -67,6 +71,6 @@ public class SpannerDataSource : DbDataSource
 
     protected override DbConnection CreateDbConnection()
     {
-        return new SpannerConnection(_connectionStringBuilder);
+        return new SpannerConnection(_connectionStringBuilder, _connectionString, _spannerLibConnectionString);
     }
 }

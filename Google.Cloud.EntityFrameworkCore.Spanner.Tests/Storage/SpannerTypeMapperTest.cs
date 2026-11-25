@@ -931,6 +931,75 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
         }
 
         [Fact]
+        public void Generates_correct_json_array_sql_literals()
+        {
+            var mapping = SpannerJsonArrayTypeMapping.Default;
+
+            Assert.Equal("NULL", mapping.GenerateSqlLiteral(null));
+            Assert.Equal("ARRAY<JSON>[]", mapping.GenerateSqlLiteral(Array.Empty<JsonDocument>()));
+            Assert.Equal("ARRAY<JSON>[]", mapping.GenerateSqlLiteral(Array.Empty<string>()));
+
+            using var document1 = JsonDocument.Parse("""{"name":"Alice"}""");
+            using var document2 = JsonDocument.Parse("""{"title":"Marc's Album"}""");
+            using var document3 = JsonDocument.Parse("""{"path":"C:\\Users\\Alice"}""");
+
+            var documents = new[] { document1, null, document2, document3 };
+            Assert.Equal(
+                @"ARRAY<JSON>[JSON '{""name"":""Alice""}', NULL, JSON '{""title"":""Marc\'s Album""}', JSON '{""path"":""C:\\\\Users\\\\Alice""}']",
+                mapping.GenerateSqlLiteral(documents));
+
+            var stringValues = new[] { """{"name":"Alice"}""", null, """{"title":"Marc's Album"}""" };
+            Assert.Equal(
+                @"ARRAY<JSON>[JSON '{""name"":""Alice""}', NULL, JSON '{""title"":""Marc\'s Album""}']",
+                mapping.GenerateSqlLiteral(stringValues));
+
+            using var scalarElement = JsonDocument.Parse("\"test\"");
+            var elements = new[] { scalarElement.RootElement };
+            Assert.Equal(
+                @"ARRAY<JSON>[JSON '""test""']",
+                mapping.GenerateSqlLiteral(elements));
+
+            Assert.Throws<ArgumentException>(() => mapping.GenerateSqlLiteral("not an array"));
+            Assert.Throws<ArgumentException>(() => mapping.GenerateSqlLiteral(42));
+            Assert.Throws<ArgumentException>(() => mapping.GenerateSqlLiteral(new[] { 1, 2 }));
+            Assert.Throws<ArgumentException>(() => mapping.GenerateSqlLiteral(Array.Empty<byte>()));
+        }
+
+        [Fact]
+        public void Generates_correct_json_list_sql_literals()
+        {
+            var mapping = SpannerJsonListTypeMapping.Default;
+
+            Assert.Equal("NULL", mapping.GenerateSqlLiteral(null));
+            Assert.Equal("ARRAY<JSON>[]", mapping.GenerateSqlLiteral(new List<JsonDocument>()));
+            Assert.Equal("ARRAY<JSON>[]", mapping.GenerateSqlLiteral(new List<string>()));
+
+            using var document1 = JsonDocument.Parse("""{"name":"Alice"}""");
+            using var document2 = JsonDocument.Parse("""{"title":"Marc's Album"}""");
+
+            var documents = new List<JsonDocument> { document1, null, document2 };
+            Assert.Equal(
+                @"ARRAY<JSON>[JSON '{""name"":""Alice""}', NULL, JSON '{""title"":""Marc\'s Album""}']",
+                mapping.GenerateSqlLiteral(documents));
+
+            var stringValues = new List<string> { """{"name":"Alice"}""", null, """{"title":"Marc's Album"}""" };
+            Assert.Equal(
+                @"ARRAY<JSON>[JSON '{""name"":""Alice""}', NULL, JSON '{""title"":""Marc\'s Album""}']",
+                mapping.GenerateSqlLiteral(stringValues));
+
+            using var scalarElement = JsonDocument.Parse("\"test\"");
+            var elements = new List<JsonElement> { scalarElement.RootElement };
+            Assert.Equal(
+                @"ARRAY<JSON>[JSON '""test""']",
+                mapping.GenerateSqlLiteral(elements));
+
+            Assert.Throws<ArgumentException>(() => mapping.GenerateSqlLiteral("not a list"));
+            Assert.Throws<ArgumentException>(() => mapping.GenerateSqlLiteral(42));
+            Assert.Throws<ArgumentException>(() => mapping.GenerateSqlLiteral(new List<int> { 1, 2 }));
+            Assert.Throws<ArgumentException>(() => mapping.GenerateSqlLiteral(Array.Empty<byte>()));
+        }
+
+        [Fact]
         public void Default_type_mappings_have_initialized_converters()
         {
             Assert.Equal(typeof(SpannerDate), SpannerDateTypeMapping.Default.ClrType);
@@ -1013,7 +1082,23 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
             Assert.Single(jsonArrayRoundTrip);
             Assert.Equal("value", jsonArrayRoundTrip[0].RootElement.GetProperty("key").GetString());
 
+            using var scalarStringDoc = JsonDocument.Parse("\"hello\"");
+            using var scalarNullDoc = JsonDocument.Parse("null");
+            var testJsonArrayWithSpecial = new[] { jsonDocumentForArray, null, scalarStringDoc, scalarNullDoc };
+            var jsonArrayProviderSpecial = (string[])jsonArrayConverter.ConvertToProvider(testJsonArrayWithSpecial)!;
+            Assert.Equal(new[] { "{\"key\":\"value\"}", null, "\"hello\"", "null" }, jsonArrayProviderSpecial);
+            var jsonArrayRoundTripSpecial = (JsonDocument[])jsonArrayConverter.ConvertFromProvider(jsonArrayProviderSpecial)!;
+            Assert.Equal(4, jsonArrayRoundTripSpecial.Length);
+            Assert.Equal("value", jsonArrayRoundTripSpecial[0].RootElement.GetProperty("key").GetString());
+            Assert.Null(jsonArrayRoundTripSpecial[1]);
+            Assert.Equal("hello", jsonArrayRoundTripSpecial[2].RootElement.GetString());
+            Assert.Equal(JsonValueKind.Null, jsonArrayRoundTripSpecial[3].RootElement.ValueKind);
+            Assert.Null(jsonArrayConverter.ConvertToProvider(null));
+            Assert.Null(jsonArrayConverter.ConvertFromProvider(null));
+
             var jsonListConverter = SpannerJsonListTypeMapping.Default.Converter;
+            Assert.Null(jsonListConverter.ConvertToProvider(null));
+            Assert.Null(jsonListConverter.ConvertFromProvider(null));
             using var jsonDocumentForList = JsonDocument.Parse("{\"key\":\"value\"}");
             var testJsonList = new List<JsonDocument> { jsonDocumentForList };
             var jsonListProvider = (List<string>)jsonListConverter.ConvertToProvider(testJsonList)!;
@@ -1021,6 +1106,16 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
             var jsonListRoundTrip = (List<JsonDocument>)jsonListConverter.ConvertFromProvider(jsonListProvider)!;
             Assert.Single(jsonListRoundTrip);
             Assert.Equal("value", jsonListRoundTrip[0].RootElement.GetProperty("key").GetString());
+
+            var testJsonListWithSpecial = new List<JsonDocument> { jsonDocumentForList, null, scalarStringDoc, scalarNullDoc };
+            var jsonListProviderSpecial = (List<string>)jsonListConverter.ConvertToProvider(testJsonListWithSpecial)!;
+            Assert.Equal(new List<string> { "{\"key\":\"value\"}", null, "\"hello\"", "null" }, jsonListProviderSpecial);
+            var jsonListRoundTripSpecial = (List<JsonDocument>)jsonListConverter.ConvertFromProvider(jsonListProviderSpecial)!;
+            Assert.Equal(4, jsonListRoundTripSpecial.Count);
+            Assert.Equal("value", jsonListRoundTripSpecial[0].RootElement.GetProperty("key").GetString());
+            Assert.Null(jsonListRoundTripSpecial[1]);
+            Assert.Equal("hello", jsonListRoundTripSpecial[2].RootElement.GetString());
+            Assert.Equal(JsonValueKind.Null, jsonListRoundTripSpecial[3].RootElement.ValueKind);
 
             var regexConverter = SpannerRegexTypeMapping.Default.Converter;
             var testRegex = new Regex(@"^[a-z]+$", RegexOptions.IgnoreCase);
@@ -1044,6 +1139,49 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests.Storage
 
             var scalarMapping = new SpannerComplexTypeMapping(SpannerDbType.Int64, typeof(long));
             Assert.False(scalarMapping.IsArrayType);
+        }
+
+        [Fact]
+        public void Spanner_json_type_mappings_support_scalar_strings_and_null_elements()
+        {
+            var jsonConverter = SpannerJsonTypeMapping.Default.Converter;
+            using var scalarStringDocument = JsonDocument.Parse("\"hello world\"");
+            var convertedString = (string)jsonConverter.ConvertToProvider(scalarStringDocument)!;
+            Assert.Equal("\"hello world\"", convertedString);
+            using var roundTripString = (JsonDocument)jsonConverter.ConvertFromProvider(convertedString)!;
+            Assert.Equal(JsonValueKind.String, roundTripString.RootElement.ValueKind);
+            Assert.Equal("hello world", roundTripString.RootElement.GetString());
+
+            using var nullDocument = JsonDocument.Parse("null");
+            var convertedNull = (string)jsonConverter.ConvertToProvider(nullDocument)!;
+            Assert.Equal("null", convertedNull);
+            using var roundTripNull = (JsonDocument)jsonConverter.ConvertFromProvider(convertedNull)!;
+            Assert.Equal(JsonValueKind.Null, roundTripNull.RootElement.ValueKind);
+
+            var jsonArrayConverter = SpannerJsonArrayTypeMapping.Default.Converter;
+            using var itemObject = JsonDocument.Parse("{\"k\":\"v\"}");
+            var testArray = new[] { scalarStringDocument, nullDocument, null!, itemObject };
+            var arrayProvider = (string[])jsonArrayConverter.ConvertToProvider(testArray)!;
+            Assert.Equal(new[] { "\"hello world\"", "null", null, "{\"k\":\"v\"}" }, arrayProvider);
+            var arrayRoundTrip = (JsonDocument[])jsonArrayConverter.ConvertFromProvider(arrayProvider)!;
+            Assert.Equal(4, arrayRoundTrip.Length);
+            Assert.Equal(JsonValueKind.String, arrayRoundTrip[0].RootElement.ValueKind);
+            Assert.Equal("hello world", arrayRoundTrip[0].RootElement.GetString());
+            Assert.Equal(JsonValueKind.Null, arrayRoundTrip[1].RootElement.ValueKind);
+            Assert.Null(arrayRoundTrip[2]);
+            Assert.Equal("v", arrayRoundTrip[3].RootElement.GetProperty("k").GetString());
+
+            var jsonListConverter = SpannerJsonListTypeMapping.Default.Converter;
+            var testList = new List<JsonDocument> { scalarStringDocument, nullDocument, null!, itemObject };
+            var listProvider = (List<string>)jsonListConverter.ConvertToProvider(testList)!;
+            Assert.Equal(new List<string> { "\"hello world\"", "null", null!, "{\"k\":\"v\"}" }, listProvider);
+            var listRoundTrip = (List<JsonDocument>)jsonListConverter.ConvertFromProvider(listProvider)!;
+            Assert.Equal(4, listRoundTrip.Count);
+            Assert.Equal(JsonValueKind.String, listRoundTrip[0].RootElement.ValueKind);
+            Assert.Equal("hello world", listRoundTrip[0].RootElement.GetString());
+            Assert.Equal(JsonValueKind.Null, listRoundTrip[1].RootElement.ValueKind);
+            Assert.Null(listRoundTrip[2]);
+            Assert.Equal("v", listRoundTrip[3].RootElement.GetProperty("k").GetString());
         }
 
         [Theory]

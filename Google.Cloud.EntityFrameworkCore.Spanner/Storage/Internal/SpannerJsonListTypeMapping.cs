@@ -32,15 +32,15 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
     public class SpannerJsonListTypeMapping : RelationalTypeMapping
     {
         private static readonly ValueConverter s_converter = new ValueConverter<List<JsonDocument>, List<string>>(
-            v => v.Select(jd => jd == null ? null : jd.RootElement.ToString()).ToList(),
-            v => v.Select(s => s == null ? null : JsonDocument.Parse(s, SpannerJsonTypeMapping.JsonOptions)).ToList());
+            documents => documents == null ? null : documents.Select(document => document == null ? null : document.RootElement.GetRawText()).ToList(),
+            strings => strings == null ? null : strings.Select(json => json == null ? null : JsonDocument.Parse(json, SpannerJsonTypeMapping.JsonOptions)).ToList());
 
         public static SpannerJsonListTypeMapping Default { get; } = new();
 
         public SpannerJsonListTypeMapping()
             : base(new RelationalTypeMappingParameters(
                    new CoreTypeMappingParameters(typeof(List<JsonDocument>), s_converter),
-                   "ARRAY<JSON>"))
+                   "ARRAY<JSON>", StoreTypePostfix.None, System.Data.DbType.Object))
         { }
 
         protected SpannerJsonListTypeMapping(RelationalTypeMappingParameters parameters)
@@ -61,17 +61,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
             spannerParameter.SpannerDbType = SpannerDbType.ArrayOf(SpannerDbType.Json);
         }
 
+        public override string GenerateSqlLiteral(object value)
+            => value == null ? "NULL" : GenerateNonNullSqlLiteral(value);
+
         protected override string GenerateNonNullSqlLiteral(object value)
-        {
-            if (value is IEnumerable<JsonDocument> values)
-            {
-                return values.Select(jd => $"'{jd.RootElement.ToString()}'").ToString();
-            }
-            if (value is IEnumerable<string> stringValues)
-            {
-                return stringValues.Select(s => $"'{s}'").ToString();
-            }
-            throw new ArgumentException($"{value} is not valid for database type ARRAY<JSON>");
-        }
+            => SpannerJsonArrayTypeMapping.GenerateJsonArrayLiteral(value);
     }
 }

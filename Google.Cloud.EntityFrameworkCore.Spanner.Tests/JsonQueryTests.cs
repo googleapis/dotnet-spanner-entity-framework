@@ -309,12 +309,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
         }
 
         /// <summary>
-        /// Tests that JSON property names containing only a backslash (without other special chars)
-        /// use dot notation. Backslash alone does not trigger bracket notation in the current implementation.
-        /// Note: This test documents current behavior - backslash without other special chars uses dot notation.
+        /// Tests that JSON property names containing a backslash use double-quoted notation
+        /// with backslashes properly escaped.
+        /// Example: property "back\slash" -> JSON_VALUE(col, '$."back\\slash"')
         /// </summary>
         [Fact]
-        public void VisitJsonScalar_PropertyNameWithOnlyBackslash_UsesDotNotation()
+        public void VisitJsonScalar_PropertyNameWithOnlyBackslash_UsesQuotedNotation()
         {
             using var db = new SpecialPropertyNamesDbContext(ConnectionString);
             
@@ -322,17 +322,14 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 .Where(e => e.JsonData.PropertyWithBackslash == "test")
                 .ToQueryString();
 
-            // Current implementation: backslash alone does NOT trigger bracket notation
-            // So it uses dot notation: $.back\slash (backslash passes through)
-            Assert.Contains("$.back\\slash", sql);
-            Assert.DoesNotContain("$['back", sql);
+            Assert.Contains(".\"back\\\\slash\"", sql);
         }
 
         /// <summary>
         /// Tests that when quoted notation is triggered by a special character (space),
         /// backslashes in the property name are properly escaped.
-        /// Example: property "path with\backslash" -> JSON_VALUE(col, '$."path with\\\\backslash"')
-        /// Note: backslash needs quadruple escaping (2 for JSONPath, doubled again for SQL literal)
+        /// Example: property "path with\backslash" -> JSON_VALUE(col, '$."path with\\backslash"')
+        /// Note: in SQL string literal, 2 backslashes survive lexical parsing as 1 backslash for JSONPath.
         /// </summary>
         [Fact]
         public void VisitJsonScalar_PropertyNameWithSpaceAndBackslash_EscapesBackslash()
@@ -343,9 +340,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
                 .Where(e => e.JsonData.PropertyWithSpaceAndBackslash == "test")
                 .ToQueryString();
 
-            // Space triggers quoted notation, and backslash should be escaped for both SQL and JSONPath
-            // (doubled for JSONPath, then doubled again for SQL string literal = 4 backslashes)
-            Assert.Contains(".\"path with\\\\\\\\backslash\"", sql);
+            Assert.Contains(".\"path with\\\\backslash\"", sql);
         }
 
         /// <summary>
@@ -364,6 +359,23 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             // The property has dots, spaces, and single quotes: "complex.name with 'quotes'"
             // Single quotes are backslash-escaped
             Assert.Contains(".\"complex.name with \\'quotes\\'\"", sql);
+        }
+
+        /// <summary>
+        /// Tests that JSON property names with non-ASCII characters use double-quoted notation.
+        /// Cloud Spanner unquoted JSONPath identifiers only allow [a-zA-Z_][a-zA-Z0-9_]*,
+        /// so non-ASCII characters such as accented letters require quoted notation ($."prénom").
+        /// </summary>
+        [Fact]
+        public void VisitJsonScalar_PropertyNameWithNonAsciiCharacters_UsesQuotedNotation()
+        {
+            using var db = new SpecialPropertyNamesDbContext(ConnectionString);
+
+            var sql = db.TestEntities
+                .Where(e => e.JsonData.PropertyWithNonAscii == "test")
+                .ToQueryString();
+
+            Assert.Contains(".\"prénom\"", sql);
         }
 
         [Fact]
@@ -486,6 +498,12 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             /// Standard property name without special characters.
             /// </summary>
             public string NormalProperty { get; set; }
+
+            /// <summary>
+            /// Maps to JSON property name containing non-ASCII Unicode characters: "prénom"
+            /// </summary>
+            [JsonPropertyName("prénom")]
+            public string PropertyWithNonAscii { get; set; }
         }
         
         /// <summary>
@@ -528,6 +546,449 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Tests
             }
         }
         
+        #endregion
+
+        #region Scalar Extraction, Casting & Parameterized Path Tests
+
+        [Fact]
+        public void VisitJsonScalar_GuidProperty_GeneratesNoCast()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+            var targetGuid = Guid.NewGuid();
+
+            var sql = db.Entities
+                .Where(entity => entity.Payload.UniqueId == targetGuid)
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("JSON_VALUE(`e`.`Payload`, '$.UniqueId')", sql);
+            Assert.DoesNotContain("CAST(JSON_VALUE(`e`.`Payload`, '$.UniqueId')", sql);
+            Assert.Contains("= @", sql);
+        }
+
+        [Fact]
+        public void VisitJsonScalar_SizedStringProperty_GeneratesNoCast()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+            var shortCode = "ABC";
+
+            var sql = db.Entities
+                .Where(entity => entity.Payload.ShortCode == shortCode)
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("JSON_VALUE(`e`.`Payload`, '$.ShortCode')", sql);
+            Assert.DoesNotContain("CAST(JSON_VALUE(`e`.`Payload`, '$.ShortCode')", sql);
+            Assert.Contains("= @", sql);
+        }
+
+        [Fact]
+        public void VisitJsonScalar_ConstantArrayIndex_GeneratesDotNotationPath()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+            var targetName = "Widget";
+
+            var sql = db.Entities
+                .Where(entity => entity.Payload.Items[0].Name == targetName)
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("JSON_VALUE(`e`.`Payload`, '$.Items[0].Name')", sql);
+            Assert.Contains("= @", sql);
+        }
+
+        [Fact]
+        public void VisitJsonScalar_ParameterizedArrayIndex_ThrowsNotSupportedException()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+            var itemIndex = 0;
+            var targetName = "Widget";
+
+            var exception = Assert.Throws<NotSupportedException>(() => db.Entities
+                .Where(entity => entity.Payload.Items[itemIndex].Name == targetName)
+                .Select(entity => entity.Id)
+                .ToQueryString());
+
+            Assert.Contains("non-constant index", exception.Message);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_GetString_GeneratesJsonValue()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+            var targetName = "test";
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("name").GetString() == targetName)
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("JSON_VALUE(`e`.`RawElement`, '''$.name''')", sql);
+            Assert.DoesNotContain("CAST(JSON_VALUE(`e`.`RawElement`, '''$.name''')", sql);
+            Assert.Contains("= @", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_ChainedGetProperty_GetString_GeneratesCombinedPath()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+            var targetCity = "Seattle";
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("address").GetProperty("city").GetString() == targetCity)
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("JSON_VALUE(`e`.`RawElement`, '''$.address.city''')", sql);
+            Assert.DoesNotContain("CAST(JSON_VALUE(`e`.`RawElement`, '''$.address.city''')", sql);
+            Assert.Contains("= @", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_GetInt32_GeneratesCastToInt64()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("count").GetInt32() > 5)
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("CAST(JSON_VALUE(`e`.`RawElement`, '''$.count''') AS INT64)", sql);
+            Assert.Contains("> 5", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_GetInt64_GeneratesCastToInt64()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("bigId").GetInt64() > 100L)
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("CAST(JSON_VALUE(`e`.`RawElement`, '''$.bigId''') AS INT64)", sql);
+            Assert.Contains("> 100", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_GetBoolean_GeneratesCastToBool()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("isActive").GetBoolean())
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("CAST(JSON_VALUE(`e`.`RawElement`, '''$.isActive''') AS BOOL)", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_GetDouble_GeneratesCastToFloat64()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("score").GetDouble() >= 90.0)
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("CAST(JSON_VALUE(`e`.`RawElement`, '''$.score''') AS FLOAT64)", sql);
+            Assert.Contains(">= 90", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_GetDecimal_GeneratesCastToNumeric()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("amount").GetDecimal() == 19.99m)
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("CAST(JSON_VALUE(`e`.`RawElement`, '''$.amount''') AS NUMERIC)", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_GetGuid_GeneratesJsonValueWithoutCast()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+            var expectedGuid = Guid.NewGuid();
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("token").GetGuid() == expectedGuid)
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("JSON_VALUE(`e`.`RawElement`, '''$.token''')", sql);
+            Assert.DoesNotContain("CAST(JSON_VALUE(`e`.`RawElement`, '''$.token''')", sql);
+            Assert.Contains("= @", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_DirectGetString_GeneratesRootJsonValue()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+            var targetValue = "plain";
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetString() == targetValue)
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("JSON_VALUE(`e`.`RawElement`, '''$''')", sql);
+            Assert.DoesNotContain("CAST(JSON_VALUE(`e`.`RawElement`, '''$''')", sql);
+            Assert.Contains("= @", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_DirectGetInt32_GeneratesRootCastToInt64()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetInt32() == 42)
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("CAST(JSON_VALUE(`e`.`RawElement`, '''$''') AS INT64)", sql);
+            Assert.Contains("= 42", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_WithBackslash_GeneratesQuotedPathWithEscapedBackslash()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("back\\slash").GetString() == "test")
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("JSON_VALUE(`e`.`RawElement`, '''$.\"back\\\\slash\"''')", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_WithDoubleQuotes_GeneratesQuotedPathWithEscapedDoubleQuotes()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("say \"hello\"").GetString() == "test")
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("JSON_VALUE(`e`.`RawElement`, '''$.\"say \\\\\"hello\\\\\"\"''')", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_WithSingleQuotes_GeneratesQuotedPathWithEscapedSingleQuotes()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("it's").GetString() == "test")
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("JSON_VALUE(`e`.`RawElement`, '''$.\"it\\\'s\"''')", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_WithDot_GeneratesQuotedPath()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("property.with.dot").GetString() == "test")
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("JSON_VALUE(`e`.`RawElement`, '''$.\"property.with.dot\"''')", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_WithNonAscii_GeneratesQuotedPath()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("prénom").GetString() == "test")
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("JSON_VALUE(`e`.`RawElement`, '''$.\"prénom\"''')", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_DynamicPropertyInGetProperty_ThrowsInvalidOperationException()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+            var dynamicPropertyName = "name";
+
+            var exception = Assert.Throws<InvalidOperationException>(() => db.Entities
+                .Where(entity => entity.RawElement.GetProperty(dynamicPropertyName).GetString() == "test")
+                .Select(entity => entity.Id)
+                .ToQueryString());
+
+            Assert.Contains("could not be translated", exception.Message);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_GetInt16_GeneratesCastToInt64()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("smallNum").GetInt16() > (short)1)
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("CAST(JSON_VALUE(`e`.`RawElement`, '''$.smallNum''') AS INT64)", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_GetByte_GeneratesCastToInt64()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("byteVal").GetByte() == (byte)2)
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("CAST(JSON_VALUE(`e`.`RawElement`, '''$.byteVal''') AS INT64)", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_GetSByte_GeneratesCastToInt64()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("sbyteVal").GetSByte() == (sbyte)3)
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("CAST(JSON_VALUE(`e`.`RawElement`, '''$.sbyteVal''') AS INT64)", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_GetSingle_GeneratesCastToFloat32()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("singleVal").GetSingle() > 1.5f)
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("CAST(JSON_VALUE(`e`.`RawElement`, '''$.singleVal''') AS FLOAT32)", sql);
+        }
+
+        [Fact]
+        public void SpannerJsonMethodTranslator_GetProperty_GetDateTime_GeneratesCastToTimestamp()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+            var timestamp = DateTime.UtcNow;
+
+            var sql = db.Entities
+                .Where(entity => entity.RawElement.GetProperty("created").GetDateTime() == timestamp)
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("CAST(JSON_VALUE(`e`.`RawElement`, '''$.created''') AS TIMESTAMP)", sql);
+        }
+
+        [Fact]
+        public void VisitJsonScalar_CharProperty_GeneratesNoCast()
+        {
+            using var db = new JsonScalarAndMethodTestDbContext(ConnectionString);
+
+            var sql = db.Entities
+                .Where(entity => entity.Payload.Initial == 'A')
+                .Select(entity => entity.Id)
+                .ToQueryString();
+
+            Assert.Contains("JSON_VALUE(`e`.`Payload`, '$.Initial')", sql);
+            Assert.DoesNotContain("CAST(JSON_VALUE(`e`.`Payload`, '$.Initial')", sql);
+        }
+
+        #endregion
+
+        #region Test Models for QRY-03
+
+        public class EntityWithJsonFeatures
+        {
+            [Key]
+            public int Id { get; set; }
+
+            public JsonPayloadFeatures Payload { get; set; }
+
+            public JsonElement RawElement { get; set; }
+        }
+
+        public class JsonPayloadFeatures
+        {
+            public Guid UniqueId { get; set; }
+
+            [MaxLength(50)]
+            public string ShortCode { get; set; }
+
+            public int Age { get; set; }
+
+            public char Initial { get; set; }
+
+            public List<PayloadItemFeature> Items { get; set; }
+        }
+
+        public class PayloadItemFeature
+        {
+            public string Name { get; set; }
+
+            public int Quantity { get; set; }
+        }
+
+        internal class JsonScalarAndMethodTestDbContext : DbContext
+        {
+            private readonly string _connectionString;
+
+            public JsonScalarAndMethodTestDbContext(string connectionString)
+            {
+                _connectionString = connectionString;
+            }
+
+            public DbSet<EntityWithJsonFeatures> Entities { get; set; }
+
+            protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            {
+                if (!optionsBuilder.IsConfigured)
+                {
+                    optionsBuilder
+                        .UseSpanner(_connectionString, _ => SpannerModelValidationConnectionProvider.Instance.EnableDatabaseModelValidation(false), ChannelCredentials.Insecure)
+                        .UseMutations(MutationUsage.Never);
+                }
+            }
+
+            protected override void OnModelCreating(ModelBuilder modelBuilder)
+            {
+                modelBuilder.Entity<EntityWithJsonFeatures>(entity =>
+                {
+                    entity.ToTable("EntitiesWithJsonFeatures");
+                    entity.HasKey(e => e.Id);
+
+                    entity.OwnsOne(e => e.Payload, ownedBuilder =>
+                    {
+                        ownedBuilder.ToJson();
+                        ownedBuilder.OwnsMany(p => p.Items);
+                    });
+                });
+            }
+        }
+
         #endregion
     }
 }

@@ -1,4 +1,4 @@
-﻿// Copyright 2020, Google Inc. All rights reserved.
+// Copyright 2020, Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 // limitations under the License.
 
 using Google.Cloud.EntityFrameworkCore.Spanner.Extensions;
+using Google.Cloud.EntityFrameworkCore.Spanner.Infrastructure;
+using Google.Cloud.Spanner.Data;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -24,9 +26,11 @@ using Microsoft.EntityFrameworkCore.Update.Internal;
 using OpenTelemetry.Trace;
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using RpcException = Grpc.Core.RpcException;
 
 namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
 {
@@ -63,10 +67,18 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 }
                 span.SetStatus(Status.Ok);
             }
-            catch (Exception ex)
+            catch (Exception exception)
             {
-                span.SetStatus(Status.Error.WithDescription(ex.Message));
-                throw;
+                var wrappedException = WrapException(exception, batchesList);
+                if (exception is not OperationCanceledException)
+                {
+                    span.SetStatus(Status.Error.WithDescription(exception.Message));
+                }
+                if (ReferenceEquals(wrappedException, exception))
+                {
+                    throw;
+                }
+                throw wrappedException;
             }
             finally
             {
@@ -100,16 +112,56 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Update.Internal
                 }
                 span.SetStatus(Status.Ok);
             }
-            catch (Exception ex)
+            catch (Exception exception)
             {
-                span.SetStatus(Status.Error.WithDescription(ex.Message));
-                throw;
+                var wrappedException = WrapException(exception, batchesList);
+                if (exception is not OperationCanceledException)
+                {
+                    span.SetStatus(Status.Error.WithDescription(exception.Message));
+                }
+                if (ReferenceEquals(wrappedException, exception))
+                {
+                    throw;
+                }
+                throw wrappedException;
             }
             finally
             {
                 span.End();
             }
             return SpannerCount(batchesList);
+        }
+
+        internal const string DisableDbUpdateExceptionWrappingSwitch = SpannerDbContextOptionsBuilder.DisableDbUpdateExceptionWrappingSwitch;
+
+        internal static Exception WrapException(
+            Exception exception,
+            IEnumerable<ModificationCommandBatch> commandBatches) =>
+            WrapException(exception, commandBatches.SelectMany(batch => batch.ModificationCommands));
+
+        internal static Exception WrapException(
+            Exception exception,
+            IEnumerable<IReadOnlyModificationCommand> modificationCommands)
+        {
+            if (AppContext.TryGetSwitch(DisableDbUpdateExceptionWrappingSwitch, out var isEnabled) && isEnabled)
+            {
+                return exception;
+            }
+
+            if (exception is not SpannerException && exception is not DbException && exception is not RpcException)
+            {
+                return exception;
+            }
+
+            var entries = modificationCommands
+                .SelectMany(command => command.Entries)
+                .Distinct()
+                .ToList();
+
+            return new DbUpdateException(
+                RelationalStrings.UpdateStoreException,
+                exception,
+                entries);
         }
 
         private int SpannerCount(List<ModificationCommandBatch> commandBatches)
