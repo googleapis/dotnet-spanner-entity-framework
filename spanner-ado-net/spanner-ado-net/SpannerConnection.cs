@@ -1,4 +1,4 @@
-﻿// Copyright 2025 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Api.Gax;
@@ -29,12 +30,33 @@ using static Google.Cloud.Spanner.DataProvider.SpannerDbException;
 
 namespace Google.Cloud.Spanner.DataProvider;
 
-public class SpannerConnection : DbConnection
+public partial class SpannerConnection : DbConnection
 {
+    [GeneratedRegex(@"\A([a-z0-9.:-]+|DEFAULT_PROJECT_ID)\z", RegexOptions.CultureInvariant)]
+    private static partial Regex ValidProjectIdRegex();
+
+    [GeneratedRegex(@"\A[a-z0-9-]+\z", RegexOptions.CultureInvariant)]
+    private static partial Regex ValidInstanceIdRegex();
+
+    [GeneratedRegex(@"\A[a-z0-9_-]+\z", RegexOptions.CultureInvariant)]
+    private static partial Regex ValidDatabaseIdRegex();
+
     private string _connectionString = string.Empty;
+    private string? _spannerLibConnectionString;
     
+    // May be shared read-only from SpannerDataSource when _ownsConnectionStringBuilder is false;
+    // clone before mutating (see UpdateConnectionStringBuilderForDatabaseChange).
     private SpannerConnectionStringBuilder? _connectionStringBuilder;
+    private bool _ownsConnectionStringBuilder;
         
+    private void SetOwnedConnectionStringBuilder(SpannerConnectionStringBuilder? builder, string connectionString)
+    {
+        _connectionStringBuilder = builder;
+        _connectionString = connectionString;
+        _spannerLibConnectionString = null;
+        _ownsConnectionStringBuilder = builder != null;
+    }
+
     [AllowNull]
     public sealed override string ConnectionString {
         get => _connectionString;
@@ -43,15 +65,13 @@ public class SpannerConnection : DbConnection
             AssertClosed();
             if (string.IsNullOrWhiteSpace(value))
             {
-                _connectionStringBuilder = null;
-                _connectionString = string.Empty;
+                SetOwnedConnectionStringBuilder(null, string.Empty);
             }
             else
             {
                 var builder = new SpannerConnectionStringBuilder(value);
                 builder.CheckValid();
-                _connectionStringBuilder = builder;
-                _connectionString = value;
+                SetOwnedConnectionStringBuilder(builder, value);
             }
         }
     }
@@ -70,7 +90,7 @@ public class SpannerConnection : DbConnection
             }
             if (!string.IsNullOrEmpty(_connectionStringBuilder.Project) &&
                 !string.IsNullOrEmpty(_connectionStringBuilder.Instance) &&
-                !string.IsNullOrEmpty(_connectionStringBuilder.Project))
+                !string.IsNullOrEmpty(_connectionStringBuilder.Database))
             {
                 return $"projects/{_connectionStringBuilder.Project}/instances/{_connectionStringBuilder.Instance}/databases/{_connectionStringBuilder.Database}";
             }
@@ -149,9 +169,20 @@ public class SpannerConnection : DbConnection
     public SpannerConnection(SpannerConnectionStringBuilder connectionStringBuilder)
     {
         GaxPreconditions.CheckNotNull(connectionStringBuilder, nameof(connectionStringBuilder));
-        connectionStringBuilder.CheckValid();
+        var clonedBuilder = connectionStringBuilder.Clone();
+        clonedBuilder.CheckValid();
+        SetOwnedConnectionStringBuilder(clonedBuilder, clonedBuilder.ConnectionString);
+    }
+
+    internal SpannerConnection(
+        SpannerConnectionStringBuilder connectionStringBuilder,
+        string connectionString,
+        string spannerLibConnectionString)
+    {
         _connectionStringBuilder = connectionStringBuilder;
-        _connectionString = connectionStringBuilder.ConnectionString;
+        _connectionString = connectionString;
+        _spannerLibConnectionString = spannerLibConnectionString;
+        _ownsConnectionStringBuilder = false;
     }
     
     public new ValueTask<SpannerTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
@@ -296,35 +327,85 @@ public class SpannerConnection : DbConnection
     
     internal bool HasTransaction => _transaction != null;
 
+    private static bool IsValidDatabaseResourceName(DatabaseName databaseName) =>
+        ValidProjectIdRegex().IsMatch(databaseName.ProjectId)
+        && ValidInstanceIdRegex().IsMatch(databaseName.InstanceId)
+        && ValidDatabaseIdRegex().IsMatch(databaseName.DatabaseId);
+
+    private static (DatabaseName? ResourceName, string? DatabaseId) ValidateAndParseDatabaseName(string databaseName)
+    {
+        if (DatabaseName.TryParse(databaseName, allowUnparsed: false, out var parsedDatabaseName))
+        {
+            if (!IsValidDatabaseResourceName(parsedDatabaseName))
+            {
+                throw new ArgumentException($"Invalid database name: {databaseName}", nameof(databaseName));
+            }
+            return (parsedDatabaseName, null);
+        }
+        if (!ValidDatabaseIdRegex().IsMatch(databaseName))
+        {
+            throw new ArgumentException($"Invalid database name: {databaseName}", nameof(databaseName));
+        }
+        return (null, databaseName);
+    }
+
+    private void UpdateConnectionStringBuilderForDatabaseChange(DatabaseName? resourceName, string? databaseId)
+    {
+        string? newDataSource = null;
+        string? newDatabase = null;
+        if (resourceName != null)
+        {
+            newDataSource = resourceName.ToString();
+        }
+        else if (DatabaseName.TryParse(_connectionStringBuilder!.DataSource, out var currentDatabase))
+        {
+            newDataSource = DatabaseName.FromProjectInstanceDatabase(currentDatabase.ProjectId, currentDatabase.InstanceId, databaseId!).ToString();
+        }
+        else if (string.IsNullOrEmpty(_connectionStringBuilder.DataSource)
+            && !string.IsNullOrEmpty(_connectionStringBuilder.Project)
+            && !string.IsNullOrEmpty(_connectionStringBuilder.Instance))
+        {
+            newDatabase = databaseId;
+        }
+        else
+        {
+            throw new InvalidOperationException("Cannot change to a short database name when the connection string does not specify a valid project and instance.");
+        }
+
+        var builder = _ownsConnectionStringBuilder ? _connectionStringBuilder : _connectionStringBuilder.Clone();
+        if (newDataSource != null)
+        {
+            builder.DataSource = newDataSource;
+            builder.Remove("Project");
+            builder.Remove("Instance");
+            builder.Remove("Database");
+        }
+        else
+        {
+            builder.Database = newDatabase!;
+        }
+        SetOwnedConnectionStringBuilder(builder, builder.ConnectionString);
+    }
+
     public override void ChangeDatabase(string databaseName)
     {
         GaxPreconditions.CheckNotNullOrEmpty(databaseName, nameof(databaseName));
         GaxPreconditions.CheckState(!HasTransaction, "Cannot change database when a transaction is open");
+
+        var (resourceName, databaseId) = ValidateAndParseDatabaseName(databaseName);
         if (_connectionStringBuilder == null)
         {
-            ConnectionString = $"Data Source={databaseName}";
+            if (resourceName == null)
+            {
+                throw new InvalidOperationException("Cannot change to a short database name when the connection string does not specify a valid project and instance.");
+            }
+            var builder = new SpannerConnectionStringBuilder { DataSource = resourceName.ToString() };
+            SetOwnedConnectionStringBuilder(builder, builder.ConnectionString);
             return;
         }
-        if (DatabaseName.TryParse(databaseName, allowUnparsed: false, out _))
-        {
-            _connectionStringBuilder.DataSource = databaseName;
-        }
-        else
-        {
-            if (DatabaseName.TryParse(_connectionStringBuilder.DataSource, out var currentDatabase))
-            {
-                _connectionStringBuilder.DataSource = $"projects/{currentDatabase.ProjectId}/instances/{currentDatabase.InstanceId}/databases/{databaseName}";
-            }
-            else if (!string.IsNullOrEmpty(_connectionStringBuilder.Project) && !string.IsNullOrEmpty(_connectionStringBuilder.Instance))
-            {
-                _connectionStringBuilder.Database = databaseName;
-            }
-            else
-            {
-                throw new ArgumentException($"Invalid database name: {databaseName}");
-            }
-        }
-        if (_state == ConnectionState.Open)
+
+        UpdateConnectionStringBuilderForDatabaseChange(resourceName, databaseId);
+        if (InternalState == ConnectionState.Open)
         {
             Close();
             Open();
@@ -380,7 +461,8 @@ public class SpannerConnection : DbConnection
         try
         {
             InternalState = ConnectionState.Connecting;
-            pool = SpannerPool.Acquire(_connectionStringBuilder.SpannerLibConnectionString);
+            _spannerLibConnectionString ??= _connectionStringBuilder.SpannerLibConnectionString;
+            pool = SpannerPool.Acquire(_spannerLibConnectionString);
             libConnection = pool.CreateConnection();
             _libConnection = libConnection;
             libConnection = null;

@@ -36,6 +36,8 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         {
             _connection = connection;
             _spannerCommand = (SpannerCommand)GaxPreconditions.CheckNotNull(spannerCommand, nameof(spannerCommand)).Clone();
+            _spannerCommand.SpannerConnection = _connection?.SpannerConnection;
+            _spannerCommand.Transaction = null;
         }
 
         public override string CommandText { get => _spannerCommand.CommandText; set => _spannerCommand.CommandText = value; }
@@ -47,13 +49,21 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         protected override DbConnection DbConnection
         {
             get => _connection;
-            set => _connection = (SpannerRetriableConnection)value;
+            set
+            {
+                _connection = (SpannerRetriableConnection)value;
+                _spannerCommand.SpannerConnection = _connection?.SpannerConnection;
+            }
         }
 
         protected override DbTransaction DbTransaction
         {
             get => _transaction;
-            set => _transaction = (SpannerTransactionBase)value;
+            set
+            {
+                _transaction = (SpannerTransactionBase)value;
+                _spannerCommand.Transaction = _transaction?.SpannerTransaction;
+            }
         }
         
         public TimestampBound TimestampBound { get; set; }
@@ -64,48 +74,77 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         public override void Cancel() => _spannerCommand.Cancel();
 
-        public override int ExecuteNonQuery() =>
-            _transaction == null
-            ? ExecuteNonQueryWithRetryAsync(_spannerCommand).ResultWithUnwrappedExceptions()
-            : _transaction.ExecuteNonQueryWithRetry(_spannerCommand);
+        private void CheckCommandStateForExecution()
+        {
+            GaxPreconditions.CheckState(_connection != null, "Connection must be set before executing the command.");
+            GaxPreconditions.CheckState(
+                _transaction == null || ReferenceEquals(_transaction.Connection, _connection),
+                "The transaction that has been set for this command is from a different connection.");
+        }
 
-        public override Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken = default) =>
-            _transaction == null
-            ? ExecuteNonQueryWithRetryAsync(_spannerCommand, cancellationToken)
-            : _transaction.ExecuteNonQueryWithRetryAsync(_spannerCommand, cancellationToken);
+        public override int ExecuteNonQuery()
+        {
+            CheckCommandStateForExecution();
+            return _transaction == null
+                ? ExecuteNonQueryWithRetryAsync().ResultWithUnwrappedExceptions()
+                : _transaction.ExecuteNonQueryWithRetry(_spannerCommand);
+        }
+
+        public override Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken = default)
+        {
+            CheckCommandStateForExecution();
+            return _transaction == null
+                ? ExecuteNonQueryWithRetryAsync(cancellationToken)
+                : _transaction.ExecuteNonQueryWithRetryAsync(_spannerCommand, cancellationToken);
+        }
         
         /// <summary>
         /// Starts a DDL operation without waiting for the long-running operation to finish.
         /// </summary>
         /// <param name="cancellationToken">The cancellation token for the RPC that creates the LRO</param>
         /// <returns>A task that returns the long-running operation ID that was started</returns>
-        internal Task<string> StartDdlOperationAsync(CancellationToken cancellationToken = default) => _spannerCommand.StartDdlAsync(cancellationToken);
+        internal Task<string> StartDdlOperationAsync(CancellationToken cancellationToken = default)
+        {
+            CheckCommandStateForExecution();
+            return _spannerCommand.StartDdlAsync(cancellationToken);
+        }
 
         /// <summary>
         /// Wraps a DML command in a Spanner retriable transaction to retry Aborted errors.
         /// </summary>
-        private async Task<int> ExecuteNonQueryWithRetryAsync(SpannerCommand spannerCommand, CancellationToken cancellationToken = default)
+        private async Task<int> ExecuteNonQueryWithRetryAsync(CancellationToken cancellationToken = default)
         {
-            var builder = SpannerCommandTextBuilder.FromCommandText(spannerCommand.CommandText);
+            var builder = SpannerCommandTextBuilder.FromCommandText(_spannerCommand.CommandText);
             if (builder.SpannerCommandType == SpannerCommandType.Ddl)
             {
-                return await spannerCommand.ExecuteNonQueryAsync(cancellationToken);
+                return await _spannerCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
             return await _connection.SpannerConnection.RunWithRetriableTransactionAsync(async transaction =>
             {
-                spannerCommand.Transaction = transaction;
-                return await spannerCommand.ExecuteNonQueryAsync(cancellationToken);
-            }, cancellationToken);
+                try
+                {
+                    _spannerCommand.Transaction = transaction;
+                    return await _spannerCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    _spannerCommand.Transaction = null;
+                }
+            }, cancellationToken).ConfigureAwait(false);
         }
 
-        public override object ExecuteScalar() =>
-            _transaction == null
-            // These don't need retry protection as the ephemeral transaction used by the client library is a read-only transaction.
-            ? _spannerCommand.ExecuteScalar()
-            : _transaction.ExecuteScalarWithRetry(_spannerCommand);
+        public override object ExecuteScalar()
+        {
+            CheckCommandStateForExecution();
+            // Queries without an explicit transaction don't need retry protection as the ephemeral transaction used by the client library is a read-only transaction.
+            return _transaction == null
+                ? _spannerCommand.ExecuteScalar()
+                : _transaction.ExecuteScalarWithRetry(_spannerCommand);
+        }
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
+            CheckCommandStateForExecution();
             if (_transaction != null)
             {
                 return _transaction.ExecuteDbDataReaderWithRetry(_spannerCommand);
@@ -121,6 +160,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
 
         protected override async Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
         {
+            CheckCommandStateForExecution();
             if (_transaction != null)
             {
                 return await _transaction.ExecuteDbDataReaderWithRetryAsync(_spannerCommand, cancellationToken);

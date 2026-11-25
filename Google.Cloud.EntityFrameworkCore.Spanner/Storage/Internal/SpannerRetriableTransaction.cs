@@ -90,15 +90,39 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         private readonly List<SpannerPendingCommitTimestampModificationCommand> _commitTimestampModificationCommands = new List<SpannerPendingCommitTimestampModificationCommand>();
         public int RetryCount { get; private set; }
 
+        internal SpannerTransactionCreationOptions CreationOptions { get; }
+
+        internal SpannerTransactionOptions TransactionOptions { get; }
+
+        /// <summary>
+        /// The transaction tag that will be included with all requests on this transaction.
+        /// </summary>
+        public string Tag
+        {
+            get => SpannerTransaction?.Tag ?? TransactionOptions.Tag;
+            set
+            {
+                TransactionOptions.Tag = value;
+                if (SpannerTransaction != null)
+                {
+                    SpannerTransaction.Tag = value;
+                }
+            }
+        }
+
         internal SpannerRetriableTransaction(
             SpannerRetriableConnection connection,
             SpannerTransaction spannerTransaction,
+            SpannerTransactionCreationOptions creationOptions,
+            SpannerTransactionOptions transactionOptions,
             IClock clock,
             IScheduler scheduler,
             RetriableTransactionOptions options = null)
         {
             Connection = connection;
             SpannerTransaction = spannerTransaction;
+            CreationOptions = creationOptions ?? SpannerTransactionCreationOptions.ReadWrite.WithIsolationLevel(spannerTransaction?.IsolationLevel ?? IsolationLevel.Unspecified);
+            TransactionOptions = transactionOptions ?? spannerTransaction?.TransactionOptions ?? new SpannerTransactionOptions();
             _clock = GaxPreconditions.CheckNotNull(clock, nameof(clock));
             _scheduler = GaxPreconditions.CheckNotNull(scheduler, nameof(scheduler));
             _options = options ?? RetriableTransactionOptions.CreateDefault();
@@ -139,7 +163,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         }
 
         /// <see cref="SpannerTransaction.Rollback"/>
-        public override void Rollback() => SpannerTransaction.Rollback();
+        public override void Rollback() => SpannerTransaction?.Rollback();
 
         internal new SpannerRetriableConnection Connection { get; private set; }
 
@@ -147,7 +171,7 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
         protected override DbConnection DbConnection => Connection;
 
         /// <inheritdoc/>
-        public override IsolationLevel IsolationLevel => SpannerTransaction.IsolationLevel;
+        public override IsolationLevel IsolationLevel => SpannerTransaction?.IsolationLevel ?? CreationOptions?.IsolationLevel ?? IsolationLevel.Unspecified;
 
         protected internal override int ExecuteNonQueryWithRetry(SpannerCommand command)
         {
@@ -370,22 +394,24 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     _scheduler.Delay(retryDelay, CancellationToken.None).Wait();
                 }
 
-                // TODO: Preferably the Spanner client library should have some 'reset' option on an existing
-                // transaction instead of having to begin a new transaction. This will potentially use a transaction
-                // on a different session, while the recommended behavior for a retry is to use the same session as
-                // the original attempt.
-                SpannerTransaction.Dispose();
-                SpannerTransaction = async
-                    ? await Connection.SpannerConnection.BeginTransactionAsync(cancellationToken)
-                    : Connection.SpannerConnection.BeginTransaction();
                 RetryCount++;
                 try
                 {
+                    // TODO: Preferably the Spanner client library should have some 'reset' option on an existing
+                    // transaction instead of having to begin a new transaction. This will potentially use a transaction
+                    // on a different session, while the recommended behavior for a retry is to use the same session as
+                    // the original attempt.
+                    TransactionOptions.Tag = SpannerTransaction?.Tag ?? TransactionOptions.Tag;
+                    SpannerTransaction?.Dispose();
+                    SpannerTransaction = async
+                        ? await Connection.SpannerConnection.BeginTransactionAsync(CreationOptions, TransactionOptions, cancellationToken).ConfigureAwait(false)
+                        : Connection.SpannerConnection.BeginTransaction(CreationOptions, TransactionOptions);
+
                     foreach (IRetriableStatement statement in _retriableStatements)
                     {
                         if (async)
                         {
-                            await statement.RetryAsync(this, cancellationToken, timeoutSeconds);
+                            await statement.RetryAsync(this, cancellationToken, timeoutSeconds).ConfigureAwait(false);
                         }
                         else
                         {
@@ -399,10 +425,10 @@ namespace Google.Cloud.EntityFrameworkCore.Spanner.Storage.Internal
                     // Retry failed because of a concurrent modification.
                     throw;
                 }
-                catch (SpannerException e) when (e.ErrorCode == ErrorCode.Aborted)
+                catch (SpannerException exception) when (exception.ErrorCode == ErrorCode.Aborted)
                 {
                     // Ignore and retry.
-                    retryDelay = e.RecommendedRetryDelay ?? _options.Jitter(_options.NextDelay(retryDelay));
+                    retryDelay = exception.RecommendedRetryDelay ?? _options.Jitter(_options.NextDelay(retryDelay));
                 }
             }
         }
