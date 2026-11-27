@@ -301,6 +301,88 @@ public class BatchTests : AbstractMockServerTests
         }
     }
 
+    [Test]
+    public async Task TestExecuteWithoutConnectionThrows([Values] bool executeAsync)
+    {
+        await using var batch = new SpannerBatch();
+        batch.BatchCommands.Add("insert into my_table (id, value) values (1, 'One')");
+        if (executeAsync)
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(() => batch.ExecuteNonQueryAsync());
+        }
+        else
+        {
+            Assert.Throws<InvalidOperationException>(() => batch.ExecuteNonQuery());
+        }
+    }
+
+    [Test]
+    public async Task TestSetCompletedTransactionThrows([Values] bool commit)
+    {
+        await using var connection = await OpenConnectionAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        await using var batch = connection.CreateBatch();
+
+        if (commit)
+        {
+            await transaction.CommitAsync();
+        }
+        else
+        {
+            await transaction.RollbackAsync();
+        }
+
+        Assert.Throws<InvalidOperationException>(() => batch.Transaction = transaction);
+    }
+
+    [Test]
+    public async Task TestExecuteWithCompletedTransactionThrows([Values] bool executeAsync, [Values] bool commit)
+    {
+        await using var connection = await OpenConnectionAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        await using var batch = connection.CreateBatch();
+        batch.Transaction = transaction;
+        batch.BatchCommands.Add("insert into my_table (id, value) values (1, 'One')");
+
+        if (commit)
+        {
+            await transaction.CommitAsync();
+        }
+        else
+        {
+            await transaction.RollbackAsync();
+        }
+
+        if (executeAsync)
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(() => batch.ExecuteNonQueryAsync());
+        }
+        else
+        {
+            Assert.Throws<InvalidOperationException>(() => batch.ExecuteNonQuery());
+        }
+    }
+
+    [Test]
+    public async Task TestExecuteWithTransactionFromDifferentConnectionThrows([Values] bool executeAsync)
+    {
+        await using var connection1 = await OpenConnectionAsync();
+        await using var connection2 = await OpenConnectionAsync();
+        await using var transaction1 = await connection1.BeginTransactionAsync();
+        await using var batch = connection2.CreateBatch();
+        batch.Transaction = transaction1;
+        batch.BatchCommands.Add("insert into my_table (id, value) values (1, 'One')");
+
+        if (executeAsync)
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(() => batch.ExecuteNonQueryAsync());
+        }
+        else
+        {
+            Assert.Throws<InvalidOperationException>(() => batch.ExecuteNonQuery());
+        }
+    }
+
     private static void AddParameter(DbBatchCommand command, string name, object? value)
     {
         var parameter = command.CreateParameter();

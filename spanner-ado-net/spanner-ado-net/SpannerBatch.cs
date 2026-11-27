@@ -36,7 +36,20 @@ public class SpannerBatch : DbBatch
     protected override SpannerBatchCommandCollection DbBatchCommands { get; } = new();
     public override int Timeout { get; set; }
     protected override DbConnection? DbConnection { get; set; }
-    protected override DbTransaction? DbTransaction { get; set; }
+    private SpannerTransaction? _transaction;
+    protected override DbTransaction? DbTransaction
+    {
+        get => _transaction;
+        set
+        {
+            var transaction = (SpannerTransaction?)value;
+            if (transaction is { IsCompleted: true })
+            {
+                throw new InvalidOperationException("Transaction is already completed");
+            }
+            _transaction = transaction;
+        }
+    }
     private SpannerTransaction? SpannerTransaction => DbTransaction as SpannerTransaction;
     public string? Tag { get; set; }
 
@@ -99,20 +112,21 @@ public class SpannerBatch : DbBatch
 
     private SpannerCommand? CreateSetTagsCommandText()
     {
-        if (!string.IsNullOrEmpty(Tag) || !string.IsNullOrEmpty(SpannerConnection.Transaction?.Tag))
+        var transaction = SpannerTransaction ?? SpannerConnection.Transaction;
+        if (!string.IsNullOrEmpty(Tag) || !string.IsNullOrEmpty(transaction?.Tag))
         {
             string commandText;
-            if (!string.IsNullOrEmpty(SpannerConnection.Transaction?.Tag) && string.IsNullOrEmpty(Tag))
+            if (!string.IsNullOrEmpty(transaction?.Tag) && string.IsNullOrEmpty(Tag))
             {
-                commandText = $"set local transaction_tag='{SpannerConnection.Transaction.Tag}'";
+                commandText = $"set local transaction_tag='{transaction.Tag}'";
             }
-            else if (!string.IsNullOrEmpty(Tag) && string.IsNullOrEmpty(SpannerConnection.Transaction?.Tag))
+            else if (!string.IsNullOrEmpty(Tag) && string.IsNullOrEmpty(transaction?.Tag))
             {
                 commandText = $"set statement_tag = '{Tag}'";
             }
             else
             {
-                commandText = $"set local transaction_tag='{SpannerConnection.Transaction!.Tag}';set statement_tag = '{Tag}'";
+                commandText = $"set local transaction_tag='{transaction!.Tag}';set statement_tag = '{Tag}'";
             }
             return SpannerConnection.CreateCommand(commandText);
         }
@@ -121,21 +135,33 @@ public class SpannerBatch : DbBatch
 
     private void SetTags()
     {
-        CreateSetTagsCommandText()?.ExecuteNonQuery();
+        using var command = CreateSetTagsCommandText();
+        command?.ExecuteNonQuery();
     }
 
-    private Task SetTagsAsync(CancellationToken cancellationToken)
+    private async Task SetTagsAsync(CancellationToken cancellationToken)
     {
         var command = CreateSetTagsCommandText();
         if (command != null)
         {
-            return command.ExecuteNonQueryAsync(cancellationToken);
+            await using (command.ConfigureAwait(false))
+            {
+                await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
-        return Task.CompletedTask;
+    }
+
+    private void CheckBatchStateForExecution()
+    {
+        GaxPreconditions.CheckState(Connection != null, "No connection has been set for the batch");
+        GaxPreconditions.CheckState(SpannerTransaction is not { IsCompleted: true }, "Transaction is already completed");
+        GaxPreconditions.CheckState(SpannerTransaction == null || SpannerTransaction.Connection == SpannerConnection,
+            "The transaction that has been set for this batch is from a different connection");
     }
 
     public override int ExecuteNonQuery()
     {
+        CheckBatchStateForExecution();
         if (DbBatchCommands.Count == 0)
         {
             return 0;
@@ -165,6 +191,7 @@ public class SpannerBatch : DbBatch
 
     public override async Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken = default)
     {
+        CheckBatchStateForExecution();
         if (DbBatchCommands.Count == 0)
         {
             return 0;
