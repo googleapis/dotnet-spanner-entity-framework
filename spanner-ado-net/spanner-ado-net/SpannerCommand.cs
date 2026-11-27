@@ -75,7 +75,7 @@ public class SpannerCommand : DbCommand, ICloneable
         set => RequestOptions.RequestTag = value;
     }
 
-    private RequestOptions RequestOptions { get; } = new ();
+    private RequestOptions RequestOptions { get; init; } = new ();
     
     private bool _disposed;
         
@@ -134,17 +134,18 @@ public class SpannerCommand : DbCommand, ICloneable
             // TODO: Quote the table name
             sql = $"select * from {sql}";
         }
+        var requestOptions = RequestOptions.Clone();
+        if (_transaction?.Tag != null)
+        {
+            requestOptions.TransactionTag = _transaction.Tag;
+        }
         var statement = new ExecuteSqlRequest
         {
             Sql = sql,
             Params = queryParams,
-            RequestOptions = RequestOptions,
+            RequestOptions = requestOptions,
             QueryMode = mode,
         };
-        if (_transaction?.Tag != null)
-        {
-            RequestOptions.TransactionTag = _transaction?.Tag;
-        }
 
         statement.ParamTypes.Add(paramTypes);
         if (SingleUseReadOnlyTransactionOptions != null)
@@ -434,6 +435,8 @@ public class SpannerCommand : DbCommand, ICloneable
             CommandTimeout = CommandTimeout,
             CommandType = CommandType,
             DesignTimeVisible = DesignTimeVisible,
+            SingleUseReadOnlyTransactionOptions = SingleUseReadOnlyTransactionOptions?.Clone(),
+            RequestOptions = RequestOptions.Clone(),
         };
         (DbParameterCollection as SpannerParameterCollection)?.CloneTo(clone.Parameters);
         return clone;

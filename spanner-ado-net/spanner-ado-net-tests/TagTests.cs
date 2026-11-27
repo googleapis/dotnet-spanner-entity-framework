@@ -299,4 +299,156 @@ public class TagTests : AbstractMockServerTests
         Assert.That(commitRequest.RequestOptions, Is.Not.Null);
         Assert.That(commitRequest.RequestOptions.TransactionTag, Is.EqualTo("my_tx_tag"));
     }
+
+    [Test]
+    public async Task TestReuseCommandAfterTaggedTransaction([Values] bool async)
+    {
+        const string sql = "insert into my_table (id, value) values (1, 'One')";
+        Fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1L));
+
+        await using var connection = await OpenConnectionAsync();
+
+        await using var taggedTransaction = await connection.BeginTransactionAsync();
+        taggedTransaction.Tag = "my_tx_tag";
+
+        await using var command = connection.CreateCommand();
+        command.Transaction = taggedTransaction;
+        command.CommandText = sql;
+        command.Tag = "my_tag";
+        if (async)
+        {
+            await command.ExecuteNonQueryAsync();
+            await taggedTransaction.CommitAsync();
+        }
+        else
+        {
+            command.ExecuteNonQuery();
+            // ReSharper disable once MethodHasAsyncOverload
+            taggedTransaction.Commit();
+        }
+
+        command.Transaction = null;
+        if (async)
+        {
+            await command.ExecuteNonQueryAsync();
+        }
+        else
+        {
+            command.ExecuteNonQuery();
+        }
+
+        await using var untaggedTransaction = await connection.BeginTransactionAsync();
+        command.Transaction = untaggedTransaction;
+        if (async)
+        {
+            await command.ExecuteNonQueryAsync();
+            await untaggedTransaction.CommitAsync();
+        }
+        else
+        {
+            command.ExecuteNonQuery();
+            // ReSharper disable once MethodHasAsyncOverload
+            untaggedTransaction.Commit();
+        }
+
+        var executeRequests = Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList();
+        Assert.That(executeRequests, Has.Count.EqualTo(3));
+
+        Assert.That(executeRequests[0].RequestOptions.RequestTag, Is.EqualTo("my_tag"));
+        Assert.That(executeRequests[0].RequestOptions.TransactionTag, Is.EqualTo("my_tx_tag"));
+
+        Assert.That(executeRequests[1].RequestOptions.RequestTag, Is.EqualTo("my_tag"));
+        Assert.That(executeRequests[1].RequestOptions.TransactionTag, Is.EqualTo(""));
+
+        Assert.That(executeRequests[2].RequestOptions.RequestTag, Is.EqualTo("my_tag"));
+        Assert.That(executeRequests[2].RequestOptions.TransactionTag, Is.EqualTo(""));
+    }
+
+    [Test]
+    public async Task TestCloneCommandWithTagAndSingleUseReadOnlyOptions([Values] bool async)
+    {
+        const string sql = "SELECT 1";
+        Fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateSelect1ResultSet());
+
+        await using var connection = await OpenConnectionAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        command.Tag = "cloned_tag";
+        command.SingleUseReadOnlyTransactionOptions = new TransactionOptions.Types.ReadOnly
+        {
+            Strong = true,
+        };
+
+        await using var clonedCommand = command.Clone();
+        Assert.That(clonedCommand.Tag, Is.EqualTo("cloned_tag"));
+        Assert.That(clonedCommand.SingleUseReadOnlyTransactionOptions,
+            Is.EqualTo(new TransactionOptions.Types.ReadOnly { Strong = true }));
+        Assert.That(clonedCommand.SingleUseReadOnlyTransactionOptions,
+            Is.Not.SameAs(command.SingleUseReadOnlyTransactionOptions));
+
+        command.Tag = "original_tag";
+        command.SingleUseReadOnlyTransactionOptions.ReturnReadTimestamp = true;
+        Assert.That(clonedCommand.Tag, Is.EqualTo("cloned_tag"));
+        Assert.That(clonedCommand.SingleUseReadOnlyTransactionOptions!.ReturnReadTimestamp, Is.False);
+
+        if (async)
+        {
+            await using var reader = await clonedCommand.ExecuteReaderAsync();
+        }
+        else
+        {
+            // ReSharper disable once MethodHasAsyncOverload
+            await using var reader = clonedCommand.ExecuteReader();
+        }
+
+        var executeRequests = Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList();
+        Assert.That(executeRequests, Has.Count.EqualTo(1));
+        Assert.That(executeRequests[0].RequestOptions.RequestTag, Is.EqualTo("cloned_tag"));
+        Assert.That(executeRequests[0].RequestOptions.TransactionTag, Is.EqualTo(""));
+        Assert.That(executeRequests[0].Transaction?.SingleUse?.ReadOnly?.Strong, Is.True);
+    }
+
+    [Test]
+    public async Task TestBatchInheritsConnectionTransactionTag([Values] bool async, [Values] bool setBatchTag)
+    {
+        const string sql = "insert into my_table (id, value) values (1, 'One')";
+        Fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateUpdateCount(1L));
+
+        await using var connection = await OpenConnectionAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        transaction.Tag = "my_tx_tag";
+
+        await using var batch = connection.CreateBatch();
+        if (setBatchTag)
+        {
+            batch.Tag = "my_batch_tag";
+        }
+        batch.BatchCommands.Add(sql);
+        batch.BatchCommands.Add(sql);
+
+        if (async)
+        {
+            await batch.ExecuteNonQueryAsync();
+            await transaction.CommitAsync();
+        }
+        else
+        {
+            // ReSharper disable once MethodHasAsyncOverload
+            batch.ExecuteNonQuery();
+            // ReSharper disable once MethodHasAsyncOverload
+            transaction.Commit();
+        }
+
+        var batchRequests = Fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>().ToList();
+        Assert.That(batchRequests, Has.Count.EqualTo(1));
+        Assert.That(batchRequests[0].RequestOptions, Is.Not.Null);
+        Assert.That(batchRequests[0].RequestOptions.TransactionTag, Is.EqualTo("my_tx_tag"));
+        Assert.That(batchRequests[0].RequestOptions.RequestTag, Is.EqualTo(setBatchTag ? "my_batch_tag" : ""));
+
+        var commitRequests = Fixture.SpannerMock.Requests.OfType<CommitRequest>().ToList();
+        Assert.That(commitRequests, Has.Count.EqualTo(1));
+        Assert.That(commitRequests[0].RequestOptions, Is.Not.Null);
+        Assert.That(commitRequests[0].RequestOptions.TransactionTag, Is.EqualTo("my_tx_tag"));
+    }
 }
