@@ -21,7 +21,7 @@ namespace Google.Cloud.Spanner.DataProvider;
 public class SpannerBatchCommand : DbBatchCommand
 {
     public override string CommandText { get; set; } = "";
-    public override CommandType CommandType { get; set; }
+    public override CommandType CommandType { get; set; } = CommandType.Text;
     
     internal int InternalRecordsAffected;
     public override int RecordsAffected => InternalRecordsAffected;

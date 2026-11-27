@@ -1,4 +1,4 @@
-﻿// Copyright 2025 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -467,11 +467,33 @@ public partial class SpannerConnection : DbConnection
         {
             Open();
         }
+        AssertOpen();
+    }
+
+    private async Task EnsureOpenAsync(CancellationToken cancellationToken = default)
+    {
+        if (InternalState == ConnectionState.Closed)
+        {
+            await OpenAsync(cancellationToken).ConfigureAwait(false);
+        }
+        AssertOpen();
+    }
+
+    internal SpannerDialect GetDialect()
+    {
+        EnsureOpen();
+        return Pool!.GetDialect();
+    }
+
+    internal async Task<SpannerDialect> GetDialectAsync(CancellationToken cancellationToken = default)
+    {
+        await EnsureOpenAsync(cancellationToken).ConfigureAwait(false);
+        return await Pool!.GetDialectAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private void AssertOpen()
     {
-        if (InternalState != ConnectionState.Open || _libConnection == null)
+        if (InternalState != ConnectionState.Open || Pool == null || _libConnection == null)
         {
             throw new InvalidOperationException("Connection is not open");
         }

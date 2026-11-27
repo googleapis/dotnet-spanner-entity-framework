@@ -17,6 +17,7 @@ using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
+using Google.Cloud.Spanner.Admin.Database.V1;
 using Google.Cloud.Spanner.V1;
 using Google.Cloud.SpannerLib.MockServer;
 using Google.Protobuf.WellKnownTypes;
@@ -595,7 +596,7 @@ public class CommandTests : AbstractMockServerTests
     [Test]
     public async Task TableDirect()
     {
-        const string sql = "select * from my_table";
+        const string sql = "select * from `my_table`";
         Fixture.SpannerMock.AddOrUpdateStatementResult(sql, StatementResult.CreateResultSet(
             new List<Tuple<TypeCode, string>>([Tuple.Create(TypeCode.String, "name")]),
             new List<object[]>([["foo"]])));
@@ -605,6 +606,396 @@ public class CommandTests : AbstractMockServerTests
         await using var reader = await cmd.ExecuteReaderAsync();
         Assert.That(await reader.ReadAsync(), Is.True);
         Assert.That(reader["name"], Is.EqualTo("foo"));
+        var request = Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().Single();
+        Assert.That(request.Sql, Is.EqualTo(sql));
+    }
+
+    [TestCase("my_table", "select * from `my_table`", false)]
+    [TestCase("my_table", "select * from `my_table`", true)]
+    [TestCase("order", "select * from `order`", false)]
+    [TestCase("my_schema.my_table", "select * from `my_schema`.`my_table`", true)]
+    [TestCase("`my.schema`.my-table", "select * from `my.schema`.`my-table`", true)]
+    [TestCase("users; DROP TABLE users; --", "select * from `users; DROP TABLE users; --`", true)]
+    [TestCase(@"users\`; DROP TABLE users; --", @"select * from `users\\\`; DROP TABLE users; --`", true)]
+    public async Task TableDirect_GoogleSql_QuotesTableName(string tableName, string expectedSql, bool useAsync)
+    {
+        Fixture.SpannerMock.AddOrUpdateStatementResult(expectedSql, StatementResult.CreateResultSet(
+            new List<Tuple<TypeCode, string>>([Tuple.Create(TypeCode.String, "name")]),
+            new List<object[]>([["bar"]])));
+        await using var connection = await OpenConnectionAsync();
+        await AssertTableDirectQuotesTableNameAsync(connection, tableName, expectedSql, "bar", useAsync);
+    }
+
+    [TestCase("my_table", "select * from \"my_table\"", false)]
+    [TestCase("my_table", "select * from \"my_table\"", true)]
+    [TestCase("order", "select * from \"order\"", false)]
+    [TestCase("public.my_table", "select * from \"public\".\"my_table\"", true)]
+    [TestCase("\"my.schema\".my-table", "select * from \"my.schema\".\"my-table\"", true)]
+    [TestCase("users; DROP TABLE users; --", "select * from \"users; DROP TABLE users; --\"", true)]
+    [TestCase("users\"; DROP TABLE users; --", "select * from \"users\"\"; DROP TABLE users; --\"", true)]
+    public async Task TableDirect_Postgresql_QuotesTableName(string tableName, string expectedSql, bool useAsync)
+    {
+        Fixture.SpannerMock.AddDialectResult(DatabaseDialect.Postgresql);
+        Fixture.SpannerMock.AddOrUpdateStatementResult(expectedSql, StatementResult.CreateResultSet(
+            new List<Tuple<TypeCode, string>>([Tuple.Create(TypeCode.String, "name")]),
+            new List<object[]>([["baz"]])));
+        var postgresqlConnectionString =
+            $"Host={Fixture.Host};Port={Fixture.Port};Data Source=projects/p1/instances/i1/databases/d1_pg;UsePlainText=true";
+        await using var connection = new SpannerConnection(postgresqlConnectionString);
+        await connection.OpenAsync();
+        await AssertTableDirectQuotesTableNameAsync(connection, tableName, expectedSql, "baz", useAsync);
+    }
+
+    private async Task AssertTableDirectQuotesTableNameAsync(
+        SpannerConnection connection, string tableName, string expectedSql, string expectedValue, bool useAsync)
+    {
+        await using var command = new SpannerCommand(tableName, connection) { CommandType = CommandType.TableDirect };
+
+        if (useAsync)
+        {
+            await using var reader = await command.ExecuteReaderAsync();
+            Assert.That(await reader.ReadAsync(), Is.True);
+            Assert.That(reader["name"], Is.EqualTo(expectedValue));
+        }
+        else
+        {
+            using var reader = command.ExecuteReader();
+            Assert.That(reader.Read(), Is.True);
+            Assert.That(reader["name"], Is.EqualTo(expectedValue));
+        }
+
+        var request = Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().Single(request => request.Sql == expectedSql);
+        Assert.That(request.Sql, Is.EqualTo(expectedSql));
+    }
+
+    [TestCase(DatabaseDialect.GoogleStandardSql, false)]
+    [TestCase(DatabaseDialect.GoogleStandardSql, true)]
+    [TestCase(DatabaseDialect.Postgresql, false)]
+    [TestCase(DatabaseDialect.Postgresql, true)]
+    public async Task TableDirect_ClosedConnection_OpensConnectionAndQuotesTableName(DatabaseDialect dialect, bool useAsync)
+    {
+        var expectedSql = dialect == DatabaseDialect.Postgresql
+            ? "select * from \"my_table\""
+            : "select * from `my_table`";
+        if (dialect == DatabaseDialect.Postgresql)
+        {
+            Fixture.SpannerMock.AddDialectResult(DatabaseDialect.Postgresql);
+        }
+        Fixture.SpannerMock.AddOrUpdateStatementResult(expectedSql, StatementResult.CreateResultSet(
+            new List<Tuple<TypeCode, string>>([Tuple.Create(TypeCode.String, "name")]),
+            new List<object[]>([["opened"]])));
+
+        var databaseId = dialect == DatabaseDialect.Postgresql ? "d1_pg_closed" : "d1_gsql_closed";
+        var connectionString =
+            $"Host={Fixture.Host};Port={Fixture.Port};Data Source=projects/p1/instances/i1/databases/{databaseId};UsePlainText=true";
+        await using var connection = new SpannerConnection(connectionString);
+        await using var command = new SpannerCommand("my_table", connection) { CommandType = CommandType.TableDirect };
+
+        var result = useAsync
+            ? await command.ExecuteScalarAsync()
+            : command.ExecuteScalar();
+        Assert.That(result, Is.EqualTo("opened"));
+        var request = Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().Single(request => request.Sql == expectedSql);
+        Assert.That(request.Sql, Is.EqualTo(expectedSql));
+    }
+
+    [TestCase("users\n; DROP TABLE users; --")]
+    [TestCase("users\0")]
+    [TestCase("`users` UNION SELECT `1`")]
+    [TestCase("`users` UNION SELECT * FROM secrets --")]
+    [TestCase("schema.")]
+    [TestCase(".table")]
+    public async Task TableDirect_MalformedOrControlCharInput_ThrowsAndDoesNotExecuteSql(string tableName)
+    {
+        await using var connection = await OpenConnectionAsync();
+        await using var command = new SpannerCommand(tableName, connection) { CommandType = CommandType.TableDirect };
+
+        Assert.Throws<ArgumentException>(() => command.ExecuteReader());
+        await Assert.ThrowsAsync<ArgumentException>(async () => await command.ExecuteReaderAsync());
+        Assert.That(Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList(), Is.Empty);
+    }
+
+    [Test]
+    public async Task TableDirect_ClosedConnectionWithControlChar_ThrowsWithoutOpeningConnection([Values] bool useAsync)
+    {
+        await using var connection = new SpannerConnection(ConnectionString);
+        await using var command = new SpannerCommand("users\n; DROP TABLE users", connection)
+        {
+            CommandType = CommandType.TableDirect,
+        };
+
+        if (useAsync)
+        {
+            await Assert.ThrowsAsync<ArgumentException>(async () => await command.ExecuteScalarAsync());
+        }
+        else
+        {
+            Assert.Throws<ArgumentException>(() => command.ExecuteScalar());
+        }
+
+        Assert.That(connection.State, Is.EqualTo(ConnectionState.Closed));
+        Assert.That(Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList(), Is.Empty);
+    }
+
+    [Test]
+    public async Task TableDirect_CloseConnectionBehavior_WhenInvalidIdentifier_ClosesConnection([Values] bool useAsync)
+    {
+        await using var connection = await OpenConnectionAsync();
+        await using var command = new SpannerCommand("`users` UNION SELECT `1`", connection)
+        {
+            CommandType = CommandType.TableDirect,
+        };
+
+        if (useAsync)
+        {
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await command.ExecuteReaderAsync(CommandBehavior.CloseConnection));
+        }
+        else
+        {
+            Assert.Throws<ArgumentException>(() => command.ExecuteReader(CommandBehavior.CloseConnection));
+        }
+
+        Assert.That(connection.State, Is.EqualTo(ConnectionState.Closed));
+        Assert.That(Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList(), Is.Empty);
+    }
+
+    [Test]
+    public async Task TableDirect_NoConnection_ThrowsInvalidOperationException([Values] bool useAsync)
+    {
+        await using var command = new SpannerCommand
+        {
+            CommandText = "my_table",
+            CommandType = CommandType.TableDirect,
+        };
+
+        if (useAsync)
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await command.ExecuteReaderAsync());
+        }
+        else
+        {
+            Assert.Throws<InvalidOperationException>(() => command.ExecuteReader());
+        }
+        Assert.Throws<InvalidOperationException>(() => command.BuildStatement());
+    }
+
+    [Test]
+    public async Task TableDirect_ExecuteNonQuery_And_Clone_QuotesTableName([Values] bool useAsync)
+    {
+        const string expectedSql = "select * from `my_table`";
+        Fixture.SpannerMock.AddOrUpdateStatementResult(expectedSql, StatementResult.CreateResultSet(
+            new List<Tuple<TypeCode, string>>([Tuple.Create(TypeCode.String, "name")]),
+            new List<object[]>([["val"]])));
+        await using var connection = await OpenConnectionAsync();
+        await using var command = new SpannerCommand("my_table", connection) { CommandType = CommandType.TableDirect };
+        await using var cloned = command.Clone();
+        Assert.That(cloned.CommandType, Is.EqualTo(CommandType.TableDirect));
+
+        if (useAsync)
+        {
+            Assert.That(await cloned.ExecuteNonQueryAsync(), Is.EqualTo(-1));
+        }
+        else
+        {
+            Assert.That(cloned.ExecuteNonQuery(), Is.EqualTo(-1));
+        }
+
+        var request = Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().Single();
+        Assert.That(request.Sql, Is.EqualTo(expectedSql));
+    }
+
+    [Test]
+    public async Task TableDirect_InsideTransaction_QuotesTableNameAndPreservesTransaction()
+    {
+        const string expectedSql = "select * from `my_table`";
+        Fixture.SpannerMock.AddOrUpdateStatementResult(expectedSql, StatementResult.CreateResultSet(
+            new List<Tuple<TypeCode, string>>([Tuple.Create(TypeCode.String, "name")]),
+            new List<object[]>([["in_tx"]])));
+        await using var connection = await OpenConnectionAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        await using var command = new SpannerCommand("my_table", connection, transaction)
+        {
+            CommandType = CommandType.TableDirect,
+        };
+
+        Assert.That(await command.ExecuteScalarAsync(), Is.EqualTo("in_tx"));
+        await transaction.CommitAsync();
+
+        var request = Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().Single();
+        Assert.That(request.Sql, Is.EqualTo(expectedSql));
+        Assert.That(Fixture.SpannerMock.Requests.OfType<CommitRequest>().Count(), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task TableDirect_EmptyCommandText_Throws()
+    {
+        await using var connection = await OpenConnectionAsync();
+        await using var command = new SpannerCommand(string.Empty, connection)
+        {
+            CommandType = CommandType.TableDirect,
+        };
+
+        Assert.Throws<InvalidOperationException>(() => command.ExecuteReader());
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await command.ExecuteReaderAsync());
+        Assert.Throws<ArgumentException>(() => command.BuildStatement());
+    }
+
+    [Test]
+    public async Task TableDirect_PreCancelledToken_ThrowsOperationCanceledException()
+    {
+        await using var connection = new SpannerConnection(ConnectionString);
+        await using var command = new SpannerCommand("my_table", connection)
+        {
+            CommandType = CommandType.TableDirect,
+        };
+        using var cancellationTokenSource = new CancellationTokenSource();
+        cancellationTokenSource.Cancel();
+
+        await Assert.CatchAsync<OperationCanceledException>(
+            async () => await command.ExecuteReaderAsync(cancellationTokenSource.Token));
+        await Assert.CatchAsync<OperationCanceledException>(
+            async () => await command.ExecuteScalarAsync(cancellationTokenSource.Token));
+        Assert.That(Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList(), Is.Empty);
+    }
+
+    [Test]
+    public async Task TableDirect_SingleUseReadOnly_QuotesTableNameAndSetsTransactionSelector()
+    {
+        const string expectedSql = "select * from `my_table`";
+        Fixture.SpannerMock.AddOrUpdateStatementResult(expectedSql, StatementResult.CreateResultSet(
+            new List<Tuple<TypeCode, string>>([Tuple.Create(TypeCode.String, "name")]),
+            new List<object[]>([["readonly"]])));
+        await using var connection = await OpenConnectionAsync();
+        await using var command = new SpannerCommand("my_table", connection)
+        {
+            CommandType = CommandType.TableDirect,
+            SingleUseReadOnlyTransactionOptions = new TransactionOptions.Types.ReadOnly { Strong = true },
+        };
+
+        Assert.That(await command.ExecuteScalarAsync(), Is.EqualTo("readonly"));
+        var request = Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().Single();
+        Assert.That(request.Sql, Is.EqualTo(expectedSql));
+        Assert.That(request.Transaction?.SingleUse?.ReadOnly?.Strong, Is.True);
+    }
+
+    [Test]
+    public async Task TableDirect_ClosedConnectionWithInvalidQuoting_ThrowsWithoutExecutingSql([Values] bool useAsync)
+    {
+        await using var connection = new SpannerConnection(ConnectionString);
+        await using var command = new SpannerCommand("`users` UNION SELECT 1", connection)
+        {
+            CommandType = CommandType.TableDirect,
+        };
+
+        if (useAsync)
+        {
+            await Assert.ThrowsAsync<ArgumentException>(async () => await command.ExecuteReaderAsync());
+        }
+        else
+        {
+            Assert.Throws<ArgumentException>(() => command.ExecuteReader());
+        }
+        Assert.That(Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList(), Is.Empty);
+    }
+
+    [Test]
+    public async Task TableDirect_ConflictingTransactionAndSingleUseOptions_ThrowsBeforeOpeningConnection([Values] bool useAsync)
+    {
+        await using var openConnection = await OpenConnectionAsync();
+        await using var transaction = await openConnection.BeginTransactionAsync();
+        await using var closedConnection = new SpannerConnection(ConnectionString);
+        await using var command = new SpannerCommand("my_table", openConnection, transaction)
+        {
+            CommandType = CommandType.TableDirect,
+            SingleUseReadOnlyTransactionOptions = new TransactionOptions.Types.ReadOnly { Strong = true },
+        };
+
+        if (useAsync)
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await command.ExecuteReaderAsync());
+        }
+        else
+        {
+            Assert.Throws<InvalidOperationException>(() => command.ExecuteReader());
+        }
+
+        // Also verify async TableDirect does not open a closed connection before rejecting conflicting transaction state.
+        command.Connection = closedConnection;
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await command.ExecuteReaderAsync());
+        Assert.That(closedConnection.State, Is.EqualTo(ConnectionState.Closed));
+        Assert.That(Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList(), Is.Empty);
+    }
+
+    [Test]
+    public async Task ExecuteBatchDml_WithTableDirect_QuotesTableName()
+    {
+        const string expectedSql = "select * from `my_table`";
+        await using var connection = await OpenConnectionAsync();
+        await using var command = new SpannerCommand("my_table", connection) { CommandType = CommandType.TableDirect };
+
+        Assert.That(command.BuildStatement().Sql, Is.EqualTo(expectedSql));
+        var exception = Assert.Throws<SpannerDbException>(() => connection.ExecuteBatchDml([command]));
+        Assert.That(exception!.Message, Does.Contain(expectedSql));
+    }
+
+    [Test]
+    public async Task TableDirect_Prepare_QuotesTableName([Values] bool useAsync)
+    {
+        const string expectedSql = "select * from `my_table`";
+        Fixture.SpannerMock.AddOrUpdateStatementResult(expectedSql, StatementResult.CreateResultSet(
+            new List<Tuple<TypeCode, string>>([Tuple.Create(TypeCode.String, "name")]),
+            new List<object[]>([["prepared"]])));
+        await using var connection = await OpenConnectionAsync();
+        await using var command = new SpannerCommand("my_table", connection) { CommandType = CommandType.TableDirect };
+
+        if (useAsync)
+        {
+            await command.PrepareAsync();
+            Assert.That(await command.ExecuteScalarAsync(), Is.EqualTo("prepared"));
+        }
+        else
+        {
+            command.Prepare();
+            Assert.That(command.ExecuteScalar(), Is.EqualTo("prepared"));
+        }
+
+        var executeRequests = Fixture.SpannerMock.Requests.OfType<ExecuteSqlRequest>().ToList();
+        Assert.That(executeRequests.Count, Is.EqualTo(2));
+        Assert.That(executeRequests, Has.All.Property(nameof(ExecuteSqlRequest.Sql)).EqualTo(expectedSql));
+    }
+
+    [Test]
+    public async Task CommandType_UnsupportedValues_Throw()
+    {
+        await using var connection = await OpenConnectionAsync();
+        await using var storedProcedureCommand = new SpannerCommand("my_proc", connection)
+        {
+            CommandType = CommandType.StoredProcedure,
+        };
+        Assert.Throws<NotSupportedException>(() => storedProcedureCommand.ExecuteNonQuery());
+        await Assert.ThrowsAsync<NotSupportedException>(async () => await storedProcedureCommand.ExecuteNonQueryAsync());
+        Assert.Throws<NotSupportedException>(() => storedProcedureCommand.ExecuteReader());
+        await Assert.ThrowsAsync<NotSupportedException>(async () => await storedProcedureCommand.ExecuteReaderAsync());
+        Assert.Throws<NotSupportedException>(() => storedProcedureCommand.ExecuteScalar());
+        await Assert.ThrowsAsync<NotSupportedException>(async () => await storedProcedureCommand.ExecuteScalarAsync());
+        Assert.Throws<NotSupportedException>(() => storedProcedureCommand.Prepare());
+        await Assert.ThrowsAsync<NotSupportedException>(async () => await storedProcedureCommand.PrepareAsync());
+        Assert.Throws<NotSupportedException>(() => connection.ExecuteBatchDml([storedProcedureCommand]));
+
+        await using var invalidCommand = new SpannerCommand("SELECT 1", connection)
+        {
+            CommandType = (CommandType)999,
+        };
+        Assert.Throws<ArgumentOutOfRangeException>(() => invalidCommand.ExecuteNonQuery());
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await invalidCommand.ExecuteNonQueryAsync());
+        Assert.Throws<ArgumentOutOfRangeException>(() => invalidCommand.ExecuteReader());
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await invalidCommand.ExecuteReaderAsync());
+        Assert.Throws<ArgumentOutOfRangeException>(() => invalidCommand.ExecuteScalar());
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await invalidCommand.ExecuteScalarAsync());
+        Assert.Throws<ArgumentOutOfRangeException>(() => invalidCommand.Prepare());
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await invalidCommand.PrepareAsync());
+        Assert.Throws<ArgumentOutOfRangeException>(() => connection.ExecuteBatchDml([invalidCommand]));
     }
     
     [Test]

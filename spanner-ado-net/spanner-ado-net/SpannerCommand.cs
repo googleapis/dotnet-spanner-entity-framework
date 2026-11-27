@@ -122,18 +122,21 @@ public class SpannerCommand : DbCommand, ICloneable
     }
 
     internal ExecuteSqlRequest BuildStatement(ExecuteSqlRequest.Types.QueryMode mode = ExecuteSqlRequest.Types.QueryMode.Normal)
+        => BuildStatement(mode, dialect: null);
+
+    private ExecuteSqlRequest BuildStatement(ExecuteSqlRequest.Types.QueryMode mode, SpannerDialect? dialect)
     {
-        GaxPreconditions.CheckState(!(HasTransaction && SingleUseReadOnlyTransactionOptions != null),
-            "Cannot set both a transaction and single-use read-only options");
+        CheckTransactionOptions();
+        var sql = CommandType switch
+        {
+            CommandType.Text => CommandText,
+            CommandType.TableDirect => BuildTableDirectSql(dialect),
+            CommandType.StoredProcedure => throw new NotSupportedException("CommandType.StoredProcedure is not supported."),
+            _ => throw new ArgumentOutOfRangeException(nameof(CommandType), CommandType, "Unsupported CommandType."),
+        };
         var spannerParams = Parameters.CreateSpannerParams(prepare: mode == ExecuteSqlRequest.Types.QueryMode.Plan);
         var queryParams = spannerParams.Item1;
         var paramTypes = spannerParams.Item2;
-        var sql = CommandText;
-        if (CommandType == CommandType.TableDirect)
-        {
-            // TODO: Quote the table name
-            sql = $"select * from {sql}";
-        }
         var statement = new ExecuteSqlRequest
         {
             Sql = sql,
@@ -161,12 +164,23 @@ public class SpannerCommand : DbCommand, ICloneable
         return statement;
     }
 
+    private string BuildTableDirectSql(SpannerDialect? dialect)
+    {
+        GaxPreconditions.CheckState(Connection != null, "No connection has been set for the command");
+        if (dialect == null)
+        {
+            GaxPreconditions.CheckNotNullOrEmpty(CommandText, nameof(CommandText));
+            SpannerDialect.ValidateNoControlCharacters(CommandText, nameof(CommandText));
+        }
+        var resolvedDialect = dialect ?? SpannerConnection.GetDialect();
+        return $"select * from {resolvedDialect.QuoteQualifiedIdentifier(CommandText)}";
+    }
+
     private Mutation BuildMutation()
     {
         GaxPreconditions.CheckNotNull(_mutation, nameof(_mutation));
         GaxPreconditions.CheckNotNull(SpannerConnection, nameof(SpannerConnection));
-        GaxPreconditions.CheckState(!(HasTransaction && SingleUseReadOnlyTransactionOptions != null),
-            "Cannot set both a transaction and single-use read-only options");
+        CheckTransactionOptions();
         return BuildMutation(_mutation!.Clone(), Parameters);
     }
 
@@ -264,7 +278,18 @@ public class SpannerCommand : DbCommand, ICloneable
         {
             return Task.FromCanceled<Rows>(cancellationToken);
         }
+        if (CommandType == CommandType.TableDirect)
+        {
+            return ExecuteTableDirectAsync(mode, prefetchRows, cancellationToken);
+        }
         return SpannerConnection.ExecuteAsync(BuildStatement(mode), prefetchRows, cancellationToken);
+    }
+
+    private async Task<Rows> ExecuteTableDirectAsync(ExecuteSqlRequest.Types.QueryMode mode, int prefetchRows, CancellationToken cancellationToken)
+    {
+        SpannerDialect.ValidateNoControlCharacters(CommandText, nameof(CommandText));
+        var dialect = await SpannerConnection.GetDialectAsync(cancellationToken).ConfigureAwait(false);
+        return await SpannerConnection.ExecuteAsync(BuildStatement(mode, dialect), prefetchRows, cancellationToken).ConfigureAwait(false);
     }
 
     private void CheckCommandStateForExecution()
@@ -273,6 +298,13 @@ public class SpannerCommand : DbCommand, ICloneable
         GaxPreconditions.CheckState(Connection != null, "No connection has been set for the command");
         GaxPreconditions.CheckState(Transaction == null || Transaction.Connection == SpannerConnection,
             "The transaction that has been set for this command is from a different connection");
+        CheckTransactionOptions();
+    }
+
+    private void CheckTransactionOptions()
+    {
+        GaxPreconditions.CheckState(!(HasTransaction && SingleUseReadOnlyTransactionOptions != null),
+            "Cannot set both a transaction and single-use read-only options");
     }
 
     public override int ExecuteNonQuery()
