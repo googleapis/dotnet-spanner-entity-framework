@@ -16,8 +16,12 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
+using Google.Cloud.Spanner.V1;
 using Google.Cloud.SpannerLib;
 using Google.Cloud.SpannerLib.Grpc;
+using Google.Rpc;
 
 namespace Google.Cloud.Spanner.DataProvider;
 
@@ -41,6 +45,8 @@ internal class SpannerPool
     }
         
     private static readonly ConcurrentDictionary<string, SpannerPool> Pools = new();
+
+    private static readonly string[] DialectQueries = ["SHOW VARIABLE DATABASE_DIALECT", "SHOW DATABASE_DIALECT"];
 
     [MethodImpl(MethodImplOptions.Synchronized)]
     internal static SpannerPool GetOrCreate(string dsn)
@@ -71,7 +77,12 @@ internal class SpannerPool
     
     private readonly Pool _libPool;
 
-    private SpannerPool(string dsn, Pool libPool)
+    private readonly SemaphoreSlim _dialectSemaphore = new(1, 1);
+
+    // TODO: Return the database dialect from SpannerLib when creating a Pool so client-side probing is unnecessary.
+    private volatile SpannerDialect? _dialect;
+
+    internal SpannerPool(string dsn, Pool libPool)
     {
         _dsn = dsn;
         _libPool = libPool;
@@ -87,4 +98,127 @@ internal class SpannerPool
     {
         return _libPool.CreateConnection();
     }
+
+    internal SpannerDialect GetDialect()
+    {
+        if (_dialect is { } cachedDialect)
+        {
+            return cachedDialect;
+        }
+
+        _dialectSemaphore.Wait();
+        try
+        {
+            if (_dialect is { } dialect)
+            {
+                return dialect;
+            }
+
+            var detectedDialect = SpannerDbException.TranslateException(DetectDialect);
+            _dialect = detectedDialect;
+            return detectedDialect;
+        }
+        finally
+        {
+            _dialectSemaphore.Release();
+        }
+    }
+
+    internal async Task<SpannerDialect> GetDialectAsync(CancellationToken cancellationToken = default)
+    {
+        if (_dialect is { } cachedDialect)
+        {
+            return cachedDialect;
+        }
+
+        await _dialectSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_dialect is { } dialect)
+            {
+                return dialect;
+            }
+
+            var detectedDialect = await SpannerDbException.TranslateException(DetectDialectAsync(cancellationToken)).ConfigureAwait(false);
+            _dialect = detectedDialect;
+            return detectedDialect;
+        }
+        finally
+        {
+            _dialectSemaphore.Release();
+        }
+    }
+
+    private SpannerDialect DetectDialect()
+    {
+        // Both SHOW statements are handled client-side in SpannerLib using the dialect metadata
+        // already cached on the underlying pool/connection; they do NOT execute an RPC on Spanner.
+        using var connection = _libPool.CreateConnection();
+        foreach (var sql in DialectQueries)
+        {
+            if (TryQueryDialect(connection, sql) is { } dialect)
+            {
+                return dialect;
+            }
+        }
+        throw new InvalidOperationException("Failed to determine the database dialect.");
+    }
+
+    private async Task<SpannerDialect> DetectDialectAsync(CancellationToken cancellationToken)
+    {
+        // Both SHOW statements are handled client-side in SpannerLib using the dialect metadata
+        // already cached on the underlying pool/connection; they do NOT execute an RPC on Spanner.
+        var connection = _libPool.CreateConnection();
+        await using (connection.ConfigureAwait(false))
+        {
+            foreach (var sql in DialectQueries)
+            {
+                if (await TryQueryDialectAsync(connection, sql, cancellationToken).ConfigureAwait(false) is { } dialect)
+                {
+                    return dialect;
+                }
+            }
+            throw new InvalidOperationException("Failed to determine the database dialect.");
+        }
+    }
+
+    private static SpannerDialect? TryQueryDialect(Connection connection, string sql)
+    {
+        try
+        {
+            using var rows = connection.Execute(new ExecuteSqlRequest { Sql = sql });
+            var row = rows.Next();
+            var value = row?.Values.Count > 0 ? row.Values[0].StringValue : null;
+            return ParseDialect(value);
+        }
+        catch (SpannerException exception) when (exception.Code == Code.InvalidArgument)
+        {
+            return null;
+        }
+    }
+
+    private static async Task<SpannerDialect?> TryQueryDialectAsync(Connection connection, string sql, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var rows = await connection.ExecuteAsync(new ExecuteSqlRequest { Sql = sql }, prefetchRows: 1, cancellationToken).ConfigureAwait(false);
+            await using (rows.ConfigureAwait(false))
+            {
+                var row = await rows.NextAsync(cancellationToken).ConfigureAwait(false);
+                var value = row?.Values.Count > 0 ? row.Values[0].StringValue : null;
+                return ParseDialect(value);
+            }
+        }
+        catch (SpannerException exception) when (exception.Code == Code.InvalidArgument)
+        {
+            return null;
+        }
+    }
+
+    private static SpannerDialect? ParseDialect(string? value) => value switch
+    {
+        "GOOGLE_STANDARD_SQL" => SpannerDialect.GoogleStandardSql,
+        "POSTGRESQL" => SpannerDialect.Postgresql,
+        _ => null,
+    };
 }

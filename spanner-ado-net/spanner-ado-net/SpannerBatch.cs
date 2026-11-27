@@ -85,6 +85,15 @@ public class SpannerBatch : DbBatch
         var statements = new List<ExecuteBatchDmlRequest.Types.Statement>(DbBatchCommands.Count);
         foreach (var command in DbBatchCommands)
         {
+            if (command.CommandType == CommandType.TableDirect || command.CommandType == CommandType.StoredProcedure)
+            {
+                throw new NotSupportedException($"CommandType.{command.CommandType} is not supported in SpannerBatch.");
+            }
+            if (command.CommandType != CommandType.Text)
+            {
+                throw new ArgumentOutOfRangeException(nameof(command.CommandType), command.CommandType, "Unsupported CommandType.");
+            }
+
             var (queryParams, paramTypes) = ((SpannerParameterCollection)command.Parameters).CreateSpannerParams(prepare: false);
             var batchStatement = new ExecuteBatchDmlRequest.Types.Statement
             {

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System.Data;
 using System.Data.Common;
 using System.Text.Json;
 using Google.Cloud.Spanner.V1;
@@ -299,6 +300,53 @@ public class BatchTests : AbstractMockServerTests
         {
             Assert.Throws<NotImplementedException>(() => batch.ExecuteScalar());
         }
+    }
+
+    [TestCase(CommandType.TableDirect, false)]
+    [TestCase(CommandType.TableDirect, true)]
+    [TestCase(CommandType.StoredProcedure, false)]
+    [TestCase(CommandType.StoredProcedure, true)]
+    public async Task BatchCommand_UnsupportedCommandType_Throws(CommandType commandType, bool executeAsync)
+    {
+        await using var connection = await OpenConnectionAsync();
+        await using var batch = connection.CreateBatch();
+        var command = batch.CreateBatchCommand();
+        Assert.That(command.CommandType, Is.EqualTo(CommandType.Text));
+
+        command.CommandText = "my_table";
+        command.CommandType = commandType;
+        batch.BatchCommands.Add(command);
+
+        if (executeAsync)
+        {
+            await Assert.ThrowsAsync<NotSupportedException>(async () => await batch.ExecuteNonQueryAsync());
+        }
+        else
+        {
+            Assert.Throws<NotSupportedException>(() => batch.ExecuteNonQuery());
+        }
+        Assert.That(Fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>().ToList(), Is.Empty);
+    }
+
+    [Test]
+    public async Task BatchCommand_InvalidCommandType_ThrowsArgumentOutOfRangeException([Values] bool executeAsync)
+    {
+        await using var connection = await OpenConnectionAsync();
+        await using var batch = connection.CreateBatch();
+        var command = batch.CreateBatchCommand();
+        command.CommandText = "my_table";
+        command.CommandType = (CommandType)999;
+        batch.BatchCommands.Add(command);
+
+        if (executeAsync)
+        {
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await batch.ExecuteNonQueryAsync());
+        }
+        else
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() => batch.ExecuteNonQuery());
+        }
+        Assert.That(Fixture.SpannerMock.Requests.OfType<ExecuteBatchDmlRequest>().ToList(), Is.Empty);
     }
 
     private static void AddParameter(DbBatchCommand command, string name, object? value)
